@@ -241,8 +241,10 @@ class ItemController extends Controller
             'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'volt' => 'nullable|string',
             'cca' => 'nullable|string',
-            'minus_pool_direction' => 'nullable|string',
-            'tecnology' => 'nullable|string',
+            'minus_pole_direction' => 'nullable|string',
+            'minus_pool_direction' => 'nullable|string', // Keep both for backward compatibility
+            'technology' => 'nullable|string',
+            'tecnology' => 'nullable|string', // Keep both for backward compatibility
             'grade' => 'nullable|string',
             'services' => 'nullable|string',
             'farmula' => 'nullable|string',
@@ -324,6 +326,19 @@ class ItemController extends Controller
             $data['is_active'] = $data['is_active'] ?? true;
             $data['auto_deactive'] = $data['auto_deactive'] ?? false;
             $data['is_dead'] = $data['is_dead'] ?? false;
+
+            /* ============================
+            ✅ Field Name Mapping (Form → Database)
+            ============================ */
+            // Map form field names to database column names
+            if (isset($data['minus_pole_direction'])) {
+                $data['minus_pool_direction'] = $data['minus_pole_direction'];
+                unset($data['minus_pole_direction']);
+            }
+            if (isset($data['technology'])) {
+                $data['tecnology'] = $data['technology'];
+                unset($data['technology']);
+            }
 
             /* ============================
             ✅ Create Item
@@ -536,8 +551,10 @@ class ItemController extends Controller
             'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif',
             'volt' => 'nullable|string',
             'cca' => 'nullable|string',
-            'minus_pool_direction' => 'nullable|string',
-            'tecnology' => 'nullable|string',
+            'minus_pole_direction' => 'nullable|string',
+            'minus_pool_direction' => 'nullable|string', // Keep both for backward compatibility
+            'technology' => 'nullable|string',
+            'tecnology' => 'nullable|string', // Keep both for backward compatibility
             'grade' => 'nullable|string',
             'farmula' => 'nullable|string',
             'serial_number' => 'nullable|string',
@@ -595,6 +612,19 @@ class ItemController extends Controller
             $data['is_active'] = $request->has('is_active') ? (bool) $data['is_active'] : $item->is_active;
             $data['auto_deactive'] = $request->has('auto_deactive') ? (bool) $data['auto_deactive'] : $item->auto_deactive;
             $data['is_dead'] = $request->has('is_dead') ? (bool) $data['is_dead'] : $item->is_dead;
+
+            /* ============================
+            ✅ Field Name Mapping (Form → Database)
+            ============================ */
+            // Map form field names to database column names
+            if (isset($data['minus_pole_direction'])) {
+                $data['minus_pool_direction'] = $data['minus_pole_direction'];
+                unset($data['minus_pole_direction']);
+            }
+            if (isset($data['technology'])) {
+                $data['tecnology'] = $data['technology'];
+                unset($data['technology']);
+            }
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);
