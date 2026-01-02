@@ -32,90 +32,73 @@
         font-weight: bold;
         font-size: 18px;
     }
-
     .type-box:hover {
         border-color: #fe9f43;
         background: #fe9f43;
         color: white;
     }
-
     .type-box.selected {
         border-color: #fe9f43;
         background: #fe9f43;
         color: white;
         box-shadow: 0 4px 12px #fe962e;
     }
-
     .field-group {
         display: none;
     }
-
     .field-group.active {
         display: block;
     }
-
     .border {
         border: 1px solid #ddd !important;
         border-radius: 8px;
     }
-
     .input-group .btn i {
         pointer-events: none;
     }
-
     /* Responsive adjustments for create.blade.php */
     @media (max-width: 768px) {
         .type-box {
             padding: 15px !important;
             font-size: 14px !important;
         }
-
         .type-box .fs-1 {
             font-size: 2rem !important;
         }
-
         .inputswidth {
             width: 100% !important;
         }
-
         /* Vehicle table - better mobile display */
         #vehicleTable {
             font-size: 11px !important;
         }
-
         #vehicleTable th,
         #vehicleTable td {
             padding: 0.5rem 0.25rem !important;
             font-size: 11px !important;
         }
-
         /* Year badges - smaller on mobile */
         .badge {
             font-size: 0.65rem !important;
             padding: 4px 8px !important;
         }
-
         /* Form columns stack properly */
         .row .col-md-4,
         .row .col-md-6 {
             margin-bottom: 1rem;
         }
-
         /* Modal vehicle form - better mobile layout */
         #vehical-add-modal .modal-body {
             padding: 1rem !important;
         }
-
         #vehical-add-modal .row {
             margin-left: -0.5rem;
             margin-right: -0.5rem;
         }
-
         #vehical-add-modal .col-md-6 {
             padding-left: 0.5rem;
             padding-right: 0.5rem;
         }
-
         /* Year range inputs - better mobile layout */
         .year-range-item .col-5 {
             flex: 0 0 48%;
@@ -123,43 +106,36 @@
             padding-left: 0.25rem;
             padding-right: 0.25rem;
         }
-
         .year-range-item .col-2 {
             flex: 0 0 4%;
             max-width: 4%;
             padding-left: 0.25rem;
             padding-right: 0.25rem;
         }
-
         /* Image previews - responsive */
         #imagePreview, #imagesPreview img {
             max-width: 100% !important;
             height: auto !important;
         }
-
         /* Unit info display - stack on mobile */
         #unit-info, #sale-price-info {
             flex-direction: column !important;
             gap: 0.5rem !important;
         }
-
         #unit-info .form-control,
         #sale-price-info .form-control {
             width: 100% !important;
         }
     }
-
     @media (max-width: 576px) {
         /* Very small screens */
         .type-box {
             padding: 10px !important;
             font-size: 12px !important;
         }
-
         .type-box .fs-1 {
             font-size: 1.5rem !important;
         }
-
         /* Hide table columns on very small screens if needed */
         #vehicleTable th:nth-child(4),
         #vehicleTable td:nth-child(4),
@@ -170,11 +146,12 @@
     }
 </style>
 @endpush
+
 <div class="content">
     <div class="page-header">
         <div class="add-item d-flex">
             <div class="page-title">
-                <h2 class="fw-bold">Create Product </h2>
+                <h2 class="fw-bold">Create Product sdfdfdgdfgfgsfgdfgfgsfgfgsfgsdfgsdfgfgsdg </h2>
             </div>
         </div>
         <ul class="table-top-head">
