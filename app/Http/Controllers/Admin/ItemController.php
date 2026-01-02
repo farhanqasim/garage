@@ -272,17 +272,18 @@ class ItemController extends Controller
             'is_dead' => 'sometimes|boolean',
         ]);
 
-        $exists = Item::where('category_id', $request->category_id)
-            ->where('quality_id', $request->quality_id)
-            ->where('company_id', $request->company_id)
-            ->exists();
-        if ($exists) {
-            return redirect()->back()
-                ->withInput()
-                ->withErrors([
-                    'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists. Please change one value.'
-                ]);
-        }
+        // Duplicate combination check removed - allowing duplicate combinations
+        // $exists = Item::where('category_id', $request->category_id)
+        //     ->where('quality_id', $request->quality_id)
+        //     ->where('company_id', $request->company_id)
+        //     ->exists();
+        // if ($exists) {
+        //     return redirect()->back()
+        //         ->withInput()
+        //         ->withErrors([
+        //             'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists. Please change one value.'
+        //         ]);
+        // }
         try {
             DB::beginTransaction();
 
