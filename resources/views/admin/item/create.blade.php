@@ -2805,42 +2805,85 @@
                     let searchTerm = '';
                     const selectId = $select.attr('id') || $select.attr('name') || 'default';
                     
-                    // Method 0: Immediately check the button's parent container for the select
+                    // PRIORITY METHOD: Check if "NO RESULTS FOUND" is visible, then get search term
                     const $button = $(this);
-                    const $parentContainer = $button.closest('.input-group');
+                    const $parentContainer = $button.closest('.input-group, .col-md-4, .col-md-6');
+                    
+                    // First, check if "NO RESULTS FOUND" text is visible in the parent container
                     if ($parentContainer.length) {
-                        const $associatedSelect = $parentContainer.find('select.searchable-select').first();
-                        if ($associatedSelect.length && $associatedSelect.attr('id') === $select.attr('id')) {
-                            // This is the right select, try to get search term from it
-                            const select2Container = $associatedSelect.next('.select2-container');
-                            if (select2Container.length) {
-                                const searchInput = select2Container.find('.select2-search__field');
+                        const noResultsText = $parentContainer.find('*').filter(function() {
+                            const text = $(this).text().toUpperCase().trim();
+                            return text === 'NO RESULTS FOUND' || text.includes('NO RESULTS FOUND') || 
+                                   text === 'NO RESULTS' || text.includes('NO RESULTS');
+                        });
+                        
+                        if (noResultsText.length && noResultsText.is(':visible')) {
+                            // "NO RESULTS FOUND" is visible - this is the key indicator
+                            // Now find the search term from multiple sources
+                            
+                            // 1. Check Select2 search input in open dropdown
+                            const openSelect2 = $('.select2-container--open');
+                            if (openSelect2.length) {
+                                const searchInput = openSelect2.find('.select2-search__field');
                                 if (searchInput.length && searchInput.val()) {
                                     searchTerm = searchInput.val().trim();
                                 }
                             }
-                        }
-                        
-                        // Also check for any visible text input in the same container (for custom searchable selects)
-                        if (!searchTerm) {
-                            const visibleInputs = $parentContainer.find('input[type="text"]:visible');
-                            visibleInputs.each(function() {
-                                const $input = $(this);
-                                const inputVal = $input.val();
-                                // If input has value and it's not the selected option value, it might be the search term
-                                if (inputVal && inputVal.trim() !== '') {
-                                    // Check if this value exists as an option
-                                    const optionExists = $select.find('option').filter(function() {
-                                        return $(this).text().trim() === inputVal.trim();
-                                    }).length > 0;
-                                    
-                                    // If option doesn't exist, this is likely the search term
-                                    if (!optionExists) {
-                                        searchTerm = inputVal.trim();
-                                        return false; // break loop
+                            
+                            // 2. If not found, check stored search terms
+                            if (!searchTerm && lastSearchTerm[selectId]) {
+                                searchTerm = lastSearchTerm[selectId].trim();
+                            }
+                            
+                            // 3. Check for visible text input near "NO RESULTS FOUND"
+                            if (!searchTerm) {
+                                const visibleInputs = $parentContainer.find('input[type="text"]:visible');
+                                visibleInputs.each(function() {
+                                    const $input = $(this);
+                                    const inputVal = $input.val();
+                                    if (inputVal && inputVal.trim() !== '') {
+                                        // Check if this value exists as an option
+                                        const optionExists = $select.find('option').filter(function() {
+                                            return $(this).text().trim() === inputVal.trim();
+                                        }).length > 0;
+                                        
+                                        // If option doesn't exist, this is the search term
+                                        if (!optionExists) {
+                                            searchTerm = inputVal.trim();
+                                            return false; // break loop
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            // 4. Check Select2 container for search input
+                            if (!searchTerm) {
+                                const select2Container = $select.next('.select2-container');
+                                if (select2Container.length) {
+                                    const searchInput = select2Container.find('.select2-search__field');
+                                    if (searchInput.length && searchInput.val()) {
+                                        searchTerm = searchInput.val().trim();
                                     }
                                 }
-                            });
+                            }
+                        }
+                    }
+                    
+                    // Method 0: Fallback - Check button's parent container for the select
+                    if (!searchTerm) {
+                        const $parentContainer2 = $button.closest('.input-group');
+                        if ($parentContainer2.length) {
+                            const $associatedSelect = $parentContainer2.find('select.searchable-select').first();
+                            if ($associatedSelect.length && $associatedSelect.attr('id') === $select.attr('id')) {
+                                // This is the right select, try to get search term from it
+                                const select2Container = $associatedSelect.next('.select2-container');
+                                if (select2Container.length) {
+                                    const searchInput = select2Container.find('.select2-search__field');
+                                    if (searchInput.length && searchInput.val()) {
+                                        searchTerm = searchInput.val().trim();
+                                    }
+                                }
+                            }
                         }
                     }
                     
