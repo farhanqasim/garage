@@ -151,7 +151,7 @@
     <div class="page-header">
         <div class="add-item d-flex">
             <div class="page-title">
-                <h2 class="fw-bold">Create Product fdfsdf </h2>
+                <h2 class="fw-bold">Create Product  </h2>
             </div>
         </div>
         <ul class="table-top-head">
@@ -2683,68 +2683,171 @@
         
         // =========================
         // Universal "Add New" Modal Behavior for Searchable Dropdowns
+        // NEW APPROACH: Direct and Simple
         // =========================
         
-        // Capture search text from Select2 search input (real-time)
-        $(document).on('input keyup', '.select2-search__field', function() {
-            const $input = $(this);
-            const $select = $input.closest('.select2-container').prev('select');
-            if ($select.length && $select.hasClass('searchable-select')) {
-                const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                const searchValue = $input.val().trim();
-                if (searchValue) {
+        // Global tracker for active select and its search term
+        let activeSelectSearch = {
+            select: null,
+            searchTerm: '',
+            selectId: null
+        };
+        
+        // Method 1: Direct capture from Select2 search input (most reliable)
+        $(document).on('input', '.select2-search__field', function(e) {
+            const searchValue = $(this).val().trim();
+            if (searchValue) {
+                // Find the associated select
+                const $select2Container = $(this).closest('.select2-container');
+                const $select = $select2Container.prev('select.searchable-select');
+                
+                if ($select.length) {
+                    const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                    activeSelectSearch = {
+                        select: $select,
+                        searchTerm: searchValue,
+                        selectId: selectId
+                    };
                     lastSearchTerm[selectId] = searchValue;
                 }
             }
         });
         
-        // Capture search term when Select2 opens or searches
-        $(document).on('select2:open select2:searching', '.searchable-select', function() {
+        // Method 2: Capture when Select2 opens (store reference)
+        $(document).on('select2:open', '.searchable-select', function() {
             const $select = $(this);
             const selectId = $select.attr('id') || $select.attr('name') || 'default';
+            
+            // Wait for search input to be available
             setTimeout(function() {
-                const select2Container = $select.next('.select2-container');
-                if (select2Container.length) {
-                    const searchInput = select2Container.find('.select2-search__field');
-                    if (searchInput.length && searchInput.val()) {
-                        lastSearchTerm[selectId] = searchInput.val().trim();
+                const $container = $select.next('.select2-container');
+                const $searchInput = $container.find('.select2-search__field');
+                if ($searchInput.length) {
+                    // Store reference
+                    activeSelectSearch.select = $select;
+                    activeSelectSearch.selectId = selectId;
+                    
+                    // Capture current value
+                    const currentVal = $searchInput.val().trim();
+                    if (currentVal) {
+                        activeSelectSearch.searchTerm = currentVal;
+                        lastSearchTerm[selectId] = currentVal;
                     }
                 }
-            }, 100);
+            }, 50);
         });
         
-        // Capture search term when "No results found" appears
+        // Method 3: Capture when "No results found" message appears
         $(document).on('select2:results:message', '.searchable-select', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id') || $select.attr('name') || 'default';
-            const message = e.params.message || '';
+            const message = (e.params && e.params.message) ? e.params.message.toLowerCase() : '';
             
-            if (message.toLowerCase().includes('no results') || message.toLowerCase().includes('not found')) {
+            if (message.includes('no results') || message.includes('not found')) {
                 setTimeout(function() {
-                    const select2Container = $select.next('.select2-container');
-                    if (select2Container.length) {
-                        const searchInput = select2Container.find('.select2-search__field');
-                        if (searchInput.length && searchInput.val()) {
-                            lastSearchTerm[selectId] = searchInput.val().trim();
-                        }
+                    const $container = $select.next('.select2-container');
+                    const $searchInput = $container.find('.select2-search__field');
+                    if ($searchInput.length && $searchInput.val()) {
+                        const searchVal = $searchInput.val().trim();
+                        activeSelectSearch = {
+                            select: $select,
+                            searchTerm: searchVal,
+                            selectId: selectId
+                        };
+                        lastSearchTerm[selectId] = searchVal;
                     }
                 }, 50);
             }
         });
         
-        // Capture search term before Select2 closes
-        $(document).on('select2:close', '.searchable-select', function() {
-            const $select = $(this);
-            const selectId = $select.attr('id') || $select.attr('name') || 'default';
-            setTimeout(function() {
-                const select2Container = $select.next('.select2-container');
-                if (select2Container.length) {
-                    const searchInput = select2Container.find('.select2-search__field');
-                    if (searchInput.length && searchInput.val()) {
-                        lastSearchTerm[selectId] = searchInput.val().trim();
+        // Method 4: Try to get from Select2 internal data (if available)
+        function getSearchTermFromSelect2($select) {
+            try {
+                const select2Data = $select.data('select2');
+                if (select2Data && select2Data.dropdown) {
+                    const $dropdown = select2Data.dropdown.$dropdown || select2Data.dropdown.$results;
+                    if ($dropdown && $dropdown.length) {
+                        const $searchInput = $dropdown.find('.select2-search__field');
+                        if ($searchInput.length && $searchInput.val()) {
+                            return $searchInput.val().trim();
+                        }
                     }
                 }
-            }, 10);
+            } catch(e) {
+                // Select2 API not available or different version
+            }
+            return null;
+        }
+        
+        // Method 5: MutationObserver to watch for "No results found" messages
+        if (typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes.length) {
+                        $(mutation.addedNodes).each(function() {
+                            const $node = $(this);
+                            // Check if this is a "No results found" message
+                            const text = $node.text().toLowerCase();
+                            if (text.includes('no results') || text.includes('not found')) {
+                                // Find the associated select
+                                const $select2Container = $node.closest('.select2-container, .select2-dropdown');
+                                if ($select2Container.length) {
+                                    const $select = $select2Container.prev('select.searchable-select');
+                                    if ($select.length) {
+                                        const $searchInput = $select2Container.find('.select2-search__field');
+                                        if ($searchInput.length && $searchInput.val()) {
+                                            const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                                            const searchVal = $searchInput.val().trim();
+                                            activeSelectSearch = {
+                                                select: $select,
+                                                searchTerm: searchVal,
+                                                selectId: selectId
+                                            };
+                                            lastSearchTerm[selectId] = searchVal;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Start observing when DOM is ready
+            $(document).ready(function() {
+                // Observe the document body for changes
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                });
+            });
+        }
+        
+        // =========================
+        // INTERCEPT PLUS BUTTON CLICK EARLY
+        // Capture search term at the exact moment of click
+        // =========================
+        $(document).on('mousedown touchstart', '.open-universal-modal, .add-btn', function(e) {
+            // Capture search term BEFORE the click event fires
+            const $openSelect2 = $('.select2-container--open');
+            if ($openSelect2.length) {
+                const $searchInput = $openSelect2.find('.select2-search__field');
+                if ($searchInput.length && $searchInput.val()) {
+                    const searchVal = $searchInput.val().trim();
+                    // Find the select
+                    const $select = $openSelect2.prev('select.searchable-select');
+                    if ($select.length) {
+                        const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                        activeSelectSearch = {
+                            select: $select,
+                            searchTerm: searchVal,
+                            selectId: selectId
+                        };
+                        lastSearchTerm[selectId] = searchVal;
+                    }
+                }
+            }
         });
         
         // =========================
@@ -2759,6 +2862,7 @@
             
             // =========================
             // CAPTURE SEARCH TERM FIRST (before form reset)
+            // NEW SIMPLE APPROACH
             // =========================
             let searchTerm = '';
             if (mode === 'add') {
@@ -2775,35 +2879,42 @@
                 if ($select && $select.length) {
                     const selectId = $select.attr('id') || $select.attr('name') || 'default';
                     
-                    // Method 1: Get from currently open Select2 dropdown (most reliable)
-                    const openSelect2 = $('.select2-container--open');
-                    if (openSelect2.length) {
-                        const searchInput = openSelect2.find('.select2-search__field');
-                        if (searchInput.length && searchInput.val()) {
-                            searchTerm = searchInput.val().trim();
+                    // PRIORITY 1: Get from activeSelectSearch (most recent)
+                    if (activeSelectSearch.select && activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
+                        searchTerm = activeSelectSearch.searchTerm;
+                    }
+                    
+                    // PRIORITY 2: Get from currently open Select2 dropdown
+                    if (!searchTerm) {
+                        const $openSelect2 = $('.select2-container--open');
+                        if ($openSelect2.length) {
+                            const $searchInput = $openSelect2.find('.select2-search__field');
+                            if ($searchInput.length && $searchInput.val()) {
+                                searchTerm = $searchInput.val().trim();
+                            }
                         }
                     }
                     
-                    // Method 2: Get from stored search terms
+                    // PRIORITY 3: Try Select2 internal API
+                    if (!searchTerm) {
+                        const internalTerm = getSearchTermFromSelect2($select);
+                        if (internalTerm) {
+                            searchTerm = internalTerm;
+                        }
+                    }
+                    
+                    // PRIORITY 4: Get from stored search terms
                     if (!searchTerm && lastSearchTerm[selectId]) {
                         searchTerm = lastSearchTerm[selectId].trim();
                     }
                     
-                    // Method 3: Try to get from Select2 container even if dropdown is closed
+                    // PRIORITY 5: Try to get from Select2 container DOM
                     if (!searchTerm) {
-                        const select2Container = $select.next('.select2-container');
-                        if (select2Container.length) {
-                            // Check if "No results found" message exists
-                            const noResultsMsg = select2Container.find('.select2-results__message');
-                            const hasNoResults = noResultsMsg.length && 
-                                                (noResultsMsg.text().toUpperCase().includes('NO RESULTS') || 
-                                                 noResultsMsg.text().toUpperCase().includes('NOT FOUND'));
-                            
-                            if (hasNoResults) {
-                                const searchInput = select2Container.find('.select2-search__field');
-                                if (searchInput.length && searchInput.val()) {
-                                    searchTerm = searchInput.val().trim();
-                                }
+                        const $container = $select.next('.select2-container');
+                        if ($container.length) {
+                            const $searchInput = $container.find('.select2-search__field');
+                            if ($searchInput.length && $searchInput.val()) {
+                                searchTerm = $searchInput.val().trim();
                             }
                         }
                     }
@@ -2847,6 +2958,38 @@
                         const selectId = $select.attr('id') || $select.attr('name') || 'default';
                         delete lastSearchTerm[selectId];
                     }
+                } else {
+                    // Last resort: Try one more time after a short delay
+                    setTimeout(function() {
+                        let finalSearchTerm = '';
+                        let $select = null;
+                        if (currentTargetSelect) {
+                            $select = $(currentTargetSelect);
+                        } else {
+                            const $button = $(this);
+                            $select = $button.closest('.input-group').find('select.searchable-select').first();
+                        }
+                        
+                        if ($select && $select.length) {
+                            const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                            
+                            // Check activeSelectSearch one more time
+                            if (activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
+                                finalSearchTerm = activeSelectSearch.searchTerm;
+                            }
+                            
+                            // Check stored terms
+                            if (!finalSearchTerm && lastSearchTerm[selectId]) {
+                                finalSearchTerm = lastSearchTerm[selectId].trim();
+                            }
+                            
+                            // Set if found
+                            if (finalSearchTerm) {
+                                $('#universal-name').val(finalSearchTerm);
+                                delete lastSearchTerm[selectId];
+                            }
+                        }
+                    }.bind(this), 100);
                 }
                 
                 // Open modal and focus input
