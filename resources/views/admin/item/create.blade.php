@@ -62,60 +62,60 @@
     .input-group .btn i {
         pointer-events: none;
     }
-    
+
     /* Responsive adjustments for create.blade.php */
     @media (max-width: 768px) {
         .type-box {
             padding: 15px !important;
             font-size: 14px !important;
         }
-        
+
         .type-box .fs-1 {
             font-size: 2rem !important;
         }
-        
+
         .inputswidth {
             width: 100% !important;
         }
-        
+
         /* Vehicle table - better mobile display */
         #vehicleTable {
             font-size: 11px !important;
         }
-        
+
         #vehicleTable th,
         #vehicleTable td {
             padding: 0.5rem 0.25rem !important;
             font-size: 11px !important;
         }
-        
+
         /* Year badges - smaller on mobile */
         .badge {
             font-size: 0.65rem !important;
             padding: 4px 8px !important;
         }
-        
+
         /* Form columns stack properly */
         .row .col-md-4,
         .row .col-md-6 {
             margin-bottom: 1rem;
         }
-        
+
         /* Modal vehicle form - better mobile layout */
         #vehical-add-modal .modal-body {
             padding: 1rem !important;
         }
-        
+
         #vehical-add-modal .row {
             margin-left: -0.5rem;
             margin-right: -0.5rem;
         }
-        
+
         #vehical-add-modal .col-md-6 {
             padding-left: 0.5rem;
             padding-right: 0.5rem;
         }
-        
+
         /* Year range inputs - better mobile layout */
         .year-range-item .col-5 {
             flex: 0 0 48%;
@@ -123,43 +123,43 @@
             padding-left: 0.25rem;
             padding-right: 0.25rem;
         }
-        
+
         .year-range-item .col-2 {
             flex: 0 0 4%;
             max-width: 4%;
             padding-left: 0.25rem;
             padding-right: 0.25rem;
         }
-        
+
         /* Image previews - responsive */
         #imagePreview, #imagesPreview img {
             max-width: 100% !important;
             height: auto !important;
         }
-        
+
         /* Unit info display - stack on mobile */
         #unit-info, #sale-price-info {
             flex-direction: column !important;
             gap: 0.5rem !important;
         }
-        
+
         #unit-info .form-control,
         #sale-price-info .form-control {
             width: 100% !important;
         }
     }
-    
+
     @media (max-width: 576px) {
         /* Very small screens */
         .type-box {
             padding: 10px !important;
             font-size: 12px !important;
         }
-        
+
         .type-box .fs-1 {
             font-size: 1.5rem !important;
         }
-        
+
         /* Hide table columns on very small screens if needed */
         #vehicleTable th:nth-child(4),
         #vehicleTable td:nth-child(4),
@@ -174,7 +174,7 @@
     <div class="page-header">
         <div class="add-item d-flex">
             <div class="page-title">
-                <h2 class="fw-bold">Create Product</h2>
+                <h2 class="fw-bold">Create Product sdfsdfsdfsdf</h2>
             </div>
         </div>
         <ul class="table-top-head">
@@ -1233,7 +1233,7 @@
 
                         </div>
                         {{-- PART NUMBER SELECT --}}
-                     
+
                         {{-- VEHICLE TABLE --}}
                         <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery'">
                             <div class="table-responsive mt-4" style="max-height:250px;overflow-y:auto;">
@@ -1681,7 +1681,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                
+
                                 </div>
                                 @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -2007,7 +2007,7 @@
             e.preventDefault();
             e.stopImmediatePropagation();
             e.stopPropagation();
-            
+
             // Highlight the part number field
             $('#part_number_id').addClass('is-invalid');
             // Add visual feedback
@@ -2019,7 +2019,7 @@
             return false;
         }
     });
-    
+
     // When modal opens, pre-fill Part Number from the outside select field
     // Also validate that part number is selected before allowing modal to show
     $('#vehical-add-modal').on('show.bs.modal', function(e) {
@@ -2034,7 +2034,7 @@
             return false;
         }
     });
-    
+
     $('#vehical-add-modal').on('shown.bs.modal', function() {
         let outsidePart = $('#part_number_id').val();
         if (outsidePart) {
@@ -2047,7 +2047,7 @@
             $('#part_number_id').addClass('is-invalid').focus();
         }
     });
-    
+
     // Remove error styling when part number is selected (both fields)
     $(document).on('change', '#part_number, #part_number_id', function() {
         if ($(this).val()) {
@@ -2067,13 +2067,13 @@
     $("#vehical-form").on("submit", function(e) {
         e.preventDefault();
         let form = this;
-        
+
         // Validate part number before form submission
         let partNumber = $('#part_number').val();
         let outsidePartNumber = $('#part_number_id').val();
-        
+
         // Check both fields (modal field and outside field)
-        if ((!partNumber || partNumber === '' || partNumber === null) && 
+        if ((!partNumber || partNumber === '' || partNumber === null) &&
             (!outsidePartNumber || outsidePartNumber === '' || outsidePartNumber === null)) {
             toastr.error('Please select part number first.');
             // Add error styling to part number fields
@@ -2087,17 +2087,17 @@
             }, 300);
             return false;
         }
-        
+
         // Use outside part number if modal part number is not set
         if (!partNumber || partNumber === '') {
             partNumber = outsidePartNumber;
             $('#part_number').val(partNumber).trigger('change');
         }
-        
+
         // Remove error styling if part number is selected
         $('#part_number').removeClass('is-invalid');
         $('#part_number_id').removeClass('is-invalid');
-        
+
         let formData = new FormData(form);
         let submitType = $("#submit_type").val();
         let outsidePart = $('#part_number_id').val();
@@ -2120,7 +2120,7 @@
                 } else {
                     toastr.success(res.message || "Vehicle saved successfully!");
                 }
-                
+
                 // Add/update vehicles in table without page reload
                 if (res.vehicles && res.vehicles.length > 0) {
                     // Group vehicles by config (part, manufacturer, model, engine, country)
@@ -2150,11 +2150,11 @@
                             }
                         }
                     });
-                    
+
                     // Check if vehicle group already exists in table, if yes update it, else add new
                     Object.keys(vehicleGroups).forEach(function(key) {
                         let group = vehicleGroups[key];
-                        
+
                         // Find existing row by matching all config fields
                         let existingRow = null;
                         $("#vehicleTable tbody tr").each(function() {
@@ -2168,7 +2168,7 @@
                                 return false; // break loop
                             }
                         });
-                        
+
                         // Build year ranges display with light blue badges (sorted by year)
                         let yearRangesHtml = '';
                         if (group.yearRanges.length > 0) {
@@ -2178,7 +2178,7 @@
                                 let bFrom = parseInt(b.split('-')[0]);
                                 return aFrom - bFrom;
                             });
-                            
+
                             yearRangesHtml = '<div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
                             group.yearRanges.forEach(function(range) {
                                 yearRangesHtml += `<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">${range}</span>`;
@@ -2187,7 +2187,7 @@
                         } else {
                             yearRangesHtml = '<span class="badge bg-secondary">-</span>';
                         }
-                        
+
                         if (existingRow && existingRow.length > 0) {
                             // Update existing row
                             existingRow.find('td:eq(0)').text(group.manutacturer_vehical?.name || '-');
@@ -2196,7 +2196,7 @@
                             existingRow.find('td:eq(3)').text(group.engine_vehical?.name || '-');
                             existingRow.find('td:eq(4)').text(group.country_vehical?.name || '-');
                             existingRow.find('td:eq(5)').text(group.vehical_part_number?.name || '-');
-                            
+
                             // Update edit button data attributes - store first year range for backward compatibility
                             let editBtn = existingRow.find('.editVehicleBtn');
                             editBtn.attr('data-part', group.v_part_number_id);
@@ -2223,7 +2223,7 @@
                                 firstYearFrom = rangeParts[0];
                                 firstYearTo = rangeParts.length > 1 ? rangeParts[1] : rangeParts[0];
                             }
-                            
+
                             $("#vehicleTable tbody").append(`
                                 <tr data-part="${group.v_part_number_id}">
                                     <td>${group.manutacturer_vehical?.name || '-'}</td>
@@ -2250,7 +2250,7 @@
                         }
                     });
                 }
-                
+
                 // Reset the form
                 form.reset();
                 // Clear year ranges
@@ -2280,7 +2280,7 @@
                     </div>
                 `);
                 updateRemoveButtons();
-                
+
                 // Close modal or keep open based on submit type
                 if (submitType === 'save') {
                     if (outsidePart) {
@@ -2311,7 +2311,7 @@
     $(document).on('click', '.editVehicleBtn', function() {
         let yearRangesData = $(this).data('year-ranges');
         let yearRanges = [];
-        
+
         // Parse year ranges from JSON data attribute
         if (yearRangesData) {
             try {
@@ -2320,28 +2320,28 @@
                 console.error('Error parsing year ranges:', e);
             }
         }
-        
+
         $('#car_manufacturer').val($(this).data('manufacturer')).trigger('change');
         $('#car_model_name').val($(this).data('model')).trigger('change');
         $('#engine_cc').val($(this).data('engine')).trigger('change');
         $('#part_number').val($(this).data('part')).trigger('change');
         $('#car_manufactured_country').val($(this).data('country')).trigger('change');
-        
+
         // Build year range HTML
         let yearRangeHtml = '';
-        
+
         // Generate year options
         let yearOptions = '';
         for (let year = 1900; year <= 2100; year++) {
             yearOptions += `<option value="${year}">${year}</option>`;
         }
-        
+
         if (yearRanges.length > 0) {
             // Populate with existing year ranges
             yearRanges.forEach(function(rangeStr) {
                 let fromYear = '';
                 let toYear = '';
-                
+
                 // Parse range string (e.g., "2014-2021" or "2015")
                 if (rangeStr.includes('-')) {
                     let parts = rangeStr.split('-');
@@ -2351,7 +2351,7 @@
                     fromYear = rangeStr.trim();
                     toYear = rangeStr.trim();
                 }
-                
+
                 // Build options with selected year
                 let fromOptions = '<option value="">From Year</option>';
                 let toOptions = '<option value="">To Year</option>';
@@ -2359,7 +2359,7 @@
                     fromOptions += `<option value="${year}" ${fromYear == year ? 'selected' : ''}>${year}</option>`;
                     toOptions += `<option value="${year}" ${toYear == year ? 'selected' : ''}>${year}</option>`;
                 }
-                
+
                 yearRangeHtml += `
                     <div class="year-range-item mb-2">
                         <div class="row g-2">
@@ -2404,7 +2404,7 @@
                 </div>
             `;
         }
-        
+
         $('#yearRangesContainer').html(yearRangeHtml);
         updateRemoveButtons();
         $('#vehical-add-modal').modal('show');
@@ -2429,13 +2429,13 @@
         let container = document.getElementById('yearRangesContainer');
         let newRange = document.createElement('div');
         newRange.className = 'year-range-item mb-2';
-        
+
         // Build year options
         let yearOptions = '';
         for (let year = 1900; year <= 2100; year++) {
             yearOptions += `<option value="${year}">${year}</option>`;
         }
-        
+
         newRange.innerHTML = `
             <div class="row g-2">
                 <div class="col-5">
@@ -2528,11 +2528,11 @@
             const removeBtn = $('#removeBtn')[0];
             const defaultImg = "https://pdis.co.kr/img/image.jpg";
             if (!imageInput || !preview || !container || !removeBtn) return;
-            
+
             // Using label for file input - works on all mobile browsers (Chrome, Firefox, etc.)
             // Label automatically triggers the input when clicked, preserving camera/gallery options
             // No need for JavaScript click handler when using label
-            
+
             imageInput.onchange = function() {
                 const file = this.files[0];
                 if (file) {
@@ -2557,7 +2557,7 @@
             const container = $('#imagesPreviewContainer')[0];
             let allFiles = [];
             if (!input || !preview || !container) return;
-            
+
             // Using label for file input - works on all mobile browsers (Chrome, Firefox, etc.)
             // Label automatically triggers the input when clicked, preserving camera/gallery options
             // No need for JavaScript click handler when using label
