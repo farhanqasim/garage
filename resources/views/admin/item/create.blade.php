@@ -2918,11 +2918,64 @@
                         }
                     }
                     
+                    // Method 6: Direct check for "NO RESULTS FOUND" text in the DOM (most reliable for visible text)
+                    if (!searchTerm) {
+                        // Check if there's visible "NO RESULTS FOUND" text near the select
+                        const $parentContainer = $select.closest('.input-group, .col-md-4, .col-md-6');
+                        if ($parentContainer.length) {
+                            // Look for any element containing "NO RESULTS FOUND" or "no results found"
+                            const noResultsElements = $parentContainer.find('*').filter(function() {
+                                const text = $(this).text().toUpperCase();
+                                return text.includes('NO RESULTS FOUND') || text.includes('NO RESULTS') || 
+                                       text.includes('NOT FOUND') || text.includes('NO MATCHES');
+                            });
+                            
+                            if (noResultsElements.length && noResultsElements.is(':visible')) {
+                                // "No results found" is visible, get search term from Select2
+                                const select2Container = $select.next('.select2-container');
+                                if (select2Container.length) {
+                                    const searchInput = select2Container.find('.select2-search__field');
+                                    if (searchInput.length && searchInput.val()) {
+                                        searchTerm = searchInput.val().trim();
+                                    } else if (lastSearchTerm[selectId]) {
+                                        searchTerm = lastSearchTerm[selectId].trim();
+                                    }
+                                }
+                                
+                                // Also check open dropdown
+                                if (!searchTerm) {
+                                    const openSelect2 = $('.select2-container--open');
+                                    if (openSelect2.length) {
+                                        const searchInput = openSelect2.find('.select2-search__field');
+                                        if (searchInput.length && searchInput.val()) {
+                                            searchTerm = searchInput.val().trim();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
                     // Pre-fill the modal input with the search term
                     if (searchTerm && searchTerm !== '') {
                         $('#universal-name').val(searchTerm);
                         // Clear the stored term after using it
                         delete lastSearchTerm[selectId];
+                    } else {
+                        // Last attempt: Check one more time right before opening modal
+                        // This handles cases where the search term might be captured at the last moment
+                        setTimeout(function() {
+                            const openSelect2 = $('.select2-container--open');
+                            if (openSelect2.length) {
+                                const searchInput = openSelect2.find('.select2-search__field');
+                                if (searchInput.length && searchInput.val()) {
+                                    const finalSearchTerm = searchInput.val().trim();
+                                    if (finalSearchTerm) {
+                                        $('#universal-name').val(finalSearchTerm);
+                                    }
+                                }
+                            }
+                        }, 100);
                     }
                 }
                 
