@@ -220,7 +220,7 @@ class ItemController extends Controller
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code',
             'user_id' => 'required|exists:users,id',
-            'p_id' => 'required|string|max:255',
+            'p_id' => 'nullable|string|max:255',
             'vehical_id' => 'nullable|string',
             'total_price' => 'nullable',
             'price_per_unit' => 'nullable',
@@ -514,7 +514,7 @@ class ItemController extends Controller
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code,' . $item->id,
             'user_id' => 'required|exists:users,id',
-            'p_id' => 'required|string|max:255',
+            'p_id' => 'nullable|string|max:255',
             'vehical_id' => 'nullable|string',
             'total_price' => 'nullable',
             'price_per_unit' => 'nullable',
