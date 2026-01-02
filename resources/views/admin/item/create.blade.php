@@ -214,6 +214,13 @@
                                 Services
                             </div>
                         </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
+                                @click="selectType('filters')">
+                                <i class="ti ti-filter fs-1 d-block mb-2"></i>
+                                Filters
+                            </div>
+                        </div>
                     </div>
                     <input type="hidden" name="type" x-model="selectedType">
                     <div class="row" id="itemFormsContainer">
@@ -235,7 +242,7 @@
 
                                     @error('bar_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' ">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' ">
                             <label for="part_number_id">Part Number:</label>
                             <div class="input-group inputswidth">
                                 <select
@@ -309,7 +316,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4"
-                                    x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'">
+                                    x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters'">
                                     <label for="company_parts">Company:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -372,7 +379,7 @@
                                     </div>
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <div class="col-md-4 " x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' ">
+                                <div class="col-md-4 " x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' ">
                                     <label for="category">Category:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -416,6 +423,45 @@
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
                                             name="quality_id" id="quality">
+                                            <option value="">Select Quality</option>
+                                            @foreach ($qualities as $item)
+                                            <option value="{{ $item->id }}" {{ old('quality_id')==$item->id ?
+                                                'selected' : '' }}>
+                                                {{ $item->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Quality"
+                                            data-fetch-route="{{ route('show.quality', ':id') }}"
+                                            data-update-route="{{ route('update.quality', ':id') }}"
+                                            data-delete-route="{{ route('destory.quality', ':id') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- FILTERS FIELDS -->
+                        <div class="field-group" :class="{ 'active': selectedType === 'filters' }">
+                            <div class="row  p-3 mt-4">
+
+                                <div class="col-md-4">
+                                    <label for="quality_filters">Quality:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
+                                            name="quality_id" id="quality_filters">
                                             <option value="">Select Quality</option>
                                             @foreach ($qualities as $item)
                                             <option value="{{ $item->id }}" {{ old('quality_id')==$item->id ?
@@ -1015,7 +1061,7 @@
                 <div class="field-group" :class="{ 'active': selectedType }">
                     <div class="row mt-4">
                         <div class="col-md-6"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters'">
                             <label for="unit_parts">Unit:</label>
                             <div class="input-group inputswidth">
                                 <select
@@ -1058,7 +1104,7 @@
                             @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-6 "
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters'">
                             <label for="sale_price_parts">Sale Price:</label>
                             <input type="number" class="form-control @error('sale_price') is-invalid @enderror"
                                 name="sale_price" id="sale_price_parts" value="{{ old('sale_price') }}" hidden />
@@ -1134,7 +1180,7 @@
                         </div>
 
                         <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters'">
                             <label for="low_stock_parts">Low Stock:</label>
                             <select class="form-control searchable-select @error('l_stock') is-invalid @enderror"
                                 name="l_stock" id="low_stock_parts">
@@ -1146,7 +1192,7 @@
                             @error('l_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters'">
                             <label for="maintain_stock_parts">Maintain Stock:</label>
                             <select class="form-control searchable-select @error('m_stock') is-invalid @enderror"
                                 name="m_stock" id="maintain_stock_parts">
@@ -1160,7 +1206,7 @@
                         </div>
 
                         <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters'">
                             <label for="on_hand">Opening Stock:</label>
                             <select class="form-control searchable-select @error('on_hand') is-invalid @enderror"
                                 name="on_hand" id="on_hand">
@@ -1180,7 +1226,7 @@
                         </div>
                         <!-- Weight -->
                         <div class="col-md-4 mt-3"
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters'">
                             <label for="weight">Weight (kg):</label>
                             <input type="number" class="form-control @error('weight_for_delivery') is-invalid @enderror"
                                 name="weight_for_delivery" id="weight" value="{{ old('weight_for_delivery') }}" />
@@ -1212,7 +1258,7 @@
                         {{-- PART NUMBER SELECT --}}
 
                         {{-- VEHICLE TABLE --}}
-                        <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery'">
+                        <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters'">
                             <div class="table-responsive mt-4" style="max-height:250px;overflow-y:auto;">
                                 <table class="table table-bordered" id="vehicleTable">
                                     <thead class="table-dark">
