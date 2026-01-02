@@ -2679,6 +2679,40 @@
         let currentTargetSelect = null;
         let currentEditId = null;
         let deleteRoute = null;
+        let lastSearchTerm = {}; // Store last search term for each select
+        
+        // =========================
+        // Track search terms from Select2/searchable selects
+        // =========================
+        $(document).on('select2:open select2:searching', '.searchable-select', function(e) {
+            const $select = $(this);
+            const selectId = $select.attr('id') || $select.attr('name') || 'default';
+            
+            // Try to get search term from Select2
+            setTimeout(function() {
+                const select2Container = $select.next('.select2-container');
+                if (select2Container.length) {
+                    const searchInput = select2Container.find('.select2-search__field');
+                    if (searchInput.length) {
+                        const searchValue = searchInput.val();
+                        if (searchValue) {
+                            lastSearchTerm[selectId] = searchValue;
+                        }
+                    }
+                }
+            }, 100);
+        });
+        
+        // Also track input changes in searchable selects
+        $(document).on('input', '.select2-search__field', function() {
+            const $input = $(this);
+            const $select = $input.closest('.select2-container').prev('select');
+            if ($select.length) {
+                const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                lastSearchTerm[selectId] = $input.val();
+            }
+        });
+        
         // =========================
         // OPEN ADD / EDIT MODAL
         // =========================
@@ -2708,6 +2742,55 @@
                     .attr('method', 'POST');
                 $('#universal-delete-btn').addClass('d-none');
                 $('#universal-save-btn').text('Save');
+                
+                // =========================
+                // Capture search term from select2/searchable select
+                // =========================
+                if (currentTargetSelect) {
+                    const $select = $(currentTargetSelect);
+                    let searchTerm = '';
+                    const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                    
+                    // First, try to get from stored search terms
+                    if (lastSearchTerm[selectId]) {
+                        searchTerm = lastSearchTerm[selectId];
+                    }
+                    
+                    // If not found, try to get from Select2 search input directly
+                    if (!searchTerm) {
+                        // Check if it's a Select2 instance
+                        if ($select.hasClass('select2-hidden-accessible') || $select.data('select2')) {
+                            // Get search term from Select2 dropdown
+                            const select2Container = $select.next('.select2-container');
+                            if (select2Container.length) {
+                                const searchInput = select2Container.find('.select2-search__field');
+                                if (searchInput.length) {
+                                    searchTerm = searchInput.val() || '';
+                                }
+                            }
+                        }
+                    }
+                    
+                    // If still not found, try to get from any visible search input
+                    if (!searchTerm) {
+                        // Check if Select2 dropdown is open and has a search field
+                        const openSelect2 = $('.select2-container--open');
+                        if (openSelect2.length) {
+                            const searchInput = openSelect2.find('.select2-search__field');
+                            if (searchInput.length && searchInput.val()) {
+                                searchTerm = searchInput.val();
+                            }
+                        }
+                    }
+                    
+                    // Pre-fill the modal input with the search term
+                    if (searchTerm && searchTerm.trim() !== '') {
+                        $('#universal-name').val(searchTerm.trim());
+                        // Clear the stored term after using it
+                        delete lastSearchTerm[selectId];
+                    }
+                }
+                
                 $('#universal-add-modal').modal('show');
             }
             // =========================
