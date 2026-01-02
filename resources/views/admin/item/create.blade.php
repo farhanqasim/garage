@@ -174,7 +174,7 @@
     <div class="page-header">
         <div class="add-item d-flex">
             <div class="page-title">
-                <h2 class="fw-bold">Create Product dfkdjfksdjfkl</h2>
+                <h2 class="fw-bold">Create Product </h2>
             </div>
         </div>
         <ul class="table-top-head">
