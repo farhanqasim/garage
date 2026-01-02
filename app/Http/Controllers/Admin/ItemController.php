@@ -219,7 +219,7 @@ class ItemController extends Controller
         // Validate fields
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code',
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'nullable|exists:users,id',
             'p_id' => 'nullable|string|max:255',
             'vehical_id' => 'nullable|string',
             'total_price' => 'nullable',
@@ -247,10 +247,12 @@ class ItemController extends Controller
             'tecnology' => 'nullable|string', // Keep both for backward compatibility
             'grade' => 'nullable|string',
             'services' => 'nullable|string',
-            'farmula' => 'nullable|string',
+            'formulas' => 'nullable|string',
+            'farmula' => 'nullable|string', // Keep both for backward compatibility
             'serial_number' => 'nullable|string',
             'battery_size' => 'nullable|string',
-            'bussiness_location' => 'nullable|string',
+            'business_location' => 'nullable|string',
+            'bussiness_location' => 'nullable|string', // Keep both for backward compatibility
             'quality_id' => 'nullable|string',
             'l_stock' => 'nullable|string',
             'm_stock' => 'nullable|string',
@@ -264,7 +266,8 @@ class ItemController extends Controller
             'rack' => 'nullable|string',
             'supplier' => 'nullable|string',
             'warrenty' => 'nullable|string',
-            'gorup' => 'nullable|string',
+            'group' => 'nullable|string',
+            'gorup' => 'nullable|string', // Keep both for backward compatibility
             'made_in' => 'nullable|string',
             'pro_dis' => 'nullable|string',
             'part_number_id' => 'nullable|string',
@@ -338,6 +341,18 @@ class ItemController extends Controller
             if (isset($data['technology'])) {
                 $data['tecnology'] = $data['technology'];
                 unset($data['technology']);
+            }
+            if (isset($data['group'])) {
+                $data['gorup'] = $data['group'];
+                unset($data['group']);
+            }
+            if (isset($data['business_location'])) {
+                $data['bussiness_location'] = $data['business_location'];
+                unset($data['business_location']);
+            }
+            if (isset($data['formulas'])) {
+                $data['farmula'] = $data['formulas'];
+                unset($data['formulas']);
             }
 
             /* ============================
@@ -529,7 +544,7 @@ class ItemController extends Controller
         // Validate ONLY fields that exist in $fillable
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code,' . $item->id,
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'nullable|exists:users,id',
             'p_id' => 'nullable|string|max:255',
             'vehical_id' => 'nullable|string',
             'total_price' => 'nullable',
@@ -559,7 +574,8 @@ class ItemController extends Controller
             'farmula' => 'nullable|string',
             'serial_number' => 'nullable|string',
             'battery_size' => 'nullable|string',
-            'bussiness_location' => 'nullable|string',
+            'business_location' => 'nullable|string',
+            'bussiness_location' => 'nullable|string', // Keep both for backward compatibility
             'quality_id' => 'nullable|string',
             'l_stock' => 'nullable|string',
             'm_stock' => 'nullable|string',
@@ -579,7 +595,8 @@ class ItemController extends Controller
             'auto_deactive' => 'sometimes|boolean',
             'services' => 'nullable|string',
             'warrenty' => 'nullable|string',
-            'gorup' => 'nullable|string',
+            'group' => 'nullable|string',
+            'gorup' => 'nullable|string', // Keep both for backward compatibility
             'made_in' => 'nullable|string',
             'is_dead' => 'sometimes|boolean',
         ]);
@@ -624,6 +641,18 @@ class ItemController extends Controller
             if (isset($data['technology'])) {
                 $data['tecnology'] = $data['technology'];
                 unset($data['technology']);
+            }
+            if (isset($data['group'])) {
+                $data['gorup'] = $data['group'];
+                unset($data['group']);
+            }
+            if (isset($data['business_location'])) {
+                $data['bussiness_location'] = $data['business_location'];
+                unset($data['business_location']);
+            }
+            if (isset($data['formulas'])) {
+                $data['farmula'] = $data['formulas'];
+                unset($data['formulas']);
             }
 
             // === Update using mass assignment (safe via $fillable) ===
