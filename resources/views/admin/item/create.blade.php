@@ -2744,6 +2744,22 @@
             const message = (e.params && e.params.message) ? e.params.message.toLowerCase() : '';
             
             if (message.includes('no results') || message.includes('not found')) {
+                // Immediate capture
+                const $openSelect2 = $('.select2-container--open');
+                if ($openSelect2.length) {
+                    const $searchInput = $openSelect2.find('.select2-search__field');
+                    if ($searchInput.length && $searchInput.val()) {
+                        const searchVal = $searchInput.val().trim();
+                        activeSelectSearch = {
+                            select: $select,
+                            searchTerm: searchVal,
+                            selectId: selectId
+                        };
+                        lastSearchTerm[selectId] = searchVal;
+                    }
+                }
+                
+                // Also try after a short delay
                 setTimeout(function() {
                     const $container = $select.next('.select2-container');
                     const $searchInput = $container.find('.select2-search__field');
@@ -2758,6 +2774,31 @@
                     }
                 }, 50);
             }
+        });
+        
+        // Method 3b: Also listen for when results are loaded (to catch "No results" even if event doesn't fire)
+        $(document).on('select2:select select2:unselect', '.searchable-select', function() {
+            // This fires after results are shown, check for "No results found"
+            setTimeout(function() {
+                const $select = $(this);
+                const $openSelect2 = $('.select2-container--open');
+                if ($openSelect2.length) {
+                    const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                    if ($noResultsMsg.length && $noResultsMsg.is(':visible')) {
+                        const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                        const $searchInput = $openSelect2.find('.select2-search__field');
+                        if ($searchInput.length && $searchInput.val()) {
+                            const searchVal = $searchInput.val().trim();
+                            activeSelectSearch = {
+                                select: $select,
+                                searchTerm: searchVal,
+                                selectId: selectId
+                            };
+                            lastSearchTerm[selectId] = searchVal;
+                        }
+                    }
+                }
+            }.bind(this), 100);
         });
         
         // Method 4: Try to get from Select2 internal data (if available)
@@ -2776,6 +2817,41 @@
             } catch(e) {
                 // Select2 API not available or different version
             }
+            return null;
+        }
+        
+        // Helper function: Get search term when "No results found" is visible
+        function getSearchTermFromNoResults($select) {
+            // Check open Select2 dropdown
+            const $openSelect2 = $('.select2-container--open');
+            if ($openSelect2.length) {
+                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                if ($noResultsMsg.length && $noResultsMsg.is(':visible')) {
+                    const msgText = $noResultsMsg.text().toUpperCase();
+                    if (msgText.includes('NO RESULTS') || msgText.includes('NOT FOUND')) {
+                        const $searchInput = $openSelect2.find('.select2-search__field');
+                        if ($searchInput.length && $searchInput.val()) {
+                            return $searchInput.val().trim();
+                        }
+                    }
+                }
+            }
+            
+            // Check Select2 container (even if dropdown is closed)
+            const $container = $select.next('.select2-container');
+            if ($container.length) {
+                const $noResultsMsg = $container.find('.select2-results__message');
+                if ($noResultsMsg.length) {
+                    const msgText = $noResultsMsg.text().toUpperCase();
+                    if (msgText.includes('NO RESULTS') || msgText.includes('NOT FOUND')) {
+                        const $searchInput = $container.find('.select2-search__field');
+                        if ($searchInput.length && $searchInput.val()) {
+                            return $searchInput.val().trim();
+                        }
+                    }
+                }
+            }
+            
             return null;
         }
         
@@ -2832,11 +2908,35 @@
             // Capture search term BEFORE the click event fires
             const $openSelect2 = $('.select2-container--open');
             if ($openSelect2.length) {
+                // Check if "No results found" is visible
+                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                const hasNoResults = $noResultsMsg.length && $noResultsMsg.is(':visible');
+                
                 const $searchInput = $openSelect2.find('.select2-search__field');
                 if ($searchInput.length && $searchInput.val()) {
                     const searchVal = $searchInput.val().trim();
-                    // Find the select
-                    const $select = $openSelect2.prev('select.searchable-select');
+                    
+                    // Find the select - try multiple methods
+                    let $select = $openSelect2.prev('select.searchable-select');
+                    
+                    // If not found, try to find by checking which select has this container
+                    if (!$select.length) {
+                        $('.searchable-select').each(function() {
+                            const $s = $(this);
+                            const $container = $s.next('.select2-container');
+                            if ($container.length && $container.is($openSelect2)) {
+                                $select = $s;
+                                return false; // break
+                            }
+                        });
+                    }
+                    
+                    // If still not found, try to find select near the button
+                    if (!$select.length) {
+                        const $button = $(this);
+                        $select = $button.closest('.input-group').find('select.searchable-select').first();
+                    }
+                    
                     if ($select.length) {
                         const selectId = $select.attr('id') || $select.attr('name') || 'default';
                         activeSelectSearch = {
@@ -2845,6 +2945,12 @@
                             selectId: selectId
                         };
                         lastSearchTerm[selectId] = searchVal;
+                        
+                        // If "No results found" is visible, this is high priority
+                        if (hasNoResults) {
+                            // Store with higher priority flag
+                            activeSelectSearch.hasNoResults = true;
+                        }
                     }
                 }
             }
@@ -2879,12 +2985,13 @@
                 if ($select && $select.length) {
                     const selectId = $select.attr('id') || $select.attr('name') || 'default';
                     
-                    // PRIORITY 1: Get from activeSelectSearch (most recent)
-                    if (activeSelectSearch.select && activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
-                        searchTerm = activeSelectSearch.searchTerm;
+                    // PRIORITY 1: Check if "No results found" is visible and get search term directly
+                    const noResultsTerm = getSearchTermFromNoResults($select);
+                    if (noResultsTerm) {
+                        searchTerm = noResultsTerm;
                     }
                     
-                    // PRIORITY 2: Get from currently open Select2 dropdown
+                    // PRIORITY 2: Get from currently open Select2 dropdown (even if no "No results" message)
                     if (!searchTerm) {
                         const $openSelect2 = $('.select2-container--open');
                         if ($openSelect2.length) {
@@ -2895,11 +3002,10 @@
                         }
                     }
                     
-                    // PRIORITY 3: Try Select2 internal API
+                    // PRIORITY 3: Get from activeSelectSearch (most recent, especially if hasNoResults flag)
                     if (!searchTerm) {
-                        const internalTerm = getSearchTermFromSelect2($select);
-                        if (internalTerm) {
-                            searchTerm = internalTerm;
+                        if (activeSelectSearch.select && activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
+                            searchTerm = activeSelectSearch.searchTerm;
                         }
                     }
                     
@@ -2908,14 +3014,11 @@
                         searchTerm = lastSearchTerm[selectId].trim();
                     }
                     
-                    // PRIORITY 5: Try to get from Select2 container DOM
+                    // PRIORITY 5: Try Select2 internal API
                     if (!searchTerm) {
-                        const $container = $select.next('.select2-container');
-                        if ($container.length) {
-                            const $searchInput = $container.find('.select2-search__field');
-                            if ($searchInput.length && $searchInput.val()) {
-                                searchTerm = $searchInput.val().trim();
-                            }
+                        const internalTerm = getSearchTermFromSelect2($select);
+                        if (internalTerm) {
+                            searchTerm = internalTerm;
                         }
                     }
                 }
