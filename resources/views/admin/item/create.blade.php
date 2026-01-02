@@ -2820,6 +2820,28 @@
                                 }
                             }
                         }
+                        
+                        // Also check for any visible text input in the same container (for custom searchable selects)
+                        if (!searchTerm) {
+                            const visibleInputs = $parentContainer.find('input[type="text"]:visible');
+                            visibleInputs.each(function() {
+                                const $input = $(this);
+                                const inputVal = $input.val();
+                                // If input has value and it's not the selected option value, it might be the search term
+                                if (inputVal && inputVal.trim() !== '') {
+                                    // Check if this value exists as an option
+                                    const optionExists = $select.find('option').filter(function() {
+                                        return $(this).text().trim() === inputVal.trim();
+                                    }).length > 0;
+                                    
+                                    // If option doesn't exist, this is likely the search term
+                                    if (!optionExists) {
+                                        searchTerm = inputVal.trim();
+                                        return false; // break loop
+                                    }
+                                }
+                            });
+                        }
                     }
                     
                     // Method 1: Try to get from currently open Select2 dropdown (most reliable)
@@ -2951,6 +2973,38 @@
                                             searchTerm = searchInput.val().trim();
                                         }
                                     }
+                                }
+                                
+                                // Also check for visible text input in the same container (the input that shows the search term)
+                                if (!searchTerm) {
+                                    const visibleTextInputs = $parentContainer.find('input[type="text"]:visible');
+                                    visibleTextInputs.each(function() {
+                                        const $input = $(this);
+                                        const inputVal = $input.val();
+                                        // If input has value and it's visible near "NO RESULTS FOUND", it's likely the search term
+                                        if (inputVal && inputVal.trim() !== '') {
+                                            // Check if this input is near the "NO RESULTS FOUND" message
+                                            const inputPosition = $input.offset();
+                                            const noResultsPosition = noResultsElements.first().offset();
+                                            
+                                            // If input is above or near the "NO RESULTS FOUND" message, it's likely the search term
+                                            if (inputPosition && noResultsPosition) {
+                                                const distance = Math.abs(inputPosition.top - noResultsPosition.top);
+                                                // If input is within 100px of the "NO RESULTS FOUND" message
+                                                if (distance < 100) {
+                                                    // Verify it's not an existing option
+                                                    const optionExists = $select.find('option').filter(function() {
+                                                        return $(this).text().trim() === inputVal.trim();
+                                                    }).length > 0;
+                                                    
+                                                    if (!optionExists) {
+                                                        searchTerm = inputVal.trim();
+                                                        return false; // break loop
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
                                 }
                             }
                         }
