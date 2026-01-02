@@ -2685,8 +2685,8 @@
         // Universal "Add New" Modal Behavior for Searchable Dropdowns
         // =========================
         
-        // Capture search text from Select2 search input
-        $(document).on('input', '.select2-search__field', function() {
+        // Capture search text from Select2 search input (real-time)
+        $(document).on('input keyup', '.select2-search__field', function() {
             const $input = $(this);
             const $select = $input.closest('.select2-container').prev('select');
             if ($select.length && $select.hasClass('searchable-select')) {
@@ -2696,6 +2696,21 @@
                     lastSearchTerm[selectId] = searchValue;
                 }
             }
+        });
+        
+        // Capture search term when Select2 opens or searches
+        $(document).on('select2:open select2:searching', '.searchable-select', function() {
+            const $select = $(this);
+            const selectId = $select.attr('id') || $select.attr('name') || 'default';
+            setTimeout(function() {
+                const select2Container = $select.next('.select2-container');
+                if (select2Container.length) {
+                    const searchInput = select2Container.find('.select2-search__field');
+                    if (searchInput.length && searchInput.val()) {
+                        lastSearchTerm[selectId] = searchInput.val().trim();
+                    }
+                }
+            }, 100);
         });
         
         // Capture search term when "No results found" appears
@@ -2717,6 +2732,21 @@
             }
         });
         
+        // Capture search term before Select2 closes
+        $(document).on('select2:close', '.searchable-select', function() {
+            const $select = $(this);
+            const selectId = $select.attr('id') || $select.attr('name') || 'default';
+            setTimeout(function() {
+                const select2Container = $select.next('.select2-container');
+                if (select2Container.length) {
+                    const searchInput = select2Container.find('.select2-search__field');
+                    if (searchInput.length && searchInput.val()) {
+                        lastSearchTerm[selectId] = searchInput.val().trim();
+                    }
+                }
+            }, 10);
+        });
+        
         // =========================
         // OPEN ADD / EDIT MODAL
         // Universal support for both .open-universal-modal and .add-btn
@@ -2726,6 +2756,60 @@
             const title = $(this).data('title');
             const hasImage = $(this).data('has-image') == 1;
             currentTargetSelect = $(this).data('target-select');
+            
+            // =========================
+            // CAPTURE SEARCH TERM FIRST (before form reset)
+            // =========================
+            let searchTerm = '';
+            if (mode === 'add') {
+                // Find the associated select element
+                let $select = null;
+                if (currentTargetSelect) {
+                    $select = $(currentTargetSelect);
+                } else {
+                    // Fallback: find select near the button
+                    const $button = $(this);
+                    $select = $button.closest('.input-group').find('select.searchable-select').first();
+                }
+                
+                if ($select && $select.length) {
+                    const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                    
+                    // Method 1: Get from currently open Select2 dropdown (most reliable)
+                    const openSelect2 = $('.select2-container--open');
+                    if (openSelect2.length) {
+                        const searchInput = openSelect2.find('.select2-search__field');
+                        if (searchInput.length && searchInput.val()) {
+                            searchTerm = searchInput.val().trim();
+                        }
+                    }
+                    
+                    // Method 2: Get from stored search terms
+                    if (!searchTerm && lastSearchTerm[selectId]) {
+                        searchTerm = lastSearchTerm[selectId].trim();
+                    }
+                    
+                    // Method 3: Try to get from Select2 container even if dropdown is closed
+                    if (!searchTerm) {
+                        const select2Container = $select.next('.select2-container');
+                        if (select2Container.length) {
+                            // Check if "No results found" message exists
+                            const noResultsMsg = select2Container.find('.select2-results__message');
+                            const hasNoResults = noResultsMsg.length && 
+                                                (noResultsMsg.text().toUpperCase().includes('NO RESULTS') || 
+                                                 noResultsMsg.text().toUpperCase().includes('NOT FOUND'));
+                            
+                            if (hasNoResults) {
+                                const searchInput = select2Container.find('.select2-search__field');
+                                if (searchInput.length && searchInput.val()) {
+                                    searchTerm = searchInput.val().trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Reset form
             $('#universal-modal-title').text(title);
             $('#universal-name').val('');
@@ -2748,51 +2832,28 @@
                 $('#universal-delete-btn').addClass('d-none');
                 $('#universal-save-btn').text('Save');
                 
-                // =========================
-                // Capture and pre-fill search term from Select2
-                // =========================
-                let searchTerm = '';
-                
-                if (currentTargetSelect) {
-                    const $select = $(currentTargetSelect);
-                    const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                    
-                    // Method 1: Get from currently open Select2 dropdown (most reliable)
-                    const openSelect2 = $('.select2-container--open');
-                    if (openSelect2.length) {
-                        const searchInput = openSelect2.find('.select2-search__field');
-                        if (searchInput.length && searchInput.val()) {
-                            searchTerm = searchInput.val().trim();
-                        }
+                // Pre-fill the modal input with the captured search term
+                if (searchTerm) {
+                    $('#universal-name').val(searchTerm);
+                    // Clear the stored term after using it
+                    let $select = null;
+                    if (currentTargetSelect) {
+                        $select = $(currentTargetSelect);
+                    } else {
+                        const $button = $(this);
+                        $select = $button.closest('.input-group').find('select.searchable-select').first();
                     }
-                    
-                    // Method 2: Get from stored search terms
-                    if (!searchTerm && lastSearchTerm[selectId]) {
-                        searchTerm = lastSearchTerm[selectId].trim();
-                    }
-                    
-                    // Pre-fill the modal input with the search term
-                    if (searchTerm) {
-                        // Support both actual and assumed input IDs
-                        const $nameInput = $('#universal-name, #nameInput').first();
-                        if ($nameInput.length) {
-                            $nameInput.val(searchTerm);
-                        }
+                    if ($select && $select.length) {
+                        const selectId = $select.attr('id') || $select.attr('name') || 'default';
                         delete lastSearchTerm[selectId];
                     }
                 }
                 
-                // Open modal and focus input (support both actual and assumed modal IDs)
-                const $modal = $('#universal-add-modal, #universalModal').first();
-                if ($modal.length) {
-                    $modal.modal('show');
-                    setTimeout(function() {
-                        const $nameInput = $('#universal-name, #nameInput').first();
-                        if ($nameInput.length) {
-                            $nameInput.focus();
-                        }
-                    }, 300);
-                }
+                // Open modal and focus input
+                $('#universal-add-modal').modal('show');
+                setTimeout(function() {
+                    $('#universal-name').focus();
+                }, 300);
             }
             // =========================
             // EDIT MODE
