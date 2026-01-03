@@ -1445,17 +1445,12 @@
                             data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
                     </td>
                     <td>
-                        {{ $item->product_item->name??'-' }}
-                        {{ $item->type??'-' }}
-                        {{ $item->bar_code??'-' }}
-                        {{ $item->is_active??'-' }}
-                        {{ $item->category??'-' }}
-                        {{ $item->item_user->name??'-' }}
-                        {{ $item->product_item->name??'-' }}
-                        {{ $item->type??'-' }}
-                        {{ $item->bar_code??'-' }}
-                        {{ $item->is_active??'-' }}
-                        {{ $item->category??'-' }}
+                        <div class="small">
+                            <div><strong>Part Number:</strong> {{ $item->partnumber_item->name ?? '-' }}</div>
+                            <div><strong>Category:</strong> {{ $item->category->name ?? '-' }}</div>
+                            <div><strong>Company:</strong> {{ $item->company_item->name ?? '-' }}</div>
+                            <div><strong>Quality:</strong> {{ $item->quality_item->name ?? '-' }}</div>
+                        </div>
                     </td>
                     <td>
                         <div class="dropdown">
@@ -1528,7 +1523,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="text-center">No items found.</td>
+                    <td colspan="10" class="text-center">No items found.</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -2680,7 +2675,7 @@
         if (items.length === 0) {
             tbody.append(`
                 <tr>
-                    <td colspan="9" class="text-center">No items found for this type.</td>
+                    <td colspan="10" class="text-center">No items found for this type.</td>
                 </tr>
             `);
             return;
@@ -2692,6 +2687,16 @@
                 : '<span class="badge bg-danger">Inactive</span>';
 
             const csrfToken = $('input[name="_token"]').val();
+            
+            // Build item details HTML
+            const itemDetails = `
+                <div class="small">
+                    <div><strong>Part Number:</strong> ${item.part_number || '-'}</div>
+                    <div><strong>Category:</strong> ${item.category_name || '-'}</div>
+                    <div><strong>Company:</strong> ${item.company_name || '-'}</div>
+                    <div><strong>Quality:</strong> ${item.quality_name || '-'}</div>
+                </div>
+            `;
 
             const row = `
                 <tr>
@@ -2700,6 +2705,9 @@
                             class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
                             data-bs-target="#imageModal"
                             data-src="${item.image}">
+                    </td>
+                    <td>
+                        ${itemDetails}
                     </td>
                     <td>
                         <div class="dropdown">

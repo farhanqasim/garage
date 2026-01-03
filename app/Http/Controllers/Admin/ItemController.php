@@ -103,7 +103,14 @@ class ItemController extends Controller
         $partnumbers      = PartNumber::with('part_number_vehical')->where('status', 'active')->get();
         // return $partnumbers;
         $engineccs      = EngineCc::where('status', 'active')->get();
-        $latestItems = Item::latest()->take(5)->get();
+        $latestItems = Item::with([
+            'item_user',
+            'product_item',
+            'category',
+            'partnumber_item',
+            'company_item',
+            'quality_item'
+        ])->latest()->take(5)->get();
         // Get all vehicles and group by configuration (part, manufacturer, model, engine, country)
         // Multiple records exist per vehicle configuration with different year ranges
         $Vehis = VehicalType::with([
@@ -697,7 +704,14 @@ class ItemController extends Controller
 
     public function getItemsByType($type, Request $request)
     {
-        $query = Item::with(['item_user', 'product_item', 'category'])
+        $query = Item::with([
+            'item_user', 
+            'product_item', 
+            'category',
+            'partnumber_item',
+            'company_item',
+            'quality_item'
+        ])
             ->where('type', $type)
             ->latest();
         
@@ -720,6 +734,9 @@ class ItemController extends Controller
                     'bar_code' => $item->bar_code,
                     'is_active' => $item->is_active,
                     'category_name' => $item->category ? $item->category->name : 'N/A',
+                    'part_number' => $item->partnumber_item ? $item->partnumber_item->name : '-',
+                    'company_name' => $item->company_item ? $item->company_item->name : '-',
+                    'quality_name' => $item->quality_item ? $item->quality_item->name : '-',
                     'show_url' => route('item.show', $item->id),
                     'edit_url' => route('item.edit', $item->id),
                     'delete_url' => route('item.delete', $item->id),
