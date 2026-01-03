@@ -1521,6 +1521,11 @@
             </tbody>
         </table>
     </div>
+    <div class="text-center mt-3" id="allItemsButtonContainer" style="display: none;">
+        <button type="button" class="btn btn-primary" id="loadAllItemsBtn">
+            <i data-feather="list"></i> All Items
+        </button>
+    </div>
 </div>
 </div>
 </div>
@@ -2579,16 +2584,23 @@
         }));
     });
 
-    // Function to load items by type
-    function loadItemsByType(type) {
-        const routeUrl = '{{ route("items.by.type", ":type") }}'.replace(':type', type);
+    // Function to load items by type (with limit option)
+    function loadItemsByType(type, loadAll = false) {
+        const routeBase = '{{ route("items.by.type", ":type") }}';
+        let routeUrl = routeBase.replace(':type', type);
+        
+        // Add 'all' parameter if loading all items
+        if (loadAll) {
+            routeUrl += '?all=true';
+        }
+        
         $.ajax({
             url: routeUrl,
             type: 'GET',
             success: function(response) {
                 if (response.success && response.items) {
                     updateItemsTable(response.items);
-                    // Update table title
+                    // Update table title and button visibility
                     const typeNames = {
                         'parts': 'Parts',
                         'battery': 'Battery',
@@ -2598,7 +2610,25 @@
                         'filters': 'Filters',
                         'breakpad': 'Break Pad'
                     };
-                    $('#itemsTableTitle').text(`Last 5 ${typeNames[type] || type.toUpperCase()} Items`);
+                    
+                    if (loadAll) {
+                        // Show all items
+                        $('#itemsTableTitle').text(`All ${typeNames[type] || type.toUpperCase()} Items (${response.total || response.items.length})`);
+                        $('#allItemsButtonContainer').hide();
+                    } else {
+                        // Show last 5 items
+                        $('#itemsTableTitle').text(`Last 5 ${typeNames[type] || type.toUpperCase()} Items`);
+                        // Show "All Items" button if there are 5 items (might be more)
+                        if (response.items.length >= 5) {
+                            $('#allItemsButtonContainer').show();
+                            // Re-initialize feather icons for the button
+                            if (typeof feather !== 'undefined') {
+                                feather.replace();
+                            }
+                        } else {
+                            $('#allItemsButtonContainer').hide();
+                        }
+                    }
                 }
             },
             error: function(xhr) {
@@ -2609,11 +2639,25 @@
         });
     }
 
+    // Function to load all items of selected type
+    function loadAllItemsByType() {
+        const savedType = localStorage.getItem('selectedType');
+        if (savedType) {
+            loadItemsByType(savedType, true);
+        }
+    }
+
     // Function to load all items (initial load)
     function loadAllItems() {
         $('#itemsTableTitle').text('Last 5 Created Items');
+        $('#allItemsButtonContainer').hide();
         // Table is already populated by server, no need to reload
     }
+
+    // Handle "All Items" button click
+    $(document).on('click', '#loadAllItemsBtn', function() {
+        loadAllItemsByType();
+    });
 
     // Function to update the items table
     function updateItemsTable(items) {
@@ -2705,8 +2749,11 @@
         if (savedType) {
             // Wait a bit for Alpine.js to initialize
             setTimeout(function() {
-                loadItemsByType(savedType);
+                loadItemsByType(savedType, false);
             }, 300);
+        } else {
+            // Hide button if no type is selected
+            $('#allItemsButtonContainer').hide();
         }
     });
     $(document).ready(function() {

@@ -695,13 +695,18 @@ class ItemController extends Controller
         return view('admin.item.show', compact('item'));
     }
 
-    public function getItemsByType($type)
+    public function getItemsByType($type, Request $request)
     {
-        $items = Item::with(['item_user', 'product_item', 'category'])
+        $query = Item::with(['item_user', 'product_item', 'category'])
             ->where('type', $type)
-            ->latest()
-            ->take(5)
-            ->get();
+            ->latest();
+        
+        // Check if 'all' parameter is passed to get all items
+        if ($request->has('all') && $request->get('all') == 'true') {
+            $items = $query->get();
+        } else {
+            $items = $query->take(5)->get();
+        }
 
         return response()->json([
             'success' => true,
@@ -720,7 +725,8 @@ class ItemController extends Controller
                     'delete_url' => route('item.delete', $item->id),
                     'duplicate_url' => route('item.duplicate', $item->id),
                 ];
-            })
+            }),
+            'total' => $items->count()
         ]);
     }
 
