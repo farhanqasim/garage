@@ -251,7 +251,6 @@ class ItemController extends Controller
             'minus_pole_direction' => 'nullable|string',
             'minus_pool_direction' => 'nullable|string', // Keep both for backward compatibility
             'technology' => 'nullable|string',
-            'tecnology' => 'nullable|string', // Keep both for backward compatibility
             'grade' => 'nullable|string',
             'services' => 'nullable|string',
             'formulas' => 'nullable|string',
@@ -345,10 +344,7 @@ class ItemController extends Controller
                 $data['minus_pool_direction'] = $data['minus_pole_direction'];
                 unset($data['minus_pole_direction']);
             }
-            if (isset($data['technology'])) {
-                $data['tecnology'] = $data['technology'];
-                unset($data['technology']);
-            }
+            // Technology field is already in correct format, no mapping needed
             if (isset($data['group'])) {
                 $data['gorup'] = $data['group'];
                 unset($data['group']);
@@ -584,7 +580,6 @@ class ItemController extends Controller
             'minus_pole_direction' => 'nullable|string',
             'minus_pool_direction' => 'nullable|string', // Keep both for backward compatibility
             'technology' => 'nullable|string',
-            'tecnology' => 'nullable|string', // Keep both for backward compatibility
             'grade' => 'nullable|string',
             'farmula' => 'nullable|string',
             'serial_number' => 'nullable|string',
@@ -653,10 +648,7 @@ class ItemController extends Controller
                 $data['minus_pool_direction'] = $data['minus_pole_direction'];
                 unset($data['minus_pole_direction']);
             }
-            if (isset($data['technology'])) {
-                $data['tecnology'] = $data['technology'];
-                unset($data['technology']);
-            }
+            // Technology field is already in correct format, no mapping needed
             if (isset($data['group'])) {
                 $data['gorup'] = $data['group'];
                 unset($data['group']);
