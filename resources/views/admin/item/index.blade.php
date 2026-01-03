@@ -216,32 +216,36 @@
         selectAll.addEventListener('change', function() {
             checkboxes.forEach(chk => chk.checked = selectAll.checked);
         });
-        // Bulk Delete
+        // Bulk Delete with SweetAlert
         document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
             const selected = Array.from(checkboxes).filter(chk => chk.checked);
-            if (selected.length === 0) return alert('Please select at least one item.');
-            if (!confirm('Are you sure you want to delete selected items?')) return;
-            document.getElementById('bulkDeleteForm').submit();
-        });
-        // Single Delete
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (!confirm('Are you sure you want to delete this item?')) return;
-                const id = this.dataset.id;
-                fetch(`/items/${id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                }).then(res => res.json())
-                .then(data => {
-                    if (data.success) location.reload();
-                    else alert('Failed to delete');
+            if (selected.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one item.'
                 });
+                return;
+            }
+            
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You are about to delete ${selected.length} item(s). This action cannot be undone!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete them!',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    playDeleteSound();
+                    document.getElementById('bulkDeleteForm').submit();
+                }
             });
         });
+        // Single Delete - already using confirmDelete function with SweetAlert
         // Duplicate
         document.querySelectorAll('.duplicate-btn').forEach(btn => {
             btn.addEventListener('click', function(e) {

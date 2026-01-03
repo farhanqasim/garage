@@ -112,9 +112,19 @@
                                                 data-bs-target="#edit-category{{ $item->id }}">
                                                 <i data-feather="edit" class="feather-edit"></i>
                                             </a>
-                                            <a class="p-2 text-danger" href="{{ route('branch.delete',$item->id) }}" onclick="return confirm('Are you sure?')">
+                                            <a href="javascript:void(0)"
+                                                onclick="confirmDelete('delete-form-{{ $item->id }}')"
+                                                class="p-2 text-danger">
                                                 <i data-feather="trash-2" class="feather-trash-2"></i>
                                             </a>
+                                            <!-- Hidden delete form -->
+                                            <form id="delete-form-{{ $item->id }}"
+                                                action="{{ route('branch.delete', $item->id) }}"
+                                                method="POST"
+                                                style="display: none;">
+                                                @csrf
+                                                @method('DELETE')
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
