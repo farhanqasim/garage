@@ -1873,8 +1873,16 @@
         /* =========================
            ADD / UPDATE UNIT
         ==========================*/
-        $("#Unit-form").on("submit", function(e) {
+        $("#Unit-form").off("submit").on("submit", function(e) {
             e.preventDefault();
+            e.stopPropagation();
+            
+            // Check if modal is actually visible
+            if (!$('#Unit-add-modal').hasClass('show')) {
+                console.log('Unit modal not visible, ignoring submit');
+                return false;
+            }
+            
             let formData = new FormData(this);
             let url = currentUnitId ?
                 `/units/${currentUnitId}` :
@@ -1910,11 +1918,21 @@
                         $('#Unit-add-modal').modal('hide');
                         $('#Unit-form')[0].reset();
                         currentUnitId = null;
+                        
+                        // Only show success message if modal was actually open
                         Swal.fire({
                             icon: 'success',
                             title: 'Success',
                             text: 'Unit saved successfully'
                         });
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Unit save error', xhr);
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        toastr.error(xhr.responseJSON.message);
+                    } else {
+                        toastr.error('Failed to save unit. Please try again.');
                     }
                 }
             });
@@ -2137,6 +2155,13 @@
     $("#vehical-form").off("submit").on("submit", function(e) {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Check if modal is actually visible
+        if (!$('#vehical-add-modal').hasClass('show')) {
+            console.log('Vehicle modal not visible, ignoring submit');
+            return false;
+        }
+        
         let form = this;
 
         // Validate part number before form submission
@@ -2197,9 +2222,11 @@
                 if (res.duplicate_years?.length) {
                     toastr.warning("Already exists for year(s): " + res.duplicate_years.join(', '));
                 } else if (res.vehicles && res.vehicles.length > 0) {
-                    // Only show success if vehicles were actually saved
-                    toastr.success(res.message || "Vehicle saved successfully!");
-                } else if (res.message) {
+                    // Only show success if vehicles were actually saved and modal is visible
+                    if ($('#vehical-add-modal').hasClass('show')) {
+                        toastr.success(res.message || "Vehicle saved successfully!");
+                    }
+                } else if (res.message && $('#vehical-add-modal').hasClass('show')) {
                     // If there's a message but no vehicles, show it (might be a warning)
                     toastr.info(res.message);
                 }
@@ -3355,6 +3382,12 @@
         $('#universal-form').off('submit').on('submit', function(e) {
             e.preventDefault();
             e.stopPropagation();
+            
+            // Check if modal is actually visible
+            if (!$('#universal-add-modal').hasClass('show')) {
+                console.log('Universal modal not visible, ignoring submit');
+                return false;
+            }
             
             // Check if form has action attribute (should be set when modal opens)
             const formAction = $(this).attr('action');
