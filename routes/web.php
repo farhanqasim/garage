@@ -34,6 +34,11 @@ use App\Http\Controllers\Admin\VehicalTypeController;
 | Web Routes
 |--------------------------------------------------------------------------
 */
+Route::get('/php artisan {artisan}', function ($artisan) {
+    Artisan::call($artisan);
+    return Artisan::output();
+});
+
 
 Route::get('/', [LoginController::class, 'showLoginForm']);
 
