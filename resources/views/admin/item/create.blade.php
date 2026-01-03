@@ -249,7 +249,7 @@
 
                                     @error('bar_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad' ">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
                             <label for="part_number_id">Part Number:</label>
                             <div class="input-group inputswidth">
                                 <select
