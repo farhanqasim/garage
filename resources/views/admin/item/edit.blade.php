@@ -348,7 +348,7 @@
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Series/Technology -->
-                                <div class="col-md-4 mt-3">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'">
                                     <label for="technology_select">
                                         <span x-show="selectedType === 'parts'">Technology:</span>
                                         <span x-show="selectedType !== 'parts'">Series:</span>
@@ -736,35 +736,6 @@
                                         </button>
                                     </div>
                                     @error('mileage') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-                                <div class="col-md-4 mt-3">
-                                    <label for="technology_oil_select">
-                                        <span x-show="selectedType === 'parts'">Technology:</span>
-                                        <span x-show="selectedType !== 'parts'">Series:</span>
-                                    </label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control technology-oil-select searchable-select @error('technology') is-invalid @enderror"
-                                            name="technology" id="technology_oil_select">
-                                            <option value="">Select</option>
-                                            @foreach ($technologies as $tech)
-                                            <option
-                                                value="{{ $tech->id }}"
-                                                {{ old('technology', $item->technology) == $tech->id ? 'selected' : '' }}>
-                                                {{ $tech->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-oil-select">
-                                            <i data-feather="plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('technology')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
                                 </div>
                                 <div class="col-md-4 mt-3 ">
                                     <label for="Level_select">Level:</label>
