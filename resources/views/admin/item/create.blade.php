@@ -2691,10 +2691,10 @@
             // Build item details HTML
             const itemDetails = `
                 <div class="small">
-                    <div><strong>Part Number:</strong> ${item.part_number || '-'}</div>
-                    <div><strong>Category:</strong> ${item.category_name || '-'}</div>
-                    <div><strong>Company:</strong> ${item.company_name || '-'}</div>
-                    <div><strong>Quality:</strong> ${item.quality_name || '-'}</div>
+                    <div> ${item.part_number || '-'}</div>
+                    <div> ${item.category_name || '-'}</div>
+                    <div> ${item.company_name || '-'}</div>
+                    <div> ${item.quality_name || '-'}</div>
                 </div>
             `;
 
