@@ -230,6 +230,9 @@
                         </div>
                     </div>
                     <input type="hidden" name="type" x-model="selectedType">
+                    <!-- Hidden inputs to ensure quality_id and technology are submitted even when fields are hidden -->
+                    <input type="hidden" name="quality_id" id="hidden_quality_id" value="">
+                    <input type="hidden" name="technology" id="hidden_technology" value="">
                     <div class="row" id="itemFormsContainer">
                         <!-- COMMON FIELDS (Visible after type selection) -->
                         <div class="col-md-12 field-group" :class="{ 'active': selectedType }">
@@ -3661,6 +3664,34 @@
                 }
             });
         }
+
+        // =========================
+        // ENSURE quality_id AND technology ARE SUBMITTED ON FORM SUBMIT
+        // This ensures they are sent even if fields are hidden by Alpine.js
+        // =========================
+        $('#mainItemForm').on('submit', function(e) {
+            // Get quality_id from any visible quality field
+            const qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
+            
+            // Remove any existing hidden quality_id inputs to avoid duplicates
+            $(this).find('input[type="hidden"][name="quality_id"]').remove();
+            
+            // Add hidden input if quality_id has a value
+            if (qualityVal) {
+                $(this).append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
+            }
+            
+            // Get technology from any visible technology field
+            const techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
+            
+            // Remove any existing hidden technology inputs to avoid duplicates
+            $(this).find('input[type="hidden"][name="technology"]').remove();
+            
+            // Add hidden input if technology has a value
+            if (techVal) {
+                $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
+            }
+        });
     });
 </script>
 <style>

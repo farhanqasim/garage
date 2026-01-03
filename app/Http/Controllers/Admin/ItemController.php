@@ -299,6 +299,15 @@ class ItemController extends Controller
             DB::beginTransaction();
 
             $data = $validated;
+            
+            // Ensure quality_id and technology are in $data if present in request
+            // This handles cases where fields might not be in validated array
+            if ($request->has('quality_id') && !isset($data['quality_id'])) {
+                $data['quality_id'] = $request->input('quality_id');
+            }
+            if ($request->has('technology') && !isset($data['technology'])) {
+                $data['technology'] = $request->input('technology');
+            }
 
             /* ============================
             ✅ Barcode Generation
