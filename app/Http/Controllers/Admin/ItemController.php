@@ -416,7 +416,7 @@ class ItemController extends Controller
             'volt_item',
             'cca_item',
             'minus_pool_item',
-            'tecnology_item',
+            'technology_item',
             'grade_item',
             'farmula_item',
             'quality_item',
