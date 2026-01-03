@@ -72,6 +72,7 @@
                                 </th>
                                 <th>Product Image</th>
                                 <th>Actions</th>
+                                <th>Update History</th>
                                 <th>Part Number</th>
                                 <th>User Name</th>
                                 <th>Product Name</th>
@@ -142,6 +143,24 @@
                                         </ul>
                                     </div>
                                 </td>
+                                <td>
+                                    @if($item->updated_by_user)
+                                        <div class="small">
+                                            <div><strong>Updated By:</strong> {{ $item->updated_by_user->name ?? 'N/A' }}</div>
+                                            @if($item->last_updated_at)
+                                                <div><strong>Updated At:</strong> {{ $item->last_updated_at->format('d M Y, h:i A') }}</div>
+                                            @elseif($item->updated_at)
+                                                <div><strong>Updated At:</strong> {{ $item->updated_at->format('d M Y, h:i A') }}</div>
+                                            @endif
+                                        </div>
+                                    @elseif($item->updated_at)
+                                        <div class="small">
+                                            <div><strong>Updated At:</strong> {{ $item->updated_at->format('d M Y, h:i A') }}</div>
+                                        </div>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                                 <td>{{ $item->partnumber_item->name??'-' }}</td>
                                 <td>{{ $item->item_user->name??'' }}</td>
                                 <td>{{ $item->product_item->name??'' }}</td>
@@ -158,7 +177,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" class="text-center">No items found.</td>
+                                <td colspan="11" class="text-center">No items found.</td>
                             </tr>
                             @endforelse
                         </tbody>

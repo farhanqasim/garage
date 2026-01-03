@@ -33,6 +33,7 @@ class Item extends Model
         'is_dead'               => 'boolean',
         'car_manufacture_year'  => 'date',
         'update_date'           => 'date',
+        'last_updated_at'       => 'datetime',
         'filling'               => 'decimal:2',
         'weight_for_delivery'   => 'decimal:2',
         'packing_purchase_rate' => 'decimal:2',
@@ -226,9 +227,14 @@ class Item extends Model
                     }
 
 
-                  public function level_item()
+                    public function level_item()
                     {
                      return $this->belongsTo(Level::class,'level');
+                    }
+
+                    public function updated_by_user()
+                    {
+                     return $this->belongsTo(User::class,'updated_by');
                     }
 
     /**

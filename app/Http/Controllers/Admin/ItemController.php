@@ -50,7 +50,7 @@ class ItemController extends Controller
 
     public function all_items()
     {
-        $items = Item::with(['item_user', 'product_item', 'partnumber_item'])->latest()->get();
+        $items = Item::with(['item_user', 'product_item', 'partnumber_item', 'updated_by_user', 'category'])->latest()->get();
         //   return $items;
         return view('admin.item.index', compact('items'));
     }
@@ -668,6 +668,10 @@ class ItemController extends Controller
                 $data['farmula'] = $data['formulas'];
                 unset($data['formulas']);
             }
+
+            // === Track who updated and when ===
+            $data['updated_by'] = auth()->id();
+            $data['last_updated_at'] = now();
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);
