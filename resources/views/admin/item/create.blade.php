@@ -1425,13 +1425,9 @@
                     <th>Product Image</th>
                     <th>Item Details</th>
                     <th>Actions</th>
-                    <th>ID</th>
+                   
                     <th>User Name</th>
-                    <th>Product Name</th>
-                    <th>Product Type</th>
-                    <th>Bar Code</th>
-                    <th>Is Active</th>
-                    <th>Category</th>
+                  
                 </tr>
             </thead>
             <tbody id="latestItemsTableBody">
@@ -1509,17 +1505,7 @@
                             </ul>
                         </div>
                     </td>
-                    <td>{{ $item->id }}</td>
                     <td>{{ $item->item_user->name??'-' }}</td>
-                    <td>{{ $item->product_item->name??'-' }}</td>
-                    <td>{{ $item->type }}</td>
-                    <td><span class="badge bg-secondary">{{ $item->bar_code }}</span></td>
-                    <td>
-                        <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-danger' }}">
-                            {{ $item->is_active ? 'Active' : 'Inactive' }}
-                        </span>
-                    </td>
-                    <td>{{ $item->category ? $item->category->name : 'N/A' }}</td>
                 </tr>
                 @empty
                 <tr>
@@ -2746,13 +2732,7 @@
                             </ul>
                         </div>
                     </td>
-                    <td>${item.id}</td>
                     <td>${item.user_name}</td>
-                    <td>${item.product_name}</td>
-                    <td>${item.type}</td>
-                    <td><span class="badge bg-secondary">${item.bar_code}</span></td>
-                    <td>${activeBadge}</td>
-                    <td>${item.category_name}</td>
                 </tr>
             `;
             tbody.append(row);
