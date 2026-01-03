@@ -1423,6 +1423,7 @@
             <thead class="thead-primary">
                 <tr>
                     <th>Product Image</th>
+                    <th>Item Details</th>
                     <th>Actions</th>
                     <th>ID</th>
                     <th>User Name</th>
@@ -1443,7 +1444,19 @@
                             data-bs-target="#imageModal"
                             data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
                     </td>
-
+                    <td>
+                        {{ $item->product_item->name??'-' }}
+                        {{ $item->type??'-' }}
+                        {{ $item->bar_code??'-' }}
+                        {{ $item->is_active??'-' }}
+                        {{ $item->category??'-' }}
+                        {{ $item->item_user->name??'-' }}
+                        {{ $item->product_item->name??'-' }}
+                        {{ $item->type??'-' }}
+                        {{ $item->bar_code??'-' }}
+                        {{ $item->is_active??'-' }}
+                        {{ $item->category??'-' }}
+                    </td>
                     <td>
                         <div class="dropdown">
                             <button class="btn btn-primary  dropdown-toggle" type="button" data-bs-toggle="dropdown">
