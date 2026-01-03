@@ -226,6 +226,7 @@ Route::post('/all/items/store', [ItemController::class, 'items_store'])->name('a
 Route::get('/item/edit/{id}', [ItemController::class, 'item_edit'])->name('item.edit');
 Route::put('/item/update/{id}', [ItemController::class, 'item_update'])->name('item.update');
 Route::get('/item/show/{id}', [ItemController::class, 'item_show'])->name('item.show');
+Route::get('/items/by-type/{type}', [ItemController::class, 'getItemsByType'])->name('items.by.type');
 Route::post('/check-barcode', [ItemController::class, 'checkBarcode'])->name('check.barcode');
 Route::delete('/all/items/bulk-delete', [ItemController::class, 'itembulkDelete'])->name('all.items.bulkDelete');
 Route::get('/item/{id}/duplicate', [ItemController::class, 'duplicate'])->name('item.duplicate');

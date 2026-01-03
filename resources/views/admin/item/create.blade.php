@@ -1417,7 +1417,7 @@
         </div>
     </div>
     </form>
-    <h4>Last 5 Created Items</h4>
+    <h4 id="itemsTableTitle">Last 5 Created Items</h4>
     <div class="table-responsive">
         <table id="searchableTable" class="table table-hover table-center">
             <thead class="thead-primary">
@@ -1433,7 +1433,7 @@
                     <th>Category</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="latestItemsTableBody">
                 @forelse ($latestItems as $item)
                 <tr>
 
@@ -2569,8 +2569,145 @@
             selectType(type) {
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
+                // Load items by type when type changes
+                if (type) {
+                    loadItemsByType(type);
+                } else {
+                    loadAllItems();
+                }
             }
         }));
+    });
+
+    // Function to load items by type
+    function loadItemsByType(type) {
+        const routeUrl = '{{ route("items.by.type", ":type") }}'.replace(':type', type);
+        $.ajax({
+            url: routeUrl,
+            type: 'GET',
+            success: function(response) {
+                if (response.success && response.items) {
+                    updateItemsTable(response.items);
+                    // Update table title
+                    const typeNames = {
+                        'parts': 'Parts',
+                        'battery': 'Battery',
+                        'oil': 'Oil',
+                        'scrap': 'Scrap',
+                        'services': 'Services',
+                        'filters': 'Filters',
+                        'breakpad': 'Break Pad'
+                    };
+                    $('#itemsTableTitle').text(`Last 5 ${typeNames[type] || type.toUpperCase()} Items`);
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading items:', xhr);
+                // Fallback: show all items
+                loadAllItems();
+            }
+        });
+    }
+
+    // Function to load all items (initial load)
+    function loadAllItems() {
+        $('#itemsTableTitle').text('Last 5 Created Items');
+        // Table is already populated by server, no need to reload
+    }
+
+    // Function to update the items table
+    function updateItemsTable(items) {
+        const tbody = $('#latestItemsTableBody');
+        tbody.empty();
+
+        if (items.length === 0) {
+            tbody.append(`
+                <tr>
+                    <td colspan="9" class="text-center">No items found for this type.</td>
+                </tr>
+            `);
+            return;
+        }
+
+        items.forEach(function(item) {
+            const activeBadge = item.is_active 
+                ? '<span class="badge bg-success">Active</span>' 
+                : '<span class="badge bg-danger">Inactive</span>';
+
+            const csrfToken = $('input[name="_token"]').val();
+
+            const row = `
+                <tr>
+                    <td>
+                        <img src="${item.image}" width="70" height="70"
+                            class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
+                            data-bs-target="#imageModal"
+                            data-src="${item.image}">
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Actions
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="${item.show_url}">
+                                        <i data-feather="eye" class="me-1"></i> View
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="${item.edit_url}">
+                                        <i data-feather="edit" class="me-1"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" onclick="confirmDelete('delete-form-${item.id}')"
+                                        class="p-2">
+                                        <i data-feather="trash-2" class="feather-trash-2"></i> Delete
+                                    </a>
+                                    <form id="delete-form-${item.id}"
+                                        action="${item.delete_url}" method="POST"
+                                        style="display: none;">
+                                        <input type="hidden" name="_token" value="${csrfToken}">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                    </form>
+                                </li>
+                                <hr>
+                                <li>
+                                    <a class="dropdown-item text-primary" href="${item.duplicate_url}">
+                                        <i data-feather="copy" class="me-1"></i> Duplicate
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                    <td>${item.id}</td>
+                    <td>${item.user_name}</td>
+                    <td>${item.product_name}</td>
+                    <td>${item.type}</td>
+                    <td><span class="badge bg-secondary">${item.bar_code}</span></td>
+                    <td>${activeBadge}</td>
+                    <td>${item.category_name}</td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+
+        // Re-initialize feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+
+    // Load items by type on page load if type is already selected
+    $(document).ready(function() {
+        const savedType = localStorage.getItem('selectedType');
+        if (savedType) {
+            // Wait a bit for Alpine.js to initialize
+            setTimeout(function() {
+                loadItemsByType(savedType);
+            }, 300);
+        }
     });
     $(document).ready(function() {
         feather.replace();

@@ -695,6 +695,35 @@ class ItemController extends Controller
         return view('admin.item.show', compact('item'));
     }
 
+    public function getItemsByType($type)
+    {
+        $items = Item::with(['item_user', 'product_item', 'category'])
+            ->where('type', $type)
+            ->latest()
+            ->take(5)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'items' => $items->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                    'user_name' => $item->item_user->name ?? '-',
+                    'product_name' => $item->product_item->name ?? '-',
+                    'type' => $item->type,
+                    'bar_code' => $item->bar_code,
+                    'is_active' => $item->is_active,
+                    'category_name' => $item->category ? $item->category->name : 'N/A',
+                    'show_url' => route('item.show', $item->id),
+                    'edit_url' => route('item.edit', $item->id),
+                    'delete_url' => route('item.delete', $item->id),
+                    'duplicate_url' => route('item.duplicate', $item->id),
+                ];
+            })
+        ]);
+    }
+
     public function deleteSingleImage($id)
     {
         $item = Item::findOrFail($id);
