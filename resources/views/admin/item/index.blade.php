@@ -118,20 +118,11 @@
                                                 </a>
                                             </li>
                                             <li>
-
                                                 <a href="javascript:void(0)"
                                                     onclick="confirmDelete('delete-form-{{ $item->id }}')"
                                                     class="dropdown-item mt-2">
-                                                        <i data-feather="trash-2" class="feather-trash-2"></i>  Delete
-                                                    </a>
-                                                    <!-- Hidden delete form -->
-                                                    <form id="delete-form-{{ $item->id }}"
-                                                        action="{{ route('item.delete', $item->id) }}"
-                                                        method="POST"
-                                                        style="display: none;">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                    </form>
+                                                    <i data-feather="trash-2" class="feather-trash-2"></i>  Delete
+                                                </a>
                                             </li>
                                             <hr>
                                             <li>
@@ -139,9 +130,16 @@
                                                     <i data-feather="copy" class="me-1"></i> Duplicate
                                                 </a>
                                             </li>
-
                                         </ul>
                                     </div>
+                                    <!-- Hidden delete form - moved outside dropdown -->
+                                    <form id="delete-form-{{ $item->id }}"
+                                        action="{{ route('item.delete', $item->id) }}"
+                                        method="POST"
+                                        style="display: none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
                                 </td>
                                 <td>
                                     @if($item->updated_by_user)

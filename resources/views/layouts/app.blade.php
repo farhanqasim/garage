@@ -581,8 +581,31 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 <script>
+// 🔊 Global function to play delete sound (can be called from anywhere)
+function playDeleteSound() {
+    const deleteSound = document.getElementById('deleteSound');
+    if (deleteSound) {
+        deleteSound.currentTime = 0; // Reset to start
+        deleteSound.play().catch(function(error) {
+            // If audio play fails (e.g., user interaction required), just continue silently
+            console.log('Delete sound play failed:', error);
+        });
+    }
+}
+
 function confirmDelete(formId, customMessage = null) {
-    const message = customMessage;
+    // First check if form exists before showing confirmation
+    const deleteForm = document.getElementById(formId);
+    if (!deleteForm) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'Delete form not found. Please refresh the page and try again.'
+        });
+        return;
+    }
+
+    const message = customMessage || 'Are you sure you want to delete this item?';
     Swal.fire({
         title: 'Are you sure?',
         text: message,
@@ -590,19 +613,23 @@ function confirmDelete(formId, customMessage = null) {
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes',
-        cancelButtonText: 'No',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel',
         reverseButtons: true
     }).then((result) => {
         if (result.isConfirmed) {
-            const deleteForm = document.getElementById(formId);
-            if (deleteForm) {
-                deleteForm.submit();
+            // Double-check form still exists before submitting
+            const form = document.getElementById(formId);
+            if (form) {
+                // 🔊 Play delete sound before submitting
+                playDeleteSound();
+                // Submit the form
+                form.submit();
             } else {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: 'Delete form not found.'
+                    text: 'Delete form not found. Please refresh the page and try again.'
                 });
             }
         }
@@ -859,6 +886,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
 </script>
 
+<!-- Delete Sound Audio Element - Available Globally -->
+<audio id="deleteSound" src="{{ asset('deleteaudio_ubWu5Ok3.mp3') }}" preload="auto"></audio>
 
 </body>
 
