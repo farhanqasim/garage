@@ -710,12 +710,12 @@
                                 </div>
 
                                 <div class="col-md-4 mt-3">
-                                    <label for="technology_select">Technology:</label>
+                                    <label for="technology_select">Series:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
                                             name="technology" id="technology_select">
-                                            <option value="">Select Technology</option>
+                                            <option value="">Select Series</option>
                                             @foreach ($technologies as $tech)
                                             <option value="{{ $tech->id }}" {{ old('technology')==$tech->id ?
                                                 'selected' : '' }}>
@@ -724,13 +724,13 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Technology" data-mode="add"
+                                            data-title="Add Series" data-mode="add"
                                             data-route="{{ route('post.technology') }}"
                                             data-target-select=".technology-select">
                                             <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Technology"
+                                            data-mode="edit" data-title="Edit Series"
                                             data-fetch-route="{{ route('show.technology', ':id') }}"
                                             data-update-route="{{ route('update.technology', ':id') }}"
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
@@ -931,12 +931,12 @@
                                 </div>
 
                                 <div class="col-md-4">
-                                    <label for="technology_oil_select">Technology:</label>
+                                    <label for="technology_oil_select">Series:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control technology-oil-select searchable-select  @error('technology') is-invalid @enderror"
                                             name="technology" id="technology_oil_select">
-                                            <option value="">Select Technology</option>
+                                            <option value="">Select Series</option>
                                             @foreach ($technologies as $tech)
                                             <option value="{{ $tech->id }}" {{ old('technology')==$tech->id ?
                                                 'selected' : '' }}>
@@ -945,13 +945,13 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Technology" data-mode="add"
+                                            data-title="Add Series" data-mode="add"
                                             data-route="{{ route('post.technology') }}"
                                             data-target-select=".technology-oil-select">
                                             <i data-feather="plus"></i>
                                         </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Technology"
+                                            data-mode="edit" data-title="Edit Series"
                                             data-fetch-route="{{ route('show.technology', ':id') }}"
                                             data-update-route="{{ route('update.technology', ':id') }}"
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
