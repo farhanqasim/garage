@@ -146,16 +146,16 @@
                                 <td>
                                     @if($item->updated_by_user)
                                         <div class="small">
-                                            <div><strong>Updated By:</strong> {{ $item->updated_by_user->name ?? 'N/A' }}</div>
+                                            <div> {{ $item->updated_by_user->name ?? 'N/A' }}</div>
                                             @if($item->last_updated_at)
-                                                <div><strong>Updated At:</strong> {{ $item->last_updated_at->format('d M Y, h:i A') }}</div>
+                                                <div> {{ $item->last_updated_at->format('d M Y, h:i A') }}</div>
                                             @elseif($item->updated_at)
-                                                <div><strong>Updated At:</strong> {{ $item->updated_at->format('d M Y, h:i A') }}</div>
+                                                <div> {{ $item->updated_at->format('d M Y, h:i A') }}</div>
                                             @endif
                                         </div>
                                     @elseif($item->updated_at)
                                         <div class="small">
-                                            <div><strong>Updated At:</strong> {{ $item->updated_at->format('d M Y, h:i A') }}</div>
+                                            <div> {{ $item->updated_at->format('d M Y, h:i A') }}</div>
                                         </div>
                                     @else
                                         <span class="text-muted">-</span>
