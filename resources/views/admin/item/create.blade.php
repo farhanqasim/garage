@@ -1444,7 +1444,7 @@
                             data-bs-target="#imageModal"
                             data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
                     </td>
-                    <td>
+                    <td>  
                         <div class="small">
                             <div> {{ $item->partnumber_item->name ?? '-' }}</div>
                             <div> {{ $item->category->name ?? '-' }}</div>
