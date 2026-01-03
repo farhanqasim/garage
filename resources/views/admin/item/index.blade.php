@@ -132,14 +132,6 @@
                                             </li>
                                         </ul>
                                     </div>
-                                    <!-- Hidden delete form - moved outside dropdown -->
-                                    <form id="delete-form-{{ $item->id }}"
-                                        action="{{ route('item.delete', $item->id) }}"
-                                        method="POST"
-                                        style="display: none;">
-                                        @csrf
-                                        @method('DELETE')
-                                    </form>
                                 </td>
                                 <td>
                                     @if($item->updated_by_user)
@@ -181,6 +173,18 @@
                         </tbody>
                     </table>
                 </form>
+                <!-- All delete forms moved OUTSIDE bulkDeleteForm to avoid nested form issue -->
+                <!-- HTML doesn't allow nested forms, so these must be outside -->
+                <div style="display: none;">
+                    @foreach ($items as $item)
+                    <form id="delete-form-{{ $item->id }}"
+                        action="{{ route('item.delete', $item->id) }}"
+                        method="POST">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                    @endforeach
+                </div>
             </div>
         </div>
         <div class="card-footer">

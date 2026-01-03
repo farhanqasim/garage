@@ -594,13 +594,28 @@ function playDeleteSound() {
 }
 
 function confirmDelete(formId, customMessage = null) {
-    // First check if form exists before showing confirmation
-    const deleteForm = document.getElementById(formId);
+    // Enhanced check: Try multiple methods to find the form
+    let deleteForm = document.getElementById(formId);
+    
+    // If not found by ID, try querySelector
     if (!deleteForm) {
+        deleteForm = document.querySelector('#' + formId.replace(/[^a-zA-Z0-9_-]/g, '\\$&'));
+    }
+    
+    // If still not found, try to find by action attribute pattern
+    if (!deleteForm && formId.includes('delete-form-')) {
+        const itemId = formId.replace('delete-form-', '');
+        deleteForm = document.querySelector(`form[action*="${itemId}"]`);
+    }
+    
+    // Final check
+    if (!deleteForm) {
+        console.error('Delete form not found:', formId);
         Swal.fire({
             icon: 'error',
             title: 'Error!',
-            text: 'Delete form not found. Please refresh the page and try again.'
+            text: 'Delete form not found. Please refresh the page and try again.',
+            footer: '<small>Form ID: ' + formId + '</small>'
         });
         return;
     }
@@ -618,18 +633,28 @@ function confirmDelete(formId, customMessage = null) {
         reverseButtons: true
     }).then((result) => {
         if (result.isConfirmed) {
-            // Double-check form still exists before submitting
-            const form = document.getElementById(formId);
-            if (form) {
+            // Final check before submitting - try to find form again
+            let form = document.getElementById(formId);
+            if (!form) {
+                form = document.querySelector('#' + formId.replace(/[^a-zA-Z0-9_-]/g, '\\$&'));
+            }
+            if (!form && formId.includes('delete-form-')) {
+                const itemId = formId.replace('delete-form-', '');
+                form = document.querySelector(`form[action*="${itemId}"]`);
+            }
+            
+            if (form && form.tagName === 'FORM') {
                 // 🔊 Play delete sound before submitting
                 playDeleteSound();
                 // Submit the form
                 form.submit();
             } else {
+                console.error('Delete form not found before submission:', formId);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: 'Delete form not found. Please refresh the page and try again.'
+                    text: 'Delete form not found. Please refresh the page and try again.',
+                    footer: '<small>Form ID: ' + formId + '</small>'
                 });
             }
         }
