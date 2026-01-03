@@ -377,6 +377,30 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
+                                <!-- Quality -->
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    <label for="quality_common">Quality:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
+                                            name="quality_id" id="quality_common">
+                                            <option value="">Select Quality</option>
+                                            @foreach ($qualities as $qaul)
+                                            <option value="{{ $qaul->id }}"
+                                              {{ old('quality_id', $item->quality_id) == $qaul->id ? 'selected' : '' }}>
+                                                {{ $qaul->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                    </div>
+                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
                                 <!-- Product Name -->
                                  <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap'">
                                     <label for="itemname">Product Name:</label>
@@ -429,28 +453,7 @@
                         <!-- PARTS FIELDS -->
                         <div class="field-group parts-fields" :class="{ 'active': selectedType === 'parts' }">
                             <div class="row p-3 mt-4">
-                                <div class="col-md-4">
-                                    <label for="quality">Quality:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
-                                            name="quality_id" id="quality">
-                                            <option value="">Select Quality</option>
-                                            @foreach ($qualities as $qaul)
-                                            <option value="{{ $qaul->id }}"
-                                              {{ old('quality_id', $item->quality_id) == $qaul->id ? 'selected' : '' }}>
-                                                {{ $qaul->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
+                                <!-- Quality field moved to common fields section above -->
                             </div>
                         </div>
                         <!-- BATTERY FIELDS -->
@@ -838,56 +841,14 @@
                         <!-- FILTERS FIELDS -->
                         <div class="field-group filters-fields" :class="{ 'active': selectedType === 'filters' }">
                             <div class="row p-3 mt-4">
-                                <div class="col-md-4">
-                                    <label for="quality_filters">Quality:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
-                                            name="quality_id" id="quality_filters">
-                                            <option value="">Select Quality</option>
-                                            @foreach ($qualities as $qaul)
-                                            <option value="{{ $qaul->id }}"
-                                              {{ old('quality_id', $item->quality_id) == $qaul->id ? 'selected' : '' }}>
-                                                {{ $qaul->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
+                                <!-- Quality field moved to common fields section above -->
                             </div>
                         </div>
 
                         <!-- BREAK PAD FIELDS -->
                         <div class="field-group breakpad-fields" :class="{ 'active': selectedType === 'breakpad' }">
                             <div class="row p-3 mt-4">
-                                <div class="col-md-4">
-                                    <label for="quality_breakpad">Quality:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
-                                            name="quality_id" id="quality_breakpad">
-                                            <option value="">Select Quality</option>
-                                            @foreach ($qualities as $qaul)
-                                            <option value="{{ $qaul->id }}"
-                                              {{ old('quality_id', $item->quality_id) == $qaul->id ? 'selected' : '' }}>
-                                                {{ $qaul->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
+                                <!-- Quality field moved to common fields section above -->
                             </div>
                         </div>
 
