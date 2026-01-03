@@ -301,7 +301,7 @@
                                             name="group" id="group_select">
                                             <option value="">Select Group Name</option>
                                             @foreach ($groups as $group)
-                                            <option value="{{ $group->id }}" {{ old('group', $item->group) == $group->id ? 'selected' : '' }}>
+                                            <option value="{{ $group->id }}" {{ old('group', $item->gorup) == $group->id ? 'selected' : '' }}>
                                                 {{ $group->name }}
                                             </option>
                                             @endforeach
@@ -358,7 +358,7 @@
                                             @foreach ($technologies as $tech)
                                             <option
                                                 value="{{ $tech->id }}"
-                                                {{ old('technology', $item->technology) == $tech->id ? 'selected' : '' }}>
+                                                {{ old('technology', $item->tecnology) == $tech->id ? 'selected' : '' }}>
                                                 {{ $tech->name }}
                                             </option>
                                             @endforeach
@@ -462,7 +462,7 @@
                                         <option value="">Select Plate</option>
                                         @foreach ($platos as $plate)
                                         <option value="{{ $plate->id }}"
-                                              {{ old('plato', $item->plato) == $plate->id ? 'selected' : '' }}>
+                                              {{ old('plato', $item->plat_id) == $plate->id ? 'selected' : '' }}>
                                                 {{ $plate->name }} P
                                         </option>
                                         @endforeach
@@ -744,7 +744,7 @@
                                             @foreach ($technologies as $tech)
                                             <option
                                                 value="{{ $tech->id }}"
-                                                {{ old('technology', $item->technology) == $tech->id ? 'selected' : '' }}>
+                                                {{ old('technology', $item->tecnology) == $tech->id ? 'selected' : '' }}>
                                                 {{ $tech->name }}
                                             </option>
                                             @endforeach
