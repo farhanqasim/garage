@@ -1424,9 +1424,10 @@
                 <tr>
                     <th>Product Image</th>
                     <th>Item Details</th>
-                    <th>Actions</th>
+                    
                    
                     <th>User Name</th>
+                    <th>Actions</th>
                   
                 </tr>
             </thead>
@@ -1448,6 +1449,8 @@
                             <div> {{ $item->quality_item->name ?? '-' }}</div>
                         </div>
                     </td>
+                   
+                    <td>{{ $item->item_user->name??'-' }}</td>
                     <td>
                         <div class="dropdown">
                             <button class="btn btn-primary  dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -1505,7 +1508,6 @@
                             </ul>
                         </div>
                     </td>
-                    <td>{{ $item->item_user->name??'-' }}</td>
                 </tr>
                 @empty
                 <tr>
@@ -2695,7 +2697,9 @@
                     <td>
                         ${itemDetails}
                     </td>
-                    <td>
+                   
+                    <td>${item.user_name}</td>
+                     <td>
                         <div class="dropdown">
                             <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 Actions
@@ -2732,7 +2736,6 @@
                             </ul>
                         </div>
                     </td>
-                    <td>${item.user_name}</td>
                 </tr>
             `;
             tbody.append(row);
