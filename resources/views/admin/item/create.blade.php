@@ -1446,10 +1446,10 @@
                     </td>
                     <td>
                         <div class="small">
-                            <div><strong>Part Number:</strong> {{ $item->partnumber_item->name ?? '-' }}</div>
-                            <div><strong>Category:</strong> {{ $item->category->name ?? '-' }}</div>
-                            <div><strong>Company:</strong> {{ $item->company_item->name ?? '-' }}</div>
-                            <div><strong>Quality:</strong> {{ $item->quality_item->name ?? '-' }}</div>
+                            <div> {{ $item->partnumber_item->name ?? '-' }}</div>
+                            <div> {{ $item->category->name ?? '-' }}</div>
+                            <div> {{ $item->company_item->name ?? '-' }}</div>
+                            <div> {{ $item->quality_item->name ?? '-' }}</div>
                         </div>
                     </td>
                     <td>
