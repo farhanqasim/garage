@@ -674,8 +674,32 @@ function confirmDelete(formId, customMessage = null) {
 
   <!-- ✅ Laravel Flash Message Integration -->
   <script>
+  // Only show session messages if they exist and page was redirected from form submission
+  // Check if we came from a POST request (form submission)
   @if (session('success'))
-      toastr.success("{{ session('success') }}");
+      @php
+          // Only show success message if:
+          // 1. We have a referer (came from another page)
+          // 2. OR this is not a create/edit page (other pages can show messages normally)
+          $referer = request()->header('referer');
+          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit');
+          $showSuccess = false;
+          
+          if (!$isCreateEditPage) {
+              // Not on create/edit page, show message normally
+              $showSuccess = true;
+          } else if ($referer) {
+              // On create/edit page, only show if we have a referer (redirected from form)
+              // Check if referer is different from current URL (means we were redirected)
+              $currentUrl = request()->url();
+              if ($referer !== $currentUrl) {
+                  $showSuccess = true;
+              }
+          }
+      @endphp
+      @if ($showSuccess)
+          toastr.success("{{ session('success') }}");
+      @endif
   @endif
 
   @if (session('error'))
@@ -694,18 +718,39 @@ function confirmDelete(formId, customMessage = null) {
 
   </script>
   <script>
-    $(document).ajaxSuccess(function(event, xhr) {
+    // Global AJAX success handler - only show messages for actual form submissions
+    // Don't show messages for data loading calls (GET requests)
+    $(document).ajaxSuccess(function(event, xhr, settings) {
         try {
+            // Skip if this is a GET request (data loading, not form submission)
+            if (settings.type && settings.type.toUpperCase() === 'GET') {
+                return;
+            }
+            
+            // Skip if URL contains data loading endpoints
+            const url = settings.url || '';
+            if (url.includes('/items/by-type/') || 
+                url.includes('/categories/') && url.includes('/subcategories') ||
+                url.includes('/load') ||
+                url.includes('/fetch') ||
+                url.includes('/get')) {
+                return;
+            }
+            
             let response = xhr.responseJSON;
             if (!response) return;
 
-            if (response.success === true) {
-                toastr.success(response.message ?? "Saved successfully!");
-            } else if (response.success === false) {
-                toastr.error(response.message ?? "Something went wrong!");
+            // Only show success message if:
+            // 1. Response has success: true
+            // 2. Response has a message (not just data loading)
+            // 3. It's not a data fetching operation
+            if (response.success === true && response.message && !response.items && !response.data) {
+                toastr.success(response.message);
+            } else if (response.success === false && response.message) {
+                toastr.error(response.message);
             }
         } catch (e) {
-            console.log("Not JSON response");
+            console.log("Not JSON response or error parsing", e);
         }
     });
 
