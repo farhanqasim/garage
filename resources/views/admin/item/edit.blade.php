@@ -272,7 +272,7 @@
                                                 data-target-select=".part_number-select">
                                                 <i data-feather="plus" class="feather-plus"></i>
                                         </button>
-                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                        <button type="button" class="btn btn-secondary open-universal-modal d-none"
                                             data-mode="edit" data-title="Edit Part Number"
                                             data-fetch-route="{{ route('show.partnumber', ':id') }}"
                                             data-update-route="{{ route('update.partnumber', ':id') }}"
