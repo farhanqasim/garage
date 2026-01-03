@@ -55,6 +55,94 @@
     .input-group .btn i {
         pointer-events: none;
     }
+    /* Responsive adjustments for edit.blade.php */
+    @media (max-width: 768px) {
+        .type-box {
+            padding: 15px !important;
+            font-size: 14px !important;
+        }
+        .type-box .fs-1 {
+            font-size: 2rem !important;
+        }
+        .inputswidth {
+            width: 100% !important;
+        }
+        /* Vehicle table - better mobile display */
+        #vehicleTable {
+            font-size: 11px !important;
+        }
+        #vehicleTable th,
+        #vehicleTable td {
+            padding: 0.5rem 0.25rem !important;
+            font-size: 11px !important;
+        }
+        /* Year badges - smaller on mobile */
+        .badge {
+            font-size: 0.65rem !important;
+            padding: 4px 8px !important;
+        }
+        /* Form columns stack properly */
+        .row .col-md-4,
+        .row .col-md-6 {
+            margin-bottom: 1rem;
+        }
+        /* Modal vehicle form - better mobile layout */
+        #vehical-add-modal .modal-body {
+            padding: 1rem !important;
+        }
+        #vehical-add-modal .row {
+            margin-left: -0.5rem;
+            margin-right: -0.5rem;
+        }
+        #vehical-add-modal .col-md-6 {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        /* Year range inputs - better mobile layout */
+        .year-range-item .col-5 {
+            flex: 0 0 48%;
+            max-width: 48%;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+        }
+        .year-range-item .col-2 {
+            flex: 0 0 4%;
+            max-width: 4%;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+        }
+        /* Image previews - responsive */
+        #imagePreview, #imagesPreview img {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+        /* Unit info display - stack on mobile */
+        #unit-info, #sale-price-info {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+        }
+        #unit-info .form-control,
+        #sale-price-info .form-control {
+            width: 100% !important;
+        }
+    }
+    @media (max-width: 576px) {
+        /* Very small screens */
+        .type-box {
+            padding: 10px !important;
+            font-size: 12px !important;
+        }
+        .type-box .fs-1 {
+            font-size: 1.5rem !important;
+        }
+        /* Hide table columns on very small screens if needed */
+        #vehicleTable th:nth-child(4),
+        #vehicleTable td:nth-child(4),
+        #vehicleTable th:nth-child(5),
+        #vehicleTable td:nth-child(5) {
+            display: none;
+        }
+    }
 </style>
 @endpush
 <div class="content">
@@ -87,7 +175,7 @@
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="user_id" value="{{ auth()->user()->id }}">
-                <div class="container" x-data="productForm({{ json_encode($item->type ?? old('type') ?? '') }})">
+                <div class="container" x-data="productForm({{ json_encode($item->type ?? old('type') ?? '') }})" x-init="if(selectedType) { setTimeout(() => loadItemsByType(selectedType, false), 300); }">
                     <!-- 4 Clickable Type Boxes -->
                     <div class="row mb-5 g-3">
                         <div class="col-md-3 col-6">
@@ -1094,23 +1182,18 @@
                     </div>
                 </div>
             </form>
-            <h4 class="mt-4">Last 5 Created Items</h4>
+            <h4 id="itemsTableTitle" class="mt-4">Last 5 Created Items</h4>
             <div class="table-responsive mt-3">
                 <table id="searchableTable" class="table table-hover table-center">
                 <thead class="thead-primary">
                     <tr>
                         <th>Product Image</th>
-                        <th>Actions</th>
-                        <th>ID</th>
+                        <th>Item Details</th>
                         <th>User Name</th>
-                        <th>Product Name</th>
-                        <th>Product Type</th>
-                        <th>Bar Code</th>
-                        <th>Is Active</th>
-                        <th>Category</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="latestItemsTableBody">
                     @forelse ($latestItems as $item)
                     <tr>
 
@@ -1120,7 +1203,15 @@
                                 data-bs-target="#imageModal"
                                 data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
                         </td>
-
+                        <td>  
+                            <div class="small">
+                                <div> {{ $item->partnumber_item->name ?? '-' }}</div>
+                                <div> {{ $item->category->name ?? '-' }}</div>
+                                <div> {{ $item->company_item->name ?? '-' }}</div>
+                                <div> {{ $item->quality_item->name ?? '-' }}</div>
+                            </div>
+                        </td>
+                        <td>{{ $item->item_user->name??'-' }}</td>
                         <td>
                             <div class="dropdown">
                                 <button class="btn btn-primary  dropdown-toggle" type="button"
@@ -1180,25 +1271,19 @@
                                 </ul>
                             </div>
                         </td>
-                        <td>{{ $item->id }}</td>
-                        <td>{{ $item->item_user->name??'-' }}</td>
-                        <td>{{ $item->product_item->name??'-' }}</td>
-                        <td>{{ $item->type }}</td>
-                        <td><span class="badge bg-secondary">{{ $item->bar_code }}</span></td>
-                        <td>
-                            <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-danger' }}">
-                                {{ $item->is_active ? 'Active' : 'Inactive' }}
-                            </span>
-                        </td>
-                        <td>{{ $item->category ? $item->category->name : 'N/A' }}</td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="text-center">No items found.</td>
+                        <td colspan="4" class="text-center">No items found.</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
+            </div>
+            <div class="text-center mt-3" id="allItemsButtonContainer" style="display: none;">
+                <button type="button" class="btn btn-primary" id="loadAllItemsBtn">
+                    <i data-feather="list"></i> All Items
+                </button>
             </div>
         </div>
     </div>
@@ -2108,6 +2193,226 @@ $(document).ready(function () {
                 $('.common-fields, .media-fields, .checkbox-fields').addClass('active');
                 $(`.${initialType}-fields`).addClass('active');
             }, 100);
+        }
+    });
+</script>
+<script>
+    // Update Alpine.js productForm to include type-based filtering
+    document.addEventListener('alpine:init', () => {
+        // Check if productForm already exists
+        if (typeof Alpine !== 'undefined' && Alpine.data('productForm')) {
+            // Extend existing productForm
+            const originalForm = Alpine.data('productForm');
+            Alpine.data('productForm', (initialType) => {
+                const instance = originalForm(initialType);
+                // Override selectType to include filtering
+                const originalSelectType = instance.selectType;
+                instance.selectType = function(type) {
+                    originalSelectType.call(this, type);
+                    // Load items by type when type changes
+                    if (type) {
+                        loadItemsByType(type, false);
+                    } else {
+                        loadAllItems();
+                    }
+                };
+                return instance;
+            });
+        } else {
+            // Create new productForm if it doesn't exist
+            Alpine.data('productForm', (initialType) => ({
+                selectedType: localStorage.getItem('selectedType') || initialType || '',
+                selectType(type) {
+                    this.selectedType = type;
+                    localStorage.setItem('selectedType', type);
+                    // Load items by type when type changes
+                    if (type) {
+                        loadItemsByType(type, false);
+                    } else {
+                        loadAllItems();
+                    }
+                }
+            }));
+        }
+    });
+
+    // Function to load items by type (with limit option)
+    function loadItemsByType(type, loadAll = false) {
+        const routeBase = '{{ route("items.by.type", ":type") }}';
+        let routeUrl = routeBase.replace(':type', type);
+        
+        // Add 'all' parameter if loading all items
+        if (loadAll) {
+            routeUrl += '?all=true';
+        }
+        
+        $.ajax({
+            url: routeUrl,
+            type: 'GET',
+            success: function(response) {
+                if (response.success && response.items) {
+                    updateItemsTable(response.items);
+                    // Update table title and button visibility
+                    const typeNames = {
+                        'parts': 'Parts',
+                        'battery': 'Battery',
+                        'oil': 'Oil',
+                        'scrap': 'Scrap',
+                        'services': 'Services',
+                        'filters': 'Filters',
+                        'breakpad': 'Break Pad'
+                    };
+                    
+                    if (loadAll) {
+                        // Show all items
+                        $('#itemsTableTitle').text(`All ${typeNames[type] || type.toUpperCase()} Items (${response.total || response.items.length})`);
+                        $('#allItemsButtonContainer').hide();
+                    } else {
+                        // Show last 5 items
+                        $('#itemsTableTitle').text(`Last 5 ${typeNames[type] || type.toUpperCase()} Items`);
+                        // Show "All Items" button if there are 5 items (might be more)
+                        if (response.items.length >= 5) {
+                            $('#allItemsButtonContainer').show();
+                            // Re-initialize feather icons for the button
+                            if (typeof feather !== 'undefined') {
+                                feather.replace();
+                            }
+                        } else {
+                            $('#allItemsButtonContainer').hide();
+                        }
+                    }
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading items:', xhr);
+                // Fallback: show all items
+                loadAllItems();
+            }
+        });
+    }
+
+    // Function to load all items of selected type
+    function loadAllItemsByType() {
+        const savedType = localStorage.getItem('selectedType') || '{{ $item->type ?? old("type") ?? "" }}';
+        if (savedType) {
+            loadItemsByType(savedType, true);
+        }
+    }
+
+    // Function to load all items (initial load)
+    function loadAllItems() {
+        $('#itemsTableTitle').text('Last 5 Created Items');
+        $('#allItemsButtonContainer').hide();
+        // Table is already populated by server, no need to reload
+    }
+
+    // Handle "All Items" button click
+    $(document).on('click', '#loadAllItemsBtn', function() {
+        loadAllItemsByType();
+    });
+
+    // Function to update the items table
+    function updateItemsTable(items) {
+        const tbody = $('#latestItemsTableBody');
+        tbody.empty();
+
+        if (items.length === 0) {
+            tbody.append(`
+                <tr>
+                    <td colspan="4" class="text-center">No items found for this type.</td>
+                </tr>
+            `);
+            return;
+        }
+
+        const duplicateRouteBase = '{{ route("item.duplicate", ":id") }}';
+        
+        items.forEach(function(item) {
+            const csrfToken = $('input[name="_token"]').val();
+            
+            // Build item details HTML
+            const itemDetails = `
+                <div class="small">
+                    <div> ${item.part_number || '-'}</div>
+                    <div> ${item.category_name || '-'}</div>
+                    <div> ${item.company_name || '-'}</div>
+                    <div> ${item.quality_name || '-'}</div>
+                </div>
+            `;
+
+            const duplicateUrl = duplicateRouteBase.replace(':id', item.id);
+
+            const row = `
+                <tr>
+                    <td>
+                        <img src="${item.image}" width="70" height="70"
+                            class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
+                            data-bs-target="#imageModal"
+                            data-src="${item.image}">
+                    </td>
+                    <td>
+                        ${itemDetails}
+                    </td>
+                    <td>${item.user_name}</td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Actions
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="${item.show_url}">
+                                        <i data-feather="eye" class="me-1"></i> View
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="${item.edit_url}">
+                                        <i data-feather="edit" class="me-1"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0)" onclick="confirmDelete('delete-form-${item.id}')"
+                                        class="p-2">
+                                        <i data-feather="trash-2" class="feather-trash-2"></i> Delete
+                                    </a>
+                                    <form id="delete-form-${item.id}"
+                                        action="${item.delete_url}" method="POST"
+                                        style="display: none;">
+                                        <input type="hidden" name="_token" value="${csrfToken}">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                    </form>
+                                </li>
+                                <hr>
+                                <li>
+                                    <a class="dropdown-item text-primary" href="${duplicateUrl}">
+                                        <i data-feather="copy" class="me-1"></i> Duplicate
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+
+        // Re-initialize feather icons
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+
+    // Load items by type on page load if type is already selected
+    $(document).ready(function() {
+        const savedType = localStorage.getItem('selectedType') || '{{ $item->type ?? old("type") ?? "" }}';
+        if (savedType) {
+            // Wait a bit for Alpine.js to initialize
+            setTimeout(function() {
+                loadItemsByType(savedType, false);
+            }, 300);
+        } else {
+            // Hide button if no type is selected
+            $('#allItemsButtonContainer').hide();
         }
     });
 </script>

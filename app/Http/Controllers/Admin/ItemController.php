@@ -462,7 +462,14 @@ class ItemController extends Controller
         $qualities      = Quality::where('status', 'active')->get();
         $partnumbers      = PartNumber::with('part_number_vehical')->where('status', 'active')->get();
         $engineccs      = EngineCc::where('status', 'active')->get();
-        $latestItems = Item::latest()->take(5)->get();
+        $latestItems = Item::with([
+            'item_user',
+            'product_item',
+            'category',
+            'partnumber_item',
+            'company_item',
+            'quality_item'
+        ])->latest()->take(5)->get();
         $services      = Services::where('status', 'active')->get();
         $groups      = Group::where('status', 'active')->get();
         $warrenties      = Warrenty::where('status', 'active')->get();
