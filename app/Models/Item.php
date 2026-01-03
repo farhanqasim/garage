@@ -20,7 +20,7 @@ class Item extends Model
         'tecnology', 'grade', 'farmula', 'serial_number', 'battery_size',
         'bussiness_location', 'quality_id', 'part_number_id', 'l_stock',
         'm_stock', 'unit', 'packing', 'scale', 'filling',
-        'weight_for_delivery', 'packing_purchase_rate',
+        'weight_for_delivery', 'packing_purchase_rate','technology',
         'total_sale_price','sale_price_per_base','services','warrenty','gorup','made_in','level',
         'update_date', 'rack', 'supplier', 'pro_dis','short_disc',
         'updated_by', 'last_updated_at'
@@ -175,9 +175,9 @@ class Item extends Model
                     return $this->belongsTo(Minuspool::class,'minus_pool_direction');
                 }
 
-                public function tecnology_item()
+                public function technology_item()
                 {
-                    return $this->belongsTo(Technology::class,'tecnology');
+                    return $this->belongsTo(Technology::class,'technology');
                 }
 
                 public function grade_item()

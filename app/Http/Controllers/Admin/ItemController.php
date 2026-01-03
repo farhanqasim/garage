@@ -425,6 +425,7 @@ class ItemController extends Controller
             'level_item',
             'group_item',
             'made_in_item',
+            'technology_item',
             'unit_item'
         ])->findOrFail($id);
         //   return $item;
