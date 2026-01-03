@@ -74,8 +74,18 @@
                         <tr>
                             <td>{{ $index + 1 }}</td>
                             <td>{{ $item->name }}
-                                @if ($item->base_unit_id)
-                                ( {{ $item->base_unit_multiplier??'' }} - {{ $item->baseUnit->name??'' }} )
+                                @php
+                                    $baseUnits = $item->baseUnits;
+                                    $hasOldBaseUnit = $item->base_unit_id && $baseUnits->count() == 0;
+                                @endphp
+                                @if($hasOldBaseUnit)
+                                    <span class="text-muted small">( {{ $item->base_unit_multiplier??'' }} - {{ $item->baseUnit->name??'' }} )</span>
+                                @elseif($baseUnits->count() > 0)
+                                    <div class="small text-muted">
+                                        @foreach($baseUnits as $baseUnit)
+                                            <span class="badge bg-info me-1">{{ $baseUnit->pivot->multiplier }} - {{ $baseUnit->name }}</span>
+                                        @endforeach
+                                    </div>
                                 @endif
                             </td>
                             <td>{{ $item->short_name }}</td>
@@ -181,27 +191,95 @@
                                                         Add as multiple of another Unit
                                                     </label>
                                                 </div>
-                                                <div class="row col-12" id="edit-base-details-{{ $item->id }}"
-                                                    style="display: {{ $item->base_unit_id ? 'flex' : 'none' }};">
-                                                    <div class="col-6">
-                                                        <label class="col-form-label">Multiplier</label>
-                                                        <input type="number" name="base_unit_multiplier"
-                                                            class="form-control"
-                                                            value="{{ old('base_unit_multiplier', $item->base_unit_multiplier) }}"
-                                                             placeholder="Enter Time base Unit">
-                                                    </div>
-                                                    <div class="col-6">
-                                                        <label class="col-form-label">Base Unit</label>
-                                                        <select name="base_unit_id" class="form-control">
-                                                            <option value="">Select Base Unit</option>
-                                                            @foreach($units as $baseUnit)
-                                                            <option value="{{ $baseUnit->id }}" {{ $item->base_unit_id
-                                                                == $baseUnit->id ? 'selected' : '' }}>
-                                                                {{ $baseUnit->name }} ({{ $baseUnit->short_name }})
-                                                            </option>
+                                                <div class="col-12" id="edit-base-details-{{ $item->id }}"
+                                                    style="display: {{ ($item->base_unit_id || $item->baseUnits->count() > 0) ? 'block' : 'none' }};">
+                                                    <label class="fw-bold mb-2">Base Unit Options:</label>
+                                                    <div id="edit-baseUnitsContainer-{{ $item->id }}">
+                                                        @php
+                                                            $baseUnitsList = $item->baseUnits;
+                                                            $hasOldBaseUnit = $item->base_unit_id && $baseUnitsList->count() == 0;
+                                                        @endphp
+                                                        @if($hasOldBaseUnit)
+                                                            <div class="base-unit-item mb-3 p-3 border rounded">
+                                                                <div class="row g-2">
+                                                                    <div class="col-5">
+                                                                        <label class="small">Multiplier</label>
+                                                                        <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" value="{{ $item->base_unit_multiplier ?? 1 }}">
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <label class="small">Base Unit</label>
+                                                                        <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
+                                                                            <option value="">Select Base Unit</option>
+                                                                            @foreach($units as $baseUnit)
+                                                                            <option value="{{ $baseUnit->id }}" {{ $item->base_unit_id == $baseUnit->id ? 'selected' : '' }}>
+                                                                                {{ $baseUnit->name }} ({{ $baseUnit->short_name }})
+                                                                            </option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="col-1 d-flex align-items-end">
+                                                                        <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                                                                            <i class="ti ti-x"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        @else
+                                                            @foreach($baseUnitsList as $index => $baseUnit)
+                                                            <div class="base-unit-item mb-3 p-3 border rounded">
+                                                                <div class="row g-2">
+                                                                    <div class="col-5">
+                                                                        <label class="small">Multiplier</label>
+                                                                        <input type="number" step="0.0001" name="base_units[{{ $index }}][multiplier]" class="form-control form-control-sm" value="{{ $baseUnit->pivot->multiplier }}">
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <label class="small">Base Unit</label>
+                                                                        <select name="base_units[{{ $index }}][base_unit_id]" class="form-control form-control-sm">
+                                                                            <option value="">Select Base Unit</option>
+                                                                            @foreach($units as $baseUnitOption)
+                                                                            <option value="{{ $baseUnitOption->id }}" {{ $baseUnit->id == $baseUnitOption->id ? 'selected' : '' }}>
+                                                                                {{ $baseUnitOption->name }} ({{ $baseUnitOption->short_name }})
+                                                                            </option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="col-1 d-flex align-items-end">
+                                                                        <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
+                                                                            <i class="ti ti-x"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                             @endforeach
-                                                        </select>
+                                                            @if($baseUnitsList->count() == 0)
+                                                            <div class="base-unit-item mb-3 p-3 border rounded">
+                                                                <div class="row g-2">
+                                                                    <div class="col-5">
+                                                                        <label class="small">Multiplier</label>
+                                                                        <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                                                                    </div>
+                                                                    <div class="col-6">
+                                                                        <label class="small">Base Unit</label>
+                                                                        <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
+                                                                            <option value="">Select Base Unit</option>
+                                                                            @foreach($units as $baseUnit)
+                                                                            <option value="{{ $baseUnit->id }}">{{ $baseUnit->name }} ({{ $baseUnit->short_name }})</option>
+                                                                            @endforeach
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="col-1 d-flex align-items-end">
+                                                                        <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                                                                            <i class="ti ti-x"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            @endif
+                                                        @endif
                                                     </div>
+                                                    <button type="button" class="btn btn-sm btn-primary mt-2 addBaseUnitBtn" data-unit-id="{{ $item->id }}">
+                                                        <i class="ti ti-plus"></i> Add Another Base Unit
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -260,21 +338,35 @@
                                 Add as multiple of another Unit
                             </label>
                         </div>
-                        <div class="row col-12 mt-4" id="baseDetails" style="display:none;">
-                            <div class="col-6">
-                                <label>Multiplier</label>
-                                <input type="number" name="base_unit_multiplier" class="form-control"
-                                    placeholder="Enter Time base Unit">
+                        <div class="col-12 mt-4" id="baseDetails" style="display:none;">
+                            <label class="fw-bold mb-2">Base Unit Options:</label>
+                            <div id="baseUnitsContainer">
+                                <div class="base-unit-item mb-3 p-3 border rounded">
+                                    <div class="row g-2">
+                                        <div class="col-5">
+                                            <label class="small">Multiplier</label>
+                                            <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="small">Base Unit</label>
+                                            <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
+                                                <option value="">Select Base Unit</option>
+                                                @foreach($units as $u)
+                                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-1 d-flex align-items-end">
+                                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                                                <i class="ti ti-x"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <label>Base Unit</label>
-                                <select name="base_unit_id" class="form-control">
-                                    <option value="">Select Unit</option>
-                                    @foreach($units as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            <button type="button" class="btn btn-sm btn-primary mt-2" id="addBaseUnitBtn">
+                                <i class="ti ti-plus"></i> Add Another Base Unit
+                            </button>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -290,14 +382,107 @@
 <script>
     // Show/hide base unit details for add modal
     document.getElementById('toggleBaseUnit').addEventListener("change", function() {
-        document.getElementById('baseDetails').style.display = this.checked ? "flex" : "none";
+        document.getElementById('baseDetails').style.display = this.checked ? "block" : "none";
     });
+    
     // Show/hide base unit details for each edit modal
     @foreach($units as $item)
     document.getElementById('edit-toggle-base-{{ $item->id }}').addEventListener("change", function() {
         const baseDetailsDiv = document.getElementById('edit-base-details-{{ $item->id }}');
-        baseDetailsDiv.style.display = this.checked ? "flex" : "none";
+        baseDetailsDiv.style.display = this.checked ? "block" : "none";
     });
     @endforeach
+
+    // Add Base Unit functionality for Add Modal
+    let baseUnitIndex = 1;
+    document.getElementById('addBaseUnitBtn').addEventListener('click', function() {
+        const container = document.getElementById('baseUnitsContainer');
+        const newItem = document.createElement('div');
+        newItem.className = 'base-unit-item mb-3 p-3 border rounded';
+        newItem.innerHTML = `
+            <div class="row g-2">
+                <div class="col-5">
+                    <label class="small">Multiplier</label>
+                    <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                </div>
+                <div class="col-6">
+                    <label class="small">Base Unit</label>
+                    <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
+                        <option value="">Select Base Unit</option>
+                        @foreach($units as $u)
+                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newItem);
+        baseUnitIndex++;
+        updateRemoveButtons();
+    });
+
+    // Add Base Unit functionality for Edit Modals
+    @foreach($units as $item)
+    let editBaseUnitIndex{{ $item->id }} = {{ $item->baseUnits->count() > 0 ? $item->baseUnits->count() : 1 }};
+    document.querySelector('.addBaseUnitBtn[data-unit-id="{{ $item->id }}"]')?.addEventListener('click', function() {
+        const container = document.getElementById('edit-baseUnitsContainer-{{ $item->id }}');
+        const newItem = document.createElement('div');
+        newItem.className = 'base-unit-item mb-3 p-3 border rounded';
+        newItem.innerHTML = `
+            <div class="row g-2">
+                <div class="col-5">
+                    <label class="small">Multiplier</label>
+                    <input type="number" step="0.0001" name="base_units[${editBaseUnitIndex{{ $item->id }}}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                </div>
+                <div class="col-6">
+                    <label class="small">Base Unit</label>
+                    <select name="base_units[${editBaseUnitIndex{{ $item->id }}}][base_unit_id]" class="form-control form-control-sm">
+                        <option value="">Select Base Unit</option>
+                        @foreach($units as $u)
+                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newItem);
+        editBaseUnitIndex{{ $item->id }}++;
+        updateRemoveButtons();
+    });
+    @endforeach
+
+    // Remove Base Unit functionality
+    function updateRemoveButtons() {
+        document.querySelectorAll('.base-unit-item').forEach(function(item, index) {
+            const removeBtn = item.querySelector('.removeBaseUnit');
+            const allItems = item.closest('#baseUnitsContainer, [id^="edit-baseUnitsContainer"]')?.querySelectorAll('.base-unit-item');
+            if (allItems && allItems.length > 1) {
+                removeBtn.style.display = 'block';
+            } else {
+                removeBtn.style.display = 'none';
+            }
+        });
+    }
+
+    // Event delegation for remove buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.removeBaseUnit')) {
+            e.target.closest('.base-unit-item').remove();
+            updateRemoveButtons();
+        }
+    });
+
+    // Initialize remove buttons on page load
+    updateRemoveButtons();
 </script>
 @endsection

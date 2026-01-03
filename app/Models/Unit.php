@@ -29,6 +29,21 @@ class Unit extends Model
         return $this->hasMany(Unit::class, 'base_unit_id');
     }
 
+    // Many-to-many relationship for multiple base units
+    public function baseUnits()
+    {
+        return $this->belongsToMany(Unit::class, 'unit_base_units', 'unit_id', 'base_unit_id')
+            ->withPivot('multiplier')
+            ->withTimestamps();
+    }
+
+    // Reverse relationship - units that have this unit as base
+    public function unitsWithThisAsBase()
+    {
+        return $this->belongsToMany(Unit::class, 'unit_base_units', 'base_unit_id', 'unit_id')
+            ->withPivot('multiplier')
+            ->withTimestamps();
+    }
 
     public function item_unit()
     {

@@ -670,8 +670,11 @@ class ItemController extends Controller
             }
 
             // === Track who updated and when ===
-            $data['updated_by'] = auth()->id();
-            $data['last_updated_at'] = now();
+            // Only set if columns exist (migration has been run)
+            if (auth()->check()) {
+                $data['updated_by'] = auth()->id();
+                $data['last_updated_at'] = now();
+            }
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);

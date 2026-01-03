@@ -22,7 +22,8 @@ class Item extends Model
         'm_stock', 'unit', 'packing', 'scale', 'filling',
         'weight_for_delivery', 'packing_purchase_rate',
         'total_sale_price','sale_price_per_base','services','warrenty','gorup','made_in','level',
-        'update_date', 'rack', 'supplier', 'pro_dis','short_disc'
+        'update_date', 'rack', 'supplier', 'pro_dis','short_disc',
+        'updated_by', 'last_updated_at'
     ];
         protected $dates = ['deleted_at'];
 

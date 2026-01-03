@@ -10,7 +10,7 @@ class UnitController extends Controller
 {
      public function all_units()
      {
-        $units = Unit::with('baseUnit')->get();
+        $units = Unit::with(['baseUnit', 'baseUnits'])->get();
         // return $units;
         return view('admin.unit.unit', compact('units'));
      }
@@ -70,10 +70,29 @@ class UnitController extends Controller
         $unit->name = $request->name;
         $unit->short_name = $request->short_name;
         $unit->allow_decimal = $request->allow_decimal;
-        $unit->define_base_unit = $request->define_base_unit;
+        $unit->define_base_unit = $request->define_base_unit ? 1 : 0;
+        
+        // Keep old fields for backward compatibility
         $unit->base_unit_multiplier = $request->base_unit_multiplier;
         $unit->base_unit_id = $request->base_unit_id;
+        
         $unit->save();
+        
+        // Save multiple base units if provided
+        if ($request->define_base_unit && $request->has('base_units')) {
+            $baseUnitsData = [];
+            foreach ($request->base_units as $baseUnit) {
+                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                    $baseUnitsData[$baseUnit['base_unit_id']] = [
+                        'multiplier' => $baseUnit['multiplier']
+                    ];
+                }
+            }
+            if (!empty($baseUnitsData)) {
+                $unit->baseUnits()->sync($baseUnitsData);
+            }
+        }
+        
         return redirect()->back()->with('success','Unit Saved Successfully');
     }
 
@@ -92,15 +111,36 @@ class UnitController extends Controller
 
     public function updateunits(Request $request, $id)
     {
-        $unit =  Unit::find($id);
+        $unit = Unit::findOrFail($id);
         $unit->name = $request->name;
         $unit->short_name = $request->short_name;
         $unit->allow_decimal = $request->allow_decimal;
-        $unit->define_base_unit = $request->define_base_unit;
+        $unit->define_base_unit = $request->define_base_unit ? 1 : 0;
+        
+        // Keep old fields for backward compatibility
         $unit->base_unit_multiplier = $request->base_unit_multiplier;
         $unit->base_unit_id = $request->base_unit_id;
+        
         $unit->update();
-        return redirect()->back()->with('success', 'units created successfully.');
+        
+        // Update multiple base units if provided
+        if ($request->define_base_unit && $request->has('base_units')) {
+            $baseUnitsData = [];
+            foreach ($request->base_units as $baseUnit) {
+                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                    $baseUnitsData[$baseUnit['base_unit_id']] = [
+                        'multiplier' => $baseUnit['multiplier']
+                    ];
+                }
+            }
+            // Sync will replace all existing relationships
+            $unit->baseUnits()->sync($baseUnitsData);
+        } else {
+            // If checkbox is unchecked, remove all base unit relationships
+            $unit->baseUnits()->detach();
+        }
+        
+        return redirect()->back()->with('success', 'Unit updated successfully.');
     }
 
 
