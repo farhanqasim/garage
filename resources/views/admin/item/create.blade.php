@@ -1511,7 +1511,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="10" class="text-center">No items found.</td>
+                    <td colspan="4" class="text-center">No items found.</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -2663,7 +2663,7 @@
         if (items.length === 0) {
             tbody.append(`
                 <tr>
-                    <td colspan="10" class="text-center">No items found for this type.</td>
+                    <td colspan="4" class="text-center">No items found for this type.</td>
                 </tr>
             `);
             return;

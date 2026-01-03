@@ -214,6 +214,20 @@
                                 Services
                             </div>
                         </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
+                                @click="selectType('filters')">
+                                <i class="ti ti-filter fs-1 d-block mb-2"></i>
+                                Filters
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
+                                @click="selectType('breakpad')">
+                                <i class="ti ti-disc fs-1 d-block mb-2"></i>
+                                Break Pad
+                            </div>
+                        </div>
                     </div>
                     <!-- Hidden field to store selected type -->
                     <input type="hidden" name="type" x-model="selectedType">
@@ -239,8 +253,36 @@
                                         <img src="{{ asset($item->barcode_image) }}" width="180">
                                     @endif --}}
                                 </div>
-
-
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    <label for="part_number_id">Part Number:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control part_number-select searchable-select @error('part_number_id') is-invalid @enderror"
+                                            name="part_number_id" id="part_number_id">
+                                            <option value="">Select Part Number</option>
+                                            @foreach ($partnumbers as $partnumber)
+                                            <option value="{{ $partnumber->id??'' }}" {{ old('part_number_id', $item->part_number_id) == $partnumber->id ? 'selected' : '' }}>
+                                                {{ $partnumber->name ?? '-' }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                                data-title="Add Part Number" data-mode="add"
+                                                data-route="{{ route('post.partnumber') }}"
+                                                data-target-select=".part_number-select">
+                                                <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Part Number"
+                                            data-fetch-route="{{ route('show.partnumber', ':id') }}"
+                                            data-update-route="{{ route('update.partnumber', ':id') }}"
+                                            data-delete-route="{{ route('destory.partnumber', ':id') }}"
+                                            data-target-select=".part_number-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
                                 <!-- Business Location -->
                                 <div class="col-md-4 d-none">
                                     <label for="business_location">Business Location:</label>
@@ -283,7 +325,7 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                    <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'">
+                                    <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="company_parts">Company:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -306,7 +348,7 @@
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Product Name -->
-                                 <div class="col-md-4">
+                                 <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap'">
                                     <label for="itemname">Product Name:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -329,7 +371,7 @@
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
-                                <div class="col-md-4 mt-3"  x-show="selectedType === 'parts' || selectedType === 'oil'">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="category_parts">Category:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -815,10 +857,67 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- FILTERS FIELDS -->
+                        <div class="field-group filters-fields" :class="{ 'active': selectedType === 'filters' }">
+                            <div class="row p-3 mt-4">
+                                <div class="col-md-4">
+                                    <label for="quality_filters">Quality:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
+                                            name="quality_id" id="quality_filters">
+                                            <option value="">Select Quality</option>
+                                            @foreach ($qualities as $qaul)
+                                            <option value="{{ $qaul->id }}"
+                                              {{ old('quality_id', $item->quality_id) == $qaul->id ? 'selected' : '' }}>
+                                                {{ $qaul->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                    </div>
+                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BREAK PAD FIELDS -->
+                        <div class="field-group breakpad-fields" :class="{ 'active': selectedType === 'breakpad' }">
+                            <div class="row p-3 mt-4">
+                                <div class="col-md-4">
+                                    <label for="quality_breakpad">Quality:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
+                                            name="quality_id" id="quality_breakpad">
+                                            <option value="">Select Quality</option>
+                                            @foreach ($qualities as $qaul)
+                                            <option value="{{ $qaul->id }}"
+                                              {{ old('quality_id', $item->quality_id) == $qaul->id ? 'selected' : '' }}>
+                                                {{ $qaul->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                    </div>
+                                    @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- COMMON MEDIA & DESCRIPTION -->
                         <div class="field-group media-fields" :class="{ 'active': selectedType }">
                             <div class="row mt-4">
-                                <div class="col-md-6">
+                                <div class="col-md-6" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="unit_parts">Unit:</label>
                                     <div class="input-group">
                                         <select
@@ -863,7 +962,7 @@
                                     @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Sale Price Section -->
-                                <div class="col-md-6">
+                                <div class="col-md-6" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="sale_price_parts">Sale Price:</label>
                                     <input type="number" class="form-control @error('sale_price') is-invalid @enderror"
                                         name="sale_price" id="sale_price_parts" value="{{ old('sale_price') }}" hidden />
@@ -970,14 +1069,14 @@
                                     @error('p_brochure') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
-                                <div class="col-md-4 mt-3">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="low_stock_parts">Low Stock:</label>
                                     <input type="number" class="form-control @error('l_stock') is-invalid @enderror"
                                         name="l_stock" id="low_stock_parts" value="{{ $item->l_stock ?? old('l_stock') }}" />
                                     @error('l_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
-                                <div class="col-md-4 mt-3">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="maintain_stock_parts">Maintain Stock:</label>
                                     <input type="number"
                                         class="form-control @error('m_stock') is-invalid @enderror"
@@ -987,7 +1086,7 @@
                                     @enderror
                                 </div>
 
-                                <div class="col-md-4 mt-3">
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="on_hand">Opening Stock:</label>
                                     <input type="number"
                                         class="form-control @error('on_hand') is-invalid @enderror" name="on_hand"
@@ -996,7 +1095,7 @@
                                 </div>
 
                                 <!-- Weight -->
-                                    <div class="col-md-4 mt-3">
+                                    <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                         <label for="weight">Weight (kg):</label>
                                         <input type="number"
                                             class="form-control @error('weight_for_delivery') is-invalid @enderror" name="weight_for_delivery"
@@ -1006,7 +1105,7 @@
 
 
 
-                                <div class="col-md-12 mt-4" x-show="selectedType === 'battery' || selectedType === 'parts'">
+                                <div class="col-md-12 mt-4" x-show="selectedType === 'battery' || selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="col-md-4 mt-3 d-none">
                                         <label for="vehical_id">Vehicle Type:</label>
                                         <div class="input-group">
@@ -1031,30 +1130,8 @@
                                         @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
                                     </div>
-                                    <div class="col-md-4"  x-show="selectedType === 'parts'">
-                                    <label for="part_number">Part Number:</label>
-                                    <div class="input-group">
-                                        <select
-                                            class="form-control searchable-select @error('part_number_id') is-invalid @enderror"
-                                            name="part_number_id"
-                                             id="part_number_id">
-                                            <option value="">Select Part Number</option>
-                                            @foreach ($partnumbers as $vehical)
-                                                <option value="{{ $vehical->id??'' }}" {{ old('part_number_id', $item->part_number_id) == $vehical->id ? 'selected' : '' }}>
-                                                    {{ $vehical->name ?? '-' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#vehical-add-modal">
-                                            <i data-feather="plus"></i>
-                                        </button>
-                                    </div>
-                                </div>
-
                                     {{-- VEHICLE TABLE --}}
-                                <div class="col-md-12" x-show="selectedType === 'parts'">
+                                <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="table-responsive mt-4" style="max-height:250px;overflow-y:auto;">
                                         <table class="table table-bordered" id="vehicleTable">
                                             <thead class="table-dark">
@@ -1076,9 +1153,15 @@
 
                                                 <td>{{ $car->model_vehical->name ?? '-' }}</td>
                                                 <td>
-                                                    <span class="badge bg-primary">
-                                                        {{ $car->years }}
-                                                    </span>
+                                                    @if($car->year_ranges && count($car->year_ranges) > 0)
+                                                        <div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                                            @foreach($car->year_ranges as $yearRange)
+                                                                <span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">{{ $yearRange }}</span>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <span class="badge bg-secondary">-</span>
+                                                    @endif
                                                 </td>
                                                 <td>{{ $car->engine_vehical->name ?? '-' }}</td>
 
@@ -1095,8 +1178,9 @@
                                                     data-model="{{ $car->car_model_name }}"
                                                     data-engine="{{ $car->engine_cc }}"
                                                     data-country="{{ $car->car_manufactured_country }}"
-                                                    data-years="{{ $car->years }}"
-                                                >
+                                                    data-year-ranges="{{ json_encode($car->year_ranges ?? []) }}"
+                                                    data-year-from="{{ $car->year_from ?? '' }}"
+                                                    data-year-to="{{ $car->year_to ?? '' }}">
                                                     <i class="ti ti-pencil"></i>
                                                 </button>
 
@@ -1483,20 +1567,34 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-6 mt-3">
-                                    <label for="carmanufactured_year[]">Car Manufactured Year:</label>
-                                    <div id="yearFields">
-                                        <div class="input-group mb-2">
-                                            <input
-                                                type="text"
-                                                class="form-control yearpicker"
-                                                name="carmanufactured_year[]"
-                                                placeholder="Select Year"
-                                                value=""
-                                            >
+                                    <label><strong>YEAR RANGES</strong></label>
+                                    <div id="yearRangesContainer">
+                                        <div class="year-range-item mb-2">
+                                            <div class="row g-2">
+                                                <div class="col-5">
+                                                    <select class="form-control year-from-select" name="year_from[]">
+                                                        <option value="">From Year</option>
+                                                        @for($year = 1900; $year <= 2100; $year++)
+                                                            <option value="{{ $year }}">{{ $year }}</option>
+                                                        @endfor
+                                                    </select>
+                                                </div>
+                                                <div class="col-5">
+                                                    <select class="form-control year-to-select" name="year_to[]">
+                                                        <option value="">To Year</option>
+                                                        @for($year = 1900; $year <= 2100; $year++)
+                                                            <option value="{{ $year }}">{{ $year }}</option>
+                                                        @endfor
+                                                    </select>
+                                                </div>
+                                                <div class="col-2">
+                                                    <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button type="button" id="addMoreBtn" class="btn btn-primary btn-sm">
-                                        Add More
+                                    <button type="button" id="addYearRangeBtn" class="btn btn-primary btn-sm mt-2">
+                                        + ADD ANOTHER YEAR RANGE
                                     </button>
                                     @error('carmanufactured_year')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -1600,101 +1698,341 @@ $("#part_number_id").on("change", function () {
 </script>
 
     <script>
+
+    <script>
+    // Prevent modal from opening if part number is not selected
+    $(document).on('click', '[data-bs-target="#vehical-add-modal"]', function(e) {
+        let outsidePart = $('#part_number_id').val();
+        if (!outsidePart || outsidePart === '' || outsidePart === null) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+
+            // Highlight the part number field
+            $('#part_number_id').addClass('is-invalid');
+            // Add visual feedback
+            $('#part_number_id').focus();
+            // Scroll to the part number field if needed
+            $('html, body').animate({
+                scrollTop: $('#part_number_id').offset().top - 100
+            }, 300);
+            return false;
+        }
+    });
+
     // When modal opens, pre-fill Part Number from the outside select field
-    $('#vehical-add-modal').on('shown.bs.modal', function () {
+    // Also validate that part number is selected before allowing modal to show
+    $('#vehical-add-modal').on('show.bs.modal', function(e) {
+        let outsidePart = $('#part_number_id').val();
+        if (!outsidePart || outsidePart === '' || outsidePart === null) {
+            e.preventDefault();
+            toastr.error('Please select part number first.');
+            $('#part_number_id').addClass('is-invalid').focus();
+            $('html, body').animate({
+                scrollTop: $('#part_number_id').offset().top - 100
+            }, 300);
+            return false;
+        }
+    });
+
+    $('#vehical-add-modal').on('shown.bs.modal', function() {
         let outsidePart = $('#part_number_id').val();
         if (outsidePart) {
             $('#part_number').val(outsidePart).trigger('change');
+            $('#part_number').removeClass('is-invalid');
         } else {
-            $('#part_number').val('').trigger('change');
+            // If somehow modal opened without part number, close it
+            $('#vehical-add-modal').modal('hide');
+            toastr.error('Please select part number first.');
+            $('#part_number_id').addClass('is-invalid').focus();
+        }
+    });
+
+    // Remove error styling when part number is selected (both fields)
+    $(document).on('change', '#part_number, #part_number_id', function() {
+        if ($(this).val()) {
+            $(this).removeClass('is-invalid');
+            // Also remove error from the other field
+            $('#part_number, #part_number_id').removeClass('is-invalid');
         }
     });
     </script>
     <script>
     // Set hidden input based on which submit button was clicked
-    $("#vehical-form button[type=submit]").on("click", function () {
+    $("#vehical-form button[type=submit]").on("click", function() {
         $("#submit_type").val($(this).data("action"));
     });
     </script>
-
     <script>
-    $("#vehical-form").on("submit", function (e) {
+    $("#vehical-form").on("submit", function(e) {
         e.preventDefault();
-
         let form = this;
+
+        // Validate part number before form submission
+        let partNumber = $('#part_number').val();
+        let outsidePartNumber = $('#part_number_id').val();
+
+        // Check both fields (modal field and outside field)
+        if ((!partNumber || partNumber === '' || partNumber === null) &&
+            (!outsidePartNumber || outsidePartNumber === '' || outsidePartNumber === null)) {
+            toastr.error('Please select part number first.');
+            // Add error styling to part number fields
+            $('#part_number').addClass('is-invalid');
+            $('#part_number_id').addClass('is-invalid');
+            // Focus on modal part number field
+            $('#part_number').focus();
+            // Scroll to the field if needed
+            $('html, body').animate({
+                scrollTop: $('#part_number').closest('.modal-content').offset().top - 50
+            }, 300);
+            return false;
+        }
+
+        // Use outside part number if modal part number is not set
+        if (!partNumber || partNumber === '') {
+            partNumber = outsidePartNumber;
+            $('#part_number').val(partNumber).trigger('change');
+        }
+
+        // Remove error styling if part number is selected
+        $('#part_number').removeClass('is-invalid');
+        $('#part_number_id').removeClass('is-invalid');
+
         let formData = new FormData(form);
         let submitType = $("#submit_type").val();
         let outsidePart = $('#part_number_id').val();
-
         $.ajax({
             url: "{{ route('post.product_vehical') }}",
             type: "POST",
             data: formData,
             processData: false,
             contentType: false,
-            success: function (res) {
+            success: function(res) {
+                if (res.errors && res.errors.length > 0) {
+                    // Display overlap errors
+                    res.errors.forEach(function(error) {
+                        toastr.error(error);
+                    });
+                    return;
+                }
                 if (res.duplicate_years?.length) {
                     toastr.warning("Already exists for year(s): " + res.duplicate_years.join(', '));
                 } else {
                     toastr.success(res.message || "Vehicle saved successfully!");
                 }
 
-                // Append new vehicle rows to the table (outside modal)
+                // Add/update vehicles in table without page reload
                 if (res.vehicles && res.vehicles.length > 0) {
-                    res.vehicles.forEach(v => {
-                        $("#vehicleTable tbody").append(`
-                            <tr data-part="${v.v_part_number_id}">
-                                <td>${v.manutacturer_vehical?.name ?? '-'}</td>
-                                <td>${v.model_vehical?.name ?? '-'}</td>
-                                <td>${v.carmanufactured_year}</td>
-                                <td>${v.engine_vehical?.name ?? '-'}</td>
-                                <td>${v.country_vehical?.name ?? '-'}</td>
-                                <td>${v.vehical_part_number?.name ?? '-'}</td>
-                            </tr>
-                        `);
+                    // Group vehicles by config (part, manufacturer, model, engine, country)
+                    let vehicleGroups = {};
+                    res.vehicles.forEach(function(v) {
+                        let key = `${v.v_part_number_id}-${v.car_manufacturer}-${v.car_model_name}-${v.engine_cc}-${v.car_manufactured_country}`;
+                        if (!vehicleGroups[key]) {
+                            vehicleGroups[key] = {
+                                v_part_number_id: v.v_part_number_id,
+                                car_manufacturer: v.car_manufacturer,
+                                car_model_name: v.car_model_name,
+                                engine_cc: v.engine_cc,
+                                car_manufactured_country: v.car_manufactured_country,
+                                manutacturer_vehical: v.manutacturer_vehical,
+                                model_vehical: v.model_vehical,
+                                engine_vehical: v.engine_vehical,
+                                country_vehical: v.country_vehical,
+                                vehical_part_number: v.vehical_part_number,
+                                yearRanges: []
+                            };
+                        }
+                        // Add year range
+                        if (v.year_from && v.year_to) {
+                            let yearStr = v.year_from == v.year_to ? v.year_from : v.year_from + '-' + v.year_to;
+                            if (vehicleGroups[key].yearRanges.indexOf(yearStr) === -1) {
+                                vehicleGroups[key].yearRanges.push(yearStr);
+                            }
+                        }
+                    });
+
+                    // Check if vehicle group already exists in table, if yes update it, else add new
+                    Object.keys(vehicleGroups).forEach(function(key) {
+                        let group = vehicleGroups[key];
+
+                        // Find existing row by matching all config fields
+                        let existingRow = null;
+                        $("#vehicleTable tbody tr").each(function() {
+                            let $row = $(this);
+                            if ($row.data('part') == group.v_part_number_id &&
+                                $row.find('.editVehicleBtn').data('manufacturer') == group.car_manufacturer &&
+                                $row.find('.editVehicleBtn').data('model') == group.car_model_name &&
+                                $row.find('.editVehicleBtn').data('engine') == group.engine_cc &&
+                                $row.find('.editVehicleBtn').data('country') == group.car_manufactured_country) {
+                                existingRow = $row;
+                                return false; // break loop
+                            }
+                        });
+
+                        // Build year ranges display with light blue badges (sorted by year)
+                        let yearRangesHtml = '';
+                        if (group.yearRanges.length > 0) {
+                            // Sort year ranges by 'from' year
+                            group.yearRanges.sort(function(a, b) {
+                                let aFrom = parseInt(a.split('-')[0]);
+                                let bFrom = parseInt(b.split('-')[0]);
+                                return aFrom - bFrom;
+                            });
+
+                            yearRangesHtml = '<div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
+                            group.yearRanges.forEach(function(range) {
+                                yearRangesHtml += `<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">${range}</span>`;
+                            });
+                            yearRangesHtml += '</div>';
+                        } else {
+                            yearRangesHtml = '<span class="badge bg-secondary">-</span>';
+                        }
+
+                        if (existingRow && existingRow.length > 0) {
+                            // Update existing row
+                            existingRow.find('td:eq(0)').text(group.manutacturer_vehical?.name || '-');
+                            existingRow.find('td:eq(1)').text(group.model_vehical?.name || '-');
+                            existingRow.find('td:eq(2)').html(yearRangesHtml);
+                            existingRow.find('td:eq(3)').text(group.engine_vehical?.name || '-');
+                            existingRow.find('td:eq(4)').text(group.country_vehical?.name || '-');
+                            existingRow.find('td:eq(5)').text(group.vehical_part_number?.name || '-');
+
+                            // Update edit button data attributes - store first year range for backward compatibility
+                            let editBtn = existingRow.find('.editVehicleBtn');
+                            editBtn.attr('data-part', group.v_part_number_id);
+                            editBtn.attr('data-manufacturer', group.car_manufacturer);
+                            editBtn.attr('data-model', group.car_model_name);
+                            editBtn.attr('data-engine', group.engine_cc);
+                            editBtn.attr('data-country', group.car_manufactured_country);
+                            // Store all year ranges as JSON string
+                            editBtn.attr('data-year-ranges', JSON.stringify(group.yearRanges));
+                            // For backward compatibility, also store first range
+                            if (group.yearRanges.length > 0) {
+                                let firstRange = group.yearRanges[0];
+                                let rangeParts = firstRange.split('-');
+                                editBtn.attr('data-year-from', rangeParts[0]);
+                                editBtn.attr('data-year-to', rangeParts.length > 1 ? rangeParts[1] : rangeParts[0]);
+                            }
+                        } else {
+                            // Add new row
+                            let firstYearFrom = '';
+                            let firstYearTo = '';
+                            if (group.yearRanges.length > 0) {
+                                let firstRange = group.yearRanges[0];
+                                let rangeParts = firstRange.split('-');
+                                firstYearFrom = rangeParts[0];
+                                firstYearTo = rangeParts.length > 1 ? rangeParts[1] : rangeParts[0];
+                            }
+
+                            $("#vehicleTable tbody").append(`
+                                <tr data-part="${group.v_part_number_id}">
+                                    <td>${group.manutacturer_vehical?.name || '-'}</td>
+                                    <td>${group.model_vehical?.name || '-'}</td>
+                                    <td>${yearRangesHtml}</td>
+                                    <td>${group.engine_vehical?.name || '-'}</td>
+                                    <td>${group.country_vehical?.name || '-'}</td>
+                                    <td>${group.vehical_part_number?.name || '-'}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
+                                            data-part="${group.v_part_number_id}"
+                                            data-manufacturer="${group.car_manufacturer}"
+                                            data-model="${group.car_model_name}"
+                                            data-engine="${group.engine_cc}"
+                                            data-country="${group.car_manufactured_country}"
+                                            data-year-ranges="${JSON.stringify(group.yearRanges)}"
+                                            data-year-from="${firstYearFrom}"
+                                            data-year-to="${firstYearTo}">
+                                            <i class="ti ti-pencil"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `);
+                        }
                     });
                 }
 
-                // Reset the form fields
+                // Reset the form
                 form.reset();
-
-                // Clear dynamic year fields except the first one
-                $("#yearFields").html(`
-                    <div class="input-group mb-2">
-                        <input type="text" class="form-control yearpicker" name="carmanufactured_year[]" placeholder="Enter year">
+                // Clear year ranges
+                let yearOptions = '';
+                for (let year = 1900; year <= 2100; year++) {
+                    yearOptions += `<option value="${year}">${year}</option>`;
+                }
+                $("#yearRangesContainer").html(`
+                    <div class="year-range-item mb-2">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <select class="form-control year-from-select" name="year_from[]">
+                                    <option value="">From Year</option>
+                                    ${yearOptions}
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <select class="form-control year-to-select" name="year_to[]">
+                                    <option value="">To Year</option>
+                                    ${yearOptions}
+                                </select>
+                            </div>
+                            <div class="col-2">
+                                <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
+                            </div>
+                        </div>
                     </div>
                 `);
+                updateRemoveButtons();
 
-                // Re-initialize searchable selects (important if using Select2 or similar)
-                $('.searchable-select').trigger('change');
-
+                // Close modal or keep open based on submit type
                 if (submitType === 'save') {
-                    // Save → Close modal, but keep Part Number selected if it came from outside
                     if (outsidePart) {
                         $("#part_number").val(outsidePart).trigger('change');
                     } else {
                         $("#part_number").val('').trigger('change');
                     }
                     $("#vehical-add-modal").modal('hide');
-                }
-                else if (submitType === 'save_new') {
-                    // Save & New → Keep modal open, clear EVERYTHING including Part Number
+                } else if (submitType === 'save_new') {
                     $("#part_number").val('').trigger('change');
-                    // All other selects are already cleared by form.reset()
                 }
             },
-            error: function (xhr) {
-                let msg = xhr.responseJSON?.message || 'Something went wrong!';
-                toastr.error(msg);
+            error: function(xhr) {
+                let response = xhr.responseJSON;
+                if (response && response.errors && Array.isArray(response.errors)) {
+                    response.errors.forEach(function(error) {
+                        toastr.error(error);
+                    });
+                } else {
+                    let msg = response?.message || 'Something went wrong!';
+                    toastr.error(msg);
+                }
             }
         });
     });
     </script>
-
     <script>
-    $(document).on('click', '.editVehicleBtn', function () {
+    $(document).on('click', '.editVehicleBtn', function() {
+        let yearRangesData = $(this).data('year-ranges');
+        let yearRanges = [];
 
-        let years = $(this).data('years').toString().split(',');
+        // Parse year ranges from JSON data attribute
+        if (yearRangesData) {
+            try {
+                yearRanges = typeof yearRangesData === 'string' ? JSON.parse(yearRangesData) : yearRangesData;
+            } catch(e) {
+                console.error('Error parsing year ranges:', e);
+                // Fallback to year-from and year-to
+                let yearFrom = $(this).data('year-from');
+                let yearTo = $(this).data('year-to');
+                if (yearFrom && yearTo) {
+                    yearRanges = [yearFrom == yearTo ? yearFrom : yearFrom + '-' + yearTo];
+                }
+            }
+        } else {
+            // Fallback to year-from and year-to if data-year-ranges not available
+            let yearFrom = $(this).data('year-from');
+            let yearTo = $(this).data('year-to');
+            if (yearFrom && yearTo) {
+                yearRanges = [yearFrom == yearTo ? yearFrom : yearFrom + '-' + yearTo];
+            }
+        }
 
         $('#car_manufacturer').val($(this).data('manufacturer')).trigger('change');
         $('#car_model_name').val($(this).data('model')).trigger('change');
@@ -1702,17 +2040,147 @@ $("#part_number_id").on("change", function () {
         $('#part_number').val($(this).data('part')).trigger('change');
         $('#car_manufactured_country').val($(this).data('country')).trigger('change');
 
-        // reset years
-        $('#yearFields').html('');
-        years.forEach(function (y) {
-            $('#yearFields').append(`
-                <div class="input-group mb-2">
-                    <input type="text" class="form-control yearpicker" name="carmanufactured_year[]" value="${y.trim()}">
-                </div>
-            `);
-        });
+        // Build year range HTML
+        let yearRangeHtml = '';
 
+        // Generate year options
+        let yearOptions = '';
+        for (let year = 1900; year <= 2100; year++) {
+            yearOptions += `<option value="${year}">${year}</option>`;
+        }
+
+        if (yearRanges.length > 0) {
+            // Populate with existing year ranges
+            yearRanges.forEach(function(rangeStr) {
+                let fromYear = '';
+                let toYear = '';
+
+                // Parse range string (e.g., "2014-2021" or "2015")
+                if (rangeStr.includes('-')) {
+                    let parts = rangeStr.split('-');
+                    fromYear = parts[0].trim();
+                    toYear = parts[1].trim();
+                } else {
+                    fromYear = rangeStr.trim();
+                    toYear = rangeStr.trim();
+                }
+
+                // Build options with selected year
+                let fromOptions = '<option value="">From Year</option>';
+                let toOptions = '<option value="">To Year</option>';
+                for (let year = 1900; year <= 2100; year++) {
+                    fromOptions += `<option value="${year}" ${fromYear == year ? 'selected' : ''}>${year}</option>`;
+                    toOptions += `<option value="${year}" ${toYear == year ? 'selected' : ''}>${year}</option>`;
+                }
+
+                yearRangeHtml += `
+                    <div class="year-range-item mb-2">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <select class="form-control year-from-select" name="year_from[]">
+                                    ${fromOptions}
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <select class="form-control year-to-select" name="year_to[]">
+                                    ${toOptions}
+                                </select>
+                            </div>
+                            <div class="col-2">
+                                <button type="button" class="btn btn-danger btn-sm removeYearRange">X</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            // No ranges, show empty range input
+            yearRangeHtml = `
+                <div class="year-range-item mb-2">
+                    <div class="row g-2">
+                        <div class="col-5">
+                            <select class="form-control year-from-select" name="year_from[]">
+                                <option value="">From Year</option>
+                                ${yearOptions}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <select class="form-control year-to-select" name="year_to[]">
+                                <option value="">To Year</option>
+                                ${yearOptions}
+                            </select>
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        $('#yearRangesContainer').html(yearRangeHtml);
+        updateRemoveButtons();
         $('#vehical-add-modal').modal('show');
+    });
+    </script>
+    <script>
+    // Function to update remove buttons visibility
+    function updateRemoveButtons() {
+        let ranges = document.querySelectorAll('.year-range-item');
+        ranges.forEach((range, index) => {
+            let removeBtn = range.querySelector('.removeYearRange');
+            if (ranges.length > 1) {
+                removeBtn.style.display = 'block';
+            } else {
+                removeBtn.style.display = 'none';
+            }
+        });
+    }
+
+    // Add year range
+    document.getElementById('addYearRangeBtn').addEventListener('click', function() {
+        let container = document.getElementById('yearRangesContainer');
+        let newRange = document.createElement('div');
+        newRange.className = 'year-range-item mb-2';
+
+        // Build year options
+        let yearOptions = '';
+        for (let year = 1900; year <= 2100; year++) {
+            yearOptions += `<option value="${year}">${year}</option>`;
+        }
+
+        newRange.innerHTML = `
+            <div class="row g-2">
+                <div class="col-5">
+                    <select class="form-control year-from-select" name="year_from[]">
+                        <option value="">From Year</option>
+                        ${yearOptions}
+                    </select>
+                </div>
+                <div class="col-5">
+                    <select class="form-control year-to-select" name="year_to[]">
+                        <option value="">To Year</option>
+                        ${yearOptions}
+                    </select>
+                </div>
+                <div class="col-2">
+                    <button type="button" class="btn btn-danger btn-sm removeYearRange">X</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newRange);
+        updateRemoveButtons();
+    });
+
+    // Remove year range
+    $(document).on('click', '.removeYearRange', function() {
+        $(this).closest('.year-range-item').remove();
+        updateRemoveButtons();
+    });
+
+    // Initialize remove buttons on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateRemoveButtons();
     });
     </script>
 
@@ -1915,16 +2383,23 @@ $(document).ready(function () {
                 this.selectedType = type;
             },
             updateFieldsVisibility(type) {
+                // Hide all type-specific fields first
+                this.$el.querySelectorAll('.field-group').forEach(group => {
+                    group.classList.remove('active');
+                });
+                
                 // Common fields always show if type is set
                 const commonFields = this.$el.querySelector('.common-fields');
                 if (commonFields && type) {
                     commonFields.classList.add('active');
                 }
+                
                 // Type-specific fields
                 const typeFields = this.$el.querySelector(`.${type}-fields`);
                 if (typeFields) {
                     typeFields.classList.add('active');
                 }
+                
                 // Media and checkboxes
                 const mediaFields = this.$el.querySelector('.media-fields');
                 const checkboxFields = this.$el.querySelector('.checkbox-fields');
@@ -1934,12 +2409,6 @@ $(document).ready(function () {
                 if (checkboxFields && type) {
                     checkboxFields.classList.add('active');
                 }
-                // Hide others
-                this.$el.querySelectorAll('.field-group').forEach(group => {
-                    if (!group.classList.contains('active')) {
-                        group.classList.remove('active');
-                    }
-                });
             }
         }));
     });
@@ -2191,7 +2660,11 @@ $(document).ready(function () {
                 }
                 // Force show fields
                 $('.common-fields, .media-fields, .checkbox-fields').addClass('active');
-                $(`.${initialType}-fields`).addClass('active');
+                // Show type-specific fields
+                const typeFieldClass = `.${initialType}-fields`;
+                if ($(typeFieldClass).length) {
+                    $(typeFieldClass).addClass('active');
+                }
             }, 100);
         }
     });
