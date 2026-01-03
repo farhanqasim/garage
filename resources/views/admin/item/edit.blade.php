@@ -1698,8 +1698,6 @@ $("#part_number_id").on("change", function () {
 </script>
 
     <script>
-
-    <script>
     // Prevent modal from opening if part number is not selected
     $(document).on('click', '[data-bs-target="#vehical-add-modal"]', function(e) {
         let outsidePart = $('#part_number_id').val();
@@ -1764,8 +1762,9 @@ $("#part_number_id").on("change", function () {
     });
     </script>
     <script>
-    $("#vehical-form").on("submit", function(e) {
+    $("#vehical-form").off("submit").on("submit", function(e) {
         e.preventDefault();
+        e.stopPropagation();
         let form = this;
 
         // Validate part number before form submission
@@ -1808,6 +1807,13 @@ $("#part_number_id").on("change", function () {
             processData: false,
             contentType: false,
             success: function(res) {
+                // Only show success message if there's a valid response with vehicles
+                if (!res) {
+                    console.error('No response from server');
+                    toastr.error('No response from server');
+                    return;
+                }
+                
                 if (res.errors && res.errors.length > 0) {
                     // Display overlap errors
                     res.errors.forEach(function(error) {
@@ -1815,10 +1821,15 @@ $("#part_number_id").on("change", function () {
                     });
                     return;
                 }
+                
                 if (res.duplicate_years?.length) {
                     toastr.warning("Already exists for year(s): " + res.duplicate_years.join(', '));
-                } else {
+                } else if (res.vehicles && res.vehicles.length > 0) {
+                    // Only show success if vehicles were actually saved
                     toastr.success(res.message || "Vehicle saved successfully!");
+                } else if (res.message) {
+                    // If there's a message but no vehicles, show it (might be a warning)
+                    toastr.info(res.message);
                 }
 
                 // Add/update vehicles in table without page reload
@@ -2246,8 +2257,9 @@ function md5(string) {
     document.getElementById('baseDetails').style.display = this.checked ? "flex" : "none";
     });
 
-    $("#Unit-form").on("submit", function(e) {
+    $("#Unit-form").off("submit").on("submit", function(e) {
     e.preventDefault();
+    e.stopPropagation();
 
     let formData = new FormData(this);
 
@@ -2258,6 +2270,13 @@ function md5(string) {
         processData: false,
         contentType: false,
         success: function(res) {
+            if (!res || !res.success) {
+                console.error('Unit save failed', res);
+                if (res && res.message) {
+                    toastr.error(res.message);
+                }
+                return;
+            }
             if(res.success){
                 // Dropdown me new option add kare
                 $("#unit_parts").append(
@@ -2547,12 +2566,21 @@ $(document).ready(function () {
                     $('#universal-add-modal').modal('show');
                 });
 
-                $('#universal-form').on('submit', function (e) {
+                $('#universal-form').off('submit').on('submit', function (e) {
                     e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Check if form has action attribute (should be set when modal opens)
+                    const formAction = $(this).attr('action');
+                    if (!formAction || formAction === '' || formAction === '#') {
+                        console.error('Form action not set');
+                        return false;
+                    }
+                    
                     const formData = new FormData(this);
 
                     $.ajax({
-                        url: $(this).attr('action'),
+                        url: formAction,
                         method: 'POST',
                         data: formData,
                         processData: false,
@@ -2561,6 +2589,9 @@ $(document).ready(function () {
                             if (!res || !res.success) {
                                 // handle server error / validation returned by modal create endpoint
                                 console.error('Modal save failed', res);
+                                if (res && res.message) {
+                                    toastr.error(res.message);
+                                }
                                 return;
                             }
 

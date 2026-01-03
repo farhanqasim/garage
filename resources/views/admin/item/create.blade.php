@@ -2134,8 +2134,9 @@
     });
 </script>
 <script>
-    $("#vehical-form").on("submit", function(e) {
+    $("#vehical-form").off("submit").on("submit", function(e) {
         e.preventDefault();
+        e.stopPropagation();
         let form = this;
 
         // Validate part number before form submission
@@ -2178,6 +2179,13 @@
             processData: false,
             contentType: false,
             success: function(res) {
+                // Only show success message if there's a valid response with vehicles
+                if (!res) {
+                    console.error('No response from server');
+                    toastr.error('No response from server');
+                    return;
+                }
+                
                 if (res.errors && res.errors.length > 0) {
                     // Display overlap errors
                     res.errors.forEach(function(error) {
@@ -2185,10 +2193,15 @@
                     });
                     return;
                 }
+                
                 if (res.duplicate_years?.length) {
                     toastr.warning("Already exists for year(s): " + res.duplicate_years.join(', '));
-                } else {
+                } else if (res.vehicles && res.vehicles.length > 0) {
+                    // Only show success if vehicles were actually saved
                     toastr.success(res.message || "Vehicle saved successfully!");
+                } else if (res.message) {
+                    // If there's a message but no vehicles, show it (might be a warning)
+                    toastr.info(res.message);
                 }
 
                 // Add/update vehicles in table without page reload
@@ -3339,24 +3352,50 @@
                 reader.readAsDataURL(file);
             }
         });
-        $('#universal-form').on('submit', function(e) {
+        $('#universal-form').off('submit').on('submit', function(e) {
             e.preventDefault();
+            e.stopPropagation();
+            
+            // Check if form has action attribute (should be set when modal opens)
+            const formAction = $(this).attr('action');
+            if (!formAction || formAction === '' || formAction === '#') {
+                console.error('Form action not set');
+                return false;
+            }
+            
             const formData = new FormData(this);
             if (currentEditId) {
                 formData.append('_method', 'PUT');
             }
             $.ajax({
-                url: $(this).attr('action'),
+                url: formAction,
                 method: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
                 success: function(res) {
+                    if (!res || !res.id) {
+                        console.error('Invalid response', res);
+                        if (res && res.message) {
+                            toastr.error(res.message);
+                        }
+                        return;
+                    }
                     const option = new Option(res.name, res.id, true, true);
                     const $select = $(currentTargetSelect);
                     $select.find(`option[value="${res.id}"]`).remove();
                     $select.append(option).val(res.id).trigger('change');
                     $('#universal-add-modal').modal('hide');
+                    $('#universal-form')[0].reset();
+                },
+                error: function(xhr) {
+                    console.error('AJAX error', xhr);
+                    const response = xhr.responseJSON;
+                    if (response && response.message) {
+                        toastr.error(response.message);
+                    } else {
+                        toastr.error('An error occurred. Please try again.');
+                    }
                 }
             });
         });
