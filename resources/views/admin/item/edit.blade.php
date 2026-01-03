@@ -347,6 +347,33 @@
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
+                                <!-- Series -->
+                                <div class="col-md-4 mt-3">
+                                    <label for="technology_select">Series:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
+                                            name="technology" id="technology_select">
+                                            <option value="">Select Series</option>
+                                            @foreach ($technologies as $tech)
+                                            <option
+                                                value="{{ $tech->id }}"
+                                                {{ old('technology', $item->technology) == $tech->id ? 'selected' : '' }}>
+                                                {{ $tech->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Series"
+                                            data-route="{{ route('post.technology') }}"
+                                            data-target-select=".technology-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                    </div>
+                                    @error('technology')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
                                 <!-- Product Name -->
                                  <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap'">
                                     <label for="itemname">Product Name:</label>
@@ -560,33 +587,6 @@
                                 @enderror
                             </div>
 
-
-                                <div class="col-md-4 mt-3">
-                                    <label for="technology_select">Series:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
-                                            name="technology" id="technology_select">
-                                            <option value="">Select Series</option>
-                                            @foreach ($technologies as $tech)
-                                            <option
-                                                value="{{ $tech->id }}"
-                                                {{ old('technology', $item->technology) == $tech->id ? 'selected' : '' }}>
-                                                {{ $tech->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Series"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('technology')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
                                 <div class="col-md-4 mt-3">
                                     <label for="Warrenty_select">Warrenty:</label>
                                     <div class="input-group inputswidth">
