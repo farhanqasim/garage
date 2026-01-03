@@ -277,6 +277,14 @@
                                         <i data-feather="edit"></i>
                                     </button>
                             </div>
+                            <!-- Part Number Items Count -->
+                            <div class="mt-2" id="partNumberCountContainer" style="display: none;">
+                                <small class="text-muted">
+                                    Items using this part number: 
+                                    <span id="partNumberCount" class="fw-bold text-primary" style="cursor: pointer; text-decoration: underline;" title="Double-click to view items">0</span>
+                                </small>
+                            </div>
+                            @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                                 <!-- Business Location -->
                                 <div class="col-md-4 d-none">
@@ -3495,6 +3503,173 @@
                 }
             }, 500);
         }, 100);
+
+        // =========================
+        // PART NUMBER COUNT & ITEMS VIEW
+        // =========================
+        
+        // Handle part number selection change - fetch count
+        $('#part_number_id').on('change', function() {
+            const partNumberId = $(this).val();
+            const countContainer = $('#partNumberCountContainer');
+            const countSpan = $('#partNumberCount');
+            
+            if (partNumberId && partNumberId !== '') {
+                // Fetch count
+                $.ajax({
+                    url: '{{ route("items.count.by.part.number", ":id") }}'.replace(':id', partNumberId),
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success) {
+                            countSpan.text(response.count);
+                            countContainer.show();
+                        }
+                    },
+                    error: function() {
+                        countContainer.hide();
+                    }
+                });
+            } else {
+                countContainer.hide();
+            }
+        });
+
+        // Double-click handler to show items in modal
+        $(document).on('dblclick', '#partNumberCount', function() {
+            const partNumberId = $('#part_number_id').val();
+            if (!partNumberId || partNumberId === '') {
+                toastr.warning('Please select a part number first');
+                return;
+            }
+
+            // Show loading
+            Swal.fire({
+                title: 'Loading...',
+                text: 'Fetching items...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Fetch items
+            $.ajax({
+                url: '{{ route("items.by.part.number", ":id") }}'.replace(':id', partNumberId),
+                type: 'GET',
+                success: function(response) {
+                    Swal.close();
+                    if (response.success && response.items && response.items.length > 0) {
+                        showPartNumberItemsModal(response.items, partNumberId);
+                    } else {
+                        toastr.info('No items found for this part number');
+                    }
+                },
+                error: function() {
+                    Swal.close();
+                    toastr.error('Error loading items');
+                }
+            });
+        });
+
+        // Function to show items in SweetAlert modal
+        function showPartNumberItemsModal(items, partNumberId) {
+            const csrfToken = $('input[name="_token"]').val();
+            let itemsHtml = '';
+            
+            if (items.length === 0) {
+                itemsHtml = '<tr><td colspan="7" class="text-center">No items found</td></tr>';
+            } else {
+                items.forEach(function(item) {
+                    const activeBadge = item.is_active 
+                        ? '<span class="badge bg-success">Active</span>' 
+                        : '<span class="badge bg-danger">Inactive</span>';
+
+                    itemsHtml += `
+                        <tr>
+                            <td>
+                                <img src="${item.image}" width="50" height="50"
+                                    class="rounded item-image-modal" style="cursor:pointer;"
+                                    data-src="${item.image}">
+                            </td>
+                            <td>${item.bar_code || '-'}</td>
+                            <td>${item.product_name || '-'}</td>
+                            <td><span class="badge bg-info">${item.type || '-'}</span></td>
+                            <td>${item.category_name || '-'}</td>
+                            <td>${item.company_name || '-'}</td>
+                            <td>${activeBadge}</td>
+                            <td>
+                                <a href="${item.show_url}" class="btn btn-sm btn-info" target="_blank" title="View">
+                                    <i data-feather="eye"></i>
+                                </a>
+                                <a href="${item.edit_url}" class="btn btn-sm btn-primary" target="_blank" title="Edit">
+                                    <i data-feather="edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            const modalHtml = `
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead class="table-dark sticky-top">
+                            <tr>
+                                <th>Image</th>
+                                <th>Bar Code</th>
+                                <th>Product Name</th>
+                                <th>Type</th>
+                                <th>Category</th>
+                                <th>Company</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            Swal.fire({
+                title: `Items Using This Part Number (${items.length})`,
+                html: modalHtml,
+                width: '95%',
+                customClass: {
+                    popup: 'swal-wide'
+                },
+                showCloseButton: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Close',
+                confirmButtonColor: '#3085d6',
+                didOpen: () => {
+                    if (typeof feather !== 'undefined') {
+                        feather.replace();
+                    }
+                    // Handle image click to show larger view
+                    $('.item-image-modal').on('click', function() {
+                        const imgSrc = $(this).data('src');
+                        Swal.fire({
+                            imageUrl: imgSrc,
+                            imageWidth: '80%',
+                            imageAlt: 'Item Image',
+                            showCloseButton: true,
+                            showConfirmButton: false
+                        });
+                    });
+                }
+            });
+        }
     });
 </script>
+<style>
+    .swal-wide {
+        max-width: 1400px !important;
+    }
+    #partNumberCount:hover {
+        color: #0056b3 !important;
+        text-decoration: underline !important;
+    }
+</style>
 @endpush

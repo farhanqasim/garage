@@ -729,6 +729,8 @@ class ItemController extends Controller
             $items = $query->take(5)->get();
         }
 
+        $totalItemsCount = Item::where('type', $type)->count(); // Get total count for the type
+
         return response()->json([
             'success' => true,
             'items' => $items->map(function($item) {
@@ -1051,6 +1053,55 @@ class ItemController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Car Manufacturer deleted Successfully"
+        ]);
+    }
+
+    public function getItemsCountByPartNumber($partNumberId)
+    {
+        $count = Item::where('part_number_id', $partNumberId)->count();
+        
+        return response()->json([
+            'success' => true,
+            'count' => $count
+        ]);
+    }
+
+    public function getItemsByPartNumber($partNumberId)
+    {
+        $items = Item::with([
+            'item_user',
+            'product_item',
+            'category',
+            'partnumber_item',
+            'company_item',
+            'quality_item'
+        ])
+            ->where('part_number_id', $partNumberId)
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'items' => $items->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                    'user_name' => $item->item_user->name ?? '-',
+                    'product_name' => $item->product_item->name ?? '-',
+                    'type' => $item->type,
+                    'bar_code' => $item->bar_code,
+                    'is_active' => $item->is_active,
+                    'category_name' => $item->category->name ?? 'N/A',
+                    'part_number_name' => $item->partnumber_item->name ?? 'N/A',
+                    'company_name' => $item->company_item->name ?? 'N/A',
+                    'quality_name' => $item->quality_item->name ?? 'N/A',
+                    'show_url' => route('item.show', $item->id),
+                    'edit_url' => route('item.edit', $item->id),
+                    'delete_url' => route('item.delete', $item->id),
+                    'duplicate_url' => route('item.duplicate', $item->id),
+                ];
+            }),
+            'total' => $items->count()
         ]);
     }
 }
