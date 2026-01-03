@@ -700,7 +700,7 @@ function confirmDelete(formId, customMessage = null) {
             if (!response) return;
 
             if (response.success === true) {
-                toastr.success(response.message ?? "Saved successfully!");
+                toastr.success(response.message );
             } else if (response.success === false) {
                 toastr.error(response.message ?? "Something went wrong!");
             }

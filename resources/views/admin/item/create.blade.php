@@ -2224,7 +2224,7 @@
                 } else if (res.vehicles && res.vehicles.length > 0) {
                     // Only show success if vehicles were actually saved and modal is visible
                     if ($('#vehical-add-modal').hasClass('show')) {
-                        toastr.success(res.message || "Vehicle saved successfully!");
+                       
                     }
                 } else if (res.message && $('#vehical-add-modal').hasClass('show')) {
                     // If there's a message but no vehicles, show it (might be a warning)
