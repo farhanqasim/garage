@@ -1216,7 +1216,7 @@
                                         </div>
 
                                     <div class="col-md-12 mt-4 field-group checkbox-fields" :class="{ 'active': selectedType }">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-none justify-content-between align-items-center">
                                         <div class="section-box">
                                             <div class="form-check">
                                                 <input type="hidden" name="is_active" value="0">
