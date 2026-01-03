@@ -177,7 +177,7 @@ class Item extends Model
 
                 public function technology_item()
                 {
-                    return $this->belongsTo(Technology::class,'technology');
+                    return $this->belongsTo(Technology::class,'tecnology');
                 }
 
                 public function grade_item()

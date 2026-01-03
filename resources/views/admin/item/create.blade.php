@@ -354,14 +354,17 @@
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <!-- Series -->
+                                <!-- Series/Technology -->
                                 <div class="col-md-4 mt-3">
-                                    <label for="technology_select">Series:</label>
+                                    <label for="technology_select">
+                                        <span x-show="selectedType === 'parts'">Technology:</span>
+                                        <span x-show="selectedType !== 'parts'">Series:</span>
+                                    </label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
                                             name="technology" id="technology_select">
-                                            <option value="">Select Series</option>
+                                            <option value="">Select</option>
                                             @foreach ($technologies as $tech)
                                             <option value="{{ $tech->id }}" {{ old('technology')==$tech->id ?
                                                 'selected' : '' }}>
@@ -370,13 +373,15 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Series" data-mode="add"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
+                                            data-mode="add"
                                             data-route="{{ route('post.technology') }}"
                                             data-target-select=".technology-select">
                                             <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Series"
+                                            data-mode="edit"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
                                             data-fetch-route="{{ route('show.technology', ':id') }}"
                                             data-update-route="{{ route('update.technology', ':id') }}"
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
@@ -931,7 +936,10 @@
                                 </div>
 
                                 <div class="col-md-4">
-                                    <label for="technology_oil_select">Series:</label>
+                                    <label for="technology_oil_select">
+                                        <span x-show="selectedType === 'parts'">Technology:</span>
+                                        <span x-show="selectedType !== 'parts'">Series:</span>
+                                    </label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control technology-oil-select searchable-select  @error('technology') is-invalid @enderror"
@@ -945,13 +953,15 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Series" data-mode="add"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
+                                            data-mode="add"
                                             data-route="{{ route('post.technology') }}"
                                             data-target-select=".technology-oil-select">
                                             <i data-feather="plus"></i>
                                         </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Series"
+                                            data-mode="edit"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
                                             data-fetch-route="{{ route('show.technology', ':id') }}"
                                             data-update-route="{{ route('update.technology', ':id') }}"
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
