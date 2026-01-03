@@ -550,7 +550,7 @@ class ItemController extends Controller
 
     public function item_update(Request $request, $id)
     {
-        // return $request->all();
+        return $request->all();
         $item = Item::findOrFail($id);
         // Validate ONLY fields that exist in $fillable
         $validated = $request->validate([
