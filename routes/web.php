@@ -80,7 +80,7 @@ Route::post('/update-status/{id}', [CategoryController::class, 'updateStatus'])-
 Route::get('/all/subcategory', [CategoryController::class, 'all_sub_category'])->name('all.sub.category');
 Route::post('/post/subcategory', [CategoryController::class, 'post_sub_category'])->name('post.sub.category');
 Route::post('/update-subcategory/{id}', [CategoryController::class, 'updatesubcategory'])->name('update.subcategory');
-Route::get('/delete-category/{id}', [CategoryController::class, 'deletecategory'])->name('delete.category');
+Route::delete('/delete-category/{id}', [CategoryController::class, 'deletecategory'])->name('delete.category');
 
 
 Route::post('/post/item/category', [CategoryController::class, 'post_category_item'])->name('post.item.category');
