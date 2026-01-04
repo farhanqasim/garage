@@ -953,11 +953,19 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Services" data-route="{{ route('post.services') }}"
+                                            data-title="Add Services" data-mode="add"
+                                            data-route="{{ route('post.services') }}"
                                             data-target-select=".Services-select">
                                             <i data-feather="plus" class="feather-plus"></i>
                                         </button>
-
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Services"
+                                            data-fetch-route="{{ route('show.service', ':id') }}"
+                                            data-update-route="{{ route('update.service', ':id') }}"
+                                            data-delete-route="{{ route('destory.service', ':id') }}"
+                                            data-target-select=".Services-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
                                     </div>
                                     @error('services')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -1003,10 +1011,13 @@
                                                 </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary"
+                                        <button type="button" class="btn btn-primary" data-mode="add"
                                             data-bs-toggle="modal"
                                             data-bs-target="#Unit-add-modal">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="editUnitBtn">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     <!-- Purchase Section -->
@@ -1601,9 +1612,9 @@
                                     </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Engine CC"
-                                        data-fetch-route="{{ route('show.engine.cc', ':id') }}"
-                                        data-update-route="{{ route('update.engine.cc', ':id') }}"
-                                        data-delete-route="{{ route('destory.engine.cc', ':id') }}"
+                                        data-fetch-route="{{ route('show.engine_cc', ':id') }}"
+                                        data-update-route="{{ route('update.engine_cc', ':id') }}"
+                                        data-delete-route="{{ route('destory.engine_cc', ':id') }}"
                                         data-target-select=".car-engine-select">
                                         <i data-feather="edit"></i>
                                     </button>
