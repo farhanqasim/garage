@@ -122,7 +122,7 @@ class SalesController extends Controller
                   ->orWhere('type', 'LIKE', "%{$search}%")
                   ->orWhere('volt', 'LIKE', "%{$search}%")
                   ->orWhere('cca', 'LIKE', "%{$search}%")
-                  ->orWhere('tecnology', 'LIKE', "%{$search}%")
+                  ->orWhere('technology', 'LIKE', "%{$search}%")
                   ->orWhere('grade', 'LIKE', "%{$search}%")
                   ->orWhere('farmula', 'LIKE', "%{$search}%")
                   ->orWhere('rack', 'LIKE', "%{$search}%")
@@ -168,7 +168,7 @@ class SalesController extends Controller
 
         // Filter by technology
         if ($request->has('technology_id') && $request->technology_id) {
-            $query->where('tecnology', $request->technology_id);
+            $query->where('technology', $request->technology_id);
         }
 
         // Filter by grade
