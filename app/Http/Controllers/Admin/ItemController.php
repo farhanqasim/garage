@@ -35,6 +35,8 @@ use Milon\Barcode\DNS1D;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use App\Helpers\UnitConversionHelper;
+use App\Models\ItemUnitConversion;
 use App\Models\Group;
 use App\Models\Level;
 use App\Models\MadeIn;
@@ -416,6 +418,50 @@ class ItemController extends Controller
             ============================ */
             $item = Item::create($data);
 
+            /* ============================
+            ✅ VYAPAR/TALLY STYLE UOM SYSTEM
+            Save Base Unit and Secondary Units with Conversion Factors
+            ============================ */
+            if ($request->has('base_unit_id') && $request->base_unit_id) {
+                // Save base unit for this item
+                ItemUnitConversion::create([
+                    'item_id' => $item->id,
+                    'unit_id' => $request->base_unit_id,
+                    'unit_role' => 'base',
+                    'conversion_factor' => 1.00000000, // Base unit always has factor 1
+                    'display_order' => 0,
+                    'is_active' => true,
+                ]);
+
+                // Convert opening stock to base unit if provided
+                if ($request->has('on_hand') && $request->on_hand) {
+                    $openingStock = (float) $request->on_hand;
+                    $openingStockUnitId = $request->has('on_hand_unit_id') ? $request->on_hand_unit_id : $request->base_unit_id;
+                    
+                    // Convert to base unit
+                    $baseStock = UnitConversionHelper::convertToBaseUnit($openingStock, $item->id, $openingStockUnitId);
+                    $item->on_hand = $baseStock;
+                    $item->save();
+                }
+
+                // Save secondary units if provided
+                if ($request->has('secondary_units') && is_array($request->secondary_units)) {
+                    $displayOrder = 1;
+                    foreach ($request->secondary_units as $secondaryUnit) {
+                        if (isset($secondaryUnit['unit_id']) && isset($secondaryUnit['conversion_factor'])) {
+                            ItemUnitConversion::create([
+                                'item_id' => $item->id,
+                                'unit_id' => $secondaryUnit['unit_id'],
+                                'unit_role' => 'secondary',
+                                'conversion_factor' => (float) $secondaryUnit['conversion_factor'],
+                                'display_order' => $displayOrder++,
+                                'is_active' => true,
+                            ]);
+                        }
+                    }
+                }
+            }
+
             DB::commit();
 
             /* ============================
@@ -752,6 +798,53 @@ class ItemController extends Controller
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);
+
+            /* ============================
+            ✅ VYAPAR/TALLY STYLE UOM SYSTEM
+            Update Base Unit and Secondary Units with Conversion Factors
+            ============================ */
+            if ($request->has('base_unit_id') && $request->base_unit_id) {
+                // Delete existing unit conversions
+                ItemUnitConversion::where('item_id', $item->id)->delete();
+
+                // Save base unit for this item
+                ItemUnitConversion::create([
+                    'item_id' => $item->id,
+                    'unit_id' => $request->base_unit_id,
+                    'unit_role' => 'base',
+                    'conversion_factor' => 1.00000000, // Base unit always has factor 1
+                    'display_order' => 0,
+                    'is_active' => true,
+                ]);
+
+                // Convert opening stock to base unit if provided
+                if ($request->has('on_hand') && $request->on_hand) {
+                    $openingStock = (float) $request->on_hand;
+                    $openingStockUnitId = $request->has('on_hand_unit_id') ? $request->on_hand_unit_id : $request->base_unit_id;
+                    
+                    // Convert to base unit
+                    $baseStock = UnitConversionHelper::convertToBaseUnit($openingStock, $item->id, $openingStockUnitId);
+                    $item->on_hand = $baseStock;
+                    $item->save();
+                }
+
+                // Save secondary units if provided
+                if ($request->has('secondary_units') && is_array($request->secondary_units)) {
+                    $displayOrder = 1;
+                    foreach ($request->secondary_units as $secondaryUnit) {
+                        if (isset($secondaryUnit['unit_id']) && isset($secondaryUnit['conversion_factor'])) {
+                            ItemUnitConversion::create([
+                                'item_id' => $item->id,
+                                'unit_id' => $secondaryUnit['unit_id'],
+                                'unit_role' => 'secondary',
+                                'conversion_factor' => (float) $secondaryUnit['conversion_factor'],
+                                'display_order' => $displayOrder++,
+                                'is_active' => true,
+                            ]);
+                        }
+                    }
+                }
+            }
 
             DB::commit();
 
