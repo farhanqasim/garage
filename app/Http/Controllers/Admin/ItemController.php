@@ -772,6 +772,7 @@ class ItemController extends Controller
 
     public function item_show($id)
     {
+        return $id;
         $item = Item::with([
             'vehical_item.manutacturer_vehical',
             'vehical_item.model_vehical',
