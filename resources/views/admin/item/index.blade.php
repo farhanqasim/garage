@@ -259,14 +259,14 @@
         background: #fff;
     }
     .type-tab:hover {
-        border-color: #007bff;
+        border-color: #fe9f43;
         background: #f8f9fa;
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .type-tab.active {
-        border-color: #007bff;
-        background: #007bff;
+        border-color: #fe9f43;
+        background: #fe9f43;
         color: #fff;
     }
     .type-tab.active i {
