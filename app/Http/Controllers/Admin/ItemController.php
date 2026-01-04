@@ -115,7 +115,21 @@ class ItemController extends Controller
         $item_types  = Producttype::where('status', 'active')->get();
         // return $Vehicals;
         $items       = Item::all();
-        $units = Unit::with('baseUnit')->orderBy('base_unit_id')->orderBy('base_unit_multiplier')
+        // Get units grouped by category for Vyapar-style UOM system
+        $units = Unit::where('status', 'active')
+            ->orderBy('unit_category')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+        
+        // Group units by category
+        $unitsByCategory = $units->groupBy('unit_category');
+        
+        // Get base units (for primary unit selection)
+        $baseUnits = Unit::where('status', 'active')
+            ->where('is_base_unit', true)
+            ->orderBy('unit_category')
+            ->orderBy('name')
             ->get();
 
         // return $units;
@@ -239,7 +253,9 @@ class ItemController extends Controller
             'made_ins',
             'levels',
             'services',
-            'units'
+            'units',
+            'unitsByCategory',
+            'baseUnits'
         ));
     }
 
