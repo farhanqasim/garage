@@ -9,6 +9,11 @@
             <h4>Product Details</h4>
             <h6>Full details of a product</h6>
         </div>
+        <div class="page-btn">
+            <button type="button" id="shareWhatsAppBtn" class="btn btn-success">
+                <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
+            </button>
+        </div>
     </div>
 
     <div class="row">
@@ -451,6 +456,43 @@
     </div>
 </div>
 
+<!-- WhatsApp Share Modal -->
+<div class="modal fade" id="whatsappShareModal" tabindex="-1" aria-labelledby="whatsappShareModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="whatsappShareModalLabel">
+                    <i class="ti ti-brand-whatsapp me-2"></i>Share on WhatsApp
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="whatsappShareForm">
+                    <div class="mb-3">
+                        <label for="phoneNumber" class="form-label">Phone Number (with Country Code) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">+</span>
+                            <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" 
+                                placeholder="923001234567" required pattern="[0-9]{10,15}">
+                        </div>
+                        <small class="text-muted">Example: 923001234567 (without + sign)</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle me-2"></i>
+                        <strong>Item:</strong> {{ $item->product_item->name ?? 'N/A' }} will be shared
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="generateAndShareBtn">
+                    <i class="ti ti-brand-whatsapp me-1"></i> Generate PDF & Share
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Initialize Owl Carousel -->
 @push('scripts')
 <script>
@@ -465,6 +507,101 @@
                 600:{ items:1 },
                 1000:{ items:1 }
             }
+        });
+        
+        // WhatsApp Share Button Click
+        $('#shareWhatsAppBtn').on('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('whatsappShareModal'));
+            modal.show();
+        });
+        
+        // Generate PDF and Share on WhatsApp
+        $('#generateAndShareBtn').on('click', function() {
+            const phoneNumber = $('#phoneNumber').val().trim();
+            
+            if (!phoneNumber) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Phone Number Required',
+                    text: 'Please enter a phone number with country code.'
+                });
+                return;
+            }
+            
+            // Validate phone number format
+            if (!/^[0-9]{10,15}$/.test(phoneNumber)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Phone Number',
+                    text: 'Please enter a valid phone number (10-15 digits).'
+                });
+                return;
+            }
+            
+            // Show loading
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ti ti-loader me-1"></i> Generating PDF...';
+            
+            // Generate PDF and get share URL
+            fetch('{{ route("items.generate.whatsapp.pdf") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    item_ids: [{{ $item->id }}],
+                    phone_number: phoneNumber
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Open WhatsApp with PDF
+                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(data.message)}`;
+                    window.open(whatsappUrl, '_blank');
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('whatsappShareModal'));
+                    modal.hide();
+                    
+                    // Reset form
+                    $('#whatsappShareForm')[0].reset();
+                    
+                    // Play save sound
+                    if (typeof playSaveSound === 'function') {
+                        playSaveSound();
+                    }
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Shared!',
+                        text: 'PDF has been shared on WhatsApp.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to generate PDF. Please try again.'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred. Please try again.'
+                });
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
         });
     });
 </script>
