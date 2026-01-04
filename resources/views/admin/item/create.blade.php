@@ -1255,11 +1255,35 @@
                         <!-- Weight -->
                         <div class="col-md-4 mt-3"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="weight">Weight (kg):</label>
-                            <input type="number" class="form-control @error('weight_for_delivery') is-invalid @enderror"
-                                name="weight_for_delivery" id="weight" value="{{ old('weight_for_delivery') }}" />
+                            <label for="weight">Weight:</label>
+                            <input type="number" step="0.01" class="form-control @error('weight_for_delivery') is-invalid @enderror"
+                                name="weight_for_delivery" id="weight" value="{{ old('weight_for_delivery') }}" placeholder="Enter weight" />
                             @error('weight_for_delivery') <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                        </div>
+                        <!-- Weight Unit -->
+                        <div class="col-md-4 mt-3"
+                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            <label for="weight_unit">Weight Unit:</label>
+                            <select class="form-control searchable-select @error('weight_unit') is-invalid @enderror"
+                                name="weight_unit" id="weight_unit">
+                                <option value="">Select Weight Unit</option>
+                                <optgroup label="Metric System (most used worldwide)">
+                                    <option value="mg" {{ old('weight_unit') == 'mg' ? 'selected' : '' }}>Milligram (mg)</option>
+                                    <option value="g" {{ old('weight_unit') == 'g' ? 'selected' : '' }}>Gram (g)</option>
+                                    <option value="kg" {{ old('weight_unit') == 'kg' ? 'selected' : '' }}>Kilogram (kg)</option>
+                                    <option value="quintal" {{ old('weight_unit') == 'quintal' ? 'selected' : '' }}>Quintal (100 kg)</option>
+                                    <option value="tonne" {{ old('weight_unit') == 'tonne' ? 'selected' : '' }}>Metric Ton / Tonne (t) = 1000 kg</option>
+                                </optgroup>
+                                <optgroup label="Imperial / Other Systems">
+                                    <option value="oz" {{ old('weight_unit') == 'oz' ? 'selected' : '' }}>Ounce (oz)</option>
+                                    <option value="lb" {{ old('weight_unit') == 'lb' ? 'selected' : '' }}>Pound (lb)</option>
+                                    <option value="stone" {{ old('weight_unit') == 'stone' ? 'selected' : '' }}>Stone (UK-specific)</option>
+                                    <option value="ton_us" {{ old('weight_unit') == 'ton_us' ? 'selected' : '' }}>Ton (US)</option>
+                                    <option value="ton_uk" {{ old('weight_unit') == 'ton_uk' ? 'selected' : '' }}>Ton (UK)</option>
+                                </optgroup>
+                            </select>
+                            @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-4 mt-3">
                             <label for="vehical_id">Vehicle Type:</label>

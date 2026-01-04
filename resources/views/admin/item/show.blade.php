@@ -362,6 +362,33 @@
                             </li>
                             @endif
 
+                            @if($item->weight_for_delivery)
+                            <li>
+                                <h4>Weight</h4>
+                                <h6>
+                                    {{ number_format($item->weight_for_delivery, 2) }}
+                                    @if($item->weight_unit)
+                                        @php
+                                            $weightUnits = [
+                                                'mg' => 'mg',
+                                                'g' => 'g',
+                                                'kg' => 'kg',
+                                                'quintal' => 'Quintal',
+                                                'tonne' => 'Ton',
+                                                'oz' => 'oz',
+                                                'lb' => 'lb',
+                                                'stone' => 'Stone',
+                                                'ton_us' => 'Ton (US)',
+                                                'ton_uk' => 'Ton (UK)'
+                                            ];
+                                            $unitLabel = $weightUnits[$item->weight_unit] ?? $item->weight_unit;
+                                        @endphp
+                                        <span class="badge bg-info">{{ $unitLabel }}</span>
+                                    @endif
+                                </h6>
+                            </li>
+                            @endif
+
                             @if($item->made_in_item)
                             <li>
                                 <h4>Made In</h4>
