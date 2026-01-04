@@ -773,11 +773,11 @@ class ItemController extends Controller
     public function item_show($id)
     {
         $item = Item::with([
-            'vehical_item.manutacturer_vehical',
-            'vehical_item.model_vehical',
-            'vehical_item.engine_vehical',
-            'vehical_item.country_vehical',
-            'vehical_item.vehical_part_number',
+            'vehical_item.manutacturer_vehical.name',
+            'vehical_item.model_vehical.name',
+            'vehical_item.engine_vehical.name',
+            'vehical_item.country_vehical.name',
+            'vehical_item.vehical_part_number.name',
             'category',
             'subcategory',
             'item_user',
