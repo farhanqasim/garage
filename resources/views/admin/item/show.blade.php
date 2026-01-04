@@ -509,15 +509,59 @@
             }
         });
         
-        // WhatsApp Share Button Click
-        $('#shareWhatsAppBtn').on('click', function() {
-            const modal = new bootstrap.Modal(document.getElementById('whatsappShareModal'));
-            modal.show();
+        // WhatsApp Share Button Click - Use event delegation
+        $(document).on('click', '#shareWhatsAppBtn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const modalElement = document.getElementById('whatsappShareModal');
+            if (!modalElement) {
+                console.error('WhatsApp modal not found');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Modal not found. Please refresh the page.'
+                });
+                return;
+            }
+            
+            try {
+                // Check if Bootstrap 5 is available
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                } else if (typeof $('#whatsappShareModal').modal === 'function') {
+                    // Fallback for Bootstrap 4
+                    $('#whatsappShareModal').modal('show');
+                } else {
+                    $(modalElement).modal('show');
+                }
+                
+                // Focus on phone input after modal shows
+                setTimeout(function() {
+                    const phoneInput = document.getElementById('phoneNumber');
+                    if (phoneInput) {
+                        phoneInput.focus();
+                    }
+                }, 400);
+            } catch (error) {
+                console.error('Error showing modal:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Could not open modal. Please try again.'
+                });
+            }
         });
         
-        // Generate PDF and Share on WhatsApp
-        $('#generateAndShareBtn').on('click', function() {
-            const phoneNumber = $('#phoneNumber').val().trim();
+        // Generate PDF and Share on WhatsApp - Use event delegation
+        $(document).on('click', '#generateAndShareBtn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Get phone number
+            const phoneNumberInput = document.getElementById('phoneNumber');
+            const phoneNumber = phoneNumberInput ? phoneNumberInput.value.trim() : '';
             
             if (!phoneNumber) {
                 Swal.fire({
@@ -563,12 +607,34 @@
                     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(data.message)}`;
                     window.open(whatsappUrl, '_blank');
                     
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('whatsappShareModal'));
-                    modal.hide();
+                    // Close modal - Try multiple methods
+                    const modalElement = document.getElementById('whatsappShareModal');
+                    if (modalElement) {
+                        try {
+                            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                                const modal = bootstrap.Modal.getInstance(modalElement);
+                                if (modal) {
+                                    modal.hide();
+                                } else {
+                                    const newModal = new bootstrap.Modal(modalElement);
+                                    newModal.hide();
+                                }
+                            } else if (typeof $('#whatsappShareModal').modal === 'function') {
+                                $('#whatsappShareModal').modal('hide');
+                            } else {
+                                $(modalElement).modal('hide');
+                            }
+                        } catch (error) {
+                            console.error('Error closing modal:', error);
+                            $(modalElement).hide();
+                        }
+                    }
                     
                     // Reset form
-                    $('#whatsappShareForm')[0].reset();
+                    const form = document.getElementById('whatsappShareForm');
+                    if (form) {
+                        form.reset();
+                    }
                     
                     // Play save sound
                     if (typeof playSaveSound === 'function') {
