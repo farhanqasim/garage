@@ -536,13 +536,15 @@
                 updateActionButtons();
             });
             
-            // Add change listeners to all checkboxes
-            checkboxes.forEach(chk => {
-                chk.addEventListener('change', updateActionButtons);
+            // Use event delegation for checkboxes (works for dynamically added items)
+            $(document).off('change', '.item-checkbox').on('change', '.item-checkbox', function() {
+                updateActionButtons();
+                updateSelectAllState();
             });
             
             // Update button states
             updateActionButtons();
+            updateSelectAllState();
         }
         
         // Function to show/hide action buttons based on selection
@@ -561,6 +563,26 @@
             }
         }
         
+        // Function to update select all checkbox state
+        function updateSelectAllState() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const checkedCount = Array.from(checkboxes).filter(chk => chk.checked).length;
+            
+            if (selectAll && checkboxes.length > 0) {
+                if (checkedCount === 0) {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = false;
+                } else if (checkedCount === checkboxes.length) {
+                    selectAll.checked = true;
+                    selectAll.indeterminate = false;
+                } else {
+                    selectAll.checked = false;
+                    selectAll.indeterminate = true;
+                }
+            }
+        }
+        
         // Function to attach image click handlers
         function attachImageHandlers() {
             document.querySelectorAll('.item-image').forEach(img => {
@@ -574,8 +596,8 @@
             });
         }
         
-        // WhatsApp Share Button Click
-        document.getElementById('shareWhatsAppBtn').addEventListener('click', function() {
+        // WhatsApp Share Button Click - Use event delegation to handle dynamically
+        $(document).on('click', '#shareWhatsAppBtn', function() {
             const checkboxes = document.querySelectorAll('.item-checkbox');
             const selected = Array.from(checkboxes).filter(chk => chk.checked);
             
@@ -596,8 +618,8 @@
             modal.show();
         });
         
-        // Generate PDF and Share on WhatsApp
-        document.getElementById('generateAndShareBtn').addEventListener('click', function() {
+        // Generate PDF and Share on WhatsApp - Use event delegation
+        $(document).on('click', '#generateAndShareBtn', function() {
             const phoneNumber = document.getElementById('phoneNumber').value.trim();
             
             if (!phoneNumber) {
@@ -695,8 +717,8 @@
             });
         });
         
-        // Bulk Delete with SweetAlert
-        document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
+        // Bulk Delete with SweetAlert - Use event delegation
+        $(document).on('click', '#bulkDeleteBtn', function() {
             const checkboxes = document.querySelectorAll('.item-checkbox');
             const selected = Array.from(checkboxes).filter(chk => chk.checked);
             if (selected.length === 0) {
@@ -728,6 +750,18 @@
         
         // Initial image handlers
         attachImageHandlers();
+        
+        // Initial button state
+        setTimeout(function() {
+            updateActionButtons();
+            updateSelectAllState();
+        }, 100);
+        
+        // Initial button state
+        setTimeout(function() {
+            updateActionButtons();
+            updateSelectAllState();
+        }, 100);
     });
 </script>
 <script>
