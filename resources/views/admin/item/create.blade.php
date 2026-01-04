@@ -1153,28 +1153,6 @@
                                     style="width:100px;">
                             </div>
                         </div>
-                        <div class="col-md-6 "
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="sale_price_parts">Sale Price:</label>
-                            <input type="number" class="form-control @error('sale_price') is-invalid @enderror"
-                                name="sale_price" id="sale_price_parts" value="{{ old('sale_price') }}" hidden />
-                            @error('sale_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            <div class="input-group align-items-center gap-2" id="sale-price-info"
-                                style="display:none; margin-top:10px;">
-                                <span id="sale-unit-name" class="fw-bold"></span>
-                                <span class="sale-equal-sign">=</span>
-                                <input type="text" id="total_sale_price" name="total_sale_price"
-                                    class="form-control form-control-sm" style="width:120px;" placeholder=" Sale Price">
-
-                                {{-- <span class="sale-equal-sign">=</span> --}}
-                                <span id="sale-multiplier-text" class="fw-bold"></span>
-                                {{-- <span class="sale-multiply-sign">×</span> --}}
-
-                                <input type="number" id="sale_base_price" name="sale_price_per_base"
-                                    class="form-control form-control-sm" placeholder="Sale per  Unit"
-                                    style="width:100px;">
-                            </div>
-                        </div>
                         <!-- Thumbnail -->
                         <!-- Thumbnail (Single Image) -->
                         <div class="col-md-6 mt-3">
