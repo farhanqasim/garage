@@ -110,20 +110,26 @@
                                 @if($item->vehical_item)
                                 <li>
                                     <h4>Vehicle Model</h4>
-                                    <h6>{{ $item->vehical_item->car_model_name ?? '-' }}</h6>
+                                    <h6>{{ ($item->vehical_item->model_vehical && $item->vehical_item->model_vehical->name) ? $item->vehical_item->model_vehical->name : '-' }}</h6>
                                 </li>
                                 <li>
                                     <h4>Manufacturer</h4>
-                                    <h6>{{ $item->vehical_item->car_manufacturer ?? '-' }}</h6>
+                                    <h6>{{ ($item->vehical_item->manutacturer_vehical && $item->vehical_item->manutacturer_vehical->name) ? $item->vehical_item->manutacturer_vehical->name : '-' }}</h6>
                                 </li>
                                 <li>
                                     <h4>Engine CC</h4>
-                                    <h6>{{ $item->vehical_item->engine_cc ?? '-' }}</h6>
+                                    <h6>{{ ($item->vehical_item->engine_vehical && $item->vehical_item->engine_vehical->name) ? $item->vehical_item->engine_vehical->name . ' CC' : '-' }}</h6>
                                 </li>
                                 <li>
                                     <h4>Country</h4>
-                                    <h6>{{ $item->vehical_item->car_manufactured_country ?? '-' }}</h6>
+                                    <h6>{{ ($item->vehical_item->country_vehical && $item->vehical_item->country_vehical->name) ? $item->vehical_item->country_vehical->name : '-' }}</h6>
                                 </li>
+                                @if($item->vehical_item->vehical_part_number && $item->vehical_item->vehical_part_number->name)
+                                <li>
+                                    <h4>Part Number</h4>
+                                    <h6>{{ $item->vehical_item->vehical_part_number->name }}</h6>
+                                </li>
+                                @endif
                                 @endif
                             @endif
 
