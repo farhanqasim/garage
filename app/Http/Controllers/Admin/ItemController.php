@@ -283,18 +283,29 @@ class ItemController extends Controller
             'is_dead' => 'sometimes|boolean',
         ]);
 
-        // Duplicate combination check removed - allowing duplicate combinations
-        // $exists = Item::where('category_id', $request->category_id)
-        //     ->where('quality_id', $request->quality_id)
-        //     ->where('company_id', $request->company_id)
-        //     ->exists();
-        // if ($exists) {
-        //     return redirect()->back()
-        //         ->withInput()
-        //         ->withErrors([
-        //             'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists. Please change one value.'
-        //         ]);
-        // }
+        // Duplicate combination check - Only for parts, filters, and breakpad types
+        $type = $request->input('type');
+        if (in_array($type, ['parts', 'filters', 'breakpad'])) {
+            // Only check if required fields are present
+            if ($request->has('category_id') && $request->has('quality_id') && 
+                $request->has('company_id') && $request->has('part_number_id')) {
+                
+                $query = Item::where('category_id', $request->category_id)
+                    ->where('quality_id', $request->quality_id)
+                    ->where('company_id', $request->company_id)
+                    ->where('part_number_id', $request->part_number_id)
+                    ->where('type', $type);
+                
+                $exists = $query->exists();
+                if ($exists) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors([
+                            'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.'
+                        ]);
+                }
+            }
+        }
         try {
             DB::beginTransaction();
 
@@ -620,6 +631,33 @@ class ItemController extends Controller
             'is_dead' => 'sometimes|boolean',
         ]);
 
+        // Duplicate combination check - Only for parts, filters, and breakpad types
+        $type = $request->input('type', $item->type);
+        if (in_array($type, ['parts', 'filters', 'breakpad'])) {
+            // Only check if required fields are present
+            $categoryId = $request->has('category_id') ? $request->category_id : $item->category_id;
+            $qualityId = $request->has('quality_id') ? $request->quality_id : $item->quality_id;
+            $companyId = $request->has('company_id') ? $request->company_id : $item->company_id;
+            $partNumberId = $request->has('part_number_id') ? $request->part_number_id : $item->part_number_id;
+            
+            if ($categoryId && $qualityId && $companyId && $partNumberId) {
+                $query = Item::where('category_id', $categoryId)
+                    ->where('quality_id', $qualityId)
+                    ->where('company_id', $companyId)
+                    ->where('part_number_id', $partNumberId)
+                    ->where('type', $type)
+                    ->where('id', '!=', $id); // Exclude current item
+                
+                $exists = $query->exists();
+                if ($exists) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors([
+                            'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.'
+                        ]);
+                }
+            }
+        }
 
         try {
             DB::beginTransaction();
