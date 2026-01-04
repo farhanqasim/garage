@@ -767,8 +767,18 @@ function confirmDelete(formId, customMessage = null) {
       @endphp
       @if ($showSuccess)
           toastr.success("{{ session('success') }}");
-          // 🔊 Play save sound when success message is shown
-          playSaveSound();
+          // 🔊 Play save sound only for save/create/update operations, not for delete operations
+          @php
+              $successMessage = session('success');
+              $isDeleteMessage = stripos($successMessage, 'delete') !== false || 
+                                  stripos($successMessage, 'deleted') !== false ||
+                                  stripos($successMessage, 'restored') !== false;
+          @endphp
+          @if (!$isDeleteMessage)
+              <script>
+                  playSaveSound();
+              </script>
+          @endif
       @endif
   @endif
 
@@ -799,11 +809,26 @@ function confirmDelete(formId, customMessage = null) {
             
             // Skip if URL contains data loading endpoints
             const url = settings.url || '';
-            if (url.includes('/items/by-type/') || 
+            const method = settings.type || '';
+            
+            // Skip data loading operations
+            if (method.toUpperCase() === 'GET' ||
+                url.includes('/items/by-type/') || 
                 url.includes('/categories/') && url.includes('/subcategories') ||
                 url.includes('/load') ||
                 url.includes('/fetch') ||
-                url.includes('/get')) {
+                url.includes('/get') ||
+                url.includes('/show') ||
+                url.includes('/units/') && method.toUpperCase() === 'GET') {
+                return;
+            }
+            
+            // Skip delete operations - they have their own sound
+            if (method.toUpperCase() === 'DELETE' ||
+                url.includes('/delete') ||
+                url.includes('/destroy') ||
+                url.includes('/destory') ||
+                url.includes('/force-delete')) {
                 return;
             }
             
@@ -814,9 +839,10 @@ function confirmDelete(formId, customMessage = null) {
             // 1. Response has success: true
             // 2. Response has a message (not just data loading)
             // 3. It's not a data fetching operation
+            // 4. It's a save/create/update operation (not delete)
             if (response.success === true && response.message && !response.items && !response.data) {
                 toastr.success(response.message);
-                // 🔊 Play save sound when save is successful
+                // 🔊 Play save sound only for actual save/create/update operations
                 playSaveSound();
             } else if (response.success === false && response.message) {
                 toastr.error(response.message);

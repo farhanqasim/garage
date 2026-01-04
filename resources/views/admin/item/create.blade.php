@@ -3612,6 +3612,10 @@
                     $select.append(option).val(res.id).trigger('change');
                     $('#universal-add-modal').modal('hide');
                     $('#universal-form')[0].reset();
+                    // 🔊 Play save sound when dropdown option is saved
+                    if (typeof playSaveSound === 'function') {
+                        playSaveSound();
+                    }
                 },
                 error: function(xhr) {
                     console.error('AJAX error', xhr);
