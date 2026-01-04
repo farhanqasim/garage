@@ -50,38 +50,277 @@
                                 <h6>{{ $item->category?->name ?? 'N/A' }}</h6>
                             </li>
 
-
-
+                            @if($item->subcategory)
                             <li>
-                                <h4>Type</h4>
-                                <h6><span class="badge {{ $item->type == 'parts' ? 'bg-success' : 'bg-info' }}">{{ ucfirst($item->type ?? 'N/A') }}</span></h6>
+                                <h4>Subcategory</h4>
+                                <h6>{{ $item->subcategory->name ?? 'N/A' }}</h6>
                             </li>
-
-                            <!-- Show Vehicle Info ONLY when type == 'parts' -->
-                            @if($item->type == 'parts' && $item->vehical_item)
-                                <li>
-                                    <h4>Vehicle Model</h4>
-                                    <h6>{{ $item->vehical_item->car_model_name }} ({{ $item->vehical_item->carmanufactured_year }})</h6>
-                                </li>
-                                <li>
-                                    <h4>Manufacturer</h4>
-                                    <h6>{{ $item->vehical_item->car_manufacturer }}</h6>
-                                </li>
-                                <li>
-                                    <h4>Engine CC</h4>
-                                    <h6>{{ $item->vehical_item->engine_cc }} cc</h6>
-                                </li>
-                                <li>
-                                    <h4>Country</h4>
-                                    <h6>{{ $item->vehical_item->car_manufactured_country }}</h6>
-                                </li>
                             @endif
 
                             <li>
-                                <h4>Unit</h4>
-                                <h6>{{ $item->unit_item->unit ?? 'Piece' }}</h6>
+                                <h4>Type</h4>
+                                <h6><span class="badge {{ $item->type == 'parts' ? 'bg-success' : ($item->type == 'battery' ? 'bg-warning' : 'bg-info') }}">{{ ucfirst($item->type ?? 'N/A') }}</span></h6>
                             </li>
 
+                            <!-- COMMON FIELDS FOR ALL TYPES -->
+                            @if(in_array($item->type, ['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad']))
+                                <li>
+                                    <h4>Unit</h4>
+                                    <h6>{{ $item->unit_item->name ?? ($item->unit_item->unit ?? 'Piece') }}</h6>
+                                </li>
+                            @endif
+
+                            <!-- PARTS SPECIFIC FIELDS -->
+                            @if($item->type == 'parts')
+                                @if($item->partnumber_item)
+                                <li>
+                                    <h4>Part Number</h4>
+                                    <h6>{{ $item->partnumber_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->company_item)
+                                <li>
+                                    <h4>Company</h4>
+                                    <h6>{{ $item->company_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->quality_item)
+                                <li>
+                                    <h4>Quality</h4>
+                                    <h6>{{ $item->quality_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->group_item)
+                                <li>
+                                    <h4>Group Name</h4>
+                                    <h6>{{ $item->group_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->technology_item)
+                                <li>
+                                    <h4>Series</h4>
+                                    <h6>{{ $item->technology_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->vehical_item)
+                                <li>
+                                    <h4>Vehicle Model</h4>
+                                    <h6>{{ $item->vehical_item->car_model_name ?? '-' }}</h6>
+                                </li>
+                                <li>
+                                    <h4>Manufacturer</h4>
+                                    <h6>{{ $item->vehical_item->car_manufacturer ?? '-' }}</h6>
+                                </li>
+                                <li>
+                                    <h4>Engine CC</h4>
+                                    <h6>{{ $item->vehical_item->engine_cc ?? '-' }}</h6>
+                                </li>
+                                <li>
+                                    <h4>Country</h4>
+                                    <h6>{{ $item->vehical_item->car_manufactured_country ?? '-' }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- BATTERY SPECIFIC FIELDS -->
+                            @if($item->type == 'battery')
+                                @if($item->company_item)
+                                <li>
+                                    <h4>Company</h4>
+                                    <h6>{{ $item->company_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->technology_item)
+                                <li>
+                                    <h4>Series</h4>
+                                    <h6>{{ $item->technology_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->quality_item)
+                                <li>
+                                    <h4>Quality</h4>
+                                    <h6>{{ $item->quality_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->plate_item)
+                                <li>
+                                    <h4>Plates</h4>
+                                    <h6>{{ $item->plate_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->amphors_item)
+                                <li>
+                                    <h4>Amperes</h4>
+                                    <h6>{{ $item->amphors_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->volt_item)
+                                <li>
+                                    <h4>Volt</h4>
+                                    <h6>{{ $item->volt_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->cca_item)
+                                <li>
+                                    <h4>CCA</h4>
+                                    <h6>{{ $item->cca_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->minus_pool_item)
+                                <li>
+                                    <h4>Minus Pole Direction</h4>
+                                    <h6>{{ $item->minus_pool_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->warrenty_item)
+                                <li>
+                                    <h4>Warranty</h4>
+                                    <h6>{{ $item->warrenty_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->serial_number)
+                                <li>
+                                    <h4>Serial Number</h4>
+                                    <h6>{{ $item->serial_number }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->battery_size)
+                                <li>
+                                    <h4>Battery Size</h4>
+                                    <h6>{{ $item->battery_size }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- OIL SPECIFIC FIELDS -->
+                            @if($item->type == 'oil')
+                                @if($item->company_item)
+                                <li>
+                                    <h4>Company</h4>
+                                    <h6>{{ $item->company_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->technology_item)
+                                <li>
+                                    <h4>Series</h4>
+                                    <h6>{{ $item->technology_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->quality_item)
+                                <li>
+                                    <h4>Quality</h4>
+                                    <h6>{{ $item->quality_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->grade_item)
+                                <li>
+                                    <h4>Grade</h4>
+                                    <h6>{{ $item->grade_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->mileage_item)
+                                <li>
+                                    <h4>Mileage</h4>
+                                    <h6>{{ $item->mileage_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- FILTERS SPECIFIC FIELDS -->
+                            @if($item->type == 'filters')
+                                @if($item->partnumber_item)
+                                <li>
+                                    <h4>Part Number</h4>
+                                    <h6>{{ $item->partnumber_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->company_item)
+                                <li>
+                                    <h4>Company</h4>
+                                    <h6>{{ $item->company_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->quality_item)
+                                <li>
+                                    <h4>Quality</h4>
+                                    <h6>{{ $item->quality_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- BREAKPAD SPECIFIC FIELDS -->
+                            @if($item->type == 'breakpad')
+                                @if($item->partnumber_item)
+                                <li>
+                                    <h4>Part Number</h4>
+                                    <h6>{{ $item->partnumber_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->company_item)
+                                <li>
+                                    <h4>Company</h4>
+                                    <h6>{{ $item->company_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->quality_item)
+                                <li>
+                                    <h4>Quality</h4>
+                                    <h6>{{ $item->quality_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- SCRAP SPECIFIC FIELDS -->
+                            @if($item->type == 'scrap')
+                                @if($item->company_item)
+                                <li>
+                                    <h4>Company</h4>
+                                    <h6>{{ $item->company_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                                
+                                @if($item->level_item)
+                                <li>
+                                    <h4>Level</h4>
+                                    <h6>{{ $item->level_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- SERVICES SPECIFIC FIELDS -->
+                            @if($item->type == 'services')
+                                @if($item->services_item)
+                                <li>
+                                    <h4>Services</h4>
+                                    <h6>{{ $item->services_item->name ?? '-' }}</h6>
+                                </li>
+                                @endif
+                            @endif
+
+                            <!-- COMMON FIELDS FOR ALL TYPES -->
                             <li>
                                 <h4>On Hand (Stock)</h4>
                                 <h6>
@@ -91,20 +330,40 @@
                                 </h6>
                             </li>
 
+                            @if($item->price_per_unit)
                             <li>
                                 <h4>Price per Unit</h4>
                                 <h6>Rs. {{ number_format($item->price_per_unit ?? 0, 2) }}</h6>
                             </li>
+                            @endif
 
+                            @if($item->total_price)
                             <li>
                                 <h4>Total Value</h4>
                                 <h6>Rs. {{ number_format($item->total_price ?? 0, 2) }}</h6>
                             </li>
+                            @endif
 
+                            @if($item->sale_price)
+                            <li>
+                                <h4>Sale Price</h4>
+                                <h6>Rs. {{ number_format($item->sale_price ?? 0, 2) }}</h6>
+                            </li>
+                            @endif
+
+                            @if($item->made_in_item)
+                            <li>
+                                <h4>Made In</h4>
+                                <h6>{{ $item->made_in_item->name ?? '-' }}</h6>
+                            </li>
+                            @endif
+
+                            @if($item->min_qty)
                             <li>
                                 <h4>Min Qty Alert</h4>
                                 <h6>{{ $item->min_qty ?? 0 }}</h6>
                             </li>
+                            @endif
 
                             <li>
                                 <h4>Status</h4>
@@ -115,7 +374,12 @@
                                 </h6>
                             </li>
 
-
+                            @if($item->updated_by_user)
+                            <li>
+                                <h4>Last Updated By</h4>
+                                <h6>{{ $item->updated_by_user->name ?? 'Unknown' }} ({{ \Carbon\Carbon::parse($item->last_updated_at)->format('d M Y, h:i A') }})</h6>
+                            </li>
+                            @endif
 
                             <li>
                                 <h4>Added By</h4>
@@ -183,7 +447,6 @@
 
 <!-- Initialize Owl Carousel -->
 @push('scripts')
-<script>
 <script>
     $(document).ready(function(){
         $('.product-slide').owlCarousel({
