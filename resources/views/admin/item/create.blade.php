@@ -321,6 +321,37 @@
                                     </div>
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
+                                <div class="col-md-4 " x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad' ">
+                                    <label for="category">Category:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
+                                            name="category_id" id="category">
+                                            <option value="">Select Category</option>
+                                            @foreach ($Categories as $category)
+                                            <option value="{{ $category->id }}" {{ old('category_id')==$category->id ?
+                                                'selected' : '' }}>
+                                                {{ $category->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Category" data-mode="add"
+                                            data-route="{{ route('post.item.category') }}"
+                                            data-target-select=".category-select" data-has-image="1">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Category"
+                                            data-fetch-route="{{ route('show.category', ':id') }}"
+                                            data-update-route="{{ route('update.category', ':id') }}"
+                                            data-delete-route="{{ route('destory.category', ':id') }}"
+                                            data-target-select=".category-select" data-has-image="1">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
                                 <!-- Business Location -->
                                 <div class="col-md-4 d-none">
                                     <label for="business_location">Business Location:</label>
@@ -436,38 +467,6 @@
                                     @error('technology')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
-                                </div>
-                               
-                                <div class="col-md-4 " x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad' ">
-                                    <label for="category">Category:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
-                                            name="category_id" id="category">
-                                            <option value="">Select Category</option>
-                                            @foreach ($Categories as $category)
-                                            <option value="{{ $category->id }}" {{ old('category_id')==$category->id ?
-                                                'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Category" data-mode="add"
-                                            data-route="{{ route('post.item.category') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Category"
-                                            data-fetch-route="{{ route('show.category', ':id') }}"
-                                            data-update-route="{{ route('update.category', ':id') }}"
-                                            data-delete-route="{{ route('destory.category', ':id') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="edit"></i>
-                                        </button>
-                                    </div>
-                                    @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                         </div>
