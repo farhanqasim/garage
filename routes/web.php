@@ -243,6 +243,7 @@ Route::delete('/item/delete/{id}', [ItemController::class, 'item_delete'])->name
 Route::get('/items/recycle-bin', [ItemController::class, 'recycleBin'])->name('items.recycle.bin');
 Route::post('/items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
 Route::delete('/items/{id}/force-delete', [ItemController::class, 'forceDelete'])->name('items.forceDelete');
+Route::post('/items/generate-whatsapp-pdf', [ItemController::class, 'generateWhatsAppPdf'])->name('items.generate.whatsapp.pdf');
 
 
 Route::get('/admin/categories/{id}/subcategories', [ItemController::class, 'getSubcategories'])

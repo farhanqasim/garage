@@ -41,6 +41,7 @@ use App\Models\MadeIn;
 use App\Models\Services;
 use App\Models\Warrenty;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class ItemController extends Controller
@@ -1207,5 +1208,101 @@ class ItemController extends Controller
             }),
             'total' => $items->count()
         ]);
+    }
+
+    public function generateWhatsAppPdf(Request $request)
+    {
+        try {
+            $itemIds = $request->input('item_ids', []);
+            $phoneNumber = $request->input('phone_number');
+            
+            if (empty($itemIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items selected.'
+                ], 400);
+            }
+            
+            if (!$phoneNumber) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Phone number is required.'
+                ], 400);
+            }
+            
+            // Fetch items with all relationships
+            $items = Item::with([
+                'item_user',
+                'product_item',
+                'category',
+                'subcategory',
+                'partnumber_item',
+                'company_item',
+                'quality_item',
+                'technology_item',
+                'group_item',
+                'plate_item',
+                'amphors_item',
+                'volt_item',
+                'cca_item',
+                'minus_pool_item',
+                'grade_item',
+                'warrenty_item',
+                'mileage_item',
+                'level_item',
+                'made_in_item',
+                'services_item',
+                'unit_item',
+                'vehical_item' => function($query) {
+                    $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
+                }
+            ])
+            ->whereIn('id', $itemIds)
+            ->get();
+            
+            if ($items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No items found.'
+                ], 404);
+            }
+            
+            // Generate PDF
+            $pdf = Pdf::loadView('admin.item.whatsapp-pdf', compact('items', 'phoneNumber'));
+            $pdf->setPaper('a4', 'portrait');
+            
+            // Save PDF temporarily
+            $filename = 'items_' . time() . '_' . rand(1000, 9999) . '.pdf';
+            $pdfPath = public_path('temp_pdfs/' . $filename);
+            
+            // Create directory if it doesn't exist
+            if (!file_exists(public_path('temp_pdfs'))) {
+                mkdir(public_path('temp_pdfs'), 0755, true);
+            }
+            
+            $pdf->save($pdfPath);
+            
+            // Generate PDF URL
+            $pdfUrl = url('temp_pdfs/' . $filename);
+            
+            // Create WhatsApp message
+            $message = "📦 *Items Details*\n\n";
+            $message .= "Total Items: " . $items->count() . "\n\n";
+            $message .= "View full details in PDF: " . $pdfUrl;
+            
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'pdf_url' => $pdfUrl,
+                'pdf_path' => $pdfPath
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('WhatsApp PDF Generation Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate PDF: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

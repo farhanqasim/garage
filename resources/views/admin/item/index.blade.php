@@ -226,8 +226,11 @@
             </div>
         </div>
         <div class="card-footer">
-            <button type="button" id="bulkDeleteBtn" class="btn btn-danger">
-                <i class="ti ti-trash me-1"></i>
+            <button type="button" id="bulkDeleteBtn" class="btn btn-danger" style="display: none;">
+                <i class="ti ti-trash me-1"></i> Delete Selected
+            </button>
+            <button type="button" id="shareWhatsAppBtn" class="btn btn-success" style="display: none;">
+                <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
             </button>
             {{-- {{ $items->links() }} --}}
             <a href="{{ route('items.recycle.bin') }}" class="btn btn-primary">
@@ -236,6 +239,44 @@
         </div>
     </div>
 </div>
+
+<!-- WhatsApp Share Modal -->
+<div class="modal fade" id="whatsappShareModal" tabindex="-1" aria-labelledby="whatsappShareModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="whatsappShareModalLabel">
+                    <i class="ti ti-brand-whatsapp me-2"></i>Share on WhatsApp
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="whatsappShareForm">
+                    <div class="mb-3">
+                        <label for="phoneNumber" class="form-label">Phone Number (with Country Code) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">+</span>
+                            <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" 
+                                placeholder="923001234567" required pattern="[0-9]{10,15}">
+                        </div>
+                        <small class="text-muted">Example: 923001234567 (without + sign)</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle me-2"></i>
+                        <strong>Selected Items:</strong> <span id="selectedItemsCount">0</span> item(s) will be shared
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="generateAndShareBtn">
+                    <i class="ti ti-brand-whatsapp me-1"></i> Generate PDF & Share
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -492,7 +533,32 @@
             
             newSelectAll.addEventListener('change', function() {
                 checkboxes.forEach(chk => chk.checked = newSelectAll.checked);
+                updateActionButtons();
             });
+            
+            // Add change listeners to all checkboxes
+            checkboxes.forEach(chk => {
+                chk.addEventListener('change', updateActionButtons);
+            });
+            
+            // Update button states
+            updateActionButtons();
+        }
+        
+        // Function to show/hide action buttons based on selection
+        function updateActionButtons() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selected = Array.from(checkboxes).filter(chk => chk.checked);
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            const shareWhatsAppBtn = document.getElementById('shareWhatsAppBtn');
+            
+            if (selected.length > 0) {
+                if (bulkDeleteBtn) bulkDeleteBtn.style.display = 'inline-block';
+                if (shareWhatsAppBtn) shareWhatsAppBtn.style.display = 'inline-block';
+            } else {
+                if (bulkDeleteBtn) bulkDeleteBtn.style.display = 'none';
+                if (shareWhatsAppBtn) shareWhatsAppBtn.style.display = 'none';
+            }
         }
         
         // Function to attach image click handlers
@@ -507,6 +573,127 @@
                 });
             });
         }
+        
+        // WhatsApp Share Button Click
+        document.getElementById('shareWhatsAppBtn').addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selected = Array.from(checkboxes).filter(chk => chk.checked);
+            
+            if (selected.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one item to share.'
+                });
+                return;
+            }
+            
+            // Update selected items count in modal
+            document.getElementById('selectedItemsCount').textContent = selected.length;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('whatsappShareModal'));
+            modal.show();
+        });
+        
+        // Generate PDF and Share on WhatsApp
+        document.getElementById('generateAndShareBtn').addEventListener('click', function() {
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            
+            if (!phoneNumber) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Phone Number Required',
+                    text: 'Please enter a phone number with country code.'
+                });
+                return;
+            }
+            
+            // Validate phone number format
+            if (!/^[0-9]{10,15}$/.test(phoneNumber)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Phone Number',
+                    text: 'Please enter a valid phone number (10-15 digits).'
+                });
+                return;
+            }
+            
+            // Get selected item IDs
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selectedIds = Array.from(checkboxes)
+                .filter(chk => chk.checked)
+                .map(chk => chk.value);
+            
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Selection',
+                    text: 'Please select at least one item.'
+                });
+                return;
+            }
+            
+            // Show loading
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ti ti-loader me-1"></i> Generating PDF...';
+            
+            // Generate PDF and get share URL
+            fetch('{{ route("items.generate.whatsapp.pdf") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    item_ids: selectedIds,
+                    phone_number: phoneNumber
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Open WhatsApp with PDF
+                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(data.message)}`;
+                    window.open(whatsappUrl, '_blank');
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('whatsappShareModal'));
+                    modal.hide();
+                    
+                    // Reset form
+                    document.getElementById('whatsappShareForm').reset();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Shared!',
+                        text: 'PDF has been shared on WhatsApp.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to generate PDF. Please try again.'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred. Please try again.'
+                });
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        });
         
         // Bulk Delete with SweetAlert
         document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
@@ -559,6 +746,13 @@ document.addEventListener('DOMContentLoaded', function () {
     imageModal.addEventListener('hidden.bs.modal', function () {
         modalImage.src = '';
     });
+    
+    // Initial button state on page load
+    setTimeout(function() {
+        if (typeof updateActionButtons === 'function') {
+            updateActionButtons();
+        }
+    }, 500);
 });
 </script>
 
