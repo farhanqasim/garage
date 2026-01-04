@@ -368,7 +368,7 @@
                                 <!-- Series/Technology -->
                                 <div class="col-md-4 mt-3">
                                     <label for="technology_select">
-                                        <b x-show="selectedType === 'parts'">Technology:</b>
+                                        <b x-show="selectedType === 'oil'">Technology:</b>
                                         <b x-show="selectedType !== 'parts'">Series:</b>
                                     </label>
                                     <div class="input-group inputswidth">
@@ -948,8 +948,8 @@
 
                                 <div class="col-md-4">
                                     <label for="technology_oil_select">
-                                        <span x-show="selectedType === 'parts'">Technology:</span>
-                                        <span x-show="selectedType !== 'parts'">Series:</span>
+                                        <b x-show="selectedType === 'oil'">Technology:</b>
+                                        <b x-show="selectedType !== 'parts'">Series:</b>
                                     </label>
                                     <div class="input-group inputswidth">
                                         <select
