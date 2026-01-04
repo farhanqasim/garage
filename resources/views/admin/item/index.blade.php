@@ -43,20 +43,62 @@
     </div>
     <!-- /Product List -->
     <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-end flex-wrap row-gap-3">
-            {{-- <div class="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                <div class="dropdown">
-                    <a href="javascript:void(0);" class="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center" data-bs-toggle="dropdown">
-                        Status
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end p-3">
-                        <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Active</a></li>
-                        <li><a href="javascript:void(0);" class="dropdown-item rounded-1">Inactive</a></li>
-                    </ul>
+        <div class="card-header">
+            <!-- Type Filter Tabs -->
+            <div class="row mb-4 g-3" id="typeTabsContainer">
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="all" id="tab-all">
+                        <i class="ti ti-list fs-2 d-block mb-2"></i>
+                        <span>All Items</span>
+                    </div>
                 </div>
-            </div> --}}
-            <div class="d-flex justify-content-end mb-3">
-                <input type="text" id="tableSearch" class="form-control w-100" placeholder="Search...">
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="parts" id="tab-parts">
+                        <i class="ti ti-tool fs-2 d-block mb-2"></i>
+                        <span>Parts</span>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="filters" id="tab-filters">
+                        <i class="ti ti-filter fs-2 d-block mb-2"></i>
+                        <span>Filters</span>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="breakpad" id="tab-breakpad">
+                        <i class="ti ti-disc fs-2 d-block mb-2"></i>
+                        <span>Break Pad</span>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="oil" id="tab-oil">
+                        <i class="ti ti-droplet fs-2 d-block mb-2"></i>
+                        <span>Oil</span>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="battery" id="tab-battery">
+                        <i class="ti ti-battery fs-2 d-block mb-2"></i>
+                        <span>Battery</span>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="scrap" id="tab-scrap">
+                        <i class="ti ti-trash fs-2 d-block mb-2"></i>
+                        <span>Scrap</span>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="type-tab text-center p-3 cursor-pointer" data-type="services" id="tab-services">
+                        <i class="ti ti-tools fs-2 d-block mb-2"></i>
+                        <span>Services</span>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center justify-content-end flex-wrap row-gap-3">
+                <div class="d-flex justify-content-end mb-3">
+                    <input type="text" id="tableSearch" class="form-control w-100" placeholder="Search...">
+                </div>
             </div>
         </div>
         <div class="card-body p-0">
@@ -82,9 +124,9 @@
                                 <th>Category</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="itemsTableBody">
                             @forelse ($items as $item)
-                            <tr>
+                            <tr data-type="{{ $item->type }}">
                                 <td>
                                     <input type="checkbox" name="ids[]" value="{{ $item->id }}" style="width: 20px; height:20px"   class="item-checkbox form-check">
                                 </td>
@@ -102,11 +144,6 @@
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu">
-                                            {{-- <li>
-                                                <a class="dropdown-item" href="">
-                                                     <i data-feather="tag" class="me-1"></i> Lable
-                                                </a>
-                                            </li> --}}
                                             <li>
                                                 <a class="dropdown-item mt-3" href="{{ route('item.show',$item->id) }}">
                                                     <i data-feather="eye" class="me-1"></i> View
@@ -154,9 +191,11 @@
                                 <td>{{ $item->partnumber_item->name??'-' }}</td>
                                 <td>{{ $item->item_user->name??'' }}</td>
                                 <td>{{ $item->product_item->name??'' }}</td>
-                                <td>{{ $item->type }}</td>
+                                <td><span class="badge bg-info">{{ ucfirst($item->type) }}</span></td>
                                 <td><span class="badge bg-secondary">{{ $item->bar_code }}</span><br> <br>
+                                  @if($item->barcode_image)
                                   <img src="{{ asset($item->barcode_image)}}" alt="" />
+                                  @endif
                                 </td>
                                 <td>
                                     <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-danger' }}">
@@ -173,9 +212,8 @@
                         </tbody>
                     </table>
                 </form>
-                <!-- All delete forms moved OUTSIDE bulkDeleteForm to avoid nested form issue -->
-                <!-- HTML doesn't allow nested forms, so these must be outside -->
-                <div style="display: none;">
+                <!-- All delete forms container - will be populated dynamically -->
+                <div id="deleteFormsContainer" style="display: none;">
                     @foreach ($items as $item)
                     <form id="delete-form-{{ $item->id }}"
                         action="{{ route('item.delete', $item->id) }}"
@@ -211,17 +249,268 @@
     </div>
   </div>
 </div>
+<!-- Styles -->
+<style>
+    .type-tab {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: #fff;
+    }
+    .type-tab:hover {
+        border-color: #007bff;
+        background: #f8f9fa;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .type-tab.active {
+        border-color: #007bff;
+        background: #007bff;
+        color: #fff;
+    }
+    .type-tab.active i {
+        color: #fff;
+    }
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>
+
 <!-- Scripts -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Select all checkboxes
-        const selectAll = document.getElementById('selectAll');
-        const checkboxes = document.querySelectorAll('.item-checkbox');
-        selectAll.addEventListener('change', function() {
-            checkboxes.forEach(chk => chk.checked = selectAll.checked);
+        let currentType = 'all'; // Track current selected type
+        
+        // Initialize: Set 'All Items' as active by default
+        document.getElementById('tab-all').classList.add('active');
+        
+        // Type Tab Click Handler
+        document.querySelectorAll('.type-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const type = this.getAttribute('data-type');
+                currentType = type;
+                
+                // Remove active class from all tabs
+                document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Load items for selected type
+                loadItemsByType(type);
+            });
         });
+        
+        // Function to load items by type
+        function loadItemsByType(type) {
+            const tbody = document.getElementById('itemsTableBody');
+            const deleteFormsContainer = document.getElementById('deleteFormsContainer');
+            
+            // Show loading
+            tbody.innerHTML = '<tr><td colspan="11" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+            
+            // Build URL
+            let url = type === 'all' 
+                ? '{{ route("all.items") }}' 
+                : '{{ route("items.by.type", ":type") }}'.replace(':type', type) + '?all=true';
+            
+            // For 'all', reload the page or fetch all items
+            if (type === 'all') {
+                fetch('{{ route("all.items") }}', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data) {
+                        renderItems(data.items || []);
+                    } else {
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    location.reload();
+                });
+            } else {
+                // Fetch items by type via AJAX
+                fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.items) {
+                        renderItems(data.items);
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="11" class="text-center">No items found for this type.</td></tr>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading items:', error);
+                    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading items. Please try again.</td></tr>';
+                });
+            }
+        }
+        
+        // Function to render items in table
+        function renderItems(items) {
+            const tbody = document.getElementById('itemsTableBody');
+            const deleteFormsContainer = document.getElementById('deleteFormsContainer');
+            
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center">No items found.</td></tr>';
+                deleteFormsContainer.innerHTML = '';
+                updateCheckboxes();
+                return;
+            }
+            
+            let tbodyHtml = '';
+            let deleteFormsHtml = '';
+            
+            items.forEach(item => {
+                // Fix image path
+                let imgSrc = item.image || '/assets/img/media/default.png';
+                if (!imgSrc.startsWith('http') && !imgSrc.startsWith('/')) {
+                    imgSrc = '/' + imgSrc;
+                }
+                
+                tbodyHtml += `
+                    <tr data-type="${item.type}">
+                        <td>
+                            <input type="checkbox" name="ids[]" value="${item.id}" style="width: 20px; height:20px" class="item-checkbox form-check">
+                        </td>
+                        <td>
+                            <img src="${imgSrc}"
+                                width="70" height="70" class="rounded item-image"
+                                style="cursor:pointer;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#imageModal"
+                                data-src="${imgSrc}">
+                        </td>
+                        <td class="no-highlight">
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item mt-3" href="${item.show_url || '#'}">
+                                            <i data-feather="eye" class="me-1"></i> View
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item mt-2" href="${item.edit_url || '#'}">
+                                            <i data-feather="edit" class="me-1"></i> Edit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0)"
+                                            onclick="confirmDelete('delete-form-${item.id}')"
+                                            class="dropdown-item mt-2">
+                                            <i data-feather="trash-2" class="feather-trash-2"></i> Delete
+                                        </a>
+                                    </li>
+                                    <hr>
+                                    <li>
+                                        <a class="dropdown-item text-primary" href="${item.duplicate_url || '#'}">
+                                            <i data-feather="copy" class="me-1"></i> Duplicate
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                        <td>
+                            ${item.updated_by_user ? `
+                                <div class="small">
+                                    <div>${item.updated_by_user.name || 'N/A'}</div>
+                                    <div>${item.last_updated_at || item.updated_at || '-'}</div>
+                                </div>
+                            ` : (item.updated_at ? `<div class="small"><div>${item.updated_at}</div></div>` : '<span class="text-muted">-</span>')}
+                        </td>
+                        <td>${item.part_number || '-'}</td>
+                        <td>${item.user_name || '-'}</td>
+                        <td>${item.product_name || '-'}</td>
+                        <td><span class="badge bg-info">${item.type ? item.type.charAt(0).toUpperCase() + item.type.slice(1) : '-'}</span></td>
+                        <td>
+                            <span class="badge bg-secondary">${item.bar_code || '-'}</span><br><br>
+                            ${item.barcode_image ? `<img src="/${item.barcode_image}" alt="" />` : ''}
+                        </td>
+                        <td>
+                            <span class="badge ${item.is_active ? 'bg-success' : 'bg-danger'}">
+                                ${item.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>${item.category_name || 'N/A'}</td>
+                    </tr>
+                `;
+                
+                deleteFormsHtml += `
+                    <form id="delete-form-${item.id}"
+                        action="${item.delete_url || '#'}"
+                        method="POST">
+                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="_method" value="DELETE">
+                    </form>
+                `;
+            });
+            
+            tbody.innerHTML = tbodyHtml;
+            deleteFormsContainer.innerHTML = deleteFormsHtml;
+            
+            // Re-initialize feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+            
+            // Re-attach image click handlers
+            attachImageHandlers();
+            
+            // Update checkboxes
+            updateCheckboxes();
+        }
+        
+        // Function to update checkboxes after rendering
+        function updateCheckboxes() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            
+            // Remove old event listeners by cloning and replacing
+            const newSelectAll = selectAll.cloneNode(true);
+            selectAll.parentNode.replaceChild(newSelectAll, selectAll);
+            
+            newSelectAll.addEventListener('change', function() {
+                checkboxes.forEach(chk => chk.checked = newSelectAll.checked);
+            });
+        }
+        
+        // Function to attach image click handlers
+        function attachImageHandlers() {
+            document.querySelectorAll('.item-image').forEach(img => {
+                img.addEventListener('click', function() {
+                    const src = this.getAttribute('data-src');
+                    const modalImage = document.getElementById('modalImage');
+                    if (modalImage) {
+                        modalImage.src = src;
+                    }
+                });
+            });
+        }
+        
         // Bulk Delete with SweetAlert
         document.getElementById('bulkDeleteBtn').addEventListener('click', function() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
             const selected = Array.from(checkboxes).filter(chk => chk.checked);
             if (selected.length === 0) {
                 Swal.fire({
@@ -249,30 +538,9 @@
                 }
             });
         });
-        // Single Delete - already using confirmDelete function with SweetAlert
-        // Duplicate
-        document.querySelectorAll('.duplicate-btn').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const id = this.dataset.id;
-                if (!confirm('Duplicate this item?')) return;
-                fetch(`/items/${id}/duplicate`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    }
-                }).then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Item duplicated successfully.');
-                        location.reload();
-                    } else {
-                        alert('Failed to duplicate item.');
-                    }
-                });
-            });
-        });
+        
+        // Initial image handlers
+        attachImageHandlers();
     });
 </script>
 <script>

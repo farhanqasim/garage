@@ -48,10 +48,41 @@ class ItemController extends Controller
 
 
 
-    public function all_items()
+    public function all_items(Request $request)
     {
         $items = Item::with(['item_user', 'product_item', 'partnumber_item', 'updated_by_user', 'category'])->latest()->get();
-        //   return $items;
+        
+        // If AJAX request, return JSON
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'items' => $items->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                        'bar_code' => $item->bar_code,
+                        'barcode_image' => $item->barcode_image,
+                        'type' => $item->type,
+                        'is_active' => $item->is_active,
+                        'user_name' => $item->item_user->name ?? '',
+                        'product_name' => $item->product_item->name ?? '',
+                        'part_number' => $item->partnumber_item->name ?? '',
+                        'category_name' => $item->category ? $item->category->name : 'N/A',
+                        'updated_by_user' => $item->updated_by_user ? [
+                            'name' => $item->updated_by_user->name,
+                        ] : null,
+                        'last_updated_at' => $item->last_updated_at ? $item->last_updated_at->format('d M Y, h:i A') : null,
+                        'updated_at' => $item->updated_at ? $item->updated_at->format('d M Y, h:i A') : null,
+                        'show_url' => route('item.show', $item->id),
+                        'edit_url' => route('item.edit', $item->id),
+                        'delete_url' => route('item.delete', $item->id),
+                        'duplicate_url' => route('item.duplicate', $item->id),
+                    ];
+                })
+            ]);
+        }
+        
+        // Regular page load
         return view('admin.item.index', compact('items'));
     }
 
@@ -781,7 +812,8 @@ class ItemController extends Controller
             'category',
             'partnumber_item',
             'company_item',
-            'quality_item'
+            'quality_item',
+            'updated_by_user'
         ])
             ->where('type', $type)
             ->latest();
@@ -801,22 +833,28 @@ class ItemController extends Controller
                 return [
                     'id' => $item->id,
                     'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                    'bar_code' => $item->bar_code,
+                    'barcode_image' => $item->barcode_image,
                     'user_name' => $item->item_user->name ?? '-',
                     'product_name' => $item->product_item->name ?? '-',
                     'type' => $item->type,
-                    'bar_code' => $item->bar_code,
                     'is_active' => $item->is_active,
                     'category_name' => $item->category ? $item->category->name : 'N/A',
                     'part_number' => $item->partnumber_item ? $item->partnumber_item->name : '-',
                     'company_name' => $item->company_item ? $item->company_item->name : '-',
                     'quality_name' => $item->quality_item ? $item->quality_item->name : '-',
+                    'updated_by_user' => $item->updated_by_user ? [
+                        'name' => $item->updated_by_user->name,
+                    ] : null,
+                    'last_updated_at' => $item->last_updated_at ? $item->last_updated_at->format('d M Y, h:i A') : null,
+                    'updated_at' => $item->updated_at ? $item->updated_at->format('d M Y, h:i A') : null,
                     'show_url' => route('item.show', $item->id),
                     'edit_url' => route('item.edit', $item->id),
                     'delete_url' => route('item.delete', $item->id),
                     'duplicate_url' => route('item.duplicate', $item->id),
                 ];
             }),
-            'total' => $items->count()
+            'total_count' => $totalItemsCount
         ]);
     }
 
