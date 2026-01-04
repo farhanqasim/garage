@@ -187,10 +187,17 @@
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
-                                @click="selectType('battery')">
-                                <i class="ti ti-battery fs-1 d-block mb-2"></i>
-                                Battery
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
+                                @click="selectType('filters')">
+                                <i class="ti ti-filter fs-1 d-block mb-2"></i>
+                                Filters
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
+                                @click="selectType('breakpad')">
+                                <i class="ti ti-disc fs-1 d-block mb-2"></i>
+                                Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
@@ -198,6 +205,13 @@
                                 @click="selectType('oil')">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
+                                @click="selectType('battery')">
+                                <i class="ti ti-battery fs-1 d-block mb-2"></i>
+                                Battery
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
@@ -212,20 +226,6 @@
                                 @click="selectType('services')">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
-                                @click="selectType('filters')">
-                                <i class="ti ti-filter fs-1 d-block mb-2"></i>
-                                Filters
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
-                                @click="selectType('breakpad')">
-                                <i class="ti ti-disc fs-1 d-block mb-2"></i>
-                                Break Pad
                             </div>
                         </div>
                     </div>
