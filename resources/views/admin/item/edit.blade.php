@@ -1978,6 +1978,10 @@ $("#part_number_id").on("change", function () {
                     // Only show success if vehicles were actually saved and modal is visible
                     if ($('#vehical-add-modal').hasClass('show')) {
                         toastr.success(res.message || "Vehicle saved successfully!");
+                        // 🔊 Play save sound when vehicle is saved
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
                     }
                 } else if (res.message && $('#vehical-add-modal').hasClass('show')) {
                     // If there's a message but no vehicles, show it (might be a warning)
@@ -2961,6 +2965,10 @@ $(document).ready(function () {
                     $('#universal-image-preview').hide();
                     currentEditId = null;
                     deleteRoute = null;
+                    // 🔊 Play save sound when item is saved via universal modal
+                    if (typeof playSaveSound === 'function') {
+                        playSaveSound();
+                    }
                 },
                 error: function(xhr) {
                     console.error('AJAX error', xhr);

@@ -45,14 +45,11 @@
                                 </button>
                             </form>
 
-                            <form action="{{ route('items.forceDelete', $item->id) }}" method="POST" class="d-inline"
-                                onsubmit="return confirm('Delete permanently? This cannot be undone!')">
-                                @csrf
-                                @method('DELETE')
-                                <button class="btn btn-danger btn-sm">
-                                    Delete Forever
-                                </button>
-                            </form>
+                            <a href="javascript:void(0)"
+                                onclick="confirmDelete('delete-form-{{ $item->id }}', 'Are you sure you want to permanently delete this item? This action cannot be undone!')"
+                                class="btn btn-danger btn-sm">
+                                Delete Forever
+                            </a>
                         </td>
                     </tr>
                     @empty
@@ -64,5 +61,17 @@
             </table>
         </div>
     </div>
+</div>
+
+<!-- Hidden Delete Forms Container -->
+<div id="deleteFormsContainer" style="display: none;">
+    @foreach ($items as $item)
+    <form id="delete-form-{{ $item->id }}"
+        action="{{ route('items.forceDelete', $item->id) }}"
+        method="POST">
+        @csrf
+        @method('DELETE')
+    </form>
+    @endforeach
 </div>
 @endsection

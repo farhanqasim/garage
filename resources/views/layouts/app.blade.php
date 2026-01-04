@@ -597,6 +597,18 @@ function playDeleteSound() {
     }
 }
 
+// 🔊 Global function to play save sound (can be called from anywhere)
+function playSaveSound() {
+    const saveSound = document.getElementById('saveSound');
+    if (saveSound) {
+        saveSound.currentTime = 0; // Reset to start
+        saveSound.play().catch(function(error) {
+            // If audio play fails (e.g., user interaction required), just continue silently
+            console.log('Save sound play failed:', error);
+        });
+    }
+}
+
 function confirmDelete(formId, customMessage = null) {
     // Enhanced check: Try multiple methods to find the form
     let deleteForm = document.getElementById(formId);
@@ -755,6 +767,8 @@ function confirmDelete(formId, customMessage = null) {
       @endphp
       @if ($showSuccess)
           toastr.success("{{ session('success') }}");
+          // 🔊 Play save sound when success message is shown
+          playSaveSound();
       @endif
   @endif
 
@@ -802,6 +816,8 @@ function confirmDelete(formId, customMessage = null) {
             // 3. It's not a data fetching operation
             if (response.success === true && response.message && !response.items && !response.data) {
                 toastr.success(response.message);
+                // 🔊 Play save sound when save is successful
+                playSaveSound();
             } else if (response.success === false && response.message) {
                 toastr.error(response.message);
             }
@@ -917,6 +933,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- Delete Sound Audio Element - Available Globally -->
 <audio id="deleteSound" src="{{ asset('deleteaudio_ubWu5Ok3.mp3') }}" preload="auto"></audio>
+
+<!-- Save Sound Audio Element - Available Globally -->
+<audio id="saveSound" src="{{ asset('savesuccessfully.mp3') }}" preload="auto"></audio>
 
 </body>
 
