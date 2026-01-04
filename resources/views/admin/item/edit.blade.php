@@ -253,7 +253,7 @@
                                         <img src="{{ asset($item->barcode_image) }}" width="180">
                                     @endif --}}
                                 </div>
-                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="part_number_id">Part Number:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -307,7 +307,7 @@
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
-                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="category_parts">Category:</label>
                                     <div class="input-group inputswidth">
                                         <select
