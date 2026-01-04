@@ -774,11 +774,7 @@ class ItemController extends Controller
     {
         // return $id;
         $item = Item::with([
-            'vehical_item.manutacturer_vehical',
-            'vehical_item.model_vehical',
-            'vehical_item.engine_vehical',
-            'vehical_item.country_vehical',
-            'vehical_item.vehical_part_number',
+            'vehical_item',
             'category',
             'subcategory',
             'item_user',
