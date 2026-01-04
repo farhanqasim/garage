@@ -186,10 +186,17 @@
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
-                                @click="selectType('battery')">
-                                <i class="ti ti-battery fs-1 d-block mb-2"></i>
-                                Battery
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
+                                @click="selectType('filters')">
+                                <i class="ti ti-filter fs-1 d-block mb-2"></i>
+                                Filters
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
+                                @click="selectType('breakpad')">
+                                <i class="ti ti-disc fs-1 d-block mb-2"></i>
+                                Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
@@ -199,6 +206,14 @@
                                 Oil
                             </div>
                         </div>
+                        <div class="col-md-3 col-6">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
+                                @click="selectType('battery')">
+                                <i class="ti ti-battery fs-1 d-block mb-2"></i>
+                                Battery
+                            </div>
+                        </div>
+                        
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
                                 @click="selectType('scrap')">
@@ -214,20 +229,7 @@
                                 Services
                             </div>
                         </div>
-                        <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
-                                @click="selectType('filters')">
-                                <i class="ti ti-filter fs-1 d-block mb-2"></i>
-                                Filters
-                            </div>
-                        </div>
-                        <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
-                                @click="selectType('breakpad')">
-                                <i class="ti ti-disc fs-1 d-block mb-2"></i>
-                                Break Pad
-                            </div>
-                        </div>
+                      
                     </div>
                     <!-- Hidden field to store selected type -->
                     <input type="hidden" name="type" x-model="selectedType">
