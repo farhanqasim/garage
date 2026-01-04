@@ -274,7 +274,7 @@
                                                 data-target-select=".part_number-select">
                                                 <i data-feather="plus" class="feather-plus"></i>
                                         </button>
-                                        <button type="button" class="btn btn-secondary open-universal-modal d-none"
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Part Number"
                                             data-fetch-route="{{ route('show.partnumber', ':id') }}"
                                             data-update-route="{{ route('update.partnumber', ':id') }}"
@@ -301,9 +301,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Product" data-route="{{ route('post.product') }}"
+                                            data-title="Add Product" data-mode="add"
+                                            data-route="{{ route('post.product') }}"
                                             data-target-select=".name-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Product"
+                                            data-fetch-route="{{ route('show.product', ':id') }}"
+                                            data-update-route="{{ route('update.product', ':id') }}"
+                                            data-delete-route="{{ route('destory.product', ':id') }}"
+                                            data-target-select=".name-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -324,9 +333,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Category" data-route="{{ route('post.item.category') }}"
-                                            data-target-select=".category-select">
+                                            data-title="Add Category" data-mode="add"
+                                            data-route="{{ route('post.item.category') }}"
+                                            data-target-select=".category-select" data-has-image="1">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Category"
+                                            data-fetch-route="{{ route('show.category', ':id') }}"
+                                            data-update-route="{{ route('update.category', ':id') }}"
+                                            data-delete-route="{{ route('destory.category', ':id') }}"
+                                            data-target-select=".category-select" data-has-image="1">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -359,15 +377,14 @@
                                             data-route="{{ route('post.groups') }}" data-target-select=".group-select">
                                             <i data-feather="plus" class="feather-plus"></i>
                                         </button>
-
-                                        {{-- <button type="button" class="btn btn-secondary open-universal-modal"
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
                                             data-update-route="{{ route('post.groups.update', ':id') }}"
                                             data-delete-route="{{ route('post.groups.destroy', ':id') }}"
                                             data-target-select=".group-select">
                                             <i data-feather="edit"></i>
-                                        </button> --}}
+                                        </button>
                                     </div>
                                     @error('group')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -388,9 +405,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Company" data-route="{{ route('post.companies') }}"
+                                            data-title="Add Company" data-mode="add"
+                                            data-route="{{ route('post.companies') }}"
                                             data-target-select=".company-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Company"
+                                            data-fetch-route="{{ route('show.company', ':id') }}"
+                                            data-update-route="{{ route('update.company', ':id') }}"
+                                            data-delete-route="{{ route('destory.company', ':id') }}"
+                                            data-target-select=".company-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -416,9 +442,19 @@
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
                                             x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
+                                            data-mode="add"
                                             data-route="{{ route('post.technology') }}"
                                             data-target-select=".technology-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
+                                            data-fetch-route="{{ route('show.technology', ':id') }}"
+                                            data-update-route="{{ route('update.technology', ':id') }}"
+                                            data-delete-route="{{ route('destory.technology', ':id') }}"
+                                            data-target-select=".technology-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('technology')
@@ -441,10 +477,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality"
+                                            data-title="Add Quality" data-mode="add"
                                             data-route="{{ route('post.qualities') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Quality"
+                                            data-fetch-route="{{ route('show.quality', ':id') }}"
+                                            data-update-route="{{ route('update.quality', ':id') }}"
+                                            data-delete-route="{{ route('destory.quality', ':id') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -477,10 +521,18 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Plate"
+                                        data-title="Add Plate" data-mode="add"
                                         data-route="{{ route('post.platos') }}"
                                         data-target-select=".plates-select">
                                         <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Plates"
+                                        data-fetch-route="{{ route('show.plate', ':id') }}"
+                                        data-update-route="{{ route('update.plate', ':id') }}"
+                                        data-delete-route="{{ route('destory.plate', ':id') }}"
+                                        data-target-select=".plates-select">
+                                        <i data-feather="edit"></i>
                                     </button>
                                 </div>
                                 @error('plato')
@@ -502,10 +554,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Amperes"
+                                            data-title="Add Amperes" data-mode="add"
                                             data-route="{{ route('post.amphors') }}"
                                             data-target-select=".amperes-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Amperes"
+                                            data-fetch-route="{{ route('show.ampere', ':id') }}"
+                                            data-update-route="{{ route('update.ampere', ':id') }}"
+                                            data-delete-route="{{ route('destory.ampere', ':id') }}"
+                                            data-target-select=".amperes-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('amphors')
@@ -532,10 +592,18 @@
                                                 @endforeach
                                             </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Volt"
+                                            data-title="Add Volt" data-mode="add"
                                             data-route="{{ route('post.volts') }}"
                                             data-target-select=".volt-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Volt"
+                                            data-fetch-route="{{ route('show.volt', ':id') }}"
+                                            data-update-route="{{ route('update.volt', ':id') }}"
+                                            data-delete-route="{{ route('destory.volt', ':id') }}"
+                                            data-target-select=".volt-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('volt')
@@ -557,10 +625,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add CCA"
+                                            data-title="Add CCA" data-mode="add"
                                             data-route="{{ route('post.cca') }}"
                                             data-target-select=".cca-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit CCA"
+                                            data-fetch-route="{{ route('show.cca', ':id') }}"
+                                            data-update-route="{{ route('update.cca', ':id') }}"
+                                            data-delete-route="{{ route('destory.cca', ':id') }}"
+                                            data-target-select=".cca-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('cca')
@@ -585,10 +661,18 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Minus Pole Direction"
+                                        data-title="Add Minus Pole Direction" data-mode="add"
                                         data-route="{{ route('post.minuspool') }}"
                                         data-target-select=".minus-pole-direction-select">
                                         <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Minus Pole Direction"
+                                        data-fetch-route="{{ route('show.minuspool', ':id') }}"
+                                        data-update-route="{{ route('update.minuspool', ':id') }}"
+                                        data-delete-route="{{ route('destory.minuspool', ':id') }}"
+                                        data-target-select=".minus-pole-direction-select">
+                                        <i data-feather="edit"></i>
                                     </button>
                                 </div>
                                 @error('minus_pole_direction')
@@ -614,6 +698,14 @@
                                             data-route="{{ route('post.warrenty') }}"
                                             data-target-select=".Warrenty-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Warrenty"
+                                            data-fetch-route="{{ route('show.warrenty', ':id') }}"
+                                            data-update-route="{{ route('update.warrenty', ':id') }}"
+                                            data-delete-route="{{ route('destory.warrenty', ':id') }}"
+                                            data-target-select=".Warrenty-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('warrenty')
@@ -641,6 +733,14 @@
                                             data-route="{{ route('post.made_ins') }}"
                                             data-target-select=".made_in-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Made In"
+                                            data-fetch-route="{{ route('show.madeins', ':id') }}"
+                                            data-update-route="{{ route('update.madeins', ':id') }}"
+                                            data-delete-route="{{ route('destory.madeins', ':id') }}"
+                                            data-target-select=".made_in-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('made_in')
@@ -682,10 +782,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Grade"
+                                            data-title="Add Grade" data-mode="add"
                                             data-route="{{ route('post.grade') }}"
                                             data-target-select=".grade-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Grade"
+                                            data-fetch-route="{{ route('show.grade', ':id') }}"
+                                            data-update-route="{{ route('update.grade', ':id') }}"
+                                            data-delete-route="{{ route('destory.grade', ':id') }}"
+                                            data-target-select=".grade-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('grade')
@@ -736,9 +844,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Mileage" data-route="{{ route('post.item.mileage') }}"
+                                            data-title="Add Mileage" data-mode="add"
+                                            data-route="{{ route('post.item.mileage') }}"
                                             data-target-select=".mileage-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Mileage"
+                                            data-fetch-route="{{ route('show.mileage', ':id') }}"
+                                            data-update-route="{{ route('update.mileage', ':id') }}"
+                                            data-delete-route="{{ route('destory.mileage', ':id') }}"
+                                            data-target-select=".mileage-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('mileage') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -760,6 +877,14 @@
                                             data-title="Add Level" data-mode="add"
                                             data-route="{{ route('post.levels') }}" data-target-select=".level-select">
                                             <i data-feather="plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Level"
+                                            data-fetch-route="{{ route('show.level', ':id') }}"
+                                            data-update-route="{{ route('update.level', ':id') }}"
+                                            data-delete-route="{{ route('destory.level', ':id') }}"
+                                            data-target-select=".level-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('level')
@@ -1402,9 +1527,18 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Manufacturerd" data-route="{{ route('post.car.manufacturer') }}"
+                                        data-title="Add Manufacturerd" data-mode="add"
+                                        data-route="{{ route('post.car.manufacturer') }}"
                                         data-target-select=".car-manufacturer-select">
                                         <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Manufacturer"
+                                        data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
+                                        data-update-route="{{ route('update.car.manufacturer', ':id') }}"
+                                        data-delete-route="{{ route('destory.car.manufacturer', ':id') }}"
+                                        data-target-select=".car-manufacturer-select">
+                                        <i data-feather="edit"></i>
                                     </button>
                                 </div>
                                 @error('car_manufacturer') <div class="invalid-feedback">{{ $message }}</div>
@@ -1426,9 +1560,18 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Car Model" data-route="{{ route('post.car.model') }}"
+                                        data-title="Add Car Model" data-mode="add"
+                                        data-route="{{ route('post.car.model') }}"
                                         data-target-select=".car-model-select">
                                         <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Car Model"
+                                        data-fetch-route="{{ route('show.car.model', ':id') }}"
+                                        data-update-route="{{ route('update.car.model', ':id') }}"
+                                        data-delete-route="{{ route('destory.car.model', ':id') }}"
+                                        data-target-select=".car-model-select">
+                                        <i data-feather="edit"></i>
                                     </button>
                                 </div>
                                 @error('car_model_name') <div class="invalid-feedback">{{ $message }}</div>
@@ -1451,9 +1594,18 @@
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Engine CC" data-route="{{ route('post.engine.cc') }}"
+                                        data-title="Add Engine CC" data-mode="add"
+                                        data-route="{{ route('post.engine.cc') }}"
                                         data-target-select=".car-engine-select">
                                         <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Engine CC"
+                                        data-fetch-route="{{ route('show.engine.cc', ':id') }}"
+                                        data-update-route="{{ route('update.engine.cc', ':id') }}"
+                                        data-delete-route="{{ route('destory.engine.cc', ':id') }}"
+                                        data-target-select=".car-engine-select">
+                                        <i data-feather="edit"></i>
                                     </button>
                                 </div>
                                 @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
@@ -1476,9 +1628,18 @@
                                     </select>
 
                                     <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Country" data-route="{{ route('post.car.country') }}"
+                                        data-title="Add Country" data-mode="add"
+                                        data-route="{{ route('post.car.country') }}"
                                         data-target-select=".car-country-select">
                                         <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Country"
+                                        data-fetch-route="{{ route('show.car.country', ':id') }}"
+                                        data-update-route="{{ route('update.car.country', ':id') }}"
+                                        data-delete-route="{{ route('destory.car.country', ':id') }}"
+                                        data-target-select=".car-country-select">
+                                        <i data-feather="edit"></i>
                                     </button>
                                 </div>
                                 @error('car_manufactured_country') <div class="invalid-feedback">{{ $message }}
@@ -1499,9 +1660,18 @@
                                             @endforeach
                                         </select>
                                         <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Part Number" data-route="{{ route('post.partnumber') }}"
+                                            data-title="Add Part Number" data-mode="add"
+                                            data-route="{{ route('post.partnumber') }}"
                                             data-target-select=".part_number-select">
                                             <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Part Number"
+                                            data-fetch-route="{{ route('show.partnumber', ':id') }}"
+                                            data-update-route="{{ route('update.partnumber', ':id') }}"
+                                            data-delete-route="{{ route('destory.partnumber', ':id') }}"
+                                            data-target-select=".part_number-select">
+                                            <i data-feather="edit"></i>
                                         </button>
                                     </div>
                                     @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
