@@ -775,9 +775,6 @@ class ItemController extends Controller
         // return $id;
         $item = Item::find($id);
         return $item;
-        if (!$item) {
-            abort(404, 'Item not found');
-        }
         return view('admin.item.show', compact('item'));
     }
 
