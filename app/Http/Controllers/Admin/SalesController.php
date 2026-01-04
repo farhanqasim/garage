@@ -132,9 +132,15 @@ class SalesController extends Controller
                 $q->where('name', 'LIKE', "%{$search}%");
             })
             ->orWhereHas('vehical_item', function ($q) use ($search) {
-                $q->where('carmanufactured_year', 'LIKE', "%{$search}%")
-                  ->orWhere('engine_cc', 'LIKE', "%{$search}%")
+                $q->where('year_from', 'LIKE', "%{$search}%")
+                  ->orWhere('year_to', 'LIKE', "%{$search}%")
                   ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('vehical_item.engine_vehical', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('vehical_item.country_vehical', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
             })
             ->orWhereHas('vehical_item.manutacturer_vehical', function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%");
