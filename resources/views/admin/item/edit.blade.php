@@ -283,6 +283,52 @@
                                     </div>
                                     @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
+                                <!-- Product Name -->
+                                <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap'">
+                                    <label for="itemname">Product Name:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control name-select searchable-select @error('p_id') is-invalid @enderror"
+                                            name="p_id" id="name">
+                                            <option value="">Select Product Name</option>
+                                            @foreach ($product as $prod)
+                                            <option value="{{ $prod->id }}"
+                                              {{ old('p_id', $item->p_id) == $prod->id ? 'selected' : '' }}>
+                                                {{ $prod->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Product" data-route="{{ route('post.product') }}"
+                                            data-target-select=".name-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                    </div>
+                                    @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+
+                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    <label for="category_parts">Category:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
+                                            name="category_id" id="category_parts">
+                                            <option value="">Select Category</option>
+                                            @foreach ($Categories as $category)
+                                            <option value="{{ $category->id }}"
+                                                {{ ($item->category_id ?? old('category_id')) == $category->id ? 'selected' : '' }}>
+                                                {{ $category->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Category" data-route="{{ route('post.item.category') }}"
+                                            data-target-select=".category-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+                                    </div>
+                                    @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
                                 <!-- Business Location -->
                                 <div class="col-md-4 d-none">
                                     <label for="business_location">Business Location:</label>
@@ -401,52 +447,7 @@
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <!-- Product Name -->
-                                 <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap'">
-                                    <label for="itemname">Product Name:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control name-select searchable-select @error('p_id') is-invalid @enderror"
-                                            name="p_id" id="name">
-                                            <option value="">Select Product Name</option>
-                                            @foreach ($product as $prod)
-                                            <option value="{{ $prod->id }}"
-                                              {{ old('p_id', $item->p_id) == $prod->id ? 'selected' : '' }}>
-                                                {{ $prod->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Product" data-route="{{ route('post.product') }}"
-                                            data-target-select=".name-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
-
-                                <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="category_parts">Category:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
-                                            name="category_id" id="category_parts">
-                                            <option value="">Select Category</option>
-                                            @foreach ($Categories as $category)
-                                            <option value="{{ $category->id }}"
-                                                {{ ($item->category_id ?? old('category_id')) == $category->id ? 'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Category" data-route="{{ route('post.item.category') }}"
-                                            data-target-select=".category-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-                                    </div>
-                                    @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                </div>
+                                
 
                             </div>
                         </div>
