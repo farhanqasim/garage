@@ -37,7 +37,9 @@
     </div>
     <div class="card">
         <div class="card-body">
-            <form action="">
+            <form id="sales-form" action="{{ route('store.sale') }}" method="POST">
+                @csrf
+                <input type="hidden" name="items" id="items-data" value="[]">
                 <div class="card border-0">
                     <div class="card-body pb-0">
                         <div class="table-responsive no-pagination mb-3">
@@ -46,7 +48,7 @@
                                     <tr>
                                         <th>Product</th>
                                         <th>Qty</th>
-                                        <th>Purchase Price($)</th>
+                                        <th>Sale Price($)</th>
                                         <th>Discount($)</th>
                                         <th>Tax(%)</th>
                                         <th>Tax Amount($)</th>
@@ -65,22 +67,26 @@
                         <div class="row">
                             <div class="col-lg-4 col-sm-6 col-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Customer Name<span
-                                            class="text-danger ms-1">*</span></label>
+                                    <label class="form-label">Customer Name</label>
                                     <div class="row">
                                         <div class="col-lg-10 col-sm-10 col-10">
-                                            <select class="select form-control">
-                                                <option>Select</option>
-                                                <option>Carl Evans</option>
-                                                <option>Minerva Rameriz</option>
-                                                <option>Robert Lamon</option>
+                                            <select name="customer_id" id="customer_id" class="select form-control">
+                                                <option value="">Select Customer</option>
+                                                @foreach($customers ?? [] as $customer)
+                                                <option value="{{ $customer->id }}">
+                                                    {{ is_array($customer->names) ? ($customer->names[0] ?? 'N/A') : $customer->names }}
+                                                    @if($customer->company)
+                                                        - {{ $customer->company }}
+                                                    @endif
+                                                </option>
+                                                @endforeach
                                             </select>
                                         </div>
                                         <div class="col-lg-2 col-sm-2 col-2 ps-0">
                                             <div class="add-icon">
-                                                <a href="#" class="bg-dark text-white p-2 rounded"
-                                                    data-bs-toggle="modal" data-bs-target="#add_customer"><i
-                                                        data-feather="plus-circle" class="plus"></i></a>
+                                                <a href="{{ route('all.customers') }}" class="bg-dark text-white p-2 rounded" target="_blank">
+                                                    <i data-feather="plus-circle" class="plus"></i>
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
@@ -90,19 +96,14 @@
                                 <div class="mb-3">
                                     <label class="form-label">Date<span class="text-danger ms-1">*</span></label>
                                     <div class="input-group">
-                                        <input type="date" class=" form-control" placeholder="Choose">
+                                        <input type="date" name="sale_date" id="sale_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-4 col-sm-6 col-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Supplier<span class="text-danger ms-1">*</span></label>
-                                    <select class="select form-control">
-                                        <option>Select</option>
-                                        <option>Apex Computers</option>
-                                        <option>Beats Headphones</option>
-                                        <option>Dazzle Shoes</option>
-                                    </select>
+                                    <label class="form-label">Invoice Number</label>
+                                    <input type="text" class="form-control" value="{{ $invoiceNumber ?? 'AUTO' }}" readonly>
                                 </div>
                             </div>
                             <div class="col-lg-12 col-12">
@@ -128,20 +129,24 @@
                                 <div class="total-order w-100 max-widthauto m-auto mb-4">
                                     <ul class="border-1 rounded-2">
                                         <li class="border-bottom">
+                                            <h4 class="border-end">Subtotal</h4>
+                                            <h5 id="display-subtotal">$ 0.00</h5>
+                                        </li>
+                                        <li class="border-bottom">
                                             <h4 class="border-end">Order Tax</h4>
-                                            <h5>$ 0.00</h5>
+                                            <h5 id="display-order-tax">$ 0.00</h5>
                                         </li>
                                         <li class="border-bottom">
                                             <h4 class="border-end">Discount</h4>
-                                            <h5>$ 0.00</h5>
+                                            <h5 id="display-discount">$ 0.00</h5>
                                         </li>
                                         <li class="border-bottom">
                                             <h4 class="border-end">Shipping</h4>
-                                            <h5>$ 0.00</h5>
+                                            <h5 id="display-shipping">$ 0.00</h5>
                                         </li>
-                                        <li class="border-bottom">
-                                            <h4 class="border-end">Grand Total</h4>
-                                            <h5>$ 0.00</h5>
+                                        <li class="border-bottom bg-light">
+                                            <h4 class="border-end fw-bold">Grand Total</h4>
+                                            <h5 id="display-grand-total" class="fw-bold text-primary">$ 0.00</h5>
                                         </li>
                                     </ul>
                                 </div>
@@ -151,46 +156,70 @@
                         <div class="row">
                             <div class="col-lg-3 col-sm-6 col-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Order Tax<span class="text-danger ms-1">*</span></label>
+                                    <label class="form-label">Order Tax (%)</label>
                                     <div class="input-group">
-                                        <input type="text" value="0" class="form-control p-2">
-                                    </div>
-
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Discount<span class="text-danger ms-1">*</span></label>
-                                    <div class="input-group">
-                                        <input type="text" value="0" class="form-control p-2">
+                                        <input type="number" name="order_tax" id="order_tax" value="0" step="0.01" min="0" class="form-control p-2 calculate-total">
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-3 col-sm-6 col-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Shipping<span class="text-danger ms-1">*</span></label>
+                                    <label class="form-label">Discount ($)</label>
                                     <div class="input-group">
-                                        <input type="text" value="0" class="form-control p-2">
+                                        <input type="number" name="discount" id="discount" value="0" step="0.01" min="0" class="form-control p-2 calculate-total">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-sm-6 col-12">
+                                <div class="mb-3">
+                                    <label class="form-label">Shipping ($)</label>
+                                    <div class="input-group">
+                                        <input type="number" name="shipping" id="shipping" value="0" step="0.01" min="0" class="form-control p-2 calculate-total">
                                     </div>
                                 </div>
                             </div>
                             <div class="col-lg-3 col-sm-6 col-12">
                                 <div class="mb-3 mb-5">
                                     <label class="form-label">Status<span class="text-danger ms-1">*</span></label>
-                                    <select class="select form-control">
-                                        <option>Select</option>
-                                        <option>Completed</option>
-                                        <option>Inprogress</option>
+                                    <select name="status" id="status" class="select form-control" required>
+                                        <option value="completed" selected>Completed</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="cancelled">Cancelled</option>
                                     </select>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-sm-6 col-12">
+                                <div class="mb-3">
+                                    <label class="form-label">Payment Status<span class="text-danger ms-1">*</span></label>
+                                    <select name="payment_status" id="payment_status" class="select form-control" required>
+                                        <option value="paid" selected>Paid</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="unpaid">Unpaid</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-sm-6 col-12">
+                                <div class="mb-3">
+                                    <label class="form-label">Paid Amount ($)</label>
+                                    <input type="number" name="paid_amount" id="paid_amount" value="0" step="0.01" min="0" class="form-control p-2">
+                                </div>
+                            </div>
+                            <div class="col-lg-6 col-12">
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <textarea name="notes" id="notes" class="form-control" rows="2" placeholder="Additional notes..."></textarea>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary add-cancel me-3"
-                        data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary add-sale">Submit</button>
+                <div class="card-footer">
+                    <button type="button" class="btn btn-secondary me-3" onclick="window.location.href='{{ route('all_sales') }}'">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submit-sale-btn">
+                        <i class="fas fa-save me-1"></i> Save Sale
+                    </button>
                 </div>
             </form>
         </div>
@@ -629,7 +658,10 @@
                     const partNumber = item.partnumber_item?.name || 'N/A';
                     const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
                     const model = item.vehical_item?.model_vehical?.name || '';
-                    const year = item.vehical_item?.carmanufactured_year || '';
+                    // Fix: Use year_from and year_to instead of carmanufactured_year
+                    const yearFrom = item.vehical_item?.year_from || '';
+                    const yearTo = item.vehical_item?.year_to || '';
+                    const yearDisplay = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : (yearFrom || yearTo || '');
                     const price = item.sale_price || 0;
                     const stock = item.on_hand || 0;
                     const barCode = item.bar_code || '';
@@ -639,13 +671,13 @@
                     let displayPartNumber = partNumber;
                     let displayManufacturer = manufacturer;
                     let displayModel = model;
-                    let displayYear = String(year);
+                    let displayYear = yearDisplay;
                     
                     if (regex) {
                         displayPartNumber = partNumber.replace(regex, match => `<mark>${match}</mark>`);
                         displayManufacturer = manufacturer.replace(regex, match => `<mark>${match}</mark>`);
                         displayModel = model.replace(regex, match => `<mark>${match}</mark>`);
-                        displayYear = String(year).replace(regex, match => `<mark>${match}</mark>`);
+                        displayYear = yearDisplay.replace(regex, match => `<mark>${match}</mark>`);
                     }
                     
                         html += `
@@ -724,25 +756,31 @@
         // Check if item already exists in table
         let exists = false;
         $('#sales-items-body tr').each(function() {
-            if ($(this).find('td:first').text().trim() === itemName) {
+            if ($(this).data('item-id') == itemId) {
                 exists = true;
                 return false;
             }
         });
         
         if (exists) {
-            alert('Item already added to the list!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Item Already Added',
+                text: 'This item is already in the list!',
+                timer: 2000,
+                showConfirmButton: false
+            });
             return;
         }
         
         // Add to table
-        const newRow = `
-            <tr>
+        const newRow = $(`
+            <tr data-item-id="${itemId}">
                 <td>${itemName}</td>
-                <td><input type="number" value="1" min="1" max="${itemStock}" class="form-control qty" style="width: 80px;"></td>
+                <td><input type="number" value="1" min="0.01" step="0.01" max="${itemStock}" class="form-control qty" style="width: 80px;" required></td>
                 <td>$${parseFloat(itemPrice).toFixed(2)}</td>
-                <td><input type="number" value="0" class="form-control discount" style="width: 80px;"></td>
-                <td><input type="number" value="0" class="form-control tax" style="width: 80px;"></td>
+                <td><input type="number" value="0" step="0.01" min="0" class="form-control discount" style="width: 80px;"></td>
+                <td><input type="number" value="0" step="0.01" min="0" max="100" class="form-control tax" style="width: 80px;"></td>
                 <td class="tax-amount">$0.00</td>
                 <td class="unit-cost">$${parseFloat(itemPrice).toFixed(2)}</td>
                 <td class="total-cost">$${parseFloat(itemPrice).toFixed(2)}</td>
@@ -752,18 +790,22 @@
                     </button>
                 </td>
             </tr>
-        `;
+        `);
         
         // Remove empty row if exists
         $('#sales-items-body tr:first').remove();
-            $('#sales-items-body').prepend(newRow);
+        $('#sales-items-body').prepend(newRow);
         
         // Close modal
         modal.modal('hide');
         
         // Clear search
-            searchInput.val('');
+        searchInput.val('');
         clearSearchBtn.addClass('d-none');
+        
+        // Calculate totals
+        calculateRowTotal(newRow);
+        calculateGrandTotal();
     });
     
     // Remove item from table
@@ -776,11 +818,10 @@
         }
     });
     
-    // Calculate totals when quantity/discount/tax changes
-    $(document).on('input', '.qty, .discount, .tax', function() {
-        const row = $(this).closest('tr');
+    // Calculate row total when quantity/discount/tax changes
+    function calculateRowTotal(row) {
         const qty = parseFloat(row.find('.qty').val()) || 0;
-        const price = parseFloat(row.find('td').eq(2).text().replace('$', '')) || 0;
+        const price = parseFloat(row.find('td').eq(2).text().replace('$', '').replace(',', '')) || 0;
         const discount = parseFloat(row.find('.discount').val()) || 0;
         const taxPercent = parseFloat(row.find('.tax').val()) || 0;
         
@@ -789,9 +830,163 @@
         const total = subtotal + taxAmount;
         
         row.find('.tax-amount').text('$' + taxAmount.toFixed(2));
-        row.find('.unit-cost').text('$' + (subtotal / qty).toFixed(2));
+        if (qty > 0) {
+            row.find('.unit-cost').text('$' + (subtotal / qty).toFixed(2));
+        }
         row.find('.total-cost').text('$' + total.toFixed(2));
+    }
+    
+    // Calculate totals when quantity/discount/tax changes
+    $(document).on('input', '.qty, .discount, .tax', function() {
+        const row = $(this).closest('tr');
+        calculateRowTotal(row);
+        calculateGrandTotal();
+    });
+    
+    // Calculate grand total
+    function calculateGrandTotal() {
+        let subtotal = 0;
+        let totalTaxAmount = 0;
+        
+        $('#sales-items-body tr[data-item-id]').each(function() {
+            const rowTotal = parseFloat($(this).find('.total-cost').text().replace('$', '').replace(',', '')) || 0;
+            const rowTax = parseFloat($(this).find('.tax-amount').text().replace('$', '').replace(',', '')) || 0;
+            const rowSubtotal = rowTotal - rowTax;
+            
+            subtotal += rowSubtotal;
+            totalTaxAmount += rowTax;
+        });
+        
+        const orderTaxPercent = parseFloat($('#order_tax').val()) || 0;
+        const orderTaxAmount = (subtotal * orderTaxPercent) / 100;
+        const discount = parseFloat($('#discount').val()) || 0;
+        const shipping = parseFloat($('#shipping').val()) || 0;
+        const grandTotal = subtotal + totalTaxAmount + orderTaxAmount - discount + shipping;
+        
+        // Update display
+        $('#display-subtotal').text('$' + subtotal.toFixed(2));
+        $('#display-order-tax').text('$' + orderTaxAmount.toFixed(2));
+        $('#display-discount').text('$' + discount.toFixed(2));
+        $('#display-shipping').text('$' + shipping.toFixed(2));
+        $('#display-grand-total').text('$' + grandTotal.toFixed(2));
+        
+        // Auto-update paid amount if payment status is paid
+        if ($('#payment_status').val() === 'paid') {
+            $('#paid_amount').val(grandTotal.toFixed(2));
+        }
+    }
+    
+    // Calculate when order tax, discount, or shipping changes
+    $(document).on('input', '.calculate-total', function() {
+        calculateGrandTotal();
+    });
+    
+    // Auto-update paid amount based on payment status
+    $('#payment_status').on('change', function() {
+        const paymentStatus = $(this).val();
+        const grandTotal = parseFloat($('#display-grand-total').text().replace('$', '').replace(',', '')) || 0;
+        
+        if (paymentStatus === 'paid') {
+            $('#paid_amount').val(grandTotal.toFixed(2));
+        } else if (paymentStatus === 'unpaid') {
+            $('#paid_amount').val(0);
+        }
+    });
+    
+    // Remove item from table
+    $(document).on('click', '.remove-item', function() {
+        $(this).closest('tr').remove();
+        calculateGrandTotal();
+        
+        // Add empty row if table is empty
+        if ($('#sales-items-body tr[data-item-id]').length === 0) {
+            $('#sales-items-body').html('<tr><td colspan="9" class="text-center text-muted">No items added yet</td></tr>');
+        }
+    });
+    
+    // Form submission
+    $('#sales-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate items
+        if ($('#sales-items-body tr[data-item-id]').length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'No Items',
+                text: 'Please add at least one item to the sale!'
+            });
+            return false;
+        }
+        
+        // Collect items data
+        const items = [];
+        $('#sales-items-body tr[data-item-id]').each(function() {
+            const row = $(this);
+            const itemId = row.data('item-id');
+            const qty = parseFloat(row.find('.qty').val()) || 0;
+            const price = parseFloat(row.find('td').eq(2).text().replace('$', '').replace(',', '')) || 0;
+            const discount = parseFloat(row.find('.discount').val()) || 0;
+            const taxPercent = parseFloat(row.find('.tax').val()) || 0;
+            
+            items.push({
+                item_id: itemId,
+                quantity: qty,
+                unit_price: price,
+                discount: discount,
+                tax_percent: taxPercent
+            });
+        });
+        
+        // Set items data
+        $('#items-data').val(JSON.stringify(items));
+        
+        // Disable submit button
+        const submitBtn = $('#submit-sale-btn');
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Saving...');
+        
+        // Submit form via AJAX
+        $.ajax({
+            url: $(this).attr('action'),
+            method: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                        window.location.href = response.redirect || '{{ route("all_sales") }}';
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: response.message || 'Failed to save sale.'
+                    });
+                    submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> Save Sale');
+                }
+            },
+            error: function(xhr) {
+                let errorMsg = 'Failed to save sale. Please try again.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: errorMsg
+                });
+                submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> Save Sale');
+            }
         });
     });
+});
 </script>
 @endpush
