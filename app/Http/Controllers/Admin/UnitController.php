@@ -25,6 +25,24 @@ class UnitController extends Controller
             'base_unit_multiplier' => $request->base_unit_multiplier,
             'base_unit_id' => $request->base_unit_id,
         ]);
+        
+        // Save multiple base units if provided
+        if ($request->define_base_unit && $request->has('base_units')) {
+            $baseUnitsData = [];
+            foreach ($request->base_units as $baseUnit) {
+                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                    $baseUnitsData[$baseUnit['base_unit_id']] = [
+                        'multiplier' => $baseUnit['multiplier']
+                    ];
+                }
+            }
+            if (!empty($baseUnitsData)) {
+                $unit->baseUnits()->sync($baseUnitsData);
+            }
+        }
+
+        // Load base units for response
+        $unit->load('baseUnits', 'baseUnit');
 
         return response()->json([
             'success' => true,
@@ -48,12 +66,42 @@ class UnitController extends Controller
                 'base_unit_multiplier' => $request->base_unit_multiplier,
                 'base_unit_id' => $request->base_unit_id,
             ]);
+            
+            // Update multiple base units if provided
+            if ($request->define_base_unit && $request->has('base_units')) {
+                $baseUnitsData = [];
+                foreach ($request->base_units as $baseUnit) {
+                    if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                        $baseUnitsData[$baseUnit['base_unit_id']] = [
+                            'multiplier' => $baseUnit['multiplier']
+                        ];
+                    }
+                }
+                // Sync will replace all existing relationships
+                $unit->baseUnits()->sync($baseUnitsData);
+            } else {
+                // If checkbox is unchecked, remove all base unit relationships
+                $unit->baseUnits()->detach();
+            }
+            
+            // Load base units for response
+            $unit->load('baseUnits', 'baseUnit');
+            
             return response()->json([
                 'success' => true,
                 'unit' => $unit,
                 'message'=>"Unit update Successfully"
             ]);
         }
+
+    public function show_unit(Unit $unit)
+    {
+        $unit->load('baseUnits', 'baseUnit');
+        return response()->json([
+            'success' => true,
+            'unit' => $unit
+        ]);
+    }
 
        public function destroy_units(Unit $unit)
         {
