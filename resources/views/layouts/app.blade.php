@@ -374,6 +374,10 @@ label{
             }
         }
 
+        .edit_unit{
+            width: 80% !important;
+        }
+
   </style>
 
   @stack('styles')

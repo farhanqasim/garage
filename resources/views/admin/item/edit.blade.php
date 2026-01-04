@@ -993,7 +993,7 @@
                             <div class="row mt-4">
                                 <div class="col-md-6" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="unit_parts">Unit:</label>
-                                    <div class="input-group">
+                                    <div class="input-group edit_unit">
                                         <select
                                            class="form-control pro_unit-select searchable-select @error('unit') is-invalid @enderror"
                                             name="unit" id="unit_parts">
