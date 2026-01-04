@@ -1776,14 +1776,21 @@
                             <label>Name:</label>
                             <input type="text" class="form-control" name="name" id="universal-name" required>
                         </div>
-                        <div class="form-group" id="image-field" style="display: none;">
+                        <div class="form-group mt-3" id="image-field" style="display: none;">
                             <label>Image:</label>
                             <input type="file" class="form-control" name="image" id="universal-image" accept="image/*">
+                            <div class="mb-2">
+                                <img id="universal-image-preview" src="" alt="Preview"
+                                    style="max-width: 100px; display:none; border:1px solid #ddd; padding:4px;">
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer ">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-danger d-none me-3" id="universal-delete-btn">
+                            <i class="fa-solid fa-trash"></i> Delete
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="universal-save-btn">Save</button>
                     </div>
                 </form>
             </div>
@@ -2692,116 +2699,285 @@ $(document).ready(function () {
         }
         initializeThumbnailHandler();
         initializeImagesHandler();
-        // Universal Modal
-     let currentTargetSelect = null;
+        // Universal Modal - Complete implementation matching create.blade.php
+        let currentTargetSelect = null;
+        let currentEditId = null;
+        let deleteRoute = null;
+        let lastSearchTerm = {};
+        let activeSelectSearch = { selectId: null, searchTerm: '' };
 
-                $(document).on('click', '.open-universal-modal', function () {
-                    const title = $(this).data('title');
-                    const route = $(this).data('route');
+        $(document).on('click', '.open-universal-modal', function () {
+            const mode = $(this).data('mode') || 'add';
+            const title = $(this).data('title');
+            const route = $(this).data('route');
+            const hasImage = $(this).data('has-image') === 1;
 
-                    currentTargetSelect = $(this).data('target-select');
+            currentTargetSelect = $(this).data('target-select');
+            
+            // Reset edit state
+            currentEditId = null;
+            deleteRoute = null;
 
-                    $('#universal-modal-title').text(title);
-                    $('#universal-form').attr('action', route);
-
-                    $('#universal-name').val('');
-                    $('#universal-image').val('');
-                    $('#image-field').toggle(title === 'Add Category' || title === 'Add Brand');
-
+            // =========================
+            // ADD MODE
+            // =========================
+            if (mode === 'add') {
+                $('#universal-modal-title').text(title);
+                $('#universal-form').attr('action', route);
+                $('#universal-form').attr('method', 'POST');
+                $('#universal-name').val('');
+                $('#universal-image').val('');
+                $('#universal-image-preview').hide();
+                $('#universal-delete-btn').addClass('d-none');
+                $('#universal-save-btn').text('Save');
+                
+                // Show/hide image field
+                if (hasImage || title === 'Add Category' || title === 'Add Brand') {
+                    $('#image-field').removeClass('d-none').show();
+                } else {
+                    $('#image-field').hide();
+                }
+                
+                // Auto-fill from searchable select search term (if available)
+                if (currentTargetSelect && activeSelectSearch.selectId) {
+                    const selectId = $(currentTargetSelect).attr('id') || '';
+                    setTimeout(function() {
+                        let finalSearchTerm = '';
+                        
+                        // Check active search
+                        if (activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
+                            finalSearchTerm = activeSelectSearch.searchTerm;
+                        }
+                        
+                        // Check stored terms
+                        if (!finalSearchTerm && lastSearchTerm[selectId]) {
+                            finalSearchTerm = lastSearchTerm[selectId].trim();
+                        }
+                        
+                        // Set if found
+                        if (finalSearchTerm) {
+                            $('#universal-name').val(finalSearchTerm);
+                            delete lastSearchTerm[selectId];
+                        }
+                    }.bind(this), 100);
+                }
+                
+                // Open modal and focus input
+                $('#universal-add-modal').modal('show');
+                setTimeout(function() {
+                    $('#universal-name').focus();
+                }, 300);
+            }
+            
+            // =========================
+            // EDIT MODE
+            // =========================
+            if (mode === 'edit') {
+                const $select = $(currentTargetSelect);
+                const selectedId = $select.val();
+                
+                if (!selectedId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Select Item',
+                        text: 'Please select an item to edit'
+                    });
+                    return;
+                }
+                
+                const fetchRoute = $(this).data('fetch-route').replace(':id', selectedId);
+                const updateRoute = $(this).data('update-route').replace(':id', selectedId);
+                deleteRoute = $(this).data('delete-route').replace(':id', selectedId);
+                currentEditId = selectedId;
+                
+                $('#universal-modal-title').text(title);
+                $('#universal-form').attr('action', updateRoute);
+                $('#universal-form').attr('method', 'POST');
+                $('#universal-save-btn').text('Update');
+                $('#universal-delete-btn').removeClass('d-none');
+                
+                // Show image field if it has image
+                if (hasImage || title.includes('Category') || title.includes('Brand')) {
+                    $('#image-field').removeClass('d-none').show();
+                }
+                
+                // Fetch existing data
+                $.get(fetchRoute, function(res) {
+                    $('#universal-name').val(res.name);
+                    
+                    // Image preview (edit mode)
+                    if (hasImage && res.image) {
+                        $('#image-field').removeClass('d-none').show();
+                        $('#universal-image-preview')
+                            .attr('src', '/' + res.image)
+                            .show();
+                    } else {
+                        $('#universal-image-preview').hide();
+                    }
+                    
                     $('#universal-add-modal').modal('show');
+                }).fail(function(xhr) {
+                    console.error('Error fetching data:', xhr);
+                    toastr.error('Failed to load item data. Please try again.');
                 });
+            }
+        });
 
-                $('#universal-form').off('submit').on('submit', function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Check if modal is actually visible
-                    if (!$('#universal-add-modal').hasClass('show')) {
-                        console.log('Universal modal not visible, ignoring submit');
-                        return false;
+        // =========================
+        // IMAGE LIVE PREVIEW
+        // =========================
+        $('#universal-image').on('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#universal-image-preview')
+                        .attr('src', e.target.result)
+                        .show();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        $('#universal-form').off('submit').on('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Check if modal is actually visible
+            if (!$('#universal-add-modal').hasClass('show')) {
+                console.log('Universal modal not visible, ignoring submit');
+                return false;
+            }
+            
+            // Check if form has action attribute (should be set when modal opens)
+            const formAction = $(this).attr('action');
+            if (!formAction || formAction === '' || formAction === '#') {
+                console.error('Form action not set');
+                return false;
+            }
+            
+            const formData = new FormData(this);
+            if (currentEditId) {
+                formData.append('_method', 'PUT');
+            }
+            
+            $.ajax({
+                url: formAction,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    if (!res || !res.id) {
+                        console.error('Invalid response', res);
+                        if (res && res.message) {
+                            toastr.error(res.message);
+                        }
+                        return;
                     }
                     
-                    // Check if form has action attribute (should be set when modal opens)
-                    const formAction = $(this).attr('action');
-                    if (!formAction || formAction === '' || formAction === '#') {
-                        console.error('Form action not set');
-                        return false;
+                    const option = new Option(res.name, res.id, true, true);
+                    const $select = $(currentTargetSelect);
+                    $select.find(`option[value="${res.id}"]`).remove();
+                    $select.append(option).val(res.id).trigger('change');
+                    $('#universal-add-modal').modal('hide');
+                    $('#universal-form')[0].reset();
+                    $('#universal-image-preview').hide();
+                    currentEditId = null;
+                    deleteRoute = null;
+                },
+                error: function(xhr) {
+                    console.error('AJAX error', xhr);
+                    const response = xhr.responseJSON;
+                    if (response && response.message) {
+                        toastr.error(response.message);
+                    } else {
+                        toastr.error('An error occurred. Please try again.');
                     }
-                    
-                    const formData = new FormData(this);
-
+                }
+            });
+        });
+        
+        // =========================
+        // DELETE FUNCTIONALITY WITH AUDIO
+        // =========================
+        $('#universal-delete-btn').off('click').on('click', function() {
+            if (!deleteRoute || !currentEditId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Item Selected',
+                    text: 'Please select an item to delete'
+                });
+                return;
+            }
+            
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'This item will be deleted',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
                     $.ajax({
-                        url: formAction,
+                        url: deleteRoute,
                         method: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        success: function (res) {
-                            if (!res || !res.success) {
-                                // handle server error / validation returned by modal create endpoint
-                                console.error('Modal save failed', res);
-                                if (res && res.message) {
-                                    toastr.error(res.message);
-                                }
-                                return;
-                            }
-
-                            // Parse id as integer to avoid string/NaN issues
-                            const parsedId = parseInt(res.id, 10);
-                            if (isNaN(parsedId)) {
-                                console.error('Returned id is not numeric', res.id);
-                                return;
-                            }
-                            const val = parsedId;
-                            const text = res.name || res.title || 'New Item';
-
-                            // For each target select (might be a selector string like ".category-select")
-                            $(currentTargetSelect).each(function () {
-
-                                // Make sure we're working with a real <select>
-                                if (!$(this).is('select')) return;
-
-                                // Create a fresh Option for THIS select (do NOT reuse the same node)
-                                const option = new Option(text, val, true, true);
-
-                                // Remove any duplicate option with same value (if any)
-                                $(this).find(`option[value="${val}"]`).remove();
-
-                                // Append the new option and set it as selected on the DOM element
-                                $(this)[0].add(option);
-
-                                // Set value and trigger change so plain <select> picks it up
-                                $(this).val(val).trigger('change');
-
-                                // --- Plugin-specific fixes ---
-
-                                // Select2 (common class: select2-hidden-accessible)
-                                if ($(this).hasClass('select2-hidden-accessible') && $(this).data('select2')) {
-                                    // Append via Select2-friendly way then trigger change
-                                    // (some setups require re-init, but this pattern is widely compatible)
-                                    const $sel = $(this);
-                                    // Ensure the option is present in DOM then tell select2 to update its value
-                                    $sel.append(new Option(text, val, true, true)).val(val).trigger('change.select2');
-                                }
-                                // Bootstrap selectpicker
-                                if ($(this).hasClass('selectpicker') && typeof $(this).selectpicker === 'function') {
-                                    // Append option, refresh plugin, then set value
-                                    $(this).append(new Option(text, val));
-                                    $(this).selectpicker('refresh');
-                                    $(this).selectpicker('val', val);
-                                }
-
-                            });
-
-                            // close modal
-                            $('#universal-add-modal').modal('hide');
+                        data: {
+                            _method: 'DELETE',
+                            _token: $('input[name=_token]').val()
                         },
-                        error: function (xhr) {
-                            console.error('AJAX error', xhr.responseText || xhr);
-                            // Optionally show server validation messages inside modal
+                        success: function() {
+                            // 🔊 Play delete sound ONE time
+                            const audio = document.getElementById('deleteSound');
+                            if (audio) {
+                                audio.currentTime = 0; // reset if previously played
+                                audio.play().catch(function(error) {
+                                    console.log('Audio play failed:', error);
+                                });
+                            }
+                            
+                            // Remove option from select
+                            $(currentTargetSelect)
+                                .find(`option[value="${currentEditId}"]`)
+                                .remove()
+                                .trigger('change');
+                            
+                            // Close modal
+                            $('#universal-add-modal').modal('hide');
+                            $('#universal-form')[0].reset();
+                            $('#universal-image-preview').hide();
+                            currentEditId = null;
+                            deleteRoute = null;
+                            
+                            Swal.fire('Deleted!', 'Item deleted successfully', 'success');
+                        },
+                        error: function(xhr) {
+                            console.error('Delete error', xhr);
+                            const response = xhr.responseJSON;
+                            if (response && response.message) {
+                                toastr.error(response.message);
+                            } else {
+                                toastr.error('Failed to delete item. Please try again.');
+                            }
                         }
                     });
-                });
+                }
+            });
+        });
+        
+        // Reset modal on close
+        $('#universal-add-modal').on('hidden.bs.modal', function() {
+            $('#universal-form')[0].reset();
+            $('#universal-image-preview').hide();
+            $('#universal-delete-btn').addClass('d-none');
+            $('#universal-save-btn').text('Save');
+            currentEditId = null;
+            deleteRoute = null;
+        });
 
         // Dynamic Subcategory Load (if applicable)
         $(document).on('change', 'select.category-select', function() {
