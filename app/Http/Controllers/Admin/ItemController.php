@@ -1307,4 +1307,51 @@ class ItemController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Generate Product Specification PDF (Single Item)
+     */
+    public function generateProductSpecificationPdf($id)
+    {
+        try {
+            $item = Item::with([
+                'item_user',
+                'product_item',
+                'category',
+                'subcategory',
+                'partnumber_item',
+                'company_item',
+                'quality_item',
+                'technology_item',
+                'group_item',
+                'plate_item',
+                'amphors_item',
+                'volt_item',
+                'cca_item',
+                'minus_pool_item',
+                'grade_item',
+                'warrenty_item',
+                'mileage_item',
+                'level_item',
+                'made_in_item',
+                'services_item',
+                'unit_item',
+                'updated_by_user',
+                'vehical_item' => function($query) {
+                    $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
+                }
+            ])
+            ->findOrFail($id);
+
+            // Generate PDF
+            $pdf = Pdf::loadView('admin.item.product-specification-pdf', compact('item'));
+            $pdf->setPaper('a4', 'portrait');
+
+            return $pdf->download('product-specification-' . ($item->bar_code ?? $item->id) . '-' . time() . '.pdf');
+            
+        } catch (\Exception $e) {
+            Log::error('Product Specification PDF Generation Error: ' . $e->getMessage());
+            return back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
+        }
+    }
 }

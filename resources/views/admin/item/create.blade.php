@@ -1269,6 +1269,7 @@
                                 name="weight_unit" id="weight_unit">
                                 <option value="">Select Weight Unit</option>
                                 <optgroup label="Metric System (most used worldwide)">
+                                    <option value="ml" {{ old('weight_unit') == 'ml' ? 'selected' : '' }}>MilliLiter (Ml)</option>
                                     <option value="mg" {{ old('weight_unit') == 'mg' ? 'selected' : '' }}>Milligram (mg)</option>
                                     <option value="g" {{ old('weight_unit') == 'g' ? 'selected' : '' }}>Gram (g)</option>
                                     <option value="kg" {{ old('weight_unit') == 'kg' ? 'selected' : '' }}>Kilogram (kg)</option>

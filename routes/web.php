@@ -244,6 +244,7 @@ Route::get('/items/recycle-bin', [ItemController::class, 'recycleBin'])->name('i
 Route::post('/items/{id}/restore', [ItemController::class, 'restore'])->name('items.restore');
 Route::delete('/items/{id}/force-delete', [ItemController::class, 'forceDelete'])->name('items.forceDelete');
 Route::post('/items/generate-whatsapp-pdf', [ItemController::class, 'generateWhatsAppPdf'])->name('items.generate.whatsapp.pdf');
+Route::get('/item/{id}/generate-specification-pdf', [ItemController::class, 'generateProductSpecificationPdf'])->name('item.generate.specification.pdf');
 
 
 Route::get('/admin/categories/{id}/subcategories', [ItemController::class, 'getSubcategories'])
