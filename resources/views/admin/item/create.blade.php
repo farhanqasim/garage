@@ -1088,91 +1088,70 @@
                 <!-- COMMON MEDIA & DESCRIPTION -->
                 <div class="field-group" :class="{ 'active': selectedType }">
                     <div class="row mt-4">
-                        <!-- VYAPAR-STYLE UOM SYSTEM: Base Unit Selection -->
-                        <div class="col-md-12"
+                        <div class="col-md-6"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <div class="card border-primary">
-                                <div class="card-header bg-primary text-white">
-                                    <h5 class="mb-0"><i class="ti ti-ruler me-2"></i>Unit of Measurement (UOM) - Vyapar Style</h5>
-                                </div>
-                                <div class="card-body">
-                                    <!-- Base Unit Selection (Primary Unit) -->
-                                    <div class="row mb-4">
-                                        <div class="col-md-6">
-                                            <label for="base_unit_id" class="form-label fw-bold">
-                                                Primary (Base) Unit <span class="text-danger">*</span>
-                                                <small class="text-muted d-block">This will be the main unit for all calculations</small>
-                                            </label>
-                                            <select class="form-control searchable-select @error('base_unit_id') is-invalid @enderror"
-                                                name="base_unit_id" id="base_unit_id" required>
-                                                <option value="">Select Primary Unit</option>
-                                                @foreach ($baseUnits as $baseUnit)
-                                                <option value="{{ $baseUnit->id }}" 
-                                                    data-category="{{ $baseUnit->unit_category }}"
-                                                    data-name="{{ $baseUnit->name }}"
-                                                    data-short="{{ $baseUnit->short_name }}"
-                                                    {{ old('base_unit_id') == $baseUnit->id ? 'selected' : '' }}>
-                                                    {{ $baseUnit->name }} ({{ $baseUnit->short_name }}) - {{ ucfirst($baseUnit->unit_category) }}
-                                                </option>
-                                                @endforeach
-                                            </select>
-                                            @error('base_unit_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="on_hand" class="form-label fw-bold">Opening Stock</label>
-                                            <div class="input-group">
-                                                <input type="number" step="0.0001" 
-                                                    class="form-control @error('on_hand') is-invalid @enderror"
-                                                    name="on_hand" id="on_hand" 
-                                                    value="{{ old('on_hand') }}" 
-                                                    placeholder="Enter opening stock">
-                                                <select class="form-control" name="on_hand_unit_id" id="on_hand_unit_id" style="max-width: 150px;">
-                                                    <option value="">Select Unit</option>
-                                                </select>
-                                            </div>
-                                            <small class="text-muted">Stock will be automatically converted to base unit</small>
-                                            @error('on_hand') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                        </div>
-                                    </div>
+                            <label for="unit_parts">Unit:</label>
+                            <div class="input-group inputswidth">
+                                <select
+                                    class="form-control pro_unit-select searchable-select @error('unit') is-invalid @enderror"
+                                    name="unit" id="unit_parts">
+                                    <option value="">Select Unit</option>
+                                    @foreach ($units as $unit)
+                                    <option value="{{ $unit->id }}" data-name="{{ $unit->name }}"
+                                        data-baseunit="{{ $unit->baseUnit->name ?? '' }}"
+                                        data-multiplier="{{ $unit->base_unit_multiplier ?? '' }}">
+                                        {{ $unit->name }}
+                                        @if ($unit->base_unit_id)
+                                        ( {{ $unit->base_unit_multiplier }}-{{ $unit->baseUnit->name }} )
+                                        @endif
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-mode="add"
+                                    data-bs-target="#Unit-add-modal">
+                                    <i data-feather="plus" class="feather-plus"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="editUnitBtn">
+                                    <i data-feather="edit"></i>
+                                </button>
 
-                                    <!-- Secondary Units Section -->
-                                    <div class="row mb-3">
-                                        <div class="col-12">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <label class="form-label fw-bold mb-0">
-                                                    Secondary Units (Optional)
-                                                    <small class="text-muted">Add alternative units for display and input</small>
-                                                </label>
-                                                <button type="button" class="btn btn-sm btn-success" id="addSecondaryUnitBtn">
-                                                    <i class="ti ti-plus me-1"></i> Add Secondary Unit
-                                                </button>
-                                            </div>
-                                            <div id="secondaryUnitsContainer">
-                                                <!-- Secondary units will be added here dynamically -->
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Unit Info Display -->
-                                    <div class="alert alert-info" id="unitInfoDisplay" style="display: none;">
-                                        <strong>Base Unit:</strong> <span id="baseUnitDisplay">-</span><br>
-                                        <strong>Secondary Units:</strong> <span id="secondaryUnitsDisplay">None</span>
-                                    </div>
-                                </div>
                             </div>
+                            <div class="input-group align-items-center gap-2" id="unit-info"
+                                style="display:none; margin-top:10px;">
+                                <span id="unit-name" class="fw-bold"></span>
+                                <span class="equal-sign">=</span>
+                                <input type="text" id="total_can_price" name="total_price"
+                                    class="form-control form-control-sm" style="width:120px;" placeholder="Cost Price">
+                                {{-- <span class="equal-sign">=</span> --}}
+                                <span id="multiplier-text" class="fw-bold"></span>
+                                {{-- <span class="multiply-sign">×</span> --}}
+                                <input type="number" id="base_price" name="price_per_unit"
+                                    class="form-control form-control-sm" placeholder="Price per Unit"
+                                    style="width:100px;">
+                            </div>
+                            @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        
-                        <!-- Legacy Unit Field (Hidden - for backward compatibility) -->
-                        <input type="hidden" name="unit" id="legacy_unit_field" value="">
-                        
-                        <!-- Price Fields (Updated to work with UOM) -->
-                        <div class="col-md-6 mt-3"
+                        <div class="col-md-6 "
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="price_per_unit">Price per Base Unit:</label>
-                            <input type="number" step="0.01" class="form-control @error('price_per_unit') is-invalid @enderror"
-                                name="price_per_unit" id="price_per_unit" value="{{ old('price_per_unit') }}" 
-                                placeholder="Enter price per base unit">
-                            @error('price_per_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <label for="sale_price_parts">Sale Price:</label>
+                            <input type="number" class="form-control @error('sale_price') is-invalid @enderror"
+                                name="sale_price" id="sale_price_parts" value="{{ old('sale_price') }}" hidden />
+                            @error('sale_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="input-group align-items-center gap-2" id="sale-price-info"
+                                style="display:none; margin-top:10px;">
+                                <span id="sale-unit-name" class="fw-bold"></span>
+                                <span class="sale-equal-sign">=</span>
+                                <input type="text" id="total_sale_price" name="total_sale_price"
+                                    class="form-control form-control-sm" style="width:120px;" placeholder=" Sale Price">
+
+                                {{-- <span class="sale-equal-sign">=</span> --}}
+                                <span id="sale-multiplier-text" class="fw-bold"></span>
+                                {{-- <span class="sale-multiply-sign">×</span> --}}
+
+                                <input type="number" id="sale_base_price" name="sale_price_per_base"
+                                    class="form-control form-control-sm" placeholder="Sale per  Unit"
+                                    style="width:100px;">
+                            </div>
                         </div>
                         <div class="col-md-6 "
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
@@ -1931,273 +1910,6 @@
 <audio id="deleteSound" src="{{ asset('deleteaudio_ubWu5Ok3.mp3') }}" preload="auto"></audio>
 @endsection
 @push('scripts')
-<script>
-    // ============================================
-    // VYAPAR-STYLE UOM SYSTEM - JavaScript
-    // ============================================
-    
-    // Store units data from PHP
-    const unitsByCategory = @json($unitsByCategory);
-    const allUnits = @json($units);
-    let secondaryUnitCounter = 0;
-    let selectedBaseUnit = null;
-    
-    // Initialize UOM system
-    $(document).ready(function() {
-        // When base unit is selected
-        $('#base_unit_id').on('change', function() {
-            const baseUnitId = $(this).val();
-            const selectedOption = $(this).find('option:selected');
-            
-            if (baseUnitId) {
-                selectedBaseUnit = {
-                    id: baseUnitId,
-                    name: selectedOption.data('name'),
-                    short: selectedOption.data('short'),
-                    category: selectedOption.data('category')
-                };
-                
-                // Update legacy unit field for backward compatibility
-                $('#legacy_unit_field').val(baseUnitId);
-                
-                // Populate opening stock unit dropdown with base unit and compatible units
-                updateOpeningStockUnits(baseUnitId, selectedOption.data('category'));
-                
-                // Update unit info display
-                updateUnitInfoDisplay();
-                
-                // Clear secondary units when base unit changes
-                $('#secondaryUnitsContainer').empty();
-                secondaryUnitCounter = 0;
-            } else {
-                selectedBaseUnit = null;
-                $('#on_hand_unit_id').empty().append('<option value="">Select Unit</option>');
-                $('#unitInfoDisplay').hide();
-            }
-        });
-        
-        // Add secondary unit button
-        $('#addSecondaryUnitBtn').on('click', function() {
-            if (!selectedBaseUnit) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Select Base Unit First',
-                    text: 'Please select a primary (base) unit before adding secondary units.'
-                });
-                return;
-            }
-            addSecondaryUnitRow();
-        });
-        
-        // Remove secondary unit (event delegation)
-        $(document).on('click', '.remove-secondary-unit', function() {
-            $(this).closest('.secondary-unit-row').remove();
-            updateUnitInfoDisplay();
-        });
-        
-        // Calculate conversion factor when secondary unit changes
-        $(document).on('change', '.secondary-unit-select', function() {
-            const $row = $(this).closest('.secondary-unit-row');
-            const secondaryUnitId = $(this).val();
-            const baseUnitId = selectedBaseUnit.id;
-            
-            if (secondaryUnitId && baseUnitId) {
-                // Get conversion factor from unit data
-                const secondaryUnit = allUnits.find(u => u.id == secondaryUnitId);
-                if (secondaryUnit && secondaryUnit.base_unit_id == baseUnitId) {
-                    // Direct conversion available
-                    const factor = parseFloat(secondaryUnit.base_unit_multiplier) || 1;
-                    $row.find('.conversion-factor-input').val(factor);
-                    $row.find('.conversion-factor-display').text(`1 ${secondaryUnit.short_name} = ${factor} ${selectedBaseUnit.short}`);
-                } else {
-                    // Manual entry required
-                    $row.find('.conversion-factor-input').val('');
-                    $row.find('.conversion-factor-display').text('Enter conversion factor');
-                }
-            }
-        });
-        
-        // Update conversion display when factor changes
-        $(document).on('input', '.conversion-factor-input', function() {
-            const $row = $(this).closest('.secondary-unit-row');
-            const factor = parseFloat($(this).val()) || 0;
-            const secondaryUnitId = $row.find('.secondary-unit-select').val();
-            
-            if (secondaryUnitId && factor > 0) {
-                const secondaryUnit = allUnits.find(u => u.id == secondaryUnitId);
-                if (secondaryUnit) {
-                    $row.find('.conversion-factor-display').text(
-                        `1 ${secondaryUnit.short_name} = ${factor} ${selectedBaseUnit.short}`
-                    );
-                }
-            }
-        });
-    });
-    
-    // Function to update opening stock unit dropdown
-    function updateOpeningStockUnits(baseUnitId, category) {
-        const $select = $('#on_hand_unit_id');
-        $select.empty();
-        
-        // Add base unit as first option
-        const baseUnit = allUnits.find(u => u.id == baseUnitId);
-        if (baseUnit) {
-            $select.append(`<option value="${baseUnit.id}" selected>${baseUnit.name} (${baseUnit.short_name})</option>`);
-        }
-        
-        // Add all units from same category
-        if (unitsByCategory[category]) {
-            unitsByCategory[category].forEach(function(unit) {
-                if (unit.id != baseUnitId) {
-                    $select.append(`<option value="${unit.id}">${unit.name} (${unit.short_name})</option>`);
-                }
-            });
-        }
-    }
-    
-    // Function to add secondary unit row
-    function addSecondaryUnitRow() {
-        secondaryUnitCounter++;
-        const category = selectedBaseUnit.category;
-        const compatibleUnits = unitsByCategory[category] || [];
-        
-        // Filter out base unit from secondary units
-        const secondaryUnits = compatibleUnits.filter(u => u.id != selectedBaseUnit.id);
-        
-        let unitOptions = '<option value="">Select Secondary Unit</option>';
-        secondaryUnits.forEach(function(unit) {
-            unitOptions += `<option value="${unit.id}" 
-                data-short="${unit.short_name}" 
-                data-multiplier="${unit.base_unit_multiplier || ''}"
-                data-base-id="${unit.base_unit_id || ''}">
-                ${unit.name} (${unit.short_name})
-            </option>`;
-        });
-        
-        const rowHtml = `
-            <div class="secondary-unit-row card mb-3 border-secondary" data-counter="${secondaryUnitCounter}">
-                <div class="card-body">
-                    <div class="row align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label">Secondary Unit</label>
-                            <select class="form-control secondary-unit-select" 
-                                name="secondary_units[${secondaryUnitCounter}][unit_id]" required>
-                                ${unitOptions}
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Conversion Factor</label>
-                            <div class="input-group">
-                                <input type="number" step="0.00000001" 
-                                    class="form-control conversion-factor-input" 
-                                    name="secondary_units[${secondaryUnitCounter}][conversion_factor]"
-                                    placeholder="e.g., 0.001 for g to kg" required>
-                                <span class="input-group-text">
-                                    <small class="text-muted">per ${selectedBaseUnit.short}</small>
-                                </span>
-                            </div>
-                            <small class="text-muted conversion-factor-display">Enter conversion factor</small>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">&nbsp;</label>
-                            <div>
-                                <button type="button" class="btn btn-danger btn-sm w-100 remove-secondary-unit">
-                                    <i class="ti ti-trash me-1"></i> Remove
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <div class="alert alert-info mb-0 py-2">
-                                <small>
-                                    <strong>Formula:</strong> 1 [Secondary Unit] = [Factor] [Base Unit: ${selectedBaseUnit.short}]<br>
-                                    <strong>Example:</strong> If base is "kg" and secondary is "g", enter 0.001 (1g = 0.001kg)
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        $('#secondaryUnitsContainer').append(rowHtml);
-        updateUnitInfoDisplay();
-    }
-    
-    // Function to update unit info display
-    function updateUnitInfoDisplay() {
-        if (!selectedBaseUnit) {
-            $('#unitInfoDisplay').hide();
-            return;
-        }
-        
-        let secondaryUnitsHtml = 'None';
-        const secondaryRows = $('.secondary-unit-row');
-        
-        if (secondaryRows.length > 0) {
-            const unitsList = [];
-            secondaryRows.each(function() {
-                const $row = $(this);
-                const unitId = $row.find('.secondary-unit-select').val();
-                const factor = $row.find('.conversion-factor-input').val();
-                
-                if (unitId && factor) {
-                    const unit = allUnits.find(u => u.id == unitId);
-                    if (unit) {
-                        unitsList.push(`${unit.short_name} (1 ${unit.short_name} = ${factor} ${selectedBaseUnit.short})`);
-                    }
-                }
-            });
-            
-            if (unitsList.length > 0) {
-                secondaryUnitsHtml = unitsList.join(', ');
-            }
-        }
-        
-        $('#baseUnitDisplay').text(`${selectedBaseUnit.name} (${selectedBaseUnit.short})`);
-        $('#secondaryUnitsDisplay').text(secondaryUnitsHtml);
-        $('#unitInfoDisplay').show();
-    }
-    
-    // Update form submission to include UOM data
-    $(document).on('submit', 'form', function(e) {
-        // Validate base unit is selected
-        if ($('#base_unit_id').length && !$('#base_unit_id').val()) {
-            const selectedType = document.querySelector('[name="type"]:checked')?.value;
-            if (['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad'].includes(selectedType)) {
-                e.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Base Unit Required',
-                    text: 'Please select a primary (base) unit for this item.'
-                });
-                return false;
-            }
-        }
-        
-        // Validate secondary units have conversion factors
-        $('.secondary-unit-select').each(function() {
-            const $row = $(this).closest('.secondary-unit-row');
-            const unitId = $(this).val();
-            const factor = $row.find('.conversion-factor-input').val();
-            
-            if (unitId && !factor) {
-                e.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Conversion Factor Required',
-                    text: 'Please enter conversion factor for all secondary units.'
-                });
-                return false;
-            }
-        });
-    });
-    
-    // ============================================
-    // END VYAPAR-STYLE UOM SYSTEM
-    // ============================================
-</script>
 <script>
     $(document).ready(function() {
         let currentUnitId = null;
