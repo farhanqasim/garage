@@ -16,18 +16,7 @@ class Unit extends Model
         'define_base_unit',
         'base_unit_multiplier',
         'base_unit_id',
-        'status',
-        'unit_category',
-        'is_base_unit',
-        'sort_order'
-    ];
-    
-    protected $casts = [
-        'allow_decimal' => 'boolean',
-        'define_base_unit' => 'boolean',
-        'is_base_unit' => 'boolean',
-        'base_unit_multiplier' => 'decimal:4',
-        'sort_order' => 'integer',
+        'status'
     ];
 
     public function baseUnit()

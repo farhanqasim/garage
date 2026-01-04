@@ -205,49 +205,6 @@ class Item extends Model
                     {
                     return $this->belongsTo(Unit::class,'unit');
                     }
-                    
-                    /**
-                     * Get the base unit for this item (Vyapar/Tally style)
-                     */
-                    public function baseUnit()
-                    {
-                        return $this->belongsToMany(Unit::class, 'item_unit_conversions', 'item_id', 'unit_id')
-                            ->wherePivot('unit_role', 'base')
-                            ->wherePivot('is_active', true)
-                            ->withPivot('conversion_factor', 'display_order', 'is_active')
-                            ->first();
-                    }
-                    
-                    /**
-                     * Get all secondary units for this item
-                     */
-                    public function secondaryUnits()
-                    {
-                        return $this->belongsToMany(Unit::class, 'item_unit_conversions', 'item_id', 'unit_id')
-                            ->wherePivot('unit_role', 'secondary')
-                            ->wherePivot('is_active', true)
-                            ->withPivot('conversion_factor', 'display_order', 'is_active')
-                            ->orderByPivot('display_order');
-                    }
-                    
-                    /**
-                     * Get all units (base + secondary) for this item
-                     */
-                    public function allUnits()
-                    {
-                        return $this->belongsToMany(Unit::class, 'item_unit_conversions', 'item_id', 'unit_id')
-                            ->wherePivot('is_active', true)
-                            ->withPivot('unit_role', 'conversion_factor', 'display_order', 'is_active')
-                            ->orderByPivot('display_order');
-                    }
-                    
-                    /**
-                     * Get item unit conversions relationship
-                     */
-                    public function unitConversions()
-                    {
-                        return $this->hasMany(\App\Models\ItemUnitConversion::class, 'item_id');
-                    }
 
 
                     public function services_item()
