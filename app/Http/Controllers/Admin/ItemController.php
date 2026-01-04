@@ -773,31 +773,7 @@ class ItemController extends Controller
     public function item_show($id)
     {
         // return $id;
-        $item = Item::with([
-            'vehical_item',
-            'category',
-            'subcategory',
-            'item_user',
-            'product_item',
-            'unit_item',
-            'partnumber_item',
-            'company_item',
-            'quality_item',
-            'technology_item',
-            'group_item',
-            'plate_item',
-            'amphors_item',
-            'volt_item',
-            'cca_item',
-            'minus_pool_item',
-            'grade_item',
-            'warrenty_item',
-            'mileage_item',
-            'level_item',
-            'made_in_item',
-            'services_item',
-            'updated_by_user'
-        ])->find($id);
+        $item = Item::find($id);
         return $item;
         if (!$item) {
             abort(404, 'Item not found');
