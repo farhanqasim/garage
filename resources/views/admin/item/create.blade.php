@@ -369,7 +369,7 @@
                                 <div class="col-md-4 mt-3"  x-show=" selectedType === 'battery' || selectedType === 'oil'">
                                     <label for="technology_select">
                                         <b x-show="selectedType === 'oil'">Technology:</b>
-                                        <b x-show="selectedType !== 'parts'">Series:</b>
+                                        <b x-show="selectedType == 'battery'">Series:</b>
                                     </label>
                                     <div class="input-group inputswidth">
                                         <select
