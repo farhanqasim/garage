@@ -799,7 +799,7 @@ class ItemController extends Controller
             'services_item',
             'updated_by_user'
         ])->find($id);
-        return $item;
+        // return $item;
         if (!$item) {
             abort(404, 'Item not found');
         }
