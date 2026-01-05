@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Create Role')
+@section('title', 'Edit Role')
 
 @section('content')
 <div class="content">
     <div class="page-header">
         <div class="page-title">
-            <h4>Create Role</h4>
-            <h6>Add a new role with permissions</h6>
+            <h4>Edit Role</h4>
+            <h6>Update role and permissions</h6>
         </div>
         <div class="page-btn">
             <a href="{{ route('roles.index') }}" class="btn btn-secondary">
@@ -18,14 +18,15 @@
 
     <div class="card">
         <div class="card-body">
-            <form action="{{ route('roles.store') }}" method="POST">
+            <form action="{{ route('roles.update', $role->id) }}" method="POST">
                 @csrf
+                @method('PUT')
                 
                 <div class="row">
                     <div class="col-md-12 mb-3">
                         <label for="name" class="form-label">Role Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control @error('name') is-invalid @enderror" 
-                               id="name" name="name" value="{{ old('name') }}" required>
+                               id="name" name="name" value="{{ old('name', $role->name) }}" required>
                         @error('name')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -49,7 +50,9 @@
                             <div class="card-header bg-light">
                                 <h6 class="mb-0">
                                     <input type="checkbox" class="form-check-input group-checkbox" 
-                                           data-group="{{ $group }}" onchange="toggleGroupPermissions('{{ $group }}', this.checked)">
+                                           data-group="{{ $group }}" 
+                                           onchange="toggleGroupPermissions('{{ $group }}', this.checked)"
+                                           id="group_{{ str_replace(' ', '_', $group) }}">
                                     <strong>{{ $group }}</strong>
                                 </h6>
                             </div>
@@ -67,7 +70,8 @@
                                                    name="permissions[]" 
                                                    value="{{ $permissionModel->id }}"
                                                    id="permission_{{ $permissionModel->id }}"
-                                                   data-group="{{ $group }}">
+                                                   data-group="{{ $group }}"
+                                                   {{ in_array($permissionModel->id, $rolePermissions) ? 'checked' : '' }}>
                                             <label class="form-check-label" for="permission_{{ $permissionModel->id }}">
                                                 {{ str_replace('-', ' ', ucwords($permission, '-')) }}
                                             </label>
@@ -85,7 +89,7 @@
                 <div class="row mt-4">
                     <div class="col-md-12">
                         <button type="submit" class="btn btn-primary">
-                            <i class="ti ti-check me-1"></i> Create Role
+                            <i class="ti ti-check me-1"></i> Update Role
                         </button>
                         <a href="{{ route('roles.index') }}" class="btn btn-secondary">
                             Cancel
@@ -135,6 +139,19 @@
             }
         });
     });
+
+    // Initialize group checkboxes on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        @foreach($permission_groups as $group => $permissions)
+        const group{{ str_replace(' ', '', $group) }}Checkboxes = document.querySelectorAll(`.permission-checkbox[data-group="{{ $group }}"]`);
+        const checked{{ str_replace(' ', '', $group) }} = Array.from(group{{ str_replace(' ', '', $group) }}Checkboxes).filter(c => c.checked).length;
+        const group{{ str_replace(' ', '', $group) }}Checkbox = document.querySelector(`.group-checkbox[data-group="{{ $group }}"]`);
+        if (group{{ str_replace(' ', '', $group) }}Checkbox) {
+            group{{ str_replace(' ', '', $group) }}Checkbox.checked = checked{{ str_replace(' ', '', $group) }} === group{{ str_replace(' ', '', $group) }}Checkboxes.length;
+        }
+        @endforeach
+    });
 </script>
 @endpush
 @endsection
+

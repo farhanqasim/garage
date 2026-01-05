@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Auth;
 
 class BranchController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:view-branches')->only('all_branches');
+        $this->middleware('permission:create-branches')->only('store_branches');
+        $this->middleware('permission:edit-branches')->only('update_branches');
+        $this->middleware('permission:delete-branches')->only('delete_branch');
+        $this->middleware('permission:manage-branch-status')->only('updatebranchStatus');
+    }
+
     public function all_branches()
     {
         $user = Auth::user();

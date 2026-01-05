@@ -46,8 +46,14 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ItemController extends Controller
 {
-
-
+    public function __construct()
+    {
+        $this->middleware('permission:view-items')->only('all_items', 'item_show');
+        $this->middleware('permission:create-items')->only('items_create', 'items_store');
+        $this->middleware('permission:edit-items')->only('item_edit', 'item_update');
+        $this->middleware('permission:delete-items')->only('item_delete', 'itembulkDelete');
+        $this->middleware('permission:duplicate-items')->only('duplicate', 'itemduplicate');
+    }
 
     public function all_items(Request $request)
     {
