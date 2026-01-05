@@ -181,117 +181,144 @@
     </div>
 </div>
 
-<!-- Add Item Modal -->
+<!-- Add Item Modal - ITEM DETAIL BOX -->
 <div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="ti ti-shopping-cart me-2"></i>PURCHASE ITEM ENTRY
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-2">
+                <h5 class="modal-title fw-bold">
+                    <i class="ti ti-shopping-cart me-2"></i>ITEM DETAIL BOX
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <!-- Stock Display -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card bg-success bg-opacity-10 border-success">
-                            <div class="card-body text-center">
-                                <h6 class="text-success fw-bold mb-1">WAREHOUSE</h6>
-                                <h4 class="mb-0" id="warehouse-stock">0 Units</h4>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card bg-warning bg-opacity-10 border-warning">
-                            <div class="card-body text-center">
-                                <h6 class="text-warning fw-bold mb-1">SHOP</h6>
-                                <h4 class="mb-0" id="shop-stock">0 Units</h4>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Search Item -->
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Item Name -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">SEARCH ITEM</label>
-                    <div class="input-group">
-                        <input type="text" id="item-search" class="form-control" placeholder="Start typing...">
-                        <span class="input-group-text"><i class="ti ti-search"></i></span>
-                    </div>
+                    <label class="form-label fw-bold mb-2">ITEM NAME</label>
+                    <input type="text" id="item-search" class="form-control" placeholder="Start typing..." style="background-color: #f8f9fa; border-radius: 8px;">
                     <div id="search-results" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;">
                         <ul class="list-group" id="search-results-list"></ul>
                     </div>
                 </div>
 
-                <!-- Selected Item Display -->
-                <div id="selected-item-display" class="mb-3" style="display: none;">
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <h6 id="selected-item-name"></h6>
-                            <small class="text-muted">Selected Item</small>
-                        </div>
+                <!-- Quantity and Unit Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">QUANTITY</label>
+                        <select id="item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <option value="1">Qty</option>
+                            <option value="0.5">0.5</option>
+                            <option value="1">1</option>
+                            <option value="1.5">1.5</option>
+                            <option value="2">2</option>
+                            <option value="2.5">2.5</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="0.01" step="0.01" placeholder="Or enter custom quantity" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
+                        <small class="text-muted" style="font-size: 11px;">Select or enter quantity</small>
                     </div>
-                </div>
-
-                <!-- Quantity -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">QUANTITY</label>
-                    <div class="input-group" style="max-width: 200px;">
-                        <button type="button" class="btn btn-outline-secondary" id="decrease-qty">-</button>
-                        <input type="number" id="item-quantity" class="form-control text-center" value="1" min="0.01" step="0.01">
-                        <button type="button" class="btn btn-outline-secondary" id="increase-qty">+</button>
-                    </div>
-                </div>
-
-                <!-- Unit -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">UNIT</label>
-                    <select id="item-unit" class="form-control">
-                        <option value="Unit">Unit</option>
-                        <option value="Can">Can</option>
-                        <option value="Box">Box</option>
-                        <option value="Piece">Piece</option>
-                        <option value="Kg">Kg</option>
-                        <option value="Liter">Liter</option>
-                    </select>
-                </div>
-
-                <!-- Rate -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">RATE</label>
-                    <div class="input-group">
-                        <span class="input-group-text">Rs</span>
-                        <input type="number" id="item-rate" class="form-control" value="0.00" step="0.01" min="0">
-                        <button type="button" class="btn btn-outline-primary" id="suggest-rate">
-                            <i class="ti ti-sparkles me-1"></i>SUGGEST RATE
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Discount -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">DISCOUNT</label>
-                    <div class="input-group">
-                        <input type="number" id="item-discount" class="form-control" value="0" step="0.01" min="0">
-                        <select id="discount-type" class="form-control" style="max-width: 100px;">
-                            <option value="amount">Rs</option>
-                            <option value="percent">%</option>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">UNIT</label>
+                        <select id="item-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <option value="Can">Can</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Box">Box</option>
+                            <option value="Piece">Piece</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Liter">Liter</option>
+                            <option value="Pack">Pack</option>
+                            <option value="Set">Set</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Tax -->
+                <!-- Sale Rate and Warranty Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">SALE RATE</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">Rs</span>
+                            <input type="number" id="item-rate" class="form-control" value="0" step="0.01" min="0" placeholder="0" style="background-color: #f8f9fa; border-radius: 8px;">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">WARRANTY</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <select id="warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="">-</option>
+                                    <option value="7">7</option>
+                                    <option value="15">15</option>
+                                    <option value="30">30</option>
+                                    <option value="60">60</option>
+                                    <option value="90">90</option>
+                                    <option value="180">180</option>
+                                    <option value="365">365</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select id="warranty-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="Days">Days</option>
+                                    <option value="Weeks">Weeks</option>
+                                    <option value="Months">Months</option>
+                                    <option value="Years">Years</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer History Section -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">TAX %</label>
-                    <input type="number" id="item-tax" class="form-control" value="0" step="0.01" min="0" max="100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0">
+                            <i class="ti ti-clock me-2"></i>CUSTOMER HISTORY
+                        </label>
+                        <a href="javascript:void(0)" class="text-primary text-decoration-none" id="hold-rate-link" style="display: none;">
+                            Hold Rate to Apply
+                        </a>
+                    </div>
+                    <div id="customer-history-content" class="p-3" style="background-color: #f8f9fa; border-radius: 8px; min-height: 60px;">
+                        <p class="text-muted mb-0 small">Select item to see history</p>
+                    </div>
+                </div>
+
+                <!-- Additional Fields (Hidden by default, can be shown if needed) -->
+                <div id="additional-fields" style="display: none;">
+                    <!-- Discount -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">DISCOUNT</label>
+                        <div class="input-group">
+                            <input type="number" id="item-discount" class="form-control" value="0" step="0.01" min="0" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <select id="discount-type" class="form-control" style="max-width: 100px; background-color: #f8f9fa; border-radius: 8px;">
+                                <option value="amount">Rs</option>
+                                <option value="percent">%</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tax -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">TAX %</label>
+                        <input type="number" id="item-tax" class="form-control" value="0" step="0.01" min="0" max="100" style="background-color: #f8f9fa; border-radius: 8px;">
+                    </div>
                 </div>
 
                 <input type="hidden" id="selected-item-id">
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer border-0 pt-2">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirm-entry">Confirm Entry</button>
+                <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
+                    CONFIRM ITEM
+                </button>
             </div>
         </div>
     </div>
@@ -392,17 +419,53 @@ $(document).ready(function() {
             method: 'GET',
             success: function(response) {
                 $('#selected-item-id').val(response.id);
-                $('#selected-item-name').text(response.name);
+                $('#item-search').val(response.name);
                 $('#item-rate').val(parseFloat(response.rate || 0).toFixed(2));
-                $('#item-unit').val(response.unit || 'Unit');
-                $('#warehouse-stock').text((response.warehouse_stock || 0) + ' Units');
-                $('#shop-stock').text((response.shop_stock || 0) + ' Units');
-                $('#selected-item-display').show();
+                $('#item-unit').val(response.unit || 'Can');
+                
+                // Load customer history for this item
+                loadCustomerHistory(itemId);
+                
                 $('#search-results').hide();
-                $('#item-search').val('');
             }
         });
     }
+
+    // Load customer history for selected item
+    function loadCustomerHistory(itemId) {
+        // TODO: Implement customer history API call
+        // For now, show placeholder
+        $('#customer-history-content').html('<p class="text-muted mb-0 small">Loading history...</p>');
+        $('#hold-rate-link').hide();
+        
+        // Simulate history loading (replace with actual API call)
+        setTimeout(function() {
+            $('#customer-history-content').html(`
+                <div class="small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Last Purchase: Rs 1,250</span>
+                        <span class="text-muted">2 days ago</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Avg Rate: Rs 1,200</span>
+                        <span class="text-muted">Last 30 days</span>
+                    </div>
+                </div>
+            `);
+            $('#hold-rate-link').show();
+        }, 500);
+    }
+
+    // Hold rate to apply
+    $('#hold-rate-link').on('click', function() {
+        // Get the last purchase rate from history and apply it
+        const historyText = $('#customer-history-content').text();
+        const rateMatch = historyText.match(/Rs\s*([\d,]+)/);
+        if (rateMatch) {
+            const rate = rateMatch[1].replace(/,/g, '');
+            $('#item-rate').val(parseFloat(rate).toFixed(2));
+        }
+    });
 
     // Suggest rate button
     $('#suggest-rate').on('click', function() {
@@ -412,29 +475,41 @@ $(document).ready(function() {
         }
     });
 
-    // Quantity controls
-    $('#increase-qty').on('click', function() {
-        const current = parseFloat($('#item-quantity').val()) || 0;
-        $('#item-quantity').val((current + 1).toFixed(2));
+    // Quantity dropdown change - show custom input if "Qty" selected
+    $('#item-quantity').on('change', function() {
+        if ($(this).val() === '1' && $(this).find('option:selected').text() === 'Qty') {
+            $('#item-quantity-input').show().focus();
+        } else {
+            $('#item-quantity-input').hide();
+        }
     });
 
-    $('#decrease-qty').on('click', function() {
-        const current = parseFloat($('#item-quantity').val()) || 0;
-        if (current > 0.01) {
-            $('#item-quantity').val((current - 1).toFixed(2));
+    // Use custom quantity input if provided
+    $('#item-quantity-input').on('input', function() {
+        const customQty = $(this).val();
+        if (customQty && customQty > 0) {
+            $('#item-quantity').val(customQty);
         }
     });
 
     // Confirm entry
     $('#confirm-entry').on('click', function() {
         const itemId = $('#selected-item-id').val();
-        const quantity = parseFloat($('#item-quantity').val()) || 0;
+        let quantity = parseFloat($('#item-quantity').val()) || 0;
+        
+        // If custom quantity input is visible and has value, use that
+        if ($('#item-quantity-input').is(':visible') && $('#item-quantity-input').val()) {
+            quantity = parseFloat($('#item-quantity-input').val()) || 0;
+        }
+        
         const unit = $('#item-unit').val();
         const rate = parseFloat($('#item-rate').val()) || 0;
         const discount = parseFloat($('#item-discount').val()) || 0;
         const discountType = $('#discount-type').val();
         const taxPercentage = parseFloat($('#item-tax').val()) || 0;
-        const itemName = $('#selected-item-name').text();
+        const itemName = $('#item-search').val();
+        const warrantyValue = $('#warranty-value').val();
+        const warrantyUnit = $('#warranty-unit').val();
 
         if (!itemId || quantity <= 0 || rate <= 0) {
             alert('Please select an item and enter valid quantity and rate');
@@ -463,7 +538,8 @@ $(document).ready(function() {
             discount: discountAmount,
             tax_percentage: taxPercentage,
             tax_amount: taxAmount,
-            total: total
+            total: total,
+            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null
         };
 
         purchaseItems.push(item);
@@ -512,18 +588,19 @@ $(document).ready(function() {
 
     function resetItemModal() {
         $('#selected-item-id').val('');
-        $('#selected-item-name').text('');
+        $('#item-search').val('');
         $('#item-quantity').val('1');
-        $('#item-unit').val('Unit');
-        $('#item-rate').val('0.00');
+        $('#item-quantity-input').val('1').hide();
+        $('#item-unit').val('Can');
+        $('#item-rate').val('0');
+        $('#warranty-value').val('');
+        $('#warranty-unit').val('Days');
         $('#item-discount').val('0');
         $('#discount-type').val('amount');
         $('#item-tax').val('0');
-        $('#warehouse-stock').text('0 Units');
-        $('#shop-stock').text('0 Units');
-        $('#selected-item-display').hide();
+        $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to see history</p>');
+        $('#hold-rate-link').hide();
         $('#search-results').hide();
-        $('#item-search').val('');
     }
 
     function calculateTotals() {
