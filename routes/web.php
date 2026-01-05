@@ -421,11 +421,12 @@ Route::get('all/purchases',[PurchaseController::class,'all_purchases'])->name('a
 Route::get('purchases/create',[PurchaseController::class,'create'])->name('purchases.create')->middleware('auth');
 Route::post('purchases',[PurchaseController::class,'store'])->name('purchases.store');
 Route::get('purchases/items/search',[PurchaseController::class,'searchItems'])->name('purchases.items.search');
-Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
+// Specific routes must come before parameterized routes
 Route::get('/purchases/items/ajax-search', [PurchaseController::class, 'ajaxSearch'])
     ->name('purchases.items.ajax.search');
 Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOptions'])
     ->name('purchases.filter.options');
+Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 
 // warehouses
 Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.index')->middleware('auth');
