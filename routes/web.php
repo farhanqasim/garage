@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VehicalTypeController;
+use App\Http\Controllers\Admin\WarehouseController;
 
 /*
 |--------------------------------------------------------------------------
@@ -421,6 +422,15 @@ Route::get('purchases/create',[PurchaseController::class,'create'])->name('purch
 Route::post('purchases',[PurchaseController::class,'store'])->name('purchases.store');
 Route::get('purchases/items/search',[PurchaseController::class,'searchItems'])->name('purchases.items.search');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
+
+// warehouses
+Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.index')->middleware('auth');
+Route::get('warehouses/{id}',[WarehouseController::class,'show'])->name('warehouses.show')->middleware('auth');
+Route::get('warehouses/{id}/add-item',[WarehouseController::class,'addItem'])->name('warehouses.add-item')->middleware('auth');
+Route::post('warehouses/{id}/items',[WarehouseController::class,'storeItem'])->name('warehouses.store-item')->middleware('auth');
+Route::put('warehouses/{warehouseId}/items/{itemId}',[WarehouseController::class,'updateStock'])->name('warehouses.update-stock')->middleware('auth');
+Route::delete('warehouses/{warehouseId}/items/{itemId}',[WarehouseController::class,'removeItem'])->name('warehouses.remove-item')->middleware('auth');
+Route::get('warehouses/{id}/low-stock',[WarehouseController::class,'lowStock'])->name('warehouses.low-stock')->middleware('auth');
 
 
 //pos

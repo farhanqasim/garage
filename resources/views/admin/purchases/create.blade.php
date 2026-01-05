@@ -200,7 +200,6 @@
                         <ul class="list-group" id="search-results-list"></ul>
                     </div>
                 </div>
-
                 <!-- Quantity and Unit Row -->
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -211,7 +210,6 @@
                             <option value="1">1</option>
                             <option value="1.5">1.5</option>
                             <option value="2">2</option>
-                            <option value="2.5">2.5</option>
                             <option value="3">3</option>
                             <option value="4">4</option>
                             <option value="5">5</option>
@@ -221,6 +219,17 @@
                             <option value="25">25</option>
                             <option value="50">50</option>
                             <option value="100">100</option>
+                            <option value="150">150</option>
+                            <option value="200">200</option>
+                            <option value="250">250</option>
+                            <option value="300">300</option>
+                            <option value="400">400</option>
+                            <option value="500">500</option>
+                            <option value="600">600</option>
+                            <option value="700">700</option>
+                            <option value="800">800</option>
+                            <option value="900">900</option>
+                            <option value="1000">1000</option>
                         </select>
                         <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="0.01" step="0.01" placeholder="Or enter custom quantity" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
                         <small class="text-muted" style="font-size: 11px;">Select or enter quantity</small>

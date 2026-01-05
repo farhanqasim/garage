@@ -29,8 +29,16 @@ class Branch extends Model
         return $this->belongsTo(User::class);
     }
 
-        public function item_branch()
+    public function item_branch()
     {
         return $this->hasOne(Item::class);
+    }
+
+    /**
+     * Get the warehouse for this branch
+     */
+    public function warehouse()
+    {
+        return $this->hasOne(Warehouse::class);
     }
 }

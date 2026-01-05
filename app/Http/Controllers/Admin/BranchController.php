@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Branch;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class BranchController extends Controller
 {
@@ -88,7 +90,23 @@ public function store_branches(Request $request)
     $branch->status = 'inactive';
     $branch->save();
 
-    return redirect()->route('all.branches')->with('success', 'Branch created successfully for new user!');
+    // Auto-create warehouse for this branch
+    $warehouseCode = 'WH-' . strtoupper(Str::random(6));
+    Warehouse::create([
+        'branch_id' => $branch->id,
+        'warehouse_name' => $branch->branch_name . ' Warehouse',
+        'warehouse_code' => $warehouseCode,
+        'address' => $branch->address,
+        'city' => $branch->city,
+        'state' => $branch->state,
+        'country' => $branch->country,
+        'phone' => $branch->phone,
+        'email' => $branch->email,
+        'manager_name' => $branch->manager_name,
+        'status' => 'active',
+    ]);
+
+    return redirect()->route('all.branches')->with('success', 'Branch and warehouse created successfully for new user!');
 }
 
 
