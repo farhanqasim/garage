@@ -11,7 +11,7 @@
         </div>
         <div class="page-btn">
            
-            <button type="button" id="shareWhatsAppBtn" class="btn btn-success">
+            <button type="button" id="shareWhatsAppBtn" class="btn btn-success" onclick="toggleWhatsAppSection()">
                 <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
             </button>
         </div>
@@ -582,150 +582,196 @@
 <!-- Initialize Owl Carousel -->
 @push('scripts')
 <script>
-    $(document).ready(function(){
-        $('.product-slide').owlCarousel({
-            loop: true,
-            margin: 20,
-            nav: true,
-            dots: false,
-            responsive:{
-                0:{ items:1 },
-                600:{ items:1 },
-                1000:{ items:1 }
-            }
-        });
+    // Global function to toggle WhatsApp section (backup method)
+    function toggleWhatsAppSection() {
+        const shareSection = document.getElementById('whatsappShareSection');
+        if (!shareSection) {
+            console.error('WhatsApp share section not found');
+            alert('Error: WhatsApp share section not found. Please refresh the page.');
+            return;
+        }
         
-        // WhatsApp Share Button Click - Toggle input section
-        $(document).on('click', '#shareWhatsAppBtn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
+        // Toggle visibility
+        if (shareSection.style.display === 'none' || shareSection.style.display === '') {
+            shareSection.style.display = 'block';
+            shareSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             
-            const shareSection = document.getElementById('whatsappShareSection');
-            if (!shareSection) {
-                console.error('WhatsApp share section not found');
-                return;
-            }
-            
-            // Toggle visibility
-            if (shareSection.style.display === 'none' || shareSection.style.display === '') {
-                shareSection.style.display = 'block';
-                // Focus on phone input after showing
-                setTimeout(function() {
-                    const phoneInput = document.getElementById('phoneNumber');
-                    if (phoneInput) {
-                        phoneInput.focus();
-                    }
-                }, 100);
-            } else {
-                shareSection.style.display = 'none';
-            }
-        });
-        
-        // Generate PDF and Share on WhatsApp - Use event delegation
-        $(document).on('click', '#generateAndShareBtn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Get country code and phone number
-            const countryCodeSelect = document.getElementById('countryCode');
-            const phoneNumberInput = document.getElementById('phoneNumber');
-            const countryCode = countryCodeSelect ? countryCodeSelect.value : '';
-            const phoneNumber = phoneNumberInput ? phoneNumberInput.value.trim() : '';
-            
-            if (!phoneNumber) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Phone Number Required',
-                    text: 'Please enter a phone number.'
-                });
-                phoneNumberInput?.focus();
-                return;
-            }
-            
-            // Validate phone number format (7-12 digits for local number)
-            if (!/^[0-9]{7,12}$/.test(phoneNumber)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid Phone Number',
-                    text: 'Please enter a valid phone number (7-12 digits).'
-                });
-                phoneNumberInput?.focus();
-                return;
-            }
-            
-            // Combine country code with phone number
-            const fullPhoneNumber = countryCode + phoneNumber;
-            
-            // Show loading
-            const btn = this;
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="ti ti-loader me-1"></i> Generating PDF...';
-            
-            // Generate PDF and get share URL
-            fetch('{{ route("items.generate.whatsapp.pdf") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    item_ids: [{{ $item->id }}],
-                    phone_number: fullPhoneNumber
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Open WhatsApp with PDF link
-                    const whatsappUrl = `https://wa.me/${fullPhoneNumber}?text=${encodeURIComponent(data.message)}`;
-                    window.open(whatsappUrl, '_blank');
-                    
-                    // Hide the input section
-                    const shareSection = document.getElementById('whatsappShareSection');
-                    if (shareSection) {
-                        shareSection.style.display = 'none';
-                    }
-                    
-                    // Reset form
-                    const form = document.getElementById('whatsappShareForm');
-                    if (form) {
-                        form.reset();
-                    }
-                    
-                    // Play save sound
-                    if (typeof playSaveSound === 'function') {
-                        playSaveSound();
-                    }
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Shared!',
-                        text: 'PDF has been shared on WhatsApp.',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Failed to generate PDF. Please try again.'
-                    });
+            // Focus on phone input after showing
+            setTimeout(function() {
+                const phoneInput = document.getElementById('phoneNumber');
+                if (phoneInput) {
+                    phoneInput.focus();
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred. Please try again.'
-                });
-            })
-            .finally(() => {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+            }, 300);
+        } else {
+            shareSection.style.display = 'none';
+        }
+    }
+    
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Owl Carousel if jQuery is available
+        if (typeof jQuery !== 'undefined' && jQuery('.product-slide').length) {
+            jQuery('.product-slide').owlCarousel({
+                loop: true,
+                margin: 20,
+                nav: true,
+                dots: false,
+                responsive:{
+                    0:{ items:1 },
+                    600:{ items:1 },
+                    1000:{ items:1 }
+                }
             });
-        });
+        }
+        
+        // WhatsApp Share Button Click - Toggle input section (additional event listener)
+        const shareBtn = document.getElementById('shareWhatsAppBtn');
+        if (shareBtn) {
+            // Remove inline onclick if event listener works
+            shareBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleWhatsAppSection();
+            });
+        }
+        
+        
+        // Generate PDF and Share on WhatsApp
+        const generateBtn = document.getElementById('generateAndShareBtn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Get country code and phone number
+                const countryCodeSelect = document.getElementById('countryCode');
+                const phoneNumberInput = document.getElementById('phoneNumber');
+                const countryCode = countryCodeSelect ? countryCodeSelect.value : '';
+                const phoneNumber = phoneNumberInput ? phoneNumberInput.value.trim() : '';
+                
+                if (!phoneNumber) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Phone Number Required',
+                            text: 'Please enter a phone number.'
+                        });
+                    } else {
+                        alert('Please enter a phone number.');
+                    }
+                    if (phoneNumberInput) phoneNumberInput.focus();
+                    return;
+                }
+                
+                // Validate phone number format (7-12 digits for local number)
+                if (!/^[0-9]{7,12}$/.test(phoneNumber)) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Phone Number',
+                            text: 'Please enter a valid phone number (7-12 digits).'
+                        });
+                    } else {
+                        alert('Please enter a valid phone number (7-12 digits).');
+                    }
+                    if (phoneNumberInput) phoneNumberInput.focus();
+                    return;
+                }
+                
+                // Combine country code with phone number
+                const fullPhoneNumber = countryCode + phoneNumber;
+                
+                // Show loading
+                const btn = this;
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ti ti-loader me-1"></i> Generating PDF...';
+                
+                // Generate PDF and get share URL
+                fetch('{{ route("items.generate.whatsapp.pdf") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        item_ids: [{{ $item->id }}],
+                        phone_number: fullPhoneNumber
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Open WhatsApp with PDF link
+                        const whatsappUrl = `https://wa.me/${fullPhoneNumber}?text=${encodeURIComponent(data.message)}`;
+                        window.open(whatsappUrl, '_blank');
+                        
+                        // Hide the input section
+                        const shareSection = document.getElementById('whatsappShareSection');
+                        if (shareSection) {
+                            shareSection.style.display = 'none';
+                        }
+                        
+                        // Reset form
+                        const form = document.getElementById('whatsappShareForm');
+                        if (form) {
+                            form.reset();
+                        }
+                        
+                        // Play save sound if available
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                        
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Shared!',
+                                text: 'PDF has been shared on WhatsApp.',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            alert('PDF has been shared on WhatsApp!');
+                        }
+                    } else {
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to generate PDF. Please try again.'
+                            });
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to generate PDF. Please try again.'));
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An error occurred. Please try again.'
+                        });
+                    } else {
+                        alert('An error occurred. Please try again.');
+                    }
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                });
+            });
+        } else {
+            console.error('Generate and share button not found');
+        }
     });
 </script>
 @endpush
