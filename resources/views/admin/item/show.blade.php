@@ -10,9 +10,7 @@
             <h6>Full details of a product</h6>
         </div>
         <div class="page-btn">
-            <a href="{{ route('item.generate.specification.pdf', $item->id) }}" class="btn btn-primary me-2" target="_blank">
-                <i class="ti ti-file-download me-1"></i> Generate Product Specification PDF
-            </a>
+           
             <button type="button" id="shareWhatsAppBtn" class="btn btn-success">
                 <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
             </button>
