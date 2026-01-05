@@ -422,6 +422,10 @@ Route::get('purchases/create',[PurchaseController::class,'create'])->name('purch
 Route::post('purchases',[PurchaseController::class,'store'])->name('purchases.store');
 Route::get('purchases/items/search',[PurchaseController::class,'searchItems'])->name('purchases.items.search');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
+Route::get('/purchases/items/ajax-search', [PurchaseController::class, 'ajaxSearch'])
+    ->name('purchases.items.ajax.search');
+Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOptions'])
+    ->name('purchases.filter.options');
 
 // warehouses
 Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.index')->middleware('auth');

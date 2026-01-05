@@ -162,7 +162,7 @@
 
                         <!-- Add Item Button -->
                         <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#purchase-item-search-modal">
                                 <i class="ti ti-plus me-2"></i>NAYA ITEM ADD KARAIN
                             </button>
                         </div>
@@ -181,6 +181,164 @@
     </div>
 </div>
 
+<!-- YouTube-Style Search & Filter Modal for Purchase -->
+<div class="modal fade" id="purchase-item-search-modal" tabindex="-1" aria-labelledby="purchaseItemSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header border-bottom" style="background: #f8f9fa;">
+                <div class="page-title">
+                    <h4 class="mb-0">Search & Filter Items</h4>
+                    <small class="text-muted">Find items using advanced filters</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Search Bar -->
+                <div class="p-4 border-bottom" style="background: #fff;">
+                    <div class="position-relative">
+                        <input type="text" id="purchase-item-search-input" class="form-control form-control-lg ps-5" 
+                            placeholder="Search by barcode, part number, vehicle, model, year..." 
+                            style="border-radius: 24px; border: 2px solid #e0e0e0;">
+                        <i class="fas fa-search position-absolute" style="left: 20px; top: 50%; transform: translateY(-50%); color: #999;"></i>
+                        <button type="button" id="purchase-clear-search" class="btn btn-link position-absolute d-none" 
+                            style="right: 10px; top: 50%; transform: translateY(-50%); padding: 0; color: #999;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Chips (YouTube-style) -->
+                <div class="px-4 py-3 border-bottom" style="background: #f8f9fa; overflow-x: auto;">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <span class="text-muted small fw-bold me-2">Filters:</span>
+                        <button type="button" class="btn btn-sm filter-chip" data-filter="in_stock" data-value="yes" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-check-circle me-1"></i> In Stock
+                        </button>
+                        <button type="button" class="btn btn-sm filter-chip" data-filter="is_active" data-value="1" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-toggle-on me-1"></i> Active
+                        </button>
+                        <button type="button" class="btn btn-sm" id="purchase-advanced-filters-toggle" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-filter me-1"></i> More Filters
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger d-none" id="purchase-clear-all-filters" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-times me-1"></i> Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters Panel (Collapsible) -->
+                <div class="collapse" id="purchaseAdvancedFiltersPanel">
+                    <div class="p-4 border-bottom" style="background: #fff;">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Category</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-category">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Manufacturer</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-manufacturer">
+                                    <option value="">All Manufacturers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Part Number</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-part-number">
+                                    <option value="">All Part Numbers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Technology</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-technology">
+                                    <option value="">All Technologies</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Grade</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-grade">
+                                    <option value="">All Grades</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Volt</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-volt">
+                                    <option value="">All Volts</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">CCA</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-cca">
+                                    <option value="">All CCAs</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Supplier</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-supplier">
+                                    <option value="">All Suppliers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Rack</label>
+                                <select class="form-select form-select-sm" id="purchase-filter-rack">
+                                    <option value="">All Racks</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Min Price</label>
+                                <input type="number" class="form-control form-control-sm" id="purchase-filter-min-price" placeholder="0.00" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Max Price</label>
+                                <input type="number" class="form-control form-control-sm" id="purchase-filter-max-price" placeholder="0.00" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Info -->
+                <div class="row g-2 px-4 py-3 border-bottom" style="background: #f8f9fa;">
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background-color: #f0fff4; border: 1px solid #d1fae5;">
+                            <small class="text-success fw-bold d-block mb-1" style="font-size: 0.7rem;">WAREHOUSE</small>
+                            <div class="fw-bold text-success" id="purchase-warehouse-stock">0 Units</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background-color: #fffaf0; border: 1px solid #feebc8;">
+                            <small class="text-warning fw-bold d-block mb-1" style="font-size: 0.7rem; color: #c05621 !important;">SHOP</small>
+                            <div class="fw-bold" style="color: #c05621;" id="purchase-shop-stock">0 Units</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Container -->
+                <div class="p-4" style="max-height: 400px; overflow-y: auto;">
+                    <div id="purchase-search-results-container">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                            <p>Start typing to search items or use filters above</p>
+                        </div>
+                    </div>
+                    <div id="purchase-no-results" class="text-center text-muted py-5 d-none">
+                        <i class="fas fa-inbox fa-3x mb-3" style="opacity: 0.3;"></i>
+                        <p>No items found. Try adjusting your search or filters.</p>
+                    </div>
+                    <div id="purchase-loading-results" class="text-center py-5 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Searching...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Add Item Modal - ITEM DETAIL BOX -->
 <div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -192,13 +350,10 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Item Name -->
+                <!-- Item Name (Read-only, pre-filled) -->
                 <div class="mb-3">
                     <label class="form-label fw-bold mb-2">ITEM NAME</label>
-                    <input type="text" id="item-search" class="form-control" placeholder="Start typing..." style="background-color: #f8f9fa; border-radius: 8px;">
-                    <div id="search-results" class="mt-2" style="max-height: 200px; overflow-y: auto; display: none;">
-                        <ul class="list-group" id="search-results-list"></ul>
-                    </div>
+                    <input type="text" id="item-search" class="form-control" placeholder="Item will be selected from search" readonly style="background-color: #f8f9fa; border-radius: 8px;">
                 </div>
                 <!-- Quantity and Unit Row -->
                 <div class="row mb-3">
@@ -333,11 +488,370 @@
     </div>
 </div>
 
+@push('styles')
+<style>
+    .filter-chip {
+        background: #fff;
+        border: 1px solid #ddd;
+        color: #333;
+        transition: all 0.2s;
+    }
+    .filter-chip:hover {
+        background: #f0f0f0;
+        border-color: #999;
+    }
+    .filter-chip.active {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+    }
+    .item-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #fff;
+    }
+    .item-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .item-card.selected {
+        border-color: #0d6efd;
+        background: #e7f1ff;
+    }
+    mark {
+        background: #ffeb3b;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 $(document).ready(function() {
     let purchaseItems = [];
     let itemCounter = 0;
+
+    // ========== YouTube-Style Search Modal Functionality ==========
+    const purchaseSearchInput = $('#purchase-item-search-input');
+    const purchaseClearSearchBtn = $('#purchase-clear-search');
+    const purchaseSearchModal = $('#purchase-item-search-modal');
+    const purchaseResultsContainer = $('#purchase-search-results-container');
+    const purchaseNoResults = $('#purchase-no-results');
+    const purchaseLoadingResults = $('#purchase-loading-results');
+    const purchaseAdvancedFiltersToggle = $('#purchase-advanced-filters-toggle');
+    const purchaseClearAllFiltersBtn = $('#purchase-clear-all-filters');
+    
+    // Filter state
+    let purchaseActiveFilters = {};
+    let purchaseFilterOptions = {};
+    let purchaseSearchTimeout = null;
+    
+    // Initialize: Load filter options when modal opens
+    purchaseSearchModal.on('show.bs.modal', function() {
+        if (Object.keys(purchaseFilterOptions).length === 0) {
+            loadPurchaseFilterOptions();
+        }
+        purchaseSearchInput.focus();
+    });
+    
+    // Load filter options
+    function loadPurchaseFilterOptions() {
+        $.ajax({
+            url: "{{ route('purchases.filter.options') }}",
+            success: function(data) {
+                purchaseFilterOptions = data;
+                populatePurchaseFilterDropdowns(data);
+            },
+            error: function(xhr) {
+                console.error('Error loading filter options:', xhr);
+            }
+        });
+    }
+    
+    // Populate filter dropdowns
+    function populatePurchaseFilterDropdowns(data) {
+        if (data.categories) {
+            data.categories.forEach(cat => {
+                $('#purchase-filter-category').append(`<option value="${cat.id}">${cat.name}</option>`);
+            });
+        }
+        if (data.manufacturers) {
+            data.manufacturers.forEach(man => {
+                $('#purchase-filter-manufacturer').append(`<option value="${man.id}">${man.name}</option>`);
+            });
+        }
+        if (data.part_numbers) {
+            data.part_numbers.forEach(pn => {
+                $('#purchase-filter-part-number').append(`<option value="${pn.id}">${pn.name}</option>`);
+            });
+        }
+        if (data.technologies) {
+            data.technologies.forEach(tech => {
+                $('#purchase-filter-technology').append(`<option value="${tech.id}">${tech.name}</option>`);
+            });
+        }
+        if (data.grades) {
+            data.grades.forEach(grade => {
+                $('#purchase-filter-grade').append(`<option value="${grade.id}">${grade.name}</option>`);
+            });
+        }
+        if (data.volts) {
+            data.volts.forEach(volt => {
+                $('#purchase-filter-volt').append(`<option value="${volt.id}">${volt.name}</option>`);
+            });
+        }
+        if (data.ccas) {
+            data.ccas.forEach(cca => {
+                $('#purchase-filter-cca').append(`<option value="${cca.id}">${cca.name}</option>`);
+            });
+        }
+        if (data.suppliers) {
+            data.suppliers.forEach(supplier => {
+                $('#purchase-filter-supplier').append(`<option value="${supplier}">${supplier}</option>`);
+            });
+        }
+        if (data.racks) {
+            data.racks.forEach(rack => {
+                $('#purchase-filter-rack').append(`<option value="${rack}">${rack}</option>`);
+            });
+        }
+    }
+    
+    // Live search with debounce
+    purchaseSearchInput.on('input', function() {
+        const query = $(this).val().trim();
+        purchaseClearSearchBtn.toggleClass('d-none', !query);
+        
+        clearTimeout(purchaseSearchTimeout);
+        purchaseSearchTimeout = setTimeout(function() {
+            if (query.length >= 2 || Object.keys(purchaseActiveFilters).length > 0) {
+                performPurchaseSearch();
+            } else {
+                purchaseResultsContainer.html(`
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                        <p>Start typing to search items or use filters above</p>
+                    </div>
+                `);
+            }
+        }, 500);
+    });
+    
+    // Clear search
+    purchaseClearSearchBtn.on('click', function() {
+        purchaseSearchInput.val('');
+        $(this).addClass('d-none');
+        performPurchaseSearch();
+    });
+    
+    // Filter chip clicks
+    $('.filter-chip').on('click', function() {
+        const filter = $(this).data('filter');
+        const value = $(this).data('value');
+        
+        if ($(this).hasClass('active')) {
+            $(this).removeClass('active');
+            delete purchaseActiveFilters[filter];
+        } else {
+            $('.filter-chip[data-filter="' + filter + '"]').removeClass('active');
+            $(this).addClass('active');
+            purchaseActiveFilters[filter] = value;
+        }
+        
+        updatePurchaseClearAllButton();
+        performPurchaseSearch();
+    });
+    
+    // Advanced filter changes
+    $('#purchase-filter-category, #purchase-filter-manufacturer, #purchase-filter-part-number, #purchase-filter-technology, #purchase-filter-grade, #purchase-filter-volt, #purchase-filter-cca, #purchase-filter-supplier, #purchase-filter-rack, #purchase-filter-min-price, #purchase-filter-max-price').on('change input', function() {
+        const filterId = $(this).attr('id').replace('purchase-filter-', '').replace('-', '_');
+        const value = $(this).val();
+        
+        if (value) {
+            purchaseActiveFilters[filterId] = value;
+        } else {
+            delete purchaseActiveFilters[filterId];
+        }
+        
+        updatePurchaseClearAllButton();
+        performPurchaseSearch();
+    });
+    
+    // Toggle advanced filters
+    purchaseAdvancedFiltersToggle.on('click', function() {
+        $('#purchaseAdvancedFiltersPanel').collapse('toggle');
+    });
+    
+    // Clear all filters
+    purchaseClearAllFiltersBtn.on('click', function() {
+        purchaseActiveFilters = {};
+        $('.filter-chip').removeClass('active');
+        $('#purchase-filter-category, #purchase-filter-manufacturer, #purchase-filter-part-number, #purchase-filter-technology, #purchase-filter-grade, #purchase-filter-volt, #purchase-filter-cca, #purchase-filter-supplier, #purchase-filter-rack').val('');
+        $('#purchase-filter-min-price, #purchase-filter-max-price').val('');
+        purchaseSearchInput.val('');
+        purchaseClearSearchBtn.addClass('d-none');
+        updatePurchaseClearAllButton();
+        performPurchaseSearch();
+    });
+    
+    // Update clear all button visibility
+    function updatePurchaseClearAllButton() {
+        const hasFilters = Object.keys(purchaseActiveFilters).length > 0 || purchaseSearchInput.val().trim().length > 0;
+        purchaseClearAllFiltersBtn.toggleClass('d-none', !hasFilters);
+    }
+    
+    // Perform search
+    function performPurchaseSearch() {
+        const query = purchaseSearchInput.val().trim();
+        
+        // Build search params
+        const params = {
+            q: query,
+            limit: 50
+        };
+        
+        // Add active filters
+        Object.keys(purchaseActiveFilters).forEach(key => {
+            params[key] = purchaseActiveFilters[key];
+        });
+        
+        // Show loading
+        purchaseResultsContainer.hide();
+        purchaseNoResults.hide();
+        purchaseLoadingResults.show();
+        
+        // Perform AJAX search
+        $.ajax({
+            url: "{{ route('purchases.items.ajax.search') }}",
+            data: params,
+            success: function(items) {
+                purchaseLoadingResults.hide();
+                
+                if (items.length === 0) {
+                    purchaseNoResults.show();
+                    purchaseResultsContainer.hide();
+                    return;
+                }
+                
+                purchaseNoResults.hide();
+                purchaseResultsContainer.show();
+                
+                let html = '';
+                const searchTerm = query.toLowerCase();
+                const regex = searchTerm ? new RegExp(searchTerm.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'gi') : null;
+                
+                items.forEach(item => {
+                    const partNumber = item.partnumber_item?.name || 'N/A';
+                    const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
+                    const model = item.vehical_item?.model_vehical?.name || '';
+                    const yearFrom = item.vehical_item?.year_from || '';
+                    const yearTo = item.vehical_item?.year_to || '';
+                    const yearDisplay = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : (yearFrom || yearTo || '');
+                    const price = item.packing_purchase_rate || item.sale_price || 0;
+                    const stock = item.on_hand || 0;
+                    const barCode = item.bar_code || '';
+                    const serialNumber = item.serial_number || '';
+                    
+                    // Highlight search term
+                    let displayPartNumber = partNumber;
+                    let displayManufacturer = manufacturer;
+                    let displayModel = model;
+                    let displayYear = yearDisplay;
+                    
+                    if (regex) {
+                        displayPartNumber = partNumber.replace(regex, match => `<mark>${match}</mark>`);
+                        displayManufacturer = manufacturer.replace(regex, match => `<mark>${match}</mark>`);
+                        displayModel = model.replace(regex, match => `<mark>${match}</mark>`);
+                        displayYear = yearDisplay.replace(regex, match => `<mark>${match}</mark>`);
+                    }
+                    
+                    html += `
+                        <div class="item-card" data-id="${item.id}" 
+                             data-name="${partNumber.replace(/"/g, '&quot;')}"
+                             data-price="${price}"
+                             data-stock="${stock}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold">${displayPartNumber}</h6>
+                                    <div class="small text-muted mb-2">
+                                        ${displayManufacturer ? displayManufacturer + ' ' : ''}${displayModel}${displayYear ? ' (' + displayYear + ')' : ''}
+                                    </div>
+                                    <div class="d-flex gap-3 small">
+                                        ${barCode ? `<span><i class="fas fa-barcode me-1"></i>${barCode}</span>` : ''}
+                                        ${serialNumber ? `<span><i class="fas fa-hashtag me-1"></i>${serialNumber}</span>` : ''}
+                                        <span class="text-${stock > 0 ? 'success' : 'danger'}">
+                                            <i class="fas fa-box me-1"></i>Stock: ${stock}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary mb-1">Rs ${parseFloat(price).toFixed(2)}</div>
+                                    <button class="btn btn-sm btn-primary purchase-add-item-btn">
+                                        <i class="fas fa-plus me-1"></i>Select
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                purchaseResultsContainer.html(html);
+                
+                // Update stock info
+                updatePurchaseStockInfo(items);
+            },
+            error: function(xhr) {
+                purchaseLoadingResults.hide();
+                console.error('Search error:', xhr);
+                purchaseResultsContainer.html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading items. Please try again.
+                    </div>
+                `);
+            }
+        });
+    }
+    
+    // Update stock info
+    function updatePurchaseStockInfo(items) {
+        let warehouseStock = 0;
+        let shopStock = 0;
+        
+        items.forEach(item => {
+            const stock = item.on_hand || 0;
+            warehouseStock += stock * 0.7;
+            shopStock += stock * 0.3;
+        });
+        
+        $('#purchase-warehouse-stock').text(Math.round(warehouseStock) + ' Units');
+        $('#purchase-shop-stock').text(Math.round(shopStock) + ' Units');
+    }
+    
+    // Add item to purchase detail modal
+    $(document).on('click', '.item-card, .purchase-add-item-btn', function(e) {
+        e.stopPropagation();
+        const card = $(this).closest('.item-card');
+        const itemId = card.data('id');
+        const itemName = card.data('name');
+        const itemPrice = card.data('price');
+        
+        // Close search modal
+        purchaseSearchModal.modal('hide');
+        
+        // Load item details and open detail modal
+        loadItemDetails(itemId);
+        
+        // Open detail modal
+        $('#add-item-modal').modal('show');
+    });
+    // ========== End YouTube-Style Search Modal ==========
 
     // Supplier change handler
     $('#supplier_id').on('change', function() {
@@ -371,55 +885,8 @@ $(document).ready(function() {
     }
     window.selectBranch = selectBranch;
 
-    // Item search
-    let searchTimeout;
-    $('#item-search').on('input', function() {
-        const search = $(this).val();
-        
-        clearTimeout(searchTimeout);
-        if (search.length < 2) {
-            $('#search-results').hide();
-            return;
-        }
-
-        searchTimeout = setTimeout(function() {
-            $.ajax({
-                url: '{{ route("purchases.items.search") }}',
-                method: 'GET',
-                data: { search: search },
-                success: function(response) {
-                    displaySearchResults(response);
-                }
-            });
-        }, 300);
-    });
-
-    function displaySearchResults(items) {
-        const resultsList = $('#search-results-list');
-        resultsList.empty();
-
-        if (items.length === 0) {
-            resultsList.append('<li class="list-group-item">No items found</li>');
-        } else {
-            items.forEach(function(item) {
-                const name = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                resultsList.append(
-                    '<li class="list-group-item list-group-item-action" style="cursor: pointer;" data-id="' + item.id + '">' +
-                    '<strong>' + name + '</strong><br>' +
-                    '<small class="text-muted">Stock: ' + (item.on_hand || 0) + ' | Rate: Rs ' + (item.packing_purchase_rate || 0).toFixed(2) + '</small>' +
-                    '</li>'
-                );
-            });
-        }
-
-        $('#search-results').show();
-    }
-
-    // Select item from search results
-    $(document).on('click', '#search-results-list li', function() {
-        const itemId = $(this).data('id');
-        loadItemDetails(itemId);
-    });
+    // Item search (old method - kept for backward compatibility if needed)
+    // Now using YouTube-style search modal above
 
     // Load item details
     function loadItemDetails(itemId) {
