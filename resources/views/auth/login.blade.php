@@ -146,24 +146,27 @@
                                 let isUserRole = false;
                                 
                                 if (emailInput && branchSelect && branchSelectionDiv) {
-                                    // Auto-detect branch when email is entered
-                                    emailInput.addEventListener('blur', function() {
+                                    // Auto-detect branch when email is entered (on input change)
+                                    emailInput.addEventListener('input', function() {
                                         const email = this.value.trim();
                                         
                                         if (!email || !email.includes('@')) {
                                             branchSelectionDiv.style.display = 'none';
+                                            branchSelect.disabled = false;
+                                            branchSelect.value = '';
                                             return;
                                         }
                                         
-                                        // Show loading message
+                                        // Show loading message immediately
                                         branchAutoDetectMsg.style.display = 'block';
                                         branchInfoMsg.style.display = 'none';
                                         branchSelectionDiv.style.display = 'block';
+                                        branchSelect.disabled = true; // Disable while loading
                                         
                                         // Clear previous timer
                                         clearTimeout(debounceTimer);
                                         
-                                        // Debounce API call
+                                        // Fast debounce - 800ms (less than 1 second)
                                         debounceTimer = setTimeout(function() {
                                             // Make AJAX request to get user's branch
                                             fetch('{{ route("get.user.branch") }}', {
@@ -183,10 +186,11 @@
                                                 
                                                 if (data.success) {
                                                     if (data.is_admin) {
-                                                        // Admin user - branch is OPTIONAL
+                                                        // Admin user - branch is OPTIONAL and ENABLED
                                                         isUserRole = false;
                                                         branchRequiredStar.style.display = 'none';
                                                         branchSelect.removeAttribute('required');
+                                                        branchSelect.disabled = false; // Enable for admin
                                                         branchOptionalText.textContent = '(Optional for Admin)';
                                                         branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - Branch selection is optional';
                                                         branchInfoMsg.style.display = 'block';
@@ -198,23 +202,37 @@
                                                             branchSelect.value = data.branch_id;
                                                         }
                                                     } else if (data.branch_id && data.branch_required) {
-                                                        // Normal user - branch is REQUIRED
+                                                        // Normal user - branch is REQUIRED and AUTO-SELECTED (DISABLED)
                                                         isUserRole = true;
                                                         branchRequiredStar.style.display = 'inline';
                                                         branchSelect.setAttribute('required', 'required');
-                                                        branchOptionalText.textContent = '(Required - Auto-detected)';
                                                         branchSelect.value = data.branch_id;
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Login will proceed';
+                                                        branchSelect.disabled = true; // DISABLE for user - read only
+                                                        branchSelect.style.backgroundColor = '#e9ecef';
+                                                        branchSelect.style.cursor = 'not-allowed';
+                                                        branchOptionalText.textContent = '(Auto-selected - Required)';
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Ready to login';
                                                         branchInfoMsg.style.display = 'block';
                                                         branchInfoMsg.classList.remove('text-danger', 'text-info');
                                                         branchInfoMsg.classList.add('text-success');
+                                                        
+                                                        // Focus on password field
+                                                        setTimeout(function() {
+                                                            const passwordInput = document.querySelector('input[name="password"]');
+                                                            if (passwordInput) {
+                                                                passwordInput.focus();
+                                                            }
+                                                        }, 100);
                                                     } else {
                                                         // User has no branch
                                                         isUserRole = true;
                                                         branchRequiredStar.style.display = 'inline';
                                                         branchSelect.setAttribute('required', 'required');
-                                                        branchOptionalText.textContent = '(Required)';
+                                                        branchSelect.disabled = false; // Enable to allow manual selection if needed
+                                                        branchSelect.style.backgroundColor = '';
+                                                        branchSelect.style.cursor = '';
                                                         branchSelect.value = '';
+                                                        branchOptionalText.textContent = '(Required)';
                                                         branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> ' + (data.message || 'No active branch found. Please contact administrator.');
                                                         branchInfoMsg.style.display = 'block';
                                                         branchInfoMsg.classList.remove('text-success', 'text-info');
@@ -223,6 +241,8 @@
                                                 } else {
                                                     // Error or user not found
                                                     branchSelectionDiv.style.display = 'none';
+                                                    branchSelect.disabled = false;
+                                                    branchSelect.value = '';
                                                     branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> ' + (data.message || 'Could not detect branch');
                                                     branchInfoMsg.style.display = 'block';
                                                 }
@@ -230,11 +250,20 @@
                                             .catch(error => {
                                                 console.error('Error:', error);
                                                 branchAutoDetectMsg.style.display = 'none';
+                                                branchSelect.disabled = false;
                                                 branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Error detecting branch';
                                                 branchInfoMsg.style.display = 'block';
                                                 branchInfoMsg.classList.add('text-danger');
                                             });
-                                        }, 500); // 500ms debounce
+                                        }, 800); // 800ms debounce (less than 1 second for faster response)
+                                    });
+                                    
+                                    // Also trigger on blur (when user leaves email field)
+                                    emailInput.addEventListener('blur', function() {
+                                        if (this.value.trim() && this.value.includes('@')) {
+                                            // Trigger the same logic
+                                            this.dispatchEvent(new Event('input'));
+                                        }
                                     });
                                     
                                     // Form validation - prevent login if user role and no branch selected
@@ -247,6 +276,7 @@
                                                 branchInfoMsg.style.display = 'block';
                                                 branchInfoMsg.classList.remove('text-success', 'text-info');
                                                 branchInfoMsg.classList.add('text-danger');
+                                                branchSelect.disabled = false; // Enable to show error
                                                 branchSelect.focus();
                                                 return false;
                                             }
@@ -255,7 +285,9 @@
                                     
                                     // If email is pre-filled (from old() helper), auto-detect on page load
                                     @if(old('email'))
-                                        emailInput.dispatchEvent(new Event('blur'));
+                                        setTimeout(function() {
+                                            emailInput.dispatchEvent(new Event('input'));
+                                        }, 500);
                                     @endif
                                 }
                             });
