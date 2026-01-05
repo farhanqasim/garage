@@ -57,6 +57,8 @@
                                                 </select>
                                                 <span class="input-group-text border-start-0"><i class="ti ti-building"></i></span>
                                             </div>
+                                            <!-- Hidden input to ensure branch_id is submitted even when select is disabled -->
+                                            <input type="hidden" name="branch_id_hidden" id="branchIdHidden" value="">
                                             <small class="text-muted" id="branchInfoMsg">
                                                 Enter your email above to auto-detect your branch
                                             </small>
@@ -202,19 +204,43 @@
                                                             branchSelect.value = data.branch_id;
                                                         }
                                                     } else if (data.branch_id && data.branch_required) {
-                                                        // Normal user - branch is REQUIRED and AUTO-SELECTED (DISABLED)
+                                                        // Normal user - branch is REQUIRED and AUTO-SELECTED
                                                         isUserRole = true;
                                                         branchRequiredStar.style.display = 'inline';
-                                                        branchSelect.setAttribute('required', 'required');
                                                         branchSelect.value = data.branch_id;
-                                                        branchSelect.disabled = true; // DISABLE for user - read only
+                                                        
+                                                        // Keep select enabled but prevent changes (so value submits)
+                                                        branchSelect.disabled = false; // Keep enabled so value submits
                                                         branchSelect.style.backgroundColor = '#e9ecef';
                                                         branchSelect.style.cursor = 'not-allowed';
+                                                        branchSelect.setAttribute('readonly', 'readonly'); // Visual indicator
+                                                        
+                                                        // Prevent user from changing the value
+                                                        branchSelect.addEventListener('mousedown', function(e) {
+                                                            e.preventDefault();
+                                                            return false;
+                                                        });
+                                                        branchSelect.addEventListener('keydown', function(e) {
+                                                            if (e.key !== 'Tab' && e.key !== 'Enter') {
+                                                                e.preventDefault();
+                                                                return false;
+                                                            }
+                                                        });
+                                                        
+                                                        // Set hidden input value as backup
+                                                        const branchIdHidden = document.getElementById('branchIdHidden');
+                                                        if (branchIdHidden) {
+                                                            branchIdHidden.value = data.branch_id;
+                                                        }
+                                                        
                                                         branchOptionalText.textContent = '(Auto-selected - Required)';
                                                         branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Ready to login';
                                                         branchInfoMsg.style.display = 'block';
                                                         branchInfoMsg.classList.remove('text-danger', 'text-info');
                                                         branchInfoMsg.classList.add('text-success');
+                                                        
+                                                        // Remove any error messages
+                                                        branchSelect.classList.remove('is-invalid');
                                                         
                                                         // Focus on password field
                                                         setTimeout(function() {
@@ -269,16 +295,28 @@
                                     // Form validation - prevent login if user role and no branch selected
                                     if (loginForm) {
                                         loginForm.addEventListener('submit', function(e) {
-                                            if (isUserRole && !branchSelect.value) {
+                                            // Get branch value from select (it's enabled so value will be there)
+                                            const branchValue = branchSelect.value;
+                                            
+                                            if (isUserRole && !branchValue) {
                                                 e.preventDefault();
                                                 branchSelect.classList.add('is-invalid');
                                                 branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Branch selection is required for user login!';
                                                 branchInfoMsg.style.display = 'block';
                                                 branchInfoMsg.classList.remove('text-success', 'text-info');
                                                 branchInfoMsg.classList.add('text-danger');
-                                                branchSelect.disabled = false; // Enable to show error
+                                                branchSelect.style.backgroundColor = '';
+                                                branchSelect.style.cursor = '';
+                                                branchSelect.removeAttribute('readonly');
                                                 branchSelect.focus();
                                                 return false;
+                                            }
+                                            
+                                            // Ensure branch value is set (should already be set)
+                                            if (isUserRole && branchValue) {
+                                                // Value is already in select field, it will submit automatically
+                                                // Remove readonly attribute if present (doesn't affect submission)
+                                                branchSelect.removeAttribute('readonly');
                                             }
                                         });
                                     }
