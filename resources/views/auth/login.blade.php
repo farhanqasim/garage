@@ -36,15 +36,16 @@
                                             @enderror
                                         </div>
 
-                                        <!-- Branch Selection (Only show if branches exist) -->
+                                        <!-- Branch Selection (Hidden by default, shown based on user role) -->
                                         @if(isset($branches) && $branches->count() > 0)
-                                        <div class="mb-3" id="branchSelectionDiv">
+                                        <div class="mb-3" id="branchSelectionDiv" style="display: none;">
                                             <label class="form-label">Branch 
-                                                <small class="text-muted">(Auto-detected from your email)</small>
+                                                <span class="text-danger" id="branchRequiredStar" style="display: none;">*</span>
+                                                <small class="text-muted" id="branchOptionalText">(Auto-detected from your email)</small>
                                             </label>
                                             <div class="input-group">
                                                 <select name="branch_id" class="form-control border-end-0 @error('branch_id') is-invalid @enderror" id="branchSelect">
-                                                    <option value="">-- Select Branch (Optional) --</option>
+                                                    <option value="">-- Select Branch --</option>
                                                     @foreach($branches as $branch)
                                                         <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
                                                             {{ $branch->branch_name }}
@@ -60,7 +61,7 @@
                                                 Enter your email above to auto-detect your branch
                                             </small>
                                             @error('branch_id')
-                                                <span class="text-danger small">{{ $message }}</span>
+                                                <span class="text-danger small d-block mt-1">{{ $message }}</span>
                                             @enderror
                                         </div>
                                         @endif
@@ -134,23 +135,30 @@
                             document.addEventListener('DOMContentLoaded', function() {
                                 const emailInput = document.getElementById('emailInput');
                                 const branchSelect = document.getElementById('branchSelect');
+                                const branchSelectionDiv = document.getElementById('branchSelectionDiv');
                                 const branchInfoMsg = document.getElementById('branchInfoMsg');
                                 const branchAutoDetectMsg = document.getElementById('branchAutoDetectMsg');
+                                const branchRequiredStar = document.getElementById('branchRequiredStar');
+                                const branchOptionalText = document.getElementById('branchOptionalText');
+                                const loginForm = document.querySelector('form[method="POST"]');
                                 
                                 let debounceTimer;
+                                let isUserRole = false;
                                 
-                                if (emailInput && branchSelect) {
+                                if (emailInput && branchSelect && branchSelectionDiv) {
                                     // Auto-detect branch when email is entered
                                     emailInput.addEventListener('blur', function() {
                                         const email = this.value.trim();
                                         
                                         if (!email || !email.includes('@')) {
+                                            branchSelectionDiv.style.display = 'none';
                                             return;
                                         }
                                         
                                         // Show loading message
                                         branchAutoDetectMsg.style.display = 'block';
                                         branchInfoMsg.style.display = 'none';
+                                        branchSelectionDiv.style.display = 'block';
                                         
                                         // Clear previous timer
                                         clearTimeout(debounceTimer);
@@ -171,30 +179,52 @@
                                             .then(response => response.json())
                                             .then(data => {
                                                 branchAutoDetectMsg.style.display = 'none';
+                                                branchSelectionDiv.style.display = 'block';
                                                 
                                                 if (data.success) {
-                                                    if (data.branch_id) {
-                                                        // User has a branch - auto-select it
-                                                        branchSelect.value = data.branch_id;
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong>';
-                                                        branchInfoMsg.style.display = 'block';
-                                                        branchInfoMsg.classList.remove('text-danger');
-                                                        branchInfoMsg.classList.add('text-success');
-                                                    } else if (data.is_admin && data.branches) {
-                                                        // Admin user - show all branches
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - You can select any branch';
+                                                    if (data.is_admin) {
+                                                        // Admin user - branch is OPTIONAL
+                                                        isUserRole = false;
+                                                        branchRequiredStar.style.display = 'none';
+                                                        branchSelect.removeAttribute('required');
+                                                        branchOptionalText.textContent = '(Optional for Admin)';
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - Branch selection is optional';
                                                         branchInfoMsg.style.display = 'block';
                                                         branchInfoMsg.classList.remove('text-danger', 'text-success');
                                                         branchInfoMsg.classList.add('text-info');
+                                                        
+                                                        // Auto-select if branch_id provided
+                                                        if (data.branch_id) {
+                                                            branchSelect.value = data.branch_id;
+                                                        }
+                                                    } else if (data.branch_id && data.branch_required) {
+                                                        // Normal user - branch is REQUIRED
+                                                        isUserRole = true;
+                                                        branchRequiredStar.style.display = 'inline';
+                                                        branchSelect.setAttribute('required', 'required');
+                                                        branchOptionalText.textContent = '(Required - Auto-detected)';
+                                                        branchSelect.value = data.branch_id;
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Login will proceed';
+                                                        branchInfoMsg.style.display = 'block';
+                                                        branchInfoMsg.classList.remove('text-danger', 'text-info');
+                                                        branchInfoMsg.classList.add('text-success');
                                                     } else {
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> No branch found for this email';
+                                                        // User has no branch
+                                                        isUserRole = true;
+                                                        branchRequiredStar.style.display = 'inline';
+                                                        branchSelect.setAttribute('required', 'required');
+                                                        branchOptionalText.textContent = '(Required)';
+                                                        branchSelect.value = '';
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> ' + (data.message || 'No active branch found. Please contact administrator.');
                                                         branchInfoMsg.style.display = 'block';
                                                         branchInfoMsg.classList.remove('text-success', 'text-info');
+                                                        branchInfoMsg.classList.add('text-danger');
                                                     }
                                                 } else {
+                                                    // Error or user not found
+                                                    branchSelectionDiv.style.display = 'none';
                                                     branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> ' + (data.message || 'Could not detect branch');
                                                     branchInfoMsg.style.display = 'block';
-                                                    branchInfoMsg.classList.remove('text-success', 'text-info');
                                                 }
                                             })
                                             .catch(error => {
@@ -206,6 +236,22 @@
                                             });
                                         }, 500); // 500ms debounce
                                     });
+                                    
+                                    // Form validation - prevent login if user role and no branch selected
+                                    if (loginForm) {
+                                        loginForm.addEventListener('submit', function(e) {
+                                            if (isUserRole && !branchSelect.value) {
+                                                e.preventDefault();
+                                                branchSelect.classList.add('is-invalid');
+                                                branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Branch selection is required for user login!';
+                                                branchInfoMsg.style.display = 'block';
+                                                branchInfoMsg.classList.remove('text-success', 'text-info');
+                                                branchInfoMsg.classList.add('text-danger');
+                                                branchSelect.focus();
+                                                return false;
+                                            }
+                                        });
+                                    }
                                     
                                     // If email is pre-filled (from old() helper), auto-detect on page load
                                     @if(old('email'))
