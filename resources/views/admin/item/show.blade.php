@@ -19,6 +19,100 @@
         </div>
     </div>
 
+    <!-- WhatsApp Share Input Section (Hidden by default) -->
+    <div id="whatsappShareSection" class="card mb-3" style="display: none;">
+        <div class="card-body">
+            <h6 class="mb-3">
+                <i class="ti ti-brand-whatsapp me-2"></i>Enter Phone Number to Share on WhatsApp
+            </h6>
+            <form id="whatsappShareForm">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label for="countryCode" class="form-label small">Country Code <span class="text-danger">*</span></label>
+                        <select class="form-select" id="countryCode" name="countryCode">
+                            <option value="1">🇺🇸 +1 (US/CA)</option>
+                            <option value="44">🇬🇧 +44 (UK)</option>
+                            <option value="91">🇮🇳 +91 (India)</option>
+                            <option value="92" selected>🇵🇰 +92 (Pakistan)</option>
+                            <option value="971">🇦🇪 +971 (UAE)</option>
+                            <option value="966">🇸🇦 +966 (Saudi)</option>
+                            <option value="974">🇶🇦 +974 (Qatar)</option>
+                            <option value="965">🇰🇼 +965 (Kuwait)</option>
+                            <option value="973">🇧🇭 +973 (Bahrain)</option>
+                            <option value="968">🇴🇲 +968 (Oman)</option>
+                            <option value="961">🇱🇧 +961 (Lebanon)</option>
+                            <option value="20">🇪🇬 +20 (Egypt)</option>
+                            <option value="27">🇿🇦 +27 (South Africa)</option>
+                            <option value="49">🇩🇪 +49 (Germany)</option>
+                            <option value="33">🇫🇷 +33 (France)</option>
+                            <option value="39">🇮🇹 +39 (Italy)</option>
+                            <option value="34">🇪🇸 +34 (Spain)</option>
+                            <option value="31">🇳🇱 +31 (Netherlands)</option>
+                            <option value="32">🇧🇪 +32 (Belgium)</option>
+                            <option value="41">🇨🇭 +41 (Switzerland)</option>
+                            <option value="43">🇦🇹 +43 (Austria)</option>
+                            <option value="46">🇸🇪 +46 (Sweden)</option>
+                            <option value="47">🇳🇴 +47 (Norway)</option>
+                            <option value="45">🇩🇰 +45 (Denmark)</option>
+                            <option value="358">🇫🇮 +358 (Finland)</option>
+                            <option value="353">🇮🇪 +353 (Ireland)</option>
+                            <option value="351">🇵🇹 +351 (Portugal)</option>
+                            <option value="30">🇬🇷 +30 (Greece)</option>
+                            <option value="48">🇵🇱 +48 (Poland)</option>
+                            <option value="420">🇨🇿 +420 (Czech)</option>
+                            <option value="36">🇭🇺 +36 (Hungary)</option>
+                            <option value="40">🇷🇴 +40 (Romania)</option>
+                            <option value="7">🇷🇺 +7 (Russia)</option>
+                            <option value="81">🇯🇵 +81 (Japan)</option>
+                            <option value="82">🇰🇷 +82 (South Korea)</option>
+                            <option value="86">🇨🇳 +86 (China)</option>
+                            <option value="852">🇭🇰 +852 (Hong Kong)</option>
+                            <option value="65">🇸🇬 +65 (Singapore)</option>
+                            <option value="60">🇲🇾 +60 (Malaysia)</option>
+                            <option value="62">🇮🇩 +62 (Indonesia)</option>
+                            <option value="66">🇹🇭 +66 (Thailand)</option>
+                            <option value="84">🇻🇳 +84 (Vietnam)</option>
+                            <option value="63">🇵🇭 +63 (Philippines)</option>
+                            <option value="61">🇦🇺 +61 (Australia)</option>
+                            <option value="64">🇳🇿 +64 (New Zealand)</option>
+                            <option value="55">🇧🇷 +55 (Brazil)</option>
+                            <option value="52">🇲🇽 +52 (Mexico)</option>
+                            <option value="54">🇦🇷 +54 (Argentina)</option>
+                            <option value="56">🇨🇱 +56 (Chile)</option>
+                            <option value="57">🇨🇴 +57 (Colombia)</option>
+                            <option value="51">🇵🇪 +51 (Peru)</option>
+                            <option value="90">🇹🇷 +90 (Turkey)</option>
+                            <option value="98">🇮🇷 +98 (Iran)</option>
+                            <option value="212">🇲🇦 +212 (Morocco)</option>
+                            <option value="213">🇩🇿 +213 (Algeria)</option>
+                            <option value="216">🇹🇳 +216 (Tunisia)</option>
+                            <option value="254">🇰🇪 +254 (Kenya)</option>
+                            <option value="234">🇳🇬 +234 (Nigeria)</option>
+                            <option value="233">🇬🇭 +233 (Ghana)</option>
+                            <option value="256">🇺🇬 +256 (Uganda)</option>
+                            <option value="255">🇹🇿 +255 (Tanzania)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="phoneNumber" class="form-label small">Phone Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" 
+                            placeholder="3001234567" required pattern="[0-9]{7,12}">
+                        <small class="text-muted">Enter phone number without country code</small>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-success w-100" id="generateAndShareBtn">
+                            <i class="ti ti-brand-whatsapp me-1"></i> Generate PDF & Share
+                        </button>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="ti ti-info-circle me-2"></i>
+                    <strong>Item:</strong> {{ $item->product_item->name ?? 'N/A' }} will be converted to PDF and shared on WhatsApp
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="row">
         <!-- Left Side - Details -->
         <div class="col-lg-8 col-sm-12">
@@ -486,104 +580,6 @@
     </div>
 </div>
 
-<!-- WhatsApp Share Modal -->
-<div class="modal fade" id="whatsappShareModal" tabindex="-1" aria-labelledby="whatsappShareModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="whatsappShareModalLabel">
-                    <i class="ti ti-brand-whatsapp me-2"></i>Share on WhatsApp
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="whatsappShareForm">
-                    <div class="mb-3">
-                        <label for="phoneNumber" class="form-label">Phone Number <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <select class="form-select" id="countryCode" name="countryCode" style="max-width: 150px;">
-                                <option value="1">🇺🇸 +1 (US/CA)</option>
-                                <option value="44">🇬🇧 +44 (UK)</option>
-                                <option value="91">🇮🇳 +91 (India)</option>
-                                <option value="92" selected>🇵🇰 +92 (Pakistan)</option>
-                                <option value="971">🇦🇪 +971 (UAE)</option>
-                                <option value="966">🇸🇦 +966 (Saudi)</option>
-                                <option value="974">🇶🇦 +974 (Qatar)</option>
-                                <option value="965">🇰🇼 +965 (Kuwait)</option>
-                                <option value="973">🇧🇭 +973 (Bahrain)</option>
-                                <option value="968">🇴🇲 +968 (Oman)</option>
-                                <option value="961">🇱🇧 +961 (Lebanon)</option>
-                                <option value="20">🇪🇬 +20 (Egypt)</option>
-                                <option value="27">🇿🇦 +27 (South Africa)</option>
-                                <option value="49">🇩🇪 +49 (Germany)</option>
-                                <option value="33">🇫🇷 +33 (France)</option>
-                                <option value="39">🇮🇹 +39 (Italy)</option>
-                                <option value="34">🇪🇸 +34 (Spain)</option>
-                                <option value="31">🇳🇱 +31 (Netherlands)</option>
-                                <option value="32">🇧🇪 +32 (Belgium)</option>
-                                <option value="41">🇨🇭 +41 (Switzerland)</option>
-                                <option value="43">🇦🇹 +43 (Austria)</option>
-                                <option value="46">🇸🇪 +46 (Sweden)</option>
-                                <option value="47">🇳🇴 +47 (Norway)</option>
-                                <option value="45">🇩🇰 +45 (Denmark)</option>
-                                <option value="358">🇫🇮 +358 (Finland)</option>
-                                <option value="353">🇮🇪 +353 (Ireland)</option>
-                                <option value="351">🇵🇹 +351 (Portugal)</option>
-                                <option value="30">🇬🇷 +30 (Greece)</option>
-                                <option value="48">🇵🇱 +48 (Poland)</option>
-                                <option value="420">🇨🇿 +420 (Czech)</option>
-                                <option value="36">🇭🇺 +36 (Hungary)</option>
-                                <option value="40">🇷🇴 +40 (Romania)</option>
-                                <option value="7">🇷🇺 +7 (Russia)</option>
-                                <option value="81">🇯🇵 +81 (Japan)</option>
-                                <option value="82">🇰🇷 +82 (South Korea)</option>
-                                <option value="86">🇨🇳 +86 (China)</option>
-                                <option value="852">🇭🇰 +852 (Hong Kong)</option>
-                                <option value="65">🇸🇬 +65 (Singapore)</option>
-                                <option value="60">🇲🇾 +60 (Malaysia)</option>
-                                <option value="62">🇮🇩 +62 (Indonesia)</option>
-                                <option value="66">🇹🇭 +66 (Thailand)</option>
-                                <option value="84">🇻🇳 +84 (Vietnam)</option>
-                                <option value="63">🇵🇭 +63 (Philippines)</option>
-                                <option value="61">🇦🇺 +61 (Australia)</option>
-                                <option value="64">🇳🇿 +64 (New Zealand)</option>
-                                <option value="55">🇧🇷 +55 (Brazil)</option>
-                                <option value="52">🇲🇽 +52 (Mexico)</option>
-                                <option value="54">🇦🇷 +54 (Argentina)</option>
-                                <option value="56">🇨🇱 +56 (Chile)</option>
-                                <option value="57">🇨🇴 +57 (Colombia)</option>
-                                <option value="51">🇵🇪 +51 (Peru)</option>
-                                <option value="90">🇹🇷 +90 (Turkey)</option>
-                                <option value="98">🇮🇷 +98 (Iran)</option>
-                                <option value="212">🇲🇦 +212 (Morocco)</option>
-                                <option value="213">🇩🇿 +213 (Algeria)</option>
-                                <option value="216">🇹🇳 +216 (Tunisia)</option>
-                                <option value="254">🇰🇪 +254 (Kenya)</option>
-                                <option value="234">🇳🇬 +234 (Nigeria)</option>
-                                <option value="233">🇬🇭 +233 (Ghana)</option>
-                                <option value="256">🇺🇬 +256 (Uganda)</option>
-                                <option value="255">🇹🇿 +255 (Tanzania)</option>
-                            </select>
-                            <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" 
-                                placeholder="3001234567" required pattern="[0-9]{7,12}">
-                        </div>
-                        <small class="text-muted">Enter phone number without country code (e.g., 3001234567)</small>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="ti ti-info-circle me-2"></i>
-                        <strong>Item:</strong> {{ $item->product_item->name ?? 'N/A' }} will be shared as PDF
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="generateAndShareBtn">
-                    <i class="ti ti-brand-whatsapp me-1"></i> Generate PDF & Share
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Initialize Owl Carousel -->
 @push('scripts')
@@ -601,49 +597,29 @@
             }
         });
         
-        // WhatsApp Share Button Click - Use event delegation
+        // WhatsApp Share Button Click - Toggle input section
         $(document).on('click', '#shareWhatsAppBtn', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            const modalElement = document.getElementById('whatsappShareModal');
-            if (!modalElement) {
-                console.error('WhatsApp modal not found');
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Modal not found. Please refresh the page.'
-                });
+            const shareSection = document.getElementById('whatsappShareSection');
+            if (!shareSection) {
+                console.error('WhatsApp share section not found');
                 return;
             }
             
-            try {
-                // Check if Bootstrap 5 is available
-                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                    const modal = new bootstrap.Modal(modalElement);
-                    modal.show();
-                } else if (typeof $('#whatsappShareModal').modal === 'function') {
-                    // Fallback for Bootstrap 4
-                    $('#whatsappShareModal').modal('show');
-                } else {
-                    $(modalElement).modal('show');
-                }
-                
-                // Focus on phone input after modal shows
+            // Toggle visibility
+            if (shareSection.style.display === 'none' || shareSection.style.display === '') {
+                shareSection.style.display = 'block';
+                // Focus on phone input after showing
                 setTimeout(function() {
                     const phoneInput = document.getElementById('phoneNumber');
                     if (phoneInput) {
                         phoneInput.focus();
-                        phoneInput.select();
                     }
-                }, 400);
-            } catch (error) {
-                console.error('Error showing modal:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Could not open modal. Please try again.'
-                });
+                }, 100);
+            } else {
+                shareSection.style.display = 'none';
             }
         });
         
@@ -707,27 +683,10 @@
                     const whatsappUrl = `https://wa.me/${fullPhoneNumber}?text=${encodeURIComponent(data.message)}`;
                     window.open(whatsappUrl, '_blank');
                     
-                    // Close modal - Try multiple methods
-                    const modalElement = document.getElementById('whatsappShareModal');
-                    if (modalElement) {
-                        try {
-                            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                                const modal = bootstrap.Modal.getInstance(modalElement);
-                                if (modal) {
-                                    modal.hide();
-                                } else {
-                                    const newModal = new bootstrap.Modal(modalElement);
-                                    newModal.hide();
-                                }
-                            } else if (typeof $('#whatsappShareModal').modal === 'function') {
-                                $('#whatsappShareModal').modal('hide');
-                            } else {
-                                $(modalElement).modal('hide');
-                            }
-                        } catch (error) {
-                            console.error('Error closing modal:', error);
-                            $(modalElement).hide();
-                        }
+                    // Hide the input section
+                    const shareSection = document.getElementById('whatsappShareSection');
+                    if (shareSection) {
+                        shareSection.style.display = 'none';
                     }
                     
                     // Reset form
