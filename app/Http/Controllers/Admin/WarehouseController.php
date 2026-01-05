@@ -14,6 +14,95 @@ use Illuminate\Support\Str;
 class WarehouseController extends Controller
 {
     /**
+     * Show form to create new warehouse
+     */
+    public function create()
+    {
+        $user = Auth::user();
+        
+        // Get branches that don't have a warehouse yet
+        if ($user->role === 'admin') {
+            $branches = Branch::where('status', 'active')
+                ->whereDoesntHave('warehouse')
+                ->orderBy('branch_name', 'asc')
+                ->get();
+        } else {
+            // Users can only create warehouse for their branch
+            $branchId = session('selected_branch_id');
+            $branches = Branch::where('id', $branchId)
+                ->where('status', 'active')
+                ->whereDoesntHave('warehouse')
+                ->get();
+        }
+
+        return view('admin.warehouses.create', compact('branches'));
+    }
+
+    /**
+     * Store new warehouse
+     */
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+        
+        $request->validate([
+            'branch_id' => 'required|exists:branches,id|unique:warehouses,branch_id',
+            'warehouse_name' => 'required|string|max:255',
+            'warehouse_code' => 'nullable|string|max:255|unique:warehouses,warehouse_code',
+            'address' => 'nullable|string',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'manager_name' => 'nullable|string|max:255',
+            'status' => 'required|in:active,inactive',
+            'notes' => 'nullable|string',
+        ]);
+
+        // Check if branch already has warehouse
+        $existingWarehouse = Warehouse::where('branch_id', $request->branch_id)->first();
+        if ($existingWarehouse) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'This branch already has a warehouse.');
+        }
+
+        // Check access for non-admin users
+        if ($user->role !== 'admin' && $request->branch_id != session('selected_branch_id')) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        // Auto-generate warehouse code if not provided
+        $warehouseCode = $request->warehouse_code;
+        if (!$warehouseCode) {
+            $warehouseCode = 'WH-' . strtoupper(Str::random(6));
+            // Ensure uniqueness
+            while (Warehouse::where('warehouse_code', $warehouseCode)->exists()) {
+                $warehouseCode = 'WH-' . strtoupper(Str::random(6));
+            }
+        }
+
+        $warehouse = Warehouse::create([
+            'branch_id' => $request->branch_id,
+            'warehouse_name' => $request->warehouse_name,
+            'warehouse_code' => $warehouseCode,
+            'address' => $request->address,
+            'city' => $request->city,
+            'state' => $request->state,
+            'country' => $request->country ?? 'Pakistan',
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'manager_name' => $request->manager_name,
+            'status' => $request->status,
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->route('warehouses.show', $warehouse->id)
+            ->with('success', 'Warehouse created successfully!');
+    }
+
+    /**
      * Display list of warehouses (branch-specific for users)
      */
     public function index()

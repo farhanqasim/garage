@@ -9,6 +9,11 @@
             <h4>Warehouses</h4>
             <h6>Manage branch warehouses</h6>
         </div>
+        <div class="page-btn">
+            <a href="{{ route('warehouses.create') }}" class="btn btn-primary">
+                <i class="ti ti-plus me-1"></i> Add New Warehouse
+            </a>
+        </div>
     </div>
 
     <div class="card">

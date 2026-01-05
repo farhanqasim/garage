@@ -165,6 +165,19 @@
                         </li>
                     </ul>
                 </li>
+                <li class="submenu-open">
+                    <h6 class="submenu-hdr">Warehouses</h6>
+                    <ul>
+                        <li><a href="{{ route('warehouses.index') }}">
+                                <i class="ti ti-archive fs-16 me-2"></i>
+                                <span>All Warehouses</span></a>
+                        </li>
+                        <li><a href="{{ route('warehouses.create') }}">
+                                <i class="ti ti-plus fs-16 me-2"></i>
+                                <span>Add New Warehouse</span></a>
+                        </li>
+                    </ul>
+                </li>
                 {{-- <li class="submenu-open">
                     <h6 class="submenu-hdr">System Users</h6>
                     <ul>

@@ -425,6 +425,8 @@ Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])-
 
 // warehouses
 Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.index')->middleware('auth');
+Route::get('warehouses/create',[WarehouseController::class,'create'])->name('warehouses.create')->middleware('auth');
+Route::post('warehouses',[WarehouseController::class,'store'])->name('warehouses.store')->middleware('auth');
 Route::get('warehouses/{id}',[WarehouseController::class,'show'])->name('warehouses.show')->middleware('auth');
 Route::get('warehouses/{id}/add-item',[WarehouseController::class,'addItem'])->name('warehouses.add-item')->middleware('auth');
 Route::post('warehouses/{id}/items',[WarehouseController::class,'storeItem'])->name('warehouses.store-item')->middleware('auth');
