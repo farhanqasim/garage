@@ -1,169 +1,182 @@
 @extends('layouts.app')
-@section('title', 'Add Purchase')
+
+@section('title', 'Create Purchase')
+
 @section('content')
 <div class="content">
     <div class="page-header">
-        <div class="add-item d-flex">
-            <div class="page-title">
-                <h2 class="fw-bold">Add Purchase</h2>
-            </div>
+        <div class="page-title">
+            <h4>Create Purchase</h4>
+            <h6>Add new purchase order</h6>
         </div>
-        <ul class="table-top-head">
-            <li><a href="{{ route('all_purchases') }}" data-bs-toggle="tooltip" data-bs-placement="top" title="Back"><i class="ti ti-arrow-left"></i></a></li>
-        </ul>
+        <div class="page-btn">
+            <a href="{{ route('all_purchases') }}" class="btn btn-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Back
+            </a>
+        </div>
     </div>
 
-    <div class="card">
-        <div class="card-body">
-            <form action="{{ route('purchases.store') }}" method="POST" id="purchaseForm">
-                @csrf
-                
-                <!-- Invoice Header -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center mb-3">
-                            <h5 class="mb-0 me-3">INVOICE NO.</h5>
-                            <span class="text-primary fw-bold fs-16" id="invoice-number">-</span>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-body p-4">
+                    <form action="{{ route('purchases.store') }}" method="POST" id="purchaseForm">
+                        @csrf
+                        
+                        <!-- Active Branch Section -->
+                        <div class="mb-4 d-flex align-items-center">
+                            <i class="ti ti-user me-2 fs-18"></i>
+                            <span class="fw-bold me-2">ACTIVE BRANCH:</span>
+                            <div class="dropdown">
+                                <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    {{ session('selected_branch_name', 'Select Branch') }}
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="branchDropdown">
+                                    @php
+                                        $branches = \App\Models\Branch::where('status', 'active')->get();
+                                        $currentBranchId = session('selected_branch_id');
+                                    @endphp
+                                    @foreach($branches as $branch)
+                                    <li>
+                                        <a class="dropdown-item" href="javascript:void(0)" onclick="selectBranch({{ $branch->id }}, '{{ $branch->branch_name }}')">
+                                            {{ $branch->branch_name }} @if($branch->branch_code) ({{ $branch->branch_code }}) @endif
+                                        </a>
+                                    </li>
+                                    @endforeach
+                                </ul>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <div class="d-flex align-items-center justify-content-end mb-3">
-                            <h5 class="mb-0 me-3">DATE</h5>
-                            <input type="text" name="purchase_date" id="purchase_date" class="form-control" style="width: 150px;" value="{{ date('d/m/Y') }}" required>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Supplier Information -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">FIRM:</label>
-                        <select name="supplier_id" id="supplier_id" class="form-control" required>
-                            <option value="">Select Supplier</option>
-                            @foreach($suppliers as $supplier)
-                                <option value="{{ $supplier->id }}" data-company="{{ $supplier->company ?? '' }}" data-phone="{{ $supplier->phones[0] ?? '' }}">
-                                    {{ $supplier->names[0] ?? 'N/A' }} @if($supplier->company) - {{ $supplier->company }} @endif
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">REFERENCE:</label>
-                        <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number">
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">PARTY NAME</label>
-                        <input type="text" id="party_name" class="form-control" placeholder="Search Name" readonly>
-                        <small class="text-muted">Select supplier from dropdown above</small>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">PARTY NUMBER</label>
-                        <input type="text" id="party_number" class="form-control" placeholder="03xxxxxxxxx" readonly>
-                        <small class="text-muted" style="font-size: 11px;">Double tap to edit</small>
-                    </div>
-                </div>
-
-                <!-- Items List Section -->
-                <div class="mb-4">
-                    <h5 class="fw-bold mb-3">ITEMS LIST</h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered" id="items-table">
-                            <thead>
-                                <tr>
-                                    <th>Item</th>
-                                    <th>Qty</th>
-                                    <th>Unit</th>
-                                    <th>Rate</th>
-                                    <th>Discount</th>
-                                    <th>Tax %</th>
-                                    <th>Total</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="items-tbody">
-                                <tr class="empty-row">
-                                    <td colspan="8" class="text-center text-muted py-4">No items added. Click "Add Purchase Item" to add items.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <button type="button" class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#add-item-modal">
-                        <i class="ti ti-plus me-2"></i>ADD PURCHASE ITEM
-                    </button>
-                </div>
-
-                <!-- Totals Section -->
-                <div class="row mb-4">
-                    <div class="col-md-6 offset-md-6">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td class="fw-bold">PURCHASE ITEM TOTAL</td>
-                                <td class="text-end" id="item-total">0.00</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <label class="form-label mb-0">Order Tax:</label>
-                                    <input type="number" name="order_tax" id="order_tax" class="form-control form-control-sm" value="0" step="0.01" min="0">
-                                </td>
-                                <td class="text-end" id="tax-display">0.00</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <label class="form-label mb-0">Discount:</label>
-                                    <input type="number" name="discount" id="discount" class="form-control form-control-sm" value="0" step="0.01" min="0">
-                                </td>
-                                <td class="text-end" id="discount-display">0.00</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <label class="form-label mb-0">Shipping:</label>
-                                    <input type="number" name="shipping" id="shipping" class="form-control form-control-sm" value="0" step="0.01" min="0">
-                                </td>
-                                <td class="text-end" id="shipping-display">0.00</td>
-                            </tr>
-                            <tr class="border-top">
-                                <td class="fw-bold fs-16">GROSS TOTAL</td>
-                                <td class="text-end fw-bold fs-16" id="gross-total">0.00</td>
-                            </tr>
-                            <tr>
-                                <td colspan="2">
-                                    <div class="bg-primary text-white p-3 rounded">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="fw-bold fs-18">NET PAYABLE</span>
-                                            <span class="fw-bold fs-20" id="net-payable">Rs 0.00</span>
-                                        </div>
+                        <!-- Business Info and Purchase Number -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="bg-primary text-white rounded p-2 me-3" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ti ti-file-invoice fs-20"></i>
                                     </div>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
+                                    <div>
+                                        <h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4>
+                                        <p class="mb-0 text-muted">{{ setting_value('company_tagline', 'PREMIUM OIL & LUBRICANTS') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="mb-2">
+                                    <span class="text-primary fw-bold fs-18" id="purchase-number">PUR #{{ str_pad(\App\Models\Purchase::max('id') + 1 ?? 1, 5, '0', STR_PAD_LEFT) }}</span>
+                                </div>
+                                <div>
+                                    <input type="text" name="purchase_date" id="purchase_date" class="form-control" style="width: 150px; display: inline-block;" value="{{ date('d/m/Y') }}" required>
+                                </div>
+                            </div>
+                        </div>
 
-                <!-- Status and Description -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Status</label>
-                        <select name="status" id="status" class="form-control" required>
-                            <option value="pending">Pending</option>
-                            <option value="ordered">Ordered</option>
-                            <option value="received">Received</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Description</label>
-                        <textarea name="description" id="description" class="form-control" rows="3" placeholder="Optional description"></textarea>
-                    </div>
-                </div>
+                        <!-- Supplier Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold mb-2">SUPPLIER NAME</label>
+                                <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required>
+                                    <option value="">Party Name</option>
+                                    @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}" 
+                                                data-name="{{ $supplier->names[0] ?? '' }}" 
+                                                data-phone="{{ $supplier->phones[0] ?? '' }}"
+                                                data-company="{{ $supplier->company ?? '' }}">
+                                            {{ $supplier->names[0] ?? 'N/A' }} @if($supplier->company) - {{ $supplier->company }} @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('supplier_id')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold mb-2">MOBILE NUMBER</label>
+                                <input type="text" id="supplier_mobile" class="form-control" placeholder="03xx..." readonly>
+                                <small class="text-muted" style="font-size: 11px;">Double tap to edit</small>
+                            </div>
+                        </div>
 
-                <!-- Submit Buttons -->
-                <div class="d-flex justify-content-end gap-2">
-                    <a href="{{ route('all_purchases') }}" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">Save Purchase</button>
+                        <!-- Reference (Optional) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold mb-2">REFERENCE</label>
+                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number">
+                            </div>
+                        </div>
+
+                        <!-- Items Summary Section -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">ITEMS SUMMARY</h5>
+                            <div id="items-summary-container" class="text-center py-5" style="background: #f8f9fa; border-radius: 8px; min-height: 200px;">
+                                <div id="empty-items-state">
+                                    <i class="ti ti-package fs-48 text-muted mb-3" style="display: block;"></i>
+                                    <p class="text-muted mb-0">ABHI KOI ITEM NAHI HAI</p>
+                                </div>
+                                <div id="items-list" style="display: none;">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Item</th>
+                                                    <th>Qty</th>
+                                                    <th>Unit</th>
+                                                    <th>Rate</th>
+                                                    <th>Discount</th>
+                                                    <th>Tax %</th>
+                                                    <th>Total</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="items-tbody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amount Summary -->
+                        <div class="row mb-4">
+                            <div class="col-md-6 offset-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold">GROSS AMOUNT</span>
+                                    <span class="fw-bold" id="gross-amount">Rs 0</span>
+                                </div>
+                                <div class="bg-primary text-white p-3 rounded mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold fs-16">GRAND TOTAL</div>
+                                            <div class="small">Total Payable Amount</div>
+                                        </div>
+                                        <div class="fw-bold fs-24" id="grand-total">Rs 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden fields for order tax, discount, shipping -->
+                        <input type="hidden" name="order_tax" id="order_tax" value="0">
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="shipping" id="shipping" value="0">
+                        <input type="hidden" name="status" value="pending">
+
+                        <!-- Add Item Button -->
+                        <div class="text-center mb-4">
+                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                                <i class="ti ti-plus me-2"></i>NAYA ITEM ADD KARAIN
+                            </button>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ route('all_purchases') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="ti ti-check me-1"></i> Save Purchase
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -290,18 +303,37 @@ $(document).ready(function() {
     let purchaseItems = [];
     let itemCounter = 0;
 
-    // Generate invoice number on page load
-    generateInvoiceNumber();
-
     // Supplier change handler
     $('#supplier_id').on('change', function() {
         const selected = $(this).find('option:selected');
-        const company = selected.data('company') || '';
+        const name = selected.data('name') || '';
         const phone = selected.data('phone') || '';
         
-        $('#party_name').val(selected.text().split(' - ')[0]);
-        $('#party_number').val(phone);
+        $('#supplier_mobile').val(phone);
+        
+        // Make mobile editable on double click
+        $('#supplier_mobile').off('dblclick').on('dblclick', function() {
+            $(this).prop('readonly', false).focus();
+        });
     });
+
+    // Branch selection
+    function selectBranch(branchId, branchName) {
+        // Update session via AJAX
+        $.ajax({
+            url: '{{ route("branch.select.complete") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                branch_id: branchId
+            },
+            success: function() {
+                $('#branchDropdown').text(branchName);
+                location.reload();
+            }
+        });
+    }
+    window.selectBranch = selectBranch;
 
     // Item search
     let searchTimeout;
@@ -361,10 +393,10 @@ $(document).ready(function() {
             success: function(response) {
                 $('#selected-item-id').val(response.id);
                 $('#selected-item-name').text(response.name);
-                $('#item-rate').val(parseFloat(response.rate).toFixed(2));
+                $('#item-rate').val(parseFloat(response.rate || 0).toFixed(2));
                 $('#item-unit').val(response.unit || 'Unit');
-                $('#warehouse-stock').text(response.warehouse_stock + ' Units');
-                $('#shop-stock').text(response.shop_stock + ' Units');
+                $('#warehouse-stock').text((response.warehouse_stock || 0) + ' Units');
+                $('#shop-stock').text((response.shop_stock || 0) + ' Units');
                 $('#selected-item-display').show();
                 $('#search-results').hide();
                 $('#item-search').val('');
@@ -442,7 +474,8 @@ $(document).ready(function() {
     });
 
     function addItemToTable(item) {
-        $('.empty-row').remove();
+        $('#empty-items-state').hide();
+        $('#items-list').show();
         
         const row = `
             <tr data-item-id="${item.item_id}" data-row-id="${item.id}">
@@ -470,7 +503,8 @@ $(document).ready(function() {
         $(this).closest('tr').remove();
         
         if ($('#items-tbody tr').length === 0) {
-            $('#items-tbody').html('<tr class="empty-row"><td colspan="8" class="text-center text-muted py-4">No items added. Click "Add Purchase Item" to add items.</td></tr>');
+            $('#empty-items-state').show();
+            $('#items-list').hide();
         }
         
         calculateTotals();
@@ -503,20 +537,11 @@ $(document).ready(function() {
         const shipping = parseFloat($('#shipping').val()) || 0;
 
         const grossTotal = itemTotal;
-        const netPayable = itemTotal + orderTax - discount + shipping;
+        const grandTotal = itemTotal + orderTax - discount + shipping;
 
-        $('#item-total').text('Rs ' + parseFloat(itemTotal).toFixed(2));
-        $('#tax-display').text('Rs ' + parseFloat(orderTax).toFixed(2));
-        $('#discount-display').text('Rs ' + parseFloat(discount).toFixed(2));
-        $('#shipping-display').text('Rs ' + parseFloat(shipping).toFixed(2));
-        $('#gross-total').text('Rs ' + parseFloat(grossTotal).toFixed(2));
-        $('#net-payable').text('Rs ' + parseFloat(netPayable).toFixed(2));
+        $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
+        $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
     }
-
-    // Recalculate on tax, discount, shipping change
-    $('#order_tax, #discount, #shipping').on('input', function() {
-        calculateTotals();
-    });
 
     // Form submission
     $('#purchaseForm').on('submit', function(e) {
@@ -571,11 +596,6 @@ $(document).ready(function() {
         });
     });
 
-    function generateInvoiceNumber() {
-        // This will be generated server-side, but we can show a placeholder
-        $('#invoice-number').text('Will be generated');
-    }
-
     // Initialize date picker
     if ($('#purchase_date').length) {
         $('#purchase_date').datepicker({
@@ -588,4 +608,3 @@ $(document).ready(function() {
 </script>
 @endpush
 @endsection
-
