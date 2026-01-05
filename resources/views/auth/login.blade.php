@@ -21,11 +21,26 @@
 
                                         </div>
 
+                                        <!-- Email -->
+                                        <div class="mb-3">
+                                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                                            <div class="input-group">
+                                                <input type="email" name="email" id="emailInput" class="form-control border-end-0 @error('email') is-invalid @enderror" value="{{ old('email') }}" required autofocus>
+                                                <span class="input-group-text border-start-0"><i class="ti ti-mail"></i></span>
+                                            </div>
+                                            <small class="text-muted" id="branchAutoDetectMsg" style="display: none;">
+                                                <i class="ti ti-loader spinner-border spinner-border-sm"></i> Detecting your branch...
+                                            </small>
+                                            @error('email')
+                                                <span class="text-danger small">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+
                                         <!-- Branch Selection (Only show if branches exist) -->
                                         @if(isset($branches) && $branches->count() > 0)
-                                        <div class="mb-3">
+                                        <div class="mb-3" id="branchSelectionDiv">
                                             <label class="form-label">Branch 
-                                                <small class="text-muted">(Auto-selected if you have one)</small>
+                                                <small class="text-muted">(Auto-detected from your email)</small>
                                             </label>
                                             <div class="input-group">
                                                 <select name="branch_id" class="form-control border-end-0 @error('branch_id') is-invalid @enderror" id="branchSelect">
@@ -41,24 +56,14 @@
                                                 </select>
                                                 <span class="input-group-text border-start-0"><i class="ti ti-building"></i></span>
                                             </div>
-                                            <small class="text-muted">Your branch will be automatically connected after login</small>
+                                            <small class="text-muted" id="branchInfoMsg">
+                                                Enter your email above to auto-detect your branch
+                                            </small>
                                             @error('branch_id')
                                                 <span class="text-danger small">{{ $message }}</span>
                                             @enderror
                                         </div>
                                         @endif
-
-                                        <!-- Email -->
-                                        <div class="mb-3">
-                                            <label class="form-label">Email <span class="text-danger">*</span></label>
-                                            <div class="input-group">
-                                                <input type="email" name="email" class="form-control border-end-0 @error('email') is-invalid @enderror" value="{{ old('email') }}" required autofocus>
-                                                <span class="input-group-text border-start-0"><i class="ti ti-mail"></i></span>
-                                            </div>
-                                            @error('email')
-                                                <span class="text-danger small">{{ $message }}</span>
-                                            @enderror
-                                        </div>
 
                                         <!-- Password -->
                                         <div class="mb-3">
@@ -123,6 +128,92 @@
                                 </div>
                             </form>
                         </div>
+
+                        <!-- JavaScript for Auto Branch Detection -->
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const emailInput = document.getElementById('emailInput');
+                                const branchSelect = document.getElementById('branchSelect');
+                                const branchInfoMsg = document.getElementById('branchInfoMsg');
+                                const branchAutoDetectMsg = document.getElementById('branchAutoDetectMsg');
+                                
+                                let debounceTimer;
+                                
+                                if (emailInput && branchSelect) {
+                                    // Auto-detect branch when email is entered
+                                    emailInput.addEventListener('blur', function() {
+                                        const email = this.value.trim();
+                                        
+                                        if (!email || !email.includes('@')) {
+                                            return;
+                                        }
+                                        
+                                        // Show loading message
+                                        branchAutoDetectMsg.style.display = 'block';
+                                        branchInfoMsg.style.display = 'none';
+                                        
+                                        // Clear previous timer
+                                        clearTimeout(debounceTimer);
+                                        
+                                        // Debounce API call
+                                        debounceTimer = setTimeout(function() {
+                                            // Make AJAX request to get user's branch
+                                            fetch('{{ route("get.user.branch") }}', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                                },
+                                                body: JSON.stringify({
+                                                    email: email
+                                                })
+                                            })
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                branchAutoDetectMsg.style.display = 'none';
+                                                
+                                                if (data.success) {
+                                                    if (data.branch_id) {
+                                                        // User has a branch - auto-select it
+                                                        branchSelect.value = data.branch_id;
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong>';
+                                                        branchInfoMsg.style.display = 'block';
+                                                        branchInfoMsg.classList.remove('text-danger');
+                                                        branchInfoMsg.classList.add('text-success');
+                                                    } else if (data.is_admin && data.branches) {
+                                                        // Admin user - show all branches
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - You can select any branch';
+                                                        branchInfoMsg.style.display = 'block';
+                                                        branchInfoMsg.classList.remove('text-danger', 'text-success');
+                                                        branchInfoMsg.classList.add('text-info');
+                                                    } else {
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> No branch found for this email';
+                                                        branchInfoMsg.style.display = 'block';
+                                                        branchInfoMsg.classList.remove('text-success', 'text-info');
+                                                    }
+                                                } else {
+                                                    branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> ' + (data.message || 'Could not detect branch');
+                                                    branchInfoMsg.style.display = 'block';
+                                                    branchInfoMsg.classList.remove('text-success', 'text-info');
+                                                }
+                                            })
+                                            .catch(error => {
+                                                console.error('Error:', error);
+                                                branchAutoDetectMsg.style.display = 'none';
+                                                branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Error detecting branch';
+                                                branchInfoMsg.style.display = 'block';
+                                                branchInfoMsg.classList.add('text-danger');
+                                            });
+                                        }, 500); // 500ms debounce
+                                    });
+                                    
+                                    // If email is pre-filled (from old() helper), auto-detect on page load
+                                    @if(old('email'))
+                                        emailInput.dispatchEvent(new Event('blur'));
+                                    @endif
+                                }
+                            });
+                        </script>
 
                         {{-- <div class="my-4 d-flex justify-content-center align-items-center copyright-text">
                             <p>Copyright &copy; 2025 DreamsPOS</p>

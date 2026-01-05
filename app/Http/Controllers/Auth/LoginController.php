@@ -55,6 +55,74 @@ class LoginController extends Controller
         
         return view('auth.login', compact('branches'));
     }
+    
+    /**
+     * Get user's branch by email (AJAX)
+     * Used in login form to auto-select branch
+     */
+    public function getUserBranchByEmail(Request $request)
+    {
+        $email = $request->input('email');
+        
+        if (!$email) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email is required'
+            ], 400);
+        }
+        
+        // Find user by email
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+                'branch_id' => null
+            ]);
+        }
+        
+        // Find user's branch
+        $branch = Branch::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+        
+        if ($branch) {
+            return response()->json([
+                'success' => true,
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->branch_name,
+                'branch_code' => $branch->branch_code,
+                'message' => 'Branch found'
+            ]);
+        }
+        
+        // If user is admin, return all active branches
+        if ($user->role === 'admin') {
+            $allBranches = Branch::where('status', 'active')
+                ->orderBy('branch_name', 'asc')
+                ->get();
+            
+            return response()->json([
+                'success' => true,
+                'is_admin' => true,
+                'branches' => $allBranches->map(function($b) {
+                    return [
+                        'id' => $b->id,
+                        'name' => $b->branch_name,
+                        'code' => $b->branch_code
+                    ];
+                }),
+                'message' => 'Admin user - can select any branch'
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'branch_id' => null,
+            'message' => 'No active branch found for this user'
+        ]);
+    }
 
     /**
      * The user has been authenticated.

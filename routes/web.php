@@ -44,6 +44,9 @@ Route::get('/', [LoginController::class, 'showLoginForm']);
 
 Auth::routes();
 
+// Get user branch by email (for login form auto-detection)
+Route::post('/get-user-branch', [LoginController::class, 'getUserBranchByEmail'])->name('get.user.branch');
+
 // Branch selection route (requires authentication)
 Route::middleware('auth')->group(function () {
     Route::get('/branch/select', function () {
