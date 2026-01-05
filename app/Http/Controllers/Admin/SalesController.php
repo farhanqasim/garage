@@ -11,12 +11,7 @@ use App\Models\Technology;
 use App\Models\Grade;
 use App\Models\Volt;
 use App\Models\Cca;
-use App\Models\Customer;
-use App\Models\Sale;
-use App\Models\SaleItem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class SalesController extends Controller
 {
@@ -26,9 +21,7 @@ class SalesController extends Controller
     }
     
     public function create_sale(){
-        $customers = Customer::select('id', 'names', 'phones', 'company')->get();
-        $invoiceNumber = Sale::generateInvoiceNumber();
-        return view('admin.sales.create', compact('customers', 'invoiceNumber'));
+        return view('admin.sales.create');
     }
 
     /**
@@ -236,119 +229,5 @@ class SalesController extends Controller
         $items = $query->limit($limit)->get();
 
         return response()->json($items);
-    }
-
-    /**
-     * Store a new sale
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
-            'sale_date' => 'required|date',
-            'status' => 'required|in:completed,pending,cancelled',
-            'order_tax' => 'nullable|numeric|min:0',
-            'discount' => 'nullable|numeric|min:0',
-            'shipping' => 'nullable|numeric|min:0',
-            'payment_status' => 'required|in:paid,partial,unpaid',
-            'paid_amount' => 'nullable|numeric|min:0',
-            'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|exists:items,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.discount' => 'nullable|numeric|min:0',
-            'items.*.tax_percent' => 'nullable|numeric|min:0|max:100',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            // Calculate totals
-            $subtotal = 0;
-            $totalTaxAmount = 0;
-
-            foreach ($request->items as $item) {
-                $itemSubtotal = ($item['unit_price'] * $item['quantity']) - ($item['discount'] ?? 0);
-                $itemTaxAmount = ($itemSubtotal * ($item['tax_percent'] ?? 0)) / 100;
-                $subtotal += $itemSubtotal;
-                $totalTaxAmount += $itemTaxAmount;
-            }
-
-            $orderTaxAmount = ($subtotal * ($request->order_tax ?? 0)) / 100;
-            $grandTotal = $subtotal + $totalTaxAmount + $orderTaxAmount - ($request->discount ?? 0) + ($request->shipping ?? 0);
-
-            // Create sale
-            $sale = Sale::create([
-                'customer_id' => $request->customer_id,
-                'user_id' => auth()->id(),
-                'invoice_number' => Sale::generateInvoiceNumber(),
-                'sale_date' => $request->sale_date,
-                'status' => $request->status,
-                'subtotal' => $subtotal,
-                'order_tax' => $request->order_tax ?? 0,
-                'order_tax_amount' => $orderTaxAmount,
-                'discount' => $request->discount ?? 0,
-                'shipping' => $request->shipping ?? 0,
-                'grand_total' => $grandTotal,
-                'payment_status' => $request->payment_status,
-                'paid_amount' => $request->paid_amount ?? $grandTotal,
-                'due_amount' => $grandTotal - ($request->paid_amount ?? $grandTotal),
-                'notes' => $request->notes,
-            ]);
-
-            // Create sale items and update stock
-            foreach ($request->items as $itemData) {
-                $item = Item::findOrFail($itemData['item_id']);
-                
-                // Calculate item totals
-                $itemSubtotal = ($itemData['unit_price'] * $itemData['quantity']) - ($itemData['discount'] ?? 0);
-                $itemTaxAmount = ($itemSubtotal * ($itemData['tax_percent'] ?? 0)) / 100;
-                $unitCost = $itemSubtotal / $itemData['quantity'];
-                $totalCost = $itemSubtotal + $itemTaxAmount;
-
-                // Create sale item
-                SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'item_id' => $item->id,
-                    'item_name' => $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id,
-                    'quantity' => $itemData['quantity'],
-                    'unit_price' => $itemData['unit_price'],
-                    'discount' => $itemData['discount'] ?? 0,
-                    'tax_percent' => $itemData['tax_percent'] ?? 0,
-                    'tax_amount' => $itemTaxAmount,
-                    'unit_cost' => $unitCost,
-                    'total_cost' => $totalCost,
-                ]);
-
-                // Deduct stock
-                $newStock = max(0, ($item->on_hand ?? 0) - $itemData['quantity']);
-                $item->update(['on_hand' => $newStock]);
-            }
-
-            DB::commit();
-
-            Log::info('Sale created successfully', ['sale_id' => $sale->id, 'invoice_number' => $sale->invoice_number]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Sale created successfully!',
-                'sale_id' => $sale->id,
-                'invoice_number' => $sale->invoice_number,
-                'redirect' => route('all_sales')
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Sale creation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $request->except(['items'])
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create sale: ' . $e->getMessage()
-            ], 500);
-        }
     }
 }

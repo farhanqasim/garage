@@ -407,7 +407,6 @@ Route::get('all/suppliers',[SupplierController::class,'all_suppliers'])->name('a
 // sales
 Route::get('all/sales',[SalesController::class,'all_sales'])->name('all_sales');
 Route::get('create/sale',[SalesController::class,'create_sale'])->name('create.sale');
-Route::post('store/sale',[SalesController::class,'store'])->name('store.sale');
 Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
     ->name('sales.items.ajax.search');
 Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])

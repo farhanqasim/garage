@@ -1288,9 +1288,17 @@ class ItemController extends Controller
             $pdfUrl = url('temp_pdfs/' . $filename);
             
             // Create WhatsApp message
-            $message = "📦 *Items Details*\n\n";
-            $message .= "Total Items: " . $items->count() . "\n\n";
-            $message .= "View full details in PDF: " . $pdfUrl;
+            $message = "📦 *Product Details*\n\n";
+            
+            // Add item names
+            foreach ($items as $index => $item) {
+                $itemName = $item->product_item->name ?? 'Item #' . ($index + 1);
+                $message .= "• " . $itemName . "\n";
+            }
+            
+            $message .= "\n📄 *Full Product Specification PDF:*\n";
+            $message .= $pdfUrl;
+            $message .= "\n\n_This PDF contains complete product details, specifications, and pricing information._";
             
             return response()->json([
                 'success' => true,

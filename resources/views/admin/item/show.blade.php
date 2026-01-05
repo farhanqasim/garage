@@ -499,17 +499,79 @@
             <div class="modal-body">
                 <form id="whatsappShareForm">
                     <div class="mb-3">
-                        <label for="phoneNumber" class="form-label">Phone Number (with Country Code) <span class="text-danger">*</span></label>
+                        <label for="phoneNumber" class="form-label">Phone Number <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <span class="input-group-text">+</span>
+                            <select class="form-select" id="countryCode" name="countryCode" style="max-width: 150px;">
+                                <option value="1">🇺🇸 +1 (US/CA)</option>
+                                <option value="44">🇬🇧 +44 (UK)</option>
+                                <option value="91">🇮🇳 +91 (India)</option>
+                                <option value="92" selected>🇵🇰 +92 (Pakistan)</option>
+                                <option value="971">🇦🇪 +971 (UAE)</option>
+                                <option value="966">🇸🇦 +966 (Saudi)</option>
+                                <option value="974">🇶🇦 +974 (Qatar)</option>
+                                <option value="965">🇰🇼 +965 (Kuwait)</option>
+                                <option value="973">🇧🇭 +973 (Bahrain)</option>
+                                <option value="968">🇴🇲 +968 (Oman)</option>
+                                <option value="961">🇱🇧 +961 (Lebanon)</option>
+                                <option value="20">🇪🇬 +20 (Egypt)</option>
+                                <option value="27">🇿🇦 +27 (South Africa)</option>
+                                <option value="49">🇩🇪 +49 (Germany)</option>
+                                <option value="33">🇫🇷 +33 (France)</option>
+                                <option value="39">🇮🇹 +39 (Italy)</option>
+                                <option value="34">🇪🇸 +34 (Spain)</option>
+                                <option value="31">🇳🇱 +31 (Netherlands)</option>
+                                <option value="32">🇧🇪 +32 (Belgium)</option>
+                                <option value="41">🇨🇭 +41 (Switzerland)</option>
+                                <option value="43">🇦🇹 +43 (Austria)</option>
+                                <option value="46">🇸🇪 +46 (Sweden)</option>
+                                <option value="47">🇳🇴 +47 (Norway)</option>
+                                <option value="45">🇩🇰 +45 (Denmark)</option>
+                                <option value="358">🇫🇮 +358 (Finland)</option>
+                                <option value="353">🇮🇪 +353 (Ireland)</option>
+                                <option value="351">🇵🇹 +351 (Portugal)</option>
+                                <option value="30">🇬🇷 +30 (Greece)</option>
+                                <option value="48">🇵🇱 +48 (Poland)</option>
+                                <option value="420">🇨🇿 +420 (Czech)</option>
+                                <option value="36">🇭🇺 +36 (Hungary)</option>
+                                <option value="40">🇷🇴 +40 (Romania)</option>
+                                <option value="7">🇷🇺 +7 (Russia)</option>
+                                <option value="81">🇯🇵 +81 (Japan)</option>
+                                <option value="82">🇰🇷 +82 (South Korea)</option>
+                                <option value="86">🇨🇳 +86 (China)</option>
+                                <option value="852">🇭🇰 +852 (Hong Kong)</option>
+                                <option value="65">🇸🇬 +65 (Singapore)</option>
+                                <option value="60">🇲🇾 +60 (Malaysia)</option>
+                                <option value="62">🇮🇩 +62 (Indonesia)</option>
+                                <option value="66">🇹🇭 +66 (Thailand)</option>
+                                <option value="84">🇻🇳 +84 (Vietnam)</option>
+                                <option value="63">🇵🇭 +63 (Philippines)</option>
+                                <option value="61">🇦🇺 +61 (Australia)</option>
+                                <option value="64">🇳🇿 +64 (New Zealand)</option>
+                                <option value="55">🇧🇷 +55 (Brazil)</option>
+                                <option value="52">🇲🇽 +52 (Mexico)</option>
+                                <option value="54">🇦🇷 +54 (Argentina)</option>
+                                <option value="56">🇨🇱 +56 (Chile)</option>
+                                <option value="57">🇨🇴 +57 (Colombia)</option>
+                                <option value="51">🇵🇪 +51 (Peru)</option>
+                                <option value="90">🇹🇷 +90 (Turkey)</option>
+                                <option value="98">🇮🇷 +98 (Iran)</option>
+                                <option value="212">🇲🇦 +212 (Morocco)</option>
+                                <option value="213">🇩🇿 +213 (Algeria)</option>
+                                <option value="216">🇹🇳 +216 (Tunisia)</option>
+                                <option value="254">🇰🇪 +254 (Kenya)</option>
+                                <option value="234">🇳🇬 +234 (Nigeria)</option>
+                                <option value="233">🇬🇭 +233 (Ghana)</option>
+                                <option value="256">🇺🇬 +256 (Uganda)</option>
+                                <option value="255">🇹🇿 +255 (Tanzania)</option>
+                            </select>
                             <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" 
-                                placeholder="923001234567" required pattern="[0-9]{10,15}">
+                                placeholder="3001234567" required pattern="[0-9]{7,12}">
                         </div>
-                        <small class="text-muted">Example: 923001234567 (without + sign)</small>
+                        <small class="text-muted">Enter phone number without country code (e.g., 3001234567)</small>
                     </div>
                     <div class="alert alert-info">
                         <i class="ti ti-info-circle me-2"></i>
-                        <strong>Item:</strong> {{ $item->product_item->name ?? 'N/A' }} will be shared
+                        <strong>Item:</strong> {{ $item->product_item->name ?? 'N/A' }} will be shared as PDF
                     </div>
                 </form>
             </div>
@@ -572,6 +634,7 @@
                     const phoneInput = document.getElementById('phoneNumber');
                     if (phoneInput) {
                         phoneInput.focus();
+                        phoneInput.select();
                     }
                 }, 400);
             } catch (error) {
@@ -589,28 +652,35 @@
             e.preventDefault();
             e.stopPropagation();
             
-            // Get phone number
+            // Get country code and phone number
+            const countryCodeSelect = document.getElementById('countryCode');
             const phoneNumberInput = document.getElementById('phoneNumber');
+            const countryCode = countryCodeSelect ? countryCodeSelect.value : '';
             const phoneNumber = phoneNumberInput ? phoneNumberInput.value.trim() : '';
             
             if (!phoneNumber) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Phone Number Required',
-                    text: 'Please enter a phone number with country code.'
+                    text: 'Please enter a phone number.'
                 });
+                phoneNumberInput?.focus();
                 return;
             }
             
-            // Validate phone number format
-            if (!/^[0-9]{10,15}$/.test(phoneNumber)) {
+            // Validate phone number format (7-12 digits for local number)
+            if (!/^[0-9]{7,12}$/.test(phoneNumber)) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Invalid Phone Number',
-                    text: 'Please enter a valid phone number (10-15 digits).'
+                    text: 'Please enter a valid phone number (7-12 digits).'
                 });
+                phoneNumberInput?.focus();
                 return;
             }
+            
+            // Combine country code with phone number
+            const fullPhoneNumber = countryCode + phoneNumber;
             
             // Show loading
             const btn = this;
@@ -627,14 +697,14 @@
                 },
                 body: JSON.stringify({
                     item_ids: [{{ $item->id }}],
-                    phone_number: phoneNumber
+                    phone_number: fullPhoneNumber
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Open WhatsApp with PDF
-                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(data.message)}`;
+                    // Open WhatsApp with PDF link
+                    const whatsappUrl = `https://wa.me/${fullPhoneNumber}?text=${encodeURIComponent(data.message)}`;
                     window.open(whatsappUrl, '_blank');
                     
                     // Close modal - Try multiple methods
