@@ -65,13 +65,12 @@ class LoginController extends Controller
      */
     protected function authenticated(Request $request, $user)
     {
-        // Store selected branch from login form (if provided)
+        // Priority 1: If branch selected from login form
         if ($request->has('branch_id') && $request->branch_id) {
             $branch = Branch::find($request->branch_id);
             
             // Verify branch belongs to this user or user is admin
             if ($branch && $branch->status === 'active') {
-                // Check if branch belongs to user or user is admin
                 $canUseBranch = false;
                 
                 if ($user->role === 'admin') {
@@ -80,36 +79,49 @@ class LoginController extends Controller
                 } elseif ($branch->user_id == $user->id) {
                     // Branch belongs to this user
                     $canUseBranch = true;
-                } elseif ($user->branch_id == $branch->id) {
-                    // User's default branch matches
-                    $canUseBranch = true;
                 }
                 
                 if ($canUseBranch) {
                     // Store selected branch in session
                     session([
                         'selected_branch_id' => $branch->id,
-                        'selected_branch_name' => $branch->branch_name
+                        'selected_branch_name' => $branch->branch_name,
+                        'selected_branch_code' => $branch->branch_code
                     ]);
-                } else {
-                    // Branch doesn't belong to user, clear session
-                    session()->forget(['selected_branch_id', 'selected_branch_name']);
+                    return redirect()->intended($this->redirectPath());
                 }
-            } else {
-                // Invalid branch selected, clear session
-                session()->forget(['selected_branch_id', 'selected_branch_name']);
             }
+        }
+        
+        // Priority 2: Auto-connect user's branch (if exists and active)
+        $userBranch = Branch::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+        
+        if ($userBranch) {
+            // Automatically connect user's branch
+            session([
+                'selected_branch_id' => $userBranch->id,
+                'selected_branch_name' => $userBranch->branch_name,
+                'selected_branch_code' => $userBranch->branch_code
+            ]);
         } else {
-            // No branch selected - this is okay, user can login without branch
-            // If user has a default branch_id, use that
-            if ($user->branch_id) {
+            // Priority 3: If user has branch_id in user table (legacy support)
+            if (isset($user->branch_id) && $user->branch_id) {
                 $defaultBranch = Branch::find($user->branch_id);
                 if ($defaultBranch && $defaultBranch->status === 'active') {
                     session([
                         'selected_branch_id' => $defaultBranch->id,
-                        'selected_branch_name' => $defaultBranch->branch_name
+                        'selected_branch_name' => $defaultBranch->branch_name,
+                        'selected_branch_code' => $defaultBranch->branch_code
                     ]);
+                } else {
+                    // No valid branch found, clear session
+                    session()->forget(['selected_branch_id', 'selected_branch_name', 'selected_branch_code']);
                 }
+            } else {
+                // No branch found for user, clear session
+                session()->forget(['selected_branch_id', 'selected_branch_name', 'selected_branch_code']);
             }
         }
         

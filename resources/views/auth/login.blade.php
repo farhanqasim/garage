@@ -24,9 +24,11 @@
                                         <!-- Branch Selection (Only show if branches exist) -->
                                         @if(isset($branches) && $branches->count() > 0)
                                         <div class="mb-3">
-                                            <label class="form-label">Branch</label>
+                                            <label class="form-label">Branch 
+                                                <small class="text-muted">(Auto-selected if you have one)</small>
+                                            </label>
                                             <div class="input-group">
-                                                <select name="branch_id" class="form-control border-end-0 @error('branch_id') is-invalid @enderror">
+                                                <select name="branch_id" class="form-control border-end-0 @error('branch_id') is-invalid @enderror" id="branchSelect">
                                                     <option value="">-- Select Branch (Optional) --</option>
                                                     @foreach($branches as $branch)
                                                         <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
@@ -39,6 +41,7 @@
                                                 </select>
                                                 <span class="input-group-text border-start-0"><i class="ti ti-building"></i></span>
                                             </div>
+                                            <small class="text-muted">Your branch will be automatically connected after login</small>
                                             @error('branch_id')
                                                 <span class="text-danger small">{{ $message }}</span>
                                             @enderror

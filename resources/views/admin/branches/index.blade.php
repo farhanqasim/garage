@@ -10,23 +10,7 @@
                 </div>
             </div>
 
-            <ul class="table-top-head">
-                <li>
-                 <a data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf"><img
-                            src="{{ asset('assets/img/icons/pdf.svg') }}" alt="img"></a>
-                </li>
-                <li>
-                    <a data-bs-toggle="tooltip" data-bs-placement="top" title="Excel"><img
-                            src="{{ asset('assets/img/icons/excel.svg') }}" alt="img"></a>
-                </li>
-                <li>
-                    <a data-bs-toggle="tooltip" data-bs-placement="top" title="Refresh"><i class="ti ti-refresh"></i></a>
-                </li>
-                <li>
-                    <a data-bs-toggle="tooltip" data-bs-placement="top" title="Collapse" id="collapse-header"><i
-                            class="ti ti-chevron-up"></i></a>
-                </li>
-            </ul>
+         
             <div class="page-btn">
                 <a href="" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
                         class="ti ti-circle-plus me-1"></i>Add</a>
