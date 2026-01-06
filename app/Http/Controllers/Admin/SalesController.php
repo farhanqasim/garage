@@ -11,6 +11,7 @@ use App\Models\Technology;
 use App\Models\Grade;
 use App\Models\Volt;
 use App\Models\Cca;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 
 class SalesController extends Controller
@@ -21,7 +22,8 @@ class SalesController extends Controller
     }
     
     public function create_sale(){
-        return view('admin.sales.create');
+        $customers = Customer::orderBy('created_at', 'desc')->get();
+        return view('admin.sales.create', compact('customers'));
     }
 
     /**
