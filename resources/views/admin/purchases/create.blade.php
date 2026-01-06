@@ -23,64 +23,79 @@
                     <form action="{{ route('purchases.store') }}" method="POST" id="purchaseForm">
                         @csrf
                         
-                        <!-- Active Branch Section -->
-                        <div class="mb-4 d-flex align-items-center">
-                            <i class="ti ti-user me-2 fs-18"></i>
-                            <span class="fw-bold me-2">ACTIVE BRANCH:</span>
-                            <div class="dropdown">
-                                <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    {{ session('selected_branch_name', 'Select Branch') }}
-                                </button>
-                                <ul class="dropdown-menu" aria-labelledby="branchDropdown">
-                                    @php
-                                        $branches = \App\Models\Branch::where('status', 'active')->get();
-                                        $currentBranchId = session('selected_branch_id');
-                                    @endphp
-                                    @foreach($branches as $branch)
-                                    <li>
-                                        <a class="dropdown-item" href="javascript:void(0)" onclick="selectBranch({{ $branch->id }}, '{{ $branch->branch_name }}')">
-                                            {{ $branch->branch_name }} @if($branch->branch_code) ({{ $branch->branch_code }}) @endif
-                                        </a>
-                                    </li>
-                                    @endforeach
-                                </ul>
+                        <!-- ACTIVE BRANCH Selector (Pill-shaped like Gemini design) -->
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center px-3 py-2 rounded-pill" style="border: 1px solid #0d6efd; background: #f8f9fa;">
+                                <i class="ti ti-user me-2 text-muted"></i>
+                                <span class="fw-bold me-2 text-uppercase" style="font-size: 12px;">ACTIVE BRANCH:</span>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle fw-bold" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 14px;">
+                                        <span id="selectedBranchName">{{ session('selected_branch_name', 'Select Branch') }}</span>
+                                        @if(session('selected_branch_code'))
+                                            <span id="selectedBranchCode"> ({{ session('selected_branch_code') }})</span>
+                                        @endif
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="branchDropdown">
+                                        @php
+                                            $branches = \App\Models\Branch::where('status', 'active')->get();
+                                            $currentBranchId = session('selected_branch_id');
+                                        @endphp
+                                        @foreach($branches as $branch)
+                                        <li>
+                                            <a class="dropdown-item" href="javascript:void(0)" onclick="selectPurchaseBranch({{ $branch->id }}, '{{ $branch->branch_name }}', '{{ $branch->branch_code ?? '' }}')">
+                                                {{ $branch->branch_name }} 
+                                                @if($branch->branch_code) ({{ $branch->branch_code }}) @endif
+                                            </a>
+                                        </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
                             </div>
+                            <input type="hidden" name="branch_id" id="purchaseBranchId" value="{{ session('selected_branch_id') }}" required>
                         </div>
 
-                        <!-- Business Info and Purchase Number -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center mb-3">
+                        <!-- Business Information Panel (Like Gemini Design) -->
+                        <div class="mb-4 p-3 rounded" style="border: 1px solid #0d6efd; background: #f8f9fa;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
                                     <div class="bg-primary text-white rounded p-2 me-3" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
                                         <i class="ti ti-file-invoice fs-20"></i>
                                     </div>
                                     <div>
                                         <h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4>
-                                        <p class="mb-0 text-muted">{{ setting_value('company_tagline', 'PREMIUM OIL & LUBRICANTS') }}</p>
+                                        <p class="mb-0 text-primary" style="font-size: 13px;">
+                                            <i class="ti ti-phone me-1"></i>
+                                            HELPLINE: <span id="helplineNumber">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="mb-1">
+                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="purchase-number">INV #{{ str_pad(\App\Models\Purchase::max('id') + 1 ?? 1, 5, '0', STR_PAD_LEFT) }}</span>
+                                    </div>
+                                    <div style="font-size: 13px; color: #6c757d;">
+                                        <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6 text-end">
-                                <div class="mb-2">
-                                    <span class="text-primary fw-bold fs-18" id="purchase-number">PUR #{{ str_pad(\App\Models\Purchase::max('id') + 1 ?? 1, 5, '0', STR_PAD_LEFT) }}</span>
-                                </div>
-                                <div>
-                                    <input type="text" name="purchase_date" id="purchase_date" class="form-control" style="width: 150px; display: inline-block;" value="{{ date('d/m/Y') }}" required>
-                                </div>
-                            </div>
                         </div>
+                        
+                        <!-- Hidden purchase date field -->
+                        <input type="hidden" name="purchase_date" id="purchase_date" value="{{ date('Y-m-d') }}" required>
 
-                        <!-- Supplier Information -->
+                        <!-- Supplier/Customer Information (Like Gemini Design) -->
                         <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold mb-2">SUPPLIER NAME</label>
-                                <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">CUSTOMER NAME</label>
+                                <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required style="border-radius: 6px;">
                                     <option value="">Party Name</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" 
                                                 data-name="{{ $supplier->names[0] ?? '' }}" 
                                                 data-phone="{{ $supplier->phones[0] ?? '' }}"
-                                                data-company="{{ $supplier->company ?? '' }}">
+                                                data-company="{{ $supplier->company ?? '' }}"
+                                                data-address="{{ $supplier->address ?? '' }}"
+                                                data-area="{{ $supplier->area ?? '' }}">
                                             {{ $supplier->names[0] ?? 'N/A' }} @if($supplier->company) - {{ $supplier->company }} @endif
                                         </option>
                                     @endforeach
@@ -89,18 +104,28 @@
                                     <div class="text-danger small">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold mb-2">MOBILE NUMBER</label>
-                                <input type="text" id="supplier_mobile" class="form-control" placeholder="03xx..." readonly>
-                                <small class="text-muted" style="font-size: 11px;">Double tap to edit</small>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NUMBER</label>
+                                <input type="text" id="supplier_mobile" name="supplier_mobile" class="form-control" placeholder="03xx..." style="border-radius: 6px;">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">ADDRESS</label>
+                                <input type="text" id="supplier_address" name="supplier_address" class="form-control" placeholder="Shop/House #" style="border-radius: 6px;">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">AREA</label>
+                                <input type="text" id="supplier_area" name="supplier_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;">
                             </div>
                         </div>
 
                         <!-- Reference (Optional) -->
                         <div class="row mb-4">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold mb-2">REFERENCE</label>
-                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
+                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;">
                             </div>
                         </div>
 
@@ -726,6 +751,20 @@ $(document).ready(function() {
         purchaseNoResults.hide();
         purchaseLoadingResults.show();
         
+        // Get selected branch ID
+        const branchId = $('#purchaseBranchId').val();
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first.'
+            });
+            return;
+        }
+        
+        // Add branch_id to params
+        params.branch_id = branchId;
+        
         // Perform AJAX search
         $.ajax({
             url: "{{ route('purchases.items.ajax.search') }}",
@@ -858,17 +897,29 @@ $(document).ready(function() {
         const selected = $(this).find('option:selected');
         const name = selected.data('name') || '';
         const phone = selected.data('phone') || '';
+        const address = selected.data('address') || '';
+        const area = selected.data('area') || '';
         
         $('#supplier_mobile').val(phone);
-        
-        // Make mobile editable on double click
-        $('#supplier_mobile').off('dblclick').on('dblclick', function() {
-            $(this).prop('readonly', false).focus();
-        });
+        $('#supplier_address').val(address);
+        $('#supplier_area').val(area);
     });
 
-    // Branch selection
-    function selectBranch(branchId, branchName) {
+    // Branch selection for purchase
+    function selectPurchaseBranch(branchId, branchName, branchCode) {
+        // Update UI immediately
+        $('#selectedBranchName').text(branchName);
+        if (branchCode) {
+            if ($('#selectedBranchCode').length) {
+                $('#selectedBranchCode').text(' (' + branchCode + ')');
+            } else {
+                $('#selectedBranchName').after('<span id="selectedBranchCode"> (' + branchCode + ')</span>');
+            }
+        } else {
+            $('#selectedBranchCode').remove();
+        }
+        $('#purchaseBranchId').val(branchId);
+        
         // Update session via AJAX
         $.ajax({
             url: '{{ route("branch.select.complete") }}',
@@ -878,12 +929,105 @@ $(document).ready(function() {
                 branch_id: branchId
             },
             success: function() {
-                $('#branchDropdown').text(branchName);
-                location.reload();
+                // Load warehouse info for this branch
+                loadBranchWarehouseInfo(branchId);
+                
+                // Update helpline from branch if available
+                $.ajax({
+                    url: '/branches/' + branchId,
+                    method: 'GET',
+                    success: function(branch) {
+                        if (branch && branch.phone) {
+                            $('#helplineNumber').text(branch.phone);
+                        }
+                    }
+                });
+                
+                // Clear any existing items from table
+                purchaseItems = [];
+                $('#items-tbody').empty();
+                $('#empty-items-state').show();
+                $('#items-list').hide();
+                calculateTotals();
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to select branch. Please try again.'
+                });
             }
         });
     }
-    window.selectBranch = selectBranch;
+    window.selectPurchaseBranch = selectPurchaseBranch;
+
+    // Load warehouse info for selected branch
+    function loadBranchWarehouseInfo(branchId) {
+        $.ajax({
+            url: '{{ route("warehouses.by.branch", ":id") }}'.replace(':id', branchId),
+            method: 'GET',
+            success: function(warehouse) {
+                if (warehouse && !warehouse.error) {
+                    $('#warehouseName').text(warehouse.warehouse_name + (warehouse.warehouse_code ? ' (' + warehouse.warehouse_code + ')' : ''));
+                    $('#warehouseItemsCount').text(warehouse.items_count || 0);
+                    $('#branchWarehouseInfo').show();
+                } else {
+                    $('#branchWarehouseInfo').hide();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Warehouse',
+                        text: 'This branch does not have a warehouse. Please create one first.',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading warehouse:', xhr);
+                $('#branchWarehouseInfo').hide();
+            }
+        });
+    }
+
+    // Update date/time display every second
+    function updateDateTime() {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        
+        $('#currentDateTime').text(`${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`);
+    }
+    
+    // Load warehouse info on page load if branch is already selected
+    $(document).ready(function() {
+        const branchId = $('#purchaseBranchId').val();
+        if (branchId) {
+            loadBranchWarehouseInfo(branchId);
+        }
+        
+        // Start updating date/time every second
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+    });
+
+    // Check branch selection before opening item modal
+    $('#purchase-item-search-modal').on('show.bs.modal', function() {
+        const branchId = $('#purchaseBranchId').val();
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first to view its warehouse products.',
+                confirmButtonText: 'OK'
+            });
+            $(this).modal('hide');
+            return false;
+        }
+    });
 
     // Item search (old method - kept for backward compatibility if needed)
     // Now using YouTube-style search modal above

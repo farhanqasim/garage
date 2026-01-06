@@ -103,6 +103,27 @@ class WarehouseController extends Controller
     }
 
     /**
+     * Get warehouse by branch ID
+     */
+    public function getByBranch($branchId)
+    {
+        $warehouse = Warehouse::where('branch_id', $branchId)->first();
+        
+        if (!$warehouse) {
+            return response()->json(['error' => 'Warehouse not found'], 404);
+        }
+        
+        $itemsCount = WarehouseItem::where('warehouse_id', $warehouse->id)->count();
+        
+        return response()->json([
+            'id' => $warehouse->id,
+            'warehouse_name' => $warehouse->warehouse_name,
+            'warehouse_code' => $warehouse->warehouse_code,
+            'items_count' => $itemsCount,
+        ]);
+    }
+
+    /**
      * Display list of warehouses (branch-specific for users)
      */
     public function index()

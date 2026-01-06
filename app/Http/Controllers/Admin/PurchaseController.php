@@ -37,6 +37,7 @@ class PurchaseController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'branch_id' => 'required|exists:branches,id',
             'supplier_id' => 'required|exists:suppliers,id',
             'purchase_date' => 'required|date',
             'reference' => 'nullable|string|max:255',
@@ -83,6 +84,7 @@ class PurchaseController extends Controller
 
         $purchase = Purchase::create([
             'invoice_no' => $invoiceNo,
+            'branch_id' => $request->branch_id,
             'supplier_id' => $request->supplier_id,
             'purchase_date' => $purchaseDate,
             'reference' => $request->reference,
@@ -245,16 +247,45 @@ class PurchaseController extends Controller
 
     /**
      * Advanced search with multiple filters (YouTube-style)
+     * Filtered by selected branch's warehouse items
      */
     public function ajaxSearch(Request $request)
     {
+        // Get branch_id from request or session
+        $branchId = $request->input('branch_id') ?? session('selected_branch_id');
+        
+        if (!$branchId) {
+            return response()->json([
+                'error' => 'Please select a branch first'
+            ], 400);
+        }
+
+        // Get warehouse for this branch
+        $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
+        
+        if (!$warehouse) {
+            return response()->json([
+                'error' => 'No warehouse found for selected branch'
+            ], 400);
+        }
+
+        // Get item IDs from warehouse_items for this warehouse
+        $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
+            ->pluck('item_id')
+            ->toArray();
+
+        // If no items in warehouse, return empty
+        if (empty($warehouseItemIds)) {
+            return response()->json([]);
+        }
+
         $query = Item::with([
             'partnumber_item',
             'vehical_item.manutacturer_vehical',
             'vehical_item.model_vehical',
             'category',
             'subcategory',
-        ]);
+        ])->whereIn('id', $warehouseItemIds); // Filter by warehouse items only
 
         // Text search
         $search = $request->input('q', '');

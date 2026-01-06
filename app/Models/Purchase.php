@@ -12,6 +12,7 @@ class Purchase extends Model
     protected $fillable = [
         'invoice_no',
         'supplier_id',
+        'branch_id',
         'purchase_date',
         'reference',
         'status',
@@ -40,5 +41,10 @@ class Purchase extends Model
     public function items()
     {
         return $this->hasMany(PurchaseItem::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }
