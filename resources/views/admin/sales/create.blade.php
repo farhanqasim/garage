@@ -490,10 +490,46 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Customer History Section -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0">
+                            <i class="ti ti-history me-2"></i>CUSTOMER HISTORY
+                        </label>
+                        <a href="javascript:void(0)" class="text-primary text-decoration-none" id="hold-rate-link" style="display: none;">
+                            Hold Rate to Apply
+                        </a>
+                    </div>
+                    <div id="customer-history-content" class="p-3" style="background-color: #f8f9fa; border-radius: 8px; min-height: 60px; max-height: 150px; overflow-y: auto;">
+                        <p class="text-muted mb-0 small">Select item to view history</p>
+                    </div>
+                </div>
+
+                <!-- Additional Fields (Hidden by default, can be shown if needed) -->
+                <div id="additional-fields" style="display: none;">
+                    <!-- Discount -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">DISCOUNT</label>
+                        <div class="input-group">
+                            <input type="number" id="item-discount" class="form-control" value="0" step="0.01" min="0" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <select id="discount-type" class="form-control" style="max-width: 100px; background-color: #f8f9fa; border-radius: 8px;">
+                                <option value="amount">Rs</option>
+                                <option value="percent">%</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tax -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">TAX %</label>
+                        <input type="number" id="item-tax" class="form-control" value="0" step="0.01" min="0" max="100" style="background-color: #f8f9fa; border-radius: 8px;">
+                    </div>
+                </div>
             </div>
             <div class="modal-footer border-0 pt-2">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary fw-bold" id="sales-confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
+                <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
                     CONFIRM SELECTION
                 </button>
             </div>
@@ -999,6 +1035,318 @@ $(document).ready(function() {
     });
     // ========== End YouTube-Style Search Modal ==========
 
+    // Reset form when modal opens
+    $('#add-item-modal').on('show.bs.modal', function() {
+        // Reset form when modal opens
+        $('#item-search').val('');
+        $('#selected-item-id').val('');
+        $('#selected-warehouse-id').val('');
+        $('#sales-item-quantity').val('1');
+        $('#sales-item-unit').val('Can');
+        $('#sales-item-rate').val('0');
+        $('#sales-warranty-value').val('');
+        $('#sales-warranty-unit').val('Days');
+        $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
+        $('#item-search-results').hide();
+        $('#stock-status-section').hide();
+        $('#stock-status-content').hide();
+    });
+    
+    // Product name search with dropdown (Hierarchical: Branches → Warehouses → Items)
+    let itemSearchTimeout = null;
+    $('#item-search').on('input', function() {
+        const query = $(this).val().trim();
+        const branchId = $('#salesBranchId').val();
+        const resultsDiv = $('#item-search-results');
+        
+        // Clear previous timeout
+        clearTimeout(itemSearchTimeout);
+        
+        if (query.length < 2) {
+            resultsDiv.hide();
+            $('#selected-item-id').val('');
+            return;
+        }
+        
+        // Debounce search
+        itemSearchTimeout = setTimeout(function() {
+            $.ajax({
+                url: "{{ route('sales.items.ajax.search') }}",
+                method: 'GET',
+                data: {
+                    q: query,
+                    branch_id: branchId,
+                    limit: 10
+                },
+                success: function(results) {
+                    if (results.length === 0) {
+                        resultsDiv.html('<div class="p-3 text-muted text-center">No results found</div>');
+                    } else {
+                        let html = '';
+                        results.forEach(function(result) {
+                            if (result.type === 'branch') {
+                                // Branch result
+                                html += `
+                                    <div class="p-2 border-bottom branch-search-result" 
+                                         data-type="branch"
+                                         data-id="${result.id}"
+                                         style="background-color: #e7f3ff; cursor: pointer; transition: background 0.2s;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ti ti-building me-2 text-primary"></i>
+                                            <div>
+                                                <div class="fw-bold text-primary">${result.display}</div>
+                                                <div class="small text-muted">Branch</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (result.type === 'warehouse') {
+                                // Warehouse header
+                                html += `
+                                    <div class="p-2 border-bottom warehouse-search-result" 
+                                         data-type="warehouse"
+                                         data-id="${result.id}"
+                                         style="background-color: #f0f9ff; cursor: pointer; transition: background 0.2s;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ti ti-archive me-2 text-info"></i>
+                                            <div>
+                                                <div class="fw-bold text-info">${result.display}</div>
+                                                <div class="small text-muted">Warehouse${result.branch_name ? ' - ' + result.branch_name : ''}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (result.type === 'item') {
+                                // Item result
+                                const item = result.item;
+                                const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
+                                const partNumber = item.partnumber_item?.name || '';
+                                const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
+                                const model = item.vehical_item?.model_vehical?.name || '';
+                                
+                                let displayName = itemName;
+                                if (partNumber) displayName += ' - ' + partNumber;
+                                if (manufacturer) displayName += ' ' + manufacturer;
+                                if (model) displayName += ' ' + model;
+                                
+                                html += `
+                                    <div class="p-2 border-bottom item-search-result" 
+                                         data-type="item"
+                                         data-id="${item.id}" 
+                                         data-name="${displayName.replace(/"/g, '&quot;')}"
+                                         data-rate="${item.sale_price || item.packing_purchase_rate || 0}"
+                                         data-unit="${item.unit || 'Unit'}"
+                                         style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold">${displayName}</div>
+                                                <div class="small text-muted">
+                                                    ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
+                                                    ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
+                                                    ${result.warehouse_id ? ' | Warehouse ID: ' + result.warehouse_id : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        resultsDiv.html(html);
+                    }
+                    resultsDiv.show();
+                },
+                error: function() {
+                    resultsDiv.html('<div class="p-3 text-danger text-center">Error searching items</div>');
+                    resultsDiv.show();
+                }
+            });
+        }, 300);
+    });
+    
+    // Select from search results (branch, warehouse, or item)
+    $(document).on('click', '.branch-search-result, .warehouse-search-result, .item-search-result', function() {
+        const resultType = $(this).data('type');
+        const resultId = $(this).data('id');
+        
+        if (resultType === 'branch') {
+            // Select branch and reload search
+            selectSalesBranch(resultId, $(this).find('.fw-bold').text(), '');
+            $('#item-search').val(''); // Clear search to show all items for this branch
+            $('#item-search-results').hide();
+            // Trigger search again after branch selection
+            setTimeout(function() {
+                $('#item-search').trigger('input');
+            }, 500);
+        } else if (resultType === 'warehouse') {
+            // Filter by warehouse - reload search with warehouse filter
+            const currentQuery = $('#item-search').val();
+            $('#item-search').val(currentQuery + ' [Warehouse: ' + resultId + ']');
+            $('#item-search-results').hide();
+            // Could add warehouse filter here if needed
+        } else if (resultType === 'item') {
+            // Select item
+            const itemId = resultId;
+            const itemName = $(this).data('name');
+            const itemRate = $(this).data('rate');
+            const itemUnit = $(this).data('unit');
+            
+            $('#item-search').val(itemName);
+            $('#selected-item-id').val(itemId);
+            $('#sales-item-rate').val(parseFloat(itemRate || 0).toFixed(2));
+            $('#sales-item-unit').val(itemUnit || 'Unit');
+            $('#item-search-results').hide();
+            
+            // Load stock status
+            loadItemStockStatus(itemId);
+            
+            // Load customer history
+            loadCustomerHistory(itemId);
+        }
+    });
+    
+    // Load stock status for selected item
+    function loadItemStockStatus(itemId) {
+        $('#stock-status-section').show();
+        $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">Loading stock status...</p>');
+        
+        $.ajax({
+            url: '{{ route("sales.items.stock.status", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(stockData) {
+                if (stockData.length === 0) {
+                    $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">No stock found</p>');
+                    return;
+                }
+                
+                let html = '';
+                stockData.forEach(function(stock) {
+                    if (stock.type === 'branch') {
+                        // Branch total
+                        html += `
+                            <div class="p-2 mb-1 border-bottom stock-branch-item" style="background-color: #fff;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="fw-bold">${stock.display}</div>
+                                    <div class="text-muted">
+                                        <span class="fw-bold">${stock.cartons}C</span> | <span class="fw-bold">${stock.loose}L</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (stock.type === 'warehouse') {
+                        // Warehouse item - check if selected
+                        const isSelected = $('#selected-warehouse-id').val() == stock.id;
+                        html += `
+                            <div class="p-2 mb-1 stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
+                                 data-warehouse-id="${stock.id}"
+                                 data-branch-id="${stock.branch_id}"
+                                 style="cursor: pointer; transition: all 0.2s; ${isSelected ? '' : 'background-color: #f0f0f0;'}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">${isSelected ? '✓' : ''}</span>
+                                        <span class="${isSelected ? 'text-white' : ''}">${stock.display}</span>
+                                    </div>
+                                    <div class="${isSelected ? 'text-white' : 'text-muted'}">
+                                        <span class="fw-bold">${stock.cartons} C</span> | <span class="fw-bold">${stock.loose} L</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                $('#stock-status-list').html(html);
+            },
+            error: function() {
+                $('#stock-status-list').html('<p class="text-danger mb-0 small text-center">Error loading stock status</p>');
+            }
+        });
+    }
+    
+    // Toggle stock status expand/collapse
+    $('#stock-status-toggle').on('dblclick', function() {
+        $('#stock-status-content').slideToggle();
+    });
+    
+    // Select warehouse from stock status
+    $(document).on('click', '.stock-warehouse-item', function() {
+        // Remove previous selection
+        $('.stock-warehouse-item').removeClass('bg-primary text-white').addClass('bg-light');
+        $('.stock-warehouse-item').find('span:first').text('');
+        
+        // Select this warehouse
+        $(this).removeClass('bg-light').addClass('bg-primary text-white');
+        $(this).find('span:first').html('✓');
+        
+        const warehouseId = $(this).data('warehouse-id');
+        $('#selected-warehouse-id').val(warehouseId);
+    });
+    
+    // Hide search results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#item-search, #item-search-results').length) {
+            $('#item-search-results').hide();
+        }
+    });
+
+    // Load item details
+    function loadItemDetails(itemId) {
+        $.ajax({
+            url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(response) {
+                $('#selected-item-id').val(response.id);
+                $('#item-search').val(response.name);
+                $('#sales-item-rate').val(parseFloat(response.rate || 0).toFixed(2));
+                $('#sales-item-unit').val(response.unit || 'Can');
+                
+                // Load customer history for this item
+                loadCustomerHistory(itemId);
+                
+                // Load stock status
+                loadItemStockStatus(itemId);
+                
+                $('#search-results').hide();
+            }
+        });
+    }
+
+    // Load customer history for selected item
+    function loadCustomerHistory(itemId) {
+        // TODO: Implement customer history API call
+        // For now, show placeholder
+        $('#customer-history-content').html('<p class="text-muted mb-0 small">Loading history...</p>');
+        $('#hold-rate-link').hide();
+        
+        // Simulate history loading (replace with actual API call)
+        setTimeout(function() {
+            $('#customer-history-content').html(`
+                <div class="small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Last Sale: Rs 1,250</span>
+                        <span class="text-muted">2 days ago</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Avg Rate: Rs 1,200</span>
+                        <span class="text-muted">Last 30 days</span>
+                    </div>
+                </div>
+            `);
+            $('#hold-rate-link').show();
+        }, 500);
+    }
+
+    // Hold rate to apply
+    $('#hold-rate-link').on('click', function() {
+        // Get the last sale rate from history and apply it
+        const historyText = $('#customer-history-content').text();
+        const rateMatch = historyText.match(/Rs\s*([\d,]+)/);
+        if (rateMatch) {
+            const rate = rateMatch[1].replace(/,/g, '');
+            $('#sales-item-rate').val(parseFloat(rate).toFixed(2));
+        }
+    });
+
     // Old code below - keeping for reference but will be replaced
     // Elements
     const searchInput = $('#item-search-input');
@@ -1434,9 +1782,9 @@ $(document).ready(function() {
         $('#sales-selected-warehouse-id').val(warehouseId);
     });
     
-    // Confirm entry and add to sales table
-    $('#sales-confirm-entry').on('click', function() {
-        const itemId = $('#sales-selected-item-id').val();
+    // Confirm entry
+    $('#confirm-entry').on('click', function() {
+        const itemId = $('#selected-item-id').val();
         let quantity = parseFloat($('#sales-item-quantity').val()) || 0;
         
         // If custom quantity input is visible and has value, use that
@@ -1446,88 +1794,139 @@ $(document).ready(function() {
         
         const unit = $('#sales-item-unit').val();
         const rate = parseFloat($('#sales-item-rate').val()) || 0;
-        const itemName = $('#sales-item-name').val();
+        const discount = parseFloat($('#item-discount').val()) || 0;
+        const discountType = $('#discount-type').val();
+        const taxPercentage = parseFloat($('#item-tax').val()) || 0;
+        const itemName = $('#item-search').val();
         const warrantyValue = $('#sales-warranty-value').val();
         const warrantyUnit = $('#sales-warranty-unit').val();
 
         if (!itemId || quantity <= 0 || rate <= 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Validation Error',
-                text: 'Please select an item and enter valid quantity and rate'
-            });
+            alert('Please select an item and enter valid quantity and rate');
             return;
         }
 
-        // Check if item already exists in table
-        let exists = false;
-        $('#sales-items-body tr').each(function() {
-            if ($(this).find('td:first').text().trim() === itemName) {
-                exists = true;
-                return false;
-            }
-        });
+        // Calculate discount amount
+        let discountAmount = discount;
+        if (discountType === 'percent') {
+            discountAmount = (quantity * rate * discount) / 100;
+        }
+
+        // Calculate totals
+        const subtotal = (quantity * rate) - discountAmount;
+        const taxAmount = (subtotal * taxPercentage) / 100;
+        const total = subtotal + taxAmount;
+
+        // Add to items array
+        const item = {
+            id: itemCounter++,
+            item_id: itemId,
+            name: itemName,
+            quantity: quantity,
+            unit: unit,
+            rate: rate,
+            discount: discountAmount,
+            tax_percentage: taxPercentage,
+            tax_amount: taxAmount,
+            total: total,
+            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null
+        };
+
+        salesItems.push(item);
+        addItemToTable(item);
+        resetItemModal();
+        $('#add-item-modal').modal('hide');
+        calculateTotals();
+    });
+
+    function addItemToTable(item) {
+        $('#empty-items-state').hide();
+        $('#items-list').show();
         
-        if (exists) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Item Already Added',
-                text: 'This item is already in the list!'
-            });
-            return;
-        }
-
-        // Add to table
-        const newRow = `
-            <tr>
-                <td>${itemName}</td>
-                <td><input type="number" value="${quantity}" min="0.01" step="0.01" class="form-control qty" style="width: 80px;"></td>
-                <td>$${parseFloat(rate).toFixed(2)}</td>
-                <td><input type="number" value="0" class="form-control discount" style="width: 80px;"></td>
-                <td><input type="number" value="0" class="form-control tax" style="width: 80px;"></td>
-                <td class="tax-amount">$0.00</td>
-                <td class="unit-cost">$${parseFloat(rate).toFixed(2)}</td>
-                <td class="total-cost">$${(quantity * rate).toFixed(2)}</td>
+        const row = `
+            <tr data-item-id="${item.item_id}" data-row-id="${item.id}">
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.unit}</td>
+                <td>Rs ${parseFloat(item.rate).toFixed(2)}</td>
+                <td>Rs ${parseFloat(item.discount).toFixed(2)}</td>
+                <td>${parseFloat(item.tax_percentage).toFixed(2)}%</td>
+                <td>Rs ${parseFloat(item.total).toFixed(2)}</td>
                 <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-item">
-                        <i class="fas fa-trash"></i>
+                    <button type="button" class="btn btn-sm btn-danger remove-item" data-row-id="${item.id}">
+                        <i class="ti ti-x"></i>
                     </button>
                 </td>
             </tr>
         `;
+        $('#items-tbody').append(row);
+    }
+
+    // Remove item
+    $(document).on('click', '.remove-item', function() {
+        const rowId = $(this).data('row-id');
+        salesItems = salesItems.filter(item => item.id !== rowId);
+        $(this).closest('tr').remove();
         
-        // Remove empty row if exists
-        $('#sales-items-body tr:first').remove();
-        $('#sales-items-body').prepend(newRow);
+        if ($('#items-tbody tr').length === 0) {
+            $('#empty-items-state').show();
+            $('#items-list').hide();
+        }
         
-        // Close modal
-        $('#add-item-modal').modal('hide');
-        
-        // Reset form
-        $('#sales-item-name').val('');
-        $('#sales-selected-item-id').val('');
-        $('#sales-selected-warehouse-id').val('');
-        $('#sales-item-quantity').val('1');
-        $('#sales-item-unit').val('Can');
-        $('#sales-item-rate').val('0');
-        $('#sales-warranty-value').val('');
-        $('#sales-warranty-unit').val('Days');
-        $('#sales-stock-status-section').hide();
-        $('#sales-stock-status-content').hide();
+        calculateTotals();
     });
-    
-    // Reset form when modal opens (Sales)
-    $('#add-item-modal').on('show.bs.modal', function() {
-        $('#sales-item-name').val('');
-        $('#sales-selected-item-id').val('');
-        $('#sales-selected-warehouse-id').val('');
+
+    function resetItemModal() {
+        $('#selected-item-id').val('');
+        $('#item-search').val('');
         $('#sales-item-quantity').val('1');
+        $('#sales-item-quantity-input').val('1').hide();
         $('#sales-item-unit').val('Can');
         $('#sales-item-rate').val('0');
         $('#sales-warranty-value').val('');
         $('#sales-warranty-unit').val('Days');
-        $('#sales-stock-status-section').hide();
-        $('#sales-stock-status-content').hide();
+        $('#item-discount').val('0');
+        $('#discount-type').val('amount');
+        $('#item-tax').val('0');
+        $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to see history</p>');
+        $('#hold-rate-link').hide();
+        $('#search-results').hide();
+        $('#stock-status-section').hide();
+        $('#stock-status-content').hide();
+    }
+
+    function calculateTotals() {
+        let itemTotal = 0;
+        salesItems.forEach(function(item) {
+            itemTotal += parseFloat(item.total);
+        });
+
+        const orderTax = parseFloat($('#order_tax').val()) || 0;
+        const discount = parseFloat($('#discount').val()) || 0;
+        const shipping = parseFloat($('#shipping').val()) || 0;
+
+        const grossTotal = itemTotal;
+        const grandTotal = itemTotal + orderTax - discount + shipping;
+
+        $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
+        $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
+    }
+
+    // Quantity dropdown change - show custom input if "Qty" selected
+    $('#sales-item-quantity').on('change', function() {
+        if ($(this).val() === '1' && $(this).find('option:selected').text() === 'Qty') {
+            $('#sales-item-quantity-input').show().focus();
+        } else {
+            $('#sales-item-quantity-input').hide();
+        }
+    });
+
+    // Use custom quantity input if provided
+    $('#sales-item-quantity-input').on('input', function() {
+        const customQty = $(this).val();
+        if (customQty && customQty > 0) {
+            $('#sales-item-quantity').val(customQty);
+        }
     });
     
     // Remove item from table
