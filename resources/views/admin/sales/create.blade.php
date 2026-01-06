@@ -179,7 +179,7 @@
 
                         <!-- Add Item Button -->
                         <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#sales-item-search-modal">
                                 <i class="ti ti-plus me-2"></i>ADD NEW ITEM
                             </button>
                         </div>
@@ -718,6 +718,18 @@ $(document).ready(function() {
             loadSalesFilterOptions();
         }
         salesSearchInput.focus();
+        
+        // Clear previous search and show initial state
+        salesSearchInput.val('');
+        salesClearSearchBtn.addClass('d-none');
+        salesResultsContainer.html(`
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                <p>Start typing to search items or use filters above</p>
+            </div>
+        `);
+        salesNoResults.hide();
+        salesLoadingResults.hide();
     });
     
     // Load filter options
@@ -937,14 +949,24 @@ $(document).ready(function() {
                     const cartons = parseInt(itemData.cartons || 0);
                     const loose = parseFloat(itemData.loose || 0);
                     
-                    // Price information
+                    // Price information - prioritize sale_price
                     const salePrice = parseFloat(itemData.sale_price || item.sale_price || 0);
                     const calculatedPricePerUnit = parseFloat(itemData.calculated_price_per_unit || 0);
                     const totalCost = parseFloat(itemData.total_cost || 0);
                     const pricePerUnit = parseFloat(itemData.price_per_unit || item.price_per_unit || 0);
+                    const packingPurchaseRate = parseFloat(itemData.packing_purchase_rate || item.packing_purchase_rate || 0);
                     
-                    // Use calculated price per unit or sale price
-                    const displayPrice = calculatedPricePerUnit > 0 ? calculatedPricePerUnit : (salePrice > 0 ? salePrice : 0);
+                    // Priority: sale_price > calculated_price_per_unit > price_per_unit > packing_purchase_rate
+                    let displayPrice = 0;
+                    if (salePrice > 0) {
+                        displayPrice = salePrice;
+                    } else if (calculatedPricePerUnit > 0) {
+                        displayPrice = calculatedPricePerUnit;
+                    } else if (pricePerUnit > 0) {
+                        displayPrice = pricePerUnit;
+                    } else if (packingPurchaseRate > 0) {
+                        displayPrice = packingPurchaseRate;
+                    }
                     
                     const barCode = itemData.bar_code || item.bar_code || '';
                     const serialNumber = itemData.serial_number || item.serial_number || '';
@@ -1056,12 +1078,24 @@ $(document).ready(function() {
         const itemId = card.data('id');
         const itemName = card.data('name');
         const itemPrice = card.data('price');
+        const itemStock = card.data('stock');
+        const warehouseId = card.data('warehouse-id');
         
         // Close search modal
         salesSearchModal.modal('hide');
         
-        // Load item details and open detail modal
-        loadItemDetails(itemId);
+        // Set item data immediately
+        $('#selected-item-id').val(itemId);
+        $('#item-search').val(itemName);
+        $('#selected-warehouse-id').val(warehouseId || '');
+        
+        // Set price immediately from search results
+        if (itemPrice && parseFloat(itemPrice) > 0) {
+            $('#sales-item-rate').val(parseFloat(itemPrice).toFixed(2));
+        }
+        
+        // Load full item details (will update price if needed)
+        loadItemDetails(itemId, itemPrice);
         
         // Open detail modal
         $('#add-item-modal').modal('show');
@@ -1323,14 +1357,18 @@ $(document).ready(function() {
     });
 
     // Load item details
-    function loadItemDetails(itemId) {
+    function loadItemDetails(itemId, preloadedPrice = null) {
         $.ajax({
             url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemId),
             method: 'GET',
             success: function(response) {
                 $('#selected-item-id').val(response.id);
                 $('#item-search').val(response.name);
-                $('#sales-item-rate').val(parseFloat(response.rate || 0).toFixed(2));
+                
+                // Use preloaded price if available, otherwise use response rate
+                const salePrice = preloadedPrice || response.rate || response.sale_price || 0;
+                $('#sales-item-rate').val(parseFloat(salePrice).toFixed(2));
+                
                 $('#sales-item-unit').val(response.unit || 'Can');
                 
                 // Load customer history for this item
@@ -1339,7 +1377,13 @@ $(document).ready(function() {
                 // Load stock status
                 loadItemStockStatus(itemId);
                 
-                $('#search-results').hide();
+                $('#item-search-results').hide();
+            },
+            error: function() {
+                // If API fails, at least keep the preloaded price
+                if (preloadedPrice) {
+                    $('#sales-item-rate').val(parseFloat(preloadedPrice).toFixed(2));
+                }
             }
         });
     }

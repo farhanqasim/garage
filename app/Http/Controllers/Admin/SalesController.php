@@ -196,9 +196,9 @@ class SalesController extends Controller
                 // ========== VEHICLE RELATED SEARCH ==========
                 $q->orWhereHas('vehical_item', function ($subQ) use ($search) {
                     $subQ->where('year_from', 'LIKE', "%{$search}%")
-                         ->orWhere('year_to', 'LIKE', "%{$search}%")
-                         ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
-                })
+                  ->orWhere('year_to', 'LIKE', "%{$search}%")
+                  ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
+            })
                 ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($search) {
                     $subQ->where('name', 'LIKE', "%{$search}%");
                 })
@@ -483,11 +483,11 @@ class SalesController extends Controller
                 $itemName .= ' ' . $item->vehical_item->model_vehical->name;
             }
             
-            $results[] = [
-                'type' => 'item',
-                'id' => $item->id,
-                'warehouse_id' => $warehouse->id,
-                'warehouse_name' => $warehouse->warehouse_name,
+                $results[] = [
+                    'type' => 'item',
+                    'id' => $item->id,
+                    'warehouse_id' => $warehouse->id,
+                    'warehouse_name' => $warehouse->warehouse_name,
                 'warehouse_code' => $warehouse->warehouse_code,
                 'item' => $item,
                 // Stock and Quantity Information
@@ -541,12 +541,34 @@ class SalesController extends Controller
             $itemName .= ' ' . $item->vehical_item->model_vehical->name;
         }
         
+        // Calculate price - prioritize sale_price, then packing_purchase_rate, then total_price/on_hand
+        $salePrice = floatval($item->sale_price ?? 0);
+        $packingPurchaseRate = floatval($item->packing_purchase_rate ?? 0);
+        $totalPrice = floatval($item->total_price ?? 0);
+        $onHand = floatval($item->on_hand ?? 0);
+        
+        // If sale_price exists, use it
+        if ($salePrice > 0) {
+            $rate = $salePrice;
+        } 
+        // If total_price and on_hand exist, calculate per unit
+        elseif ($totalPrice > 0 && $onHand > 0) {
+            $rate = $totalPrice / $onHand;
+        }
+        // Otherwise use packing_purchase_rate
+        else {
+            $rate = $packingPurchaseRate > 0 ? $packingPurchaseRate : 0;
+        }
+        
         return response()->json([
             'id' => $item->id,
             'name' => $itemName,
-            'rate' => $item->sale_price ?? $item->packing_purchase_rate ?? 0,
+            'rate' => round($rate, 2),
+            'sale_price' => $salePrice,
+            'packing_purchase_rate' => $packingPurchaseRate,
+            'total_price' => $totalPrice,
             'unit' => $item->unit ?? 'Unit',
-            'stock' => $item->on_hand ?? 0,
+            'stock' => $onHand,
             'bar_code' => $item->bar_code,
             'serial_number' => $item->serial_number,
             'packing' => $item->packing ?? 1,
