@@ -179,7 +179,7 @@
 
                         <!-- Add Item Button -->
                         <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#sales-item-search-modal">
+                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
                                 <i class="ti ti-plus me-2"></i>ADD NEW ITEM
                             </button>
                         </div>
@@ -1184,12 +1184,33 @@ $(document).ready(function() {
                                     </div>
                                 `;
                             } else if (result.type === 'item') {
-                                // Item result
+                                // Item result - use the data from backend
                                 const item = result.item;
-                                const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                                const partNumber = item.partnumber_item?.name || '';
+                                const itemName = result.item_name || item.short_disc || item.pro_dis || item.bar_code || 'N/A';
+                                const partNumber = result.part_number || item.partnumber_item?.name || '';
                                 const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
                                 const model = item.vehical_item?.model_vehical?.name || '';
+                                
+                                // Get price from result data
+                                const salePrice = parseFloat(result.sale_price || item.sale_price || 0);
+                                const calculatedPrice = parseFloat(result.calculated_price_per_unit || 0);
+                                const pricePerUnit = parseFloat(result.price_per_unit || item.price_per_unit || 0);
+                                const packingRate = parseFloat(result.packing_purchase_rate || item.packing_purchase_rate || 0);
+                                
+                                // Priority: sale_price > calculated_price_per_unit > price_per_unit > packing_purchase_rate
+                                let displayPrice = 0;
+                                if (salePrice > 0) {
+                                    displayPrice = salePrice;
+                                } else if (calculatedPrice > 0) {
+                                    displayPrice = calculatedPrice;
+                                } else if (pricePerUnit > 0) {
+                                    displayPrice = pricePerUnit;
+                                } else if (packingRate > 0) {
+                                    displayPrice = packingRate;
+                                }
+                                
+                                const warehouseQuantity = parseFloat(result.warehouse_quantity || 0);
+                                const warehouseId = result.warehouse_id || '';
                                 
                                 let displayName = itemName;
                                 if (partNumber) displayName += ' - ' + partNumber;
@@ -1201,8 +1222,9 @@ $(document).ready(function() {
                                          data-type="item"
                                          data-id="${item.id}" 
                                          data-name="${displayName.replace(/"/g, '&quot;')}"
-                                         data-rate="${item.sale_price || item.packing_purchase_rate || 0}"
-                                         data-unit="${item.unit || 'Unit'}"
+                                         data-rate="${displayPrice}"
+                                         data-unit="${result.unit || item.unit || 'Unit'}"
+                                         data-warehouse-id="${warehouseId}"
                                          style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
                                         <div class="d-flex align-items-center">
                                             <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
@@ -1210,8 +1232,8 @@ $(document).ready(function() {
                                                 <div class="fw-bold">${displayName}</div>
                                                 <div class="small text-muted">
                                                     ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
-                                                    ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
-                                                    ${result.warehouse_id ? ' | Warehouse ID: ' + result.warehouse_id : ''}
+                                                    ${warehouseQuantity > 0 ? ' | Stock: ' + warehouseQuantity.toFixed(2) : ''}
+                                                    ${displayPrice > 0 ? ' | Price: Rs ' + displayPrice.toFixed(2) : ''}
                                                 </div>
                                             </div>
                                         </div>
@@ -1257,9 +1279,11 @@ $(document).ready(function() {
             const itemName = $(this).data('name');
             const itemRate = $(this).data('rate');
             const itemUnit = $(this).data('unit');
+            const warehouseId = $(this).data('warehouse-id');
             
             $('#item-search').val(itemName);
             $('#selected-item-id').val(itemId);
+            $('#selected-warehouse-id').val(warehouseId || '');
             $('#sales-item-rate').val(parseFloat(itemRate || 0).toFixed(2));
             $('#sales-item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
@@ -1894,6 +1918,9 @@ $(document).ready(function() {
         const taxAmount = (subtotal * taxPercentage) / 100;
         const total = subtotal + taxAmount;
 
+        // Get warehouse ID
+        const warehouseId = $('#selected-warehouse-id').val();
+
         // Add to items array
         const item = {
             id: itemCounter++,
@@ -1906,7 +1933,8 @@ $(document).ready(function() {
             tax_percentage: taxPercentage,
             tax_amount: taxAmount,
             total: total,
-            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null
+            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
+            warehouse_id: warehouseId || null
         };
 
         salesItems.push(item);
@@ -2080,7 +2108,7 @@ $(document).ready(function() {
                 tax_amount: item.tax_amount,
                 total: item.total,
                 warranty: item.warranty || null,
-                warehouse_id: $('#selected-warehouse-id').val() || null
+                warehouse_id: item.warehouse_id || null
             }))
         };
         
