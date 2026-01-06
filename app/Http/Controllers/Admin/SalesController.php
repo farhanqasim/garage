@@ -99,60 +99,40 @@ class SalesController extends Controller
     }
 
     /**
-     * Advanced search with multiple filters (YouTube-style)
-     * Shows branches first, then warehouses, then items
+     * Search items in warehouse - Only returns items that are in the selected branch's warehouse
+     * Includes stock quantity, price calculations, and sales prices
      */
     public function ajaxSearch(Request $request)
     {
         $search = $request->input('q', '');
         $results = [];
         
-        // 1. Search branches first (if search term provided)
-        if ($search) {
-            $matchingBranches = \App\Models\Branch::where('status', 'active')
-                ->where(function($q) use ($search) {
-                    $q->where('branch_name', 'LIKE', "%{$search}%")
-                      ->orWhere('branch_code', 'LIKE', "%{$search}%");
-                })
-                ->limit(5)
-                ->get();
-            
-            foreach ($matchingBranches as $branch) {
-                $results[] = [
-                    'type' => 'branch',
-                    'id' => $branch->id,
-                    'name' => $branch->branch_name,
-                    'code' => $branch->branch_code,
-                    'display' => $branch->branch_name . ($branch->branch_code ? ' (' . $branch->branch_code . ')' : '')
-                ];
-            }
-        }
-        
-        // 2. Search warehouses (if search term provided)
-        if ($search) {
-            $matchingWarehouses = \App\Models\Warehouse::with('branch')
-                ->where(function($q) use ($search) {
-                    $q->where('warehouse_name', 'LIKE', "%{$search}%")
-                      ->orWhere('warehouse_code', 'LIKE', "%{$search}%");
-                })
-                ->limit(10)
-                ->get();
-            
-            foreach ($matchingWarehouses as $warehouse) {
-                $results[] = [
-                    'type' => 'warehouse',
-                    'id' => $warehouse->id,
-                    'name' => $warehouse->warehouse_name,
-                    'code' => $warehouse->warehouse_code,
-                    'branch_id' => $warehouse->branch_id,
-                    'branch_name' => $warehouse->branch ? $warehouse->branch->branch_name : '',
-                    'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($warehouse->branch ? ' - ' . $warehouse->branch->branch_name : '')
-                ];
-            }
-        }
-        
-        // 3. Search items (filtered by selected branch if provided, or show all)
+        // Get selected branch ID (required)
         $branchId = $request->input('branch_id') ?? session('selected_branch_id');
+        
+        if (!$branchId) {
+            return response()->json([
+                'error' => 'Please select a branch first'
+            ], 400);
+        }
+        
+        // Get warehouse for the selected branch
+        $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
+        
+        if (!$warehouse) {
+            return response()->json([
+                'error' => 'No warehouse found for selected branch'
+            ], 404);
+        }
+        
+        // Get all item IDs that are in this warehouse
+        $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
+            ->pluck('item_id')
+            ->toArray();
+        
+        if (empty($warehouseItemIds)) {
+            return response()->json([]);
+        }
         
         // Load all relationships for efficient searching and display
         $query = Item::with([
@@ -182,24 +162,7 @@ class SalesController extends Controller
             'group_item',
             'made_in_item',
             'level_item',
-        ]);
-        
-        // If branch is selected, filter by that branch's warehouse items
-        if ($branchId) {
-            $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
-            if ($warehouse) {
-                $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
-                    ->pluck('item_id')
-                    ->toArray();
-                
-                if (!empty($warehouseItemIds)) {
-                    $query->whereIn('id', $warehouseItemIds);
-                } else {
-                    // No items in warehouse, return only branches/warehouses
-                    return response()->json($results);
-                }
-            }
-        }
+        ])->whereIn('id', $warehouseItemIds); // Only items in warehouse
 
         // Comprehensive text search - Search ALL fields based on actual Item model relationships
         $search = $request->input('q', '');
@@ -458,64 +421,93 @@ class SalesController extends Controller
         $limit = $request->input('limit', 50);
         $items = $query->limit($limit)->get();
 
-        // Group items by warehouse
-        $warehouseItems = [];
+        // Build results with warehouse stock, quantity, and price calculations
         foreach ($items as $item) {
-            // Get warehouse for this item (through warehouse_items)
-            $warehouseItem = \App\Models\WarehouseItem::where('item_id', $item->id)->first();
-            if ($warehouseItem) {
-                $warehouse = $warehouseItem->warehouse;
-                if ($warehouse) {
-                    $warehouseId = $warehouse->id;
-                    if (!isset($warehouseItems[$warehouseId])) {
-                        $warehouseItems[$warehouseId] = [
-                            'warehouse' => $warehouse,
-                            'branch' => $warehouse->branch,
-                            'items' => []
-                        ];
-                    }
-                    $warehouseItems[$warehouseId]['items'][] = $item;
-                }
-            }
-        }
-        
-        // Add warehouses with their items (warehouses appear before items)
-        foreach ($warehouseItems as $warehouseId => $data) {
-            $warehouse = $data['warehouse'];
-            $branch = $data['branch'];
+            // Get warehouse item details for this item
+            $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
+                ->where('item_id', $item->id)
+                ->first();
             
-            // Add warehouse header
+            if (!$warehouseItem) {
+                continue; // Skip if not in warehouse
+            }
+            
+            // Calculate quantities
+            $warehouseQuantity = floatval($warehouseItem->quantity ?? 0);
+            $availableQuantity = floatval($warehouseItem->available_quantity ?? 0);
+            $reservedQuantity = floatval($warehouseItem->reserved_quantity ?? 0);
+            
+            // Get packing size for carton/loose calculation
+            $packingSize = floatval($item->packing ?? 1);
+            $cartons = floor($warehouseQuantity / $packingSize);
+            $loose = fmod($warehouseQuantity, $packingSize);
+            
+            // Price calculations
+            $salePrice = floatval($item->sale_price ?? 0);
+            $packingPurchaseRate = floatval($item->packing_purchase_rate ?? 0);
+            $totalPrice = floatval($item->total_price ?? 0);
+            $pricePerUnit = floatval($item->price_per_unit ?? 0);
+            
+            // Calculate price per unit if total price is given
+            if ($totalPrice > 0 && $warehouseQuantity > 0) {
+                $calculatedPricePerUnit = $totalPrice / $warehouseQuantity;
+            } elseif ($pricePerUnit > 0) {
+                $calculatedPricePerUnit = $pricePerUnit;
+            } elseif ($packingPurchaseRate > 0 && $packingSize > 0) {
+                $calculatedPricePerUnit = $packingPurchaseRate / $packingSize;
+            } else {
+                $calculatedPricePerUnit = $salePrice > 0 ? $salePrice : 0;
+            }
+            
+            // Calculate total cost based on warehouse quantity
+            $totalCost = $calculatedPricePerUnit * $warehouseQuantity;
+            
+            // Build item name
+            $itemName = $item->short_disc ?? $item->pro_dis ?? '';
+            if (empty($itemName) && $item->partnumber_item) {
+                $itemName = $item->partnumber_item->name ?? '';
+            }
+            if (empty($itemName)) {
+                $itemName = $item->bar_code;
+            }
+            
+            // Add manufacturer and model if available
+            if ($item->vehical_item && $item->vehical_item->manutacturer_vehical) {
+                $itemName .= ' - ' . $item->vehical_item->manutacturer_vehical->name;
+            }
+            if ($item->vehical_item && $item->vehical_item->model_vehical) {
+                $itemName .= ' ' . $item->vehical_item->model_vehical->name;
+            }
+            
             $results[] = [
-                'type' => 'warehouse',
-                'id' => $warehouse->id,
-                'name' => $warehouse->warehouse_name,
-                'code' => $warehouse->warehouse_code,
-                'branch_id' => $warehouse->branch_id,
-                'branch_name' => $branch ? $branch->branch_name : '',
-                'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($branch ? ' - ' . $branch->branch_name : '')
+                'type' => 'item',
+                'id' => $item->id,
+                'warehouse_id' => $warehouse->id,
+                'warehouse_name' => $warehouse->warehouse_name,
+                'warehouse_code' => $warehouse->warehouse_code,
+                'item' => $item,
+                // Stock and Quantity Information
+                'warehouse_quantity' => $warehouseQuantity,
+                'available_quantity' => $availableQuantity,
+                'reserved_quantity' => $reservedQuantity,
+                'cartons' => $cartons,
+                'loose' => $loose,
+                'packing_size' => $packingSize,
+                // Price Information
+                'sale_price' => $salePrice,
+                'packing_purchase_rate' => $packingPurchaseRate,
+                'total_price' => $totalPrice,
+                'price_per_unit' => $pricePerUnit,
+                'calculated_price_per_unit' => round($calculatedPricePerUnit, 2),
+                'total_cost' => round($totalCost, 2),
+                // Item Details
+                'item_name' => $itemName,
+                'bar_code' => $item->bar_code,
+                'serial_number' => $item->serial_number,
+                'unit' => $item->unit ?? 'Unit',
+                'category_name' => $item->category ? $item->category->name : null,
+                'part_number' => $item->partnumber_item ? $item->partnumber_item->name : null,
             ];
-            
-            // Add items under this warehouse
-            foreach ($data['items'] as $item) {
-                $results[] = [
-                    'type' => 'item',
-                    'id' => $item->id,
-                    'warehouse_id' => $warehouse->id,
-                    'warehouse_name' => $warehouse->warehouse_name,
-                    'item' => $item
-                ];
-            }
-        }
-        
-        // If no warehouse grouping, just return items directly
-        if (empty($warehouseItems) && !empty($items)) {
-            foreach ($items as $item) {
-                $results[] = [
-                    'type' => 'item',
-                    'id' => $item->id,
-                    'item' => $item
-                ];
-            }
         }
         
         return response()->json($results);

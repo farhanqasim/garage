@@ -920,52 +920,90 @@ $(document).ready(function() {
                 const searchTerm = query.toLowerCase();
                 const regex = searchTerm ? new RegExp(searchTerm.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'gi') : null;
                 
-                items.forEach(item => {
-                    const partNumber = item.partnumber_item?.name || 'N/A';
+                items.forEach(itemData => {
+                    // Extract item and warehouse information
+                    const item = itemData.item || itemData;
+                    const itemName = itemData.item_name || item.short_disc || item.pro_dis || item.bar_code || 'N/A';
+                    const partNumber = itemData.part_number || item.partnumber_item?.name || '';
                     const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
                     const model = item.vehical_item?.model_vehical?.name || '';
                     const yearFrom = item.vehical_item?.year_from || '';
                     const yearTo = item.vehical_item?.year_to || '';
                     const yearDisplay = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : (yearFrom || yearTo || '');
-                    const price = item.sale_price || item.packing_purchase_rate || 0;
-                    const stock = item.on_hand || 0;
-                    const barCode = item.bar_code || '';
-                    const serialNumber = item.serial_number || '';
+                    
+                    // Warehouse stock and quantity
+                    const warehouseQuantity = parseFloat(itemData.warehouse_quantity || 0);
+                    const availableQuantity = parseFloat(itemData.available_quantity || 0);
+                    const cartons = parseInt(itemData.cartons || 0);
+                    const loose = parseFloat(itemData.loose || 0);
+                    
+                    // Price information
+                    const salePrice = parseFloat(itemData.sale_price || item.sale_price || 0);
+                    const calculatedPricePerUnit = parseFloat(itemData.calculated_price_per_unit || 0);
+                    const totalCost = parseFloat(itemData.total_cost || 0);
+                    const pricePerUnit = parseFloat(itemData.price_per_unit || item.price_per_unit || 0);
+                    
+                    // Use calculated price per unit or sale price
+                    const displayPrice = calculatedPricePerUnit > 0 ? calculatedPricePerUnit : (salePrice > 0 ? salePrice : 0);
+                    
+                    const barCode = itemData.bar_code || item.bar_code || '';
+                    const serialNumber = itemData.serial_number || item.serial_number || '';
+                    const categoryName = itemData.category_name || (item.category ? item.category.name : '');
+                    const unit = itemData.unit || item.unit || 'Unit';
                     
                     // Highlight search term
+                    let displayItemName = itemName;
                     let displayPartNumber = partNumber;
                     let displayManufacturer = manufacturer;
                     let displayModel = model;
                     let displayYear = yearDisplay;
+                    let displayCategory = categoryName;
                     
                     if (regex) {
+                        displayItemName = itemName.replace(regex, match => `<mark>${match}</mark>`);
                         displayPartNumber = partNumber.replace(regex, match => `<mark>${match}</mark>`);
                         displayManufacturer = manufacturer.replace(regex, match => `<mark>${match}</mark>`);
                         displayModel = model.replace(regex, match => `<mark>${match}</mark>`);
                         displayYear = yearDisplay.replace(regex, match => `<mark>${match}</mark>`);
+                        displayCategory = categoryName.replace(regex, match => `<mark>${match}</mark>`);
                     }
                     
                     html += `
                         <div class="item-card" data-id="${item.id}" 
-                             data-name="${partNumber.replace(/"/g, '&quot;')}"
-                             data-price="${price}"
-                             data-stock="${stock}">
+                             data-name="${itemName.replace(/"/g, '&quot;')}"
+                             data-price="${displayPrice}"
+                             data-stock="${warehouseQuantity}"
+                             data-warehouse-id="${itemData.warehouse_id || ''}">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
-                                    <h6 class="mb-1 fw-bold">${displayPartNumber}</h6>
+                                    <h6 class="mb-1 fw-bold">${displayItemName}</h6>
+                                    ${displayPartNumber ? `<div class="small text-muted mb-1"><i class="fas fa-tag me-1"></i>${displayPartNumber}</div>` : ''}
+                                    ${displayCategory ? `<div class="small text-info mb-1"><i class="fas fa-folder me-1"></i>${displayCategory}</div>` : ''}
                                     <div class="small text-muted mb-2">
                                         ${displayManufacturer ? displayManufacturer + ' ' : ''}${displayModel}${displayYear ? ' (' + displayYear + ')' : ''}
                                     </div>
-                                    <div class="d-flex gap-3 small">
+                                    <div class="d-flex gap-3 small mb-2">
                                         ${barCode ? `<span><i class="fas fa-barcode me-1"></i>${barCode}</span>` : ''}
                                         ${serialNumber ? `<span><i class="fas fa-hashtag me-1"></i>${serialNumber}</span>` : ''}
-                                        <span class="text-${stock > 0 ? 'success' : 'danger'}">
-                                            <i class="fas fa-box me-1"></i>Stock: ${stock}
-                                        </span>
                                     </div>
+                                    <div class="d-flex gap-3 small">
+                                        <span class="text-${warehouseQuantity > 0 ? 'success' : 'danger'}">
+                                            <i class="fas fa-box me-1"></i>Stock: ${warehouseQuantity.toFixed(2)} ${unit}
+                                        </span>
+                                        ${cartons > 0 || loose > 0 ? `<span class="text-info">
+                                            <i class="fas fa-cubes me-1"></i>${cartons}C | ${loose.toFixed(2)}L
+                                        </span>` : ''}
+                                        ${availableQuantity !== warehouseQuantity ? `<span class="text-warning">
+                                            <i class="fas fa-lock me-1"></i>Available: ${availableQuantity.toFixed(2)}
+                                        </span>` : ''}
+                                    </div>
+                                    ${totalCost > 0 ? `<div class="small text-muted mt-1">
+                                        <i class="fas fa-calculator me-1"></i>Total Cost: Rs ${totalCost.toFixed(2)}
+                                    </div>` : ''}
                                 </div>
                                 <div class="text-end">
-                                    <div class="fw-bold text-primary mb-1">Rs ${parseFloat(price).toFixed(2)}</div>
+                                    <div class="fw-bold text-primary mb-1">Rs ${displayPrice.toFixed(2)}</div>
+                                    ${pricePerUnit > 0 && pricePerUnit !== displayPrice ? `<div class="small text-muted mb-1">Per Unit: Rs ${pricePerUnit.toFixed(2)}</div>` : ''}
                                     <button class="btn btn-sm btn-primary sales-add-item-btn">
                                         <i class="fas fa-plus me-1"></i>Select
                                     </button>
@@ -995,17 +1033,20 @@ $(document).ready(function() {
     
     // Update stock info
     function updateSalesStockInfo(items) {
-        let warehouseStock = 0;
-        let shopStock = 0;
+        let totalWarehouseStock = 0;
+        let totalAvailableStock = 0;
         
-        items.forEach(item => {
-            const stock = item.on_hand || 0;
-            warehouseStock += stock * 0.7;
-            shopStock += stock * 0.3;
+        items.forEach(itemData => {
+            const item = itemData.item || itemData;
+            const warehouseQuantity = parseFloat(itemData.warehouse_quantity || item.on_hand || 0);
+            const availableQuantity = parseFloat(itemData.available_quantity || warehouseQuantity);
+            
+            totalWarehouseStock += warehouseQuantity;
+            totalAvailableStock += availableQuantity;
         });
         
-        $('#sales-warehouse-stock').text(Math.round(warehouseStock) + ' Units');
-        $('#sales-shop-stock').text(Math.round(shopStock) + ' Units');
+        $('#sales-warehouse-stock').text(totalWarehouseStock.toFixed(2) + ' Units');
+        $('#sales-shop-stock').text(totalAvailableStock.toFixed(2) + ' Available');
     }
     
     // Add item to sales detail modal
