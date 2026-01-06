@@ -71,7 +71,7 @@
                                 </div>
                                 <div class="text-end">
                                     <div class="mb-1">
-                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="sales-number">INV #{{ str_pad((\App\Models\Sale::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT) }}</span>
+                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="sales-number">INV #{{ str_pad(1, 5, '0', STR_PAD_LEFT) }}</span>
                                     </div>
                                     <div style="font-size: 13px; color: #6c757d;">
                                         <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
