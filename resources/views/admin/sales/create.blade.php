@@ -1119,7 +1119,7 @@ $(document).ready(function() {
         $('#stock-status-content').hide();
     });
     
-    // Product name search with dropdown (Hierarchical: Branches → Warehouses → Items)
+    // Product name search with dropdown (Only Items)
     let itemSearchTimeout = null;
     $('#item-search').on('input', function() {
         const query = $(this).val().trim();
@@ -1129,9 +1129,17 @@ $(document).ready(function() {
         // Clear previous timeout
         clearTimeout(itemSearchTimeout);
         
-        if (query.length < 2) {
+        // Minimum 1 character to search
+        if (query.length < 1) {
             resultsDiv.hide();
             $('#selected-item-id').val('');
+            return;
+        }
+        
+        // Check if branch is selected
+        if (!branchId) {
+            resultsDiv.html('<div class="p-3 text-warning text-center"><i class="ti ti-alert-circle me-1"></i> Please select a branch first</div>');
+            resultsDiv.show();
             return;
         }
         
@@ -1143,47 +1151,31 @@ $(document).ready(function() {
                 data: {
                     q: query,
                     branch_id: branchId,
-                    limit: 10
+                    limit: 50
                 },
                 success: function(results) {
-                    if (results.length === 0) {
+                    console.log('Search results:', results);
+                    
+                    // Handle error response
+                    if (results && results.error) {
+                        resultsDiv.html(`<div class="p-3 text-warning text-center">${results.error}</div>`);
+                        resultsDiv.show();
+                        return;
+                    }
+                    
+                    if (!results || results.length === 0) {
                         resultsDiv.html('<div class="p-3 text-muted text-center">No results found</div>');
-                    } else {
-                        let html = '';
-                        results.forEach(function(result) {
-                            if (result.type === 'branch') {
-                                // Branch result
-                                html += `
-                                    <div class="p-2 border-bottom branch-search-result" 
-                                         data-type="branch"
-                                         data-id="${result.id}"
-                                         style="background-color: #e7f3ff; cursor: pointer; transition: background 0.2s;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-building me-2 text-primary"></i>
-                                            <div>
-                                                <div class="fw-bold text-primary">${result.display}</div>
-                                                <div class="small text-muted">Branch</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            } else if (result.type === 'warehouse') {
-                                // Warehouse header
-                                html += `
-                                    <div class="p-2 border-bottom warehouse-search-result" 
-                                         data-type="warehouse"
-                                         data-id="${result.id}"
-                                         style="background-color: #f0f9ff; cursor: pointer; transition: background 0.2s;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-archive me-2 text-info"></i>
-                                            <div>
-                                                <div class="fw-bold text-info">${result.display}</div>
-                                                <div class="small text-muted">Warehouse${result.branch_name ? ' - ' + result.branch_name : ''}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            } else if (result.type === 'item') {
+                        resultsDiv.show();
+                        return;
+                    }
+                    
+                    let html = '';
+                    let itemCount = 0;
+                    
+                    // Only show items, skip branches and warehouses
+                    results.forEach(function(result) {
+                        if (result.type === 'item') {
+                            itemCount++;
                                 // Item result - use the data from backend
                                 const item = result.item;
                                 const itemName = result.item_name || item.short_disc || item.pro_dis || item.bar_code || 'N/A';
@@ -1239,41 +1231,37 @@ $(document).ready(function() {
                                         </div>
                                     </div>
                                 `;
-                            }
-                        });
+                        }
+                    });
+                    
+                    if (itemCount === 0) {
+                        resultsDiv.html('<div class="p-3 text-muted text-center">No items found</div>');
+                    } else {
                         resultsDiv.html(html);
                     }
                     resultsDiv.show();
                 },
-                error: function() {
-                    resultsDiv.html('<div class="p-3 text-danger text-center">Error searching items</div>');
+                error: function(xhr) {
+                    console.error('Search error:', xhr);
+                    let errorMsg = 'Error searching items';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errorMsg = xhr.responseJSON.error;
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    resultsDiv.html(`<div class="p-3 text-danger text-center">${errorMsg}</div>`);
                     resultsDiv.show();
                 }
             });
         }, 300);
     });
     
-    // Select from search results (branch, warehouse, or item)
-    $(document).on('click', '.branch-search-result, .warehouse-search-result, .item-search-result', function() {
+    // Select from search results (only items now)
+    $(document).on('click', '.item-search-result', function() {
         const resultType = $(this).data('type');
         const resultId = $(this).data('id');
         
-        if (resultType === 'branch') {
-            // Select branch and reload search
-            selectSalesBranch(resultId, $(this).find('.fw-bold').text(), '');
-            $('#item-search').val(''); // Clear search to show all items for this branch
-            $('#item-search-results').hide();
-            // Trigger search again after branch selection
-            setTimeout(function() {
-                $('#item-search').trigger('input');
-            }, 500);
-        } else if (resultType === 'warehouse') {
-            // Filter by warehouse - reload search with warehouse filter
-            const currentQuery = $('#item-search').val();
-            $('#item-search').val(currentQuery + ' [Warehouse: ' + resultId + ']');
-            $('#item-search-results').hide();
-            // Could add warehouse filter here if needed
-        } else if (resultType === 'item') {
+        if (resultType === 'item') {
             // Select item
             const itemId = resultId;
             const itemName = $(this).data('name');

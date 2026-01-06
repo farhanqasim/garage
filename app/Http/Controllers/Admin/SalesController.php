@@ -170,8 +170,9 @@ class SalesController extends Controller
         ])->whereIn('id', $warehouseItemIds); // Only items in warehouse
 
         // Comprehensive text search - Search ALL fields based on actual Item model relationships
-        $search = $request->input('q', '');
-        if ($search) {
+        $search = trim($request->input('q', ''));
+        // If search query provided, filter items; otherwise show all items in warehouse
+        if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 // ========== PRIMARY PRODUCT IDENTIFICATION ==========
                 // Product Name Fields (Most Important)
