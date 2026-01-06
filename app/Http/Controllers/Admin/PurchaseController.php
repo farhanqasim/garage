@@ -160,16 +160,35 @@ class PurchaseController extends Controller
 
     public function getItemDetails($id)
     {
-        $item = Item::findOrFail($id);
+        $item = Item::with(['partnumber_item', 'category', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical'])->findOrFail($id);
+        
+        // Build item name from available data
+        $itemName = $item->short_disc ?? $item->pro_dis ?? '';
+        if (empty($itemName) && $item->partnumber_item) {
+            $itemName = $item->partnumber_item->name ?? '';
+        }
+        if (empty($itemName)) {
+            $itemName = $item->bar_code;
+        }
+        
+        // Add manufacturer and model if available
+        if ($item->vehical_item && $item->vehical_item->manutacturer_vehical) {
+            $itemName .= ' - ' . $item->vehical_item->manutacturer_vehical->name;
+        }
+        if ($item->vehical_item && $item->vehical_item->model_vehical) {
+            $itemName .= ' ' . $item->vehical_item->model_vehical->name;
+        }
         
         return response()->json([
             'id' => $item->id,
-            'name' => $item->short_disc ?? $item->pro_dis ?? $item->bar_code,
+            'name' => $itemName,
             'rate' => $item->packing_purchase_rate ?? 0,
-            'unit' => $item->product_unit ?? 'Unit',
+            'unit' => $item->unit ?? 'Unit',
             'stock' => $item->on_hand ?? 0,
-            'warehouse_stock' => $item->on_hand ?? 0, // Can be modified later for warehouse/shop separation
-            'shop_stock' => 0, // Can be modified later for warehouse/shop separation
+            'warehouse_stock' => $item->on_hand ?? 0,
+            'shop_stock' => 0,
+            'bar_code' => $item->bar_code,
+            'serial_number' => $item->serial_number,
         ]);
     }
 
