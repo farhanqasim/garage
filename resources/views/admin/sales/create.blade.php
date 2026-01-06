@@ -2065,6 +2065,20 @@ $(document).ready(function() {
     // Form submission handler
     $('#salesForm').on('submit', function(e) {
         e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Form submitted, salesItems:', salesItems);
+        
+        // Validate customer
+        const customerId = $('#customer_id').val();
+        if (!customerId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Customer Required',
+                text: 'Please select a customer first.'
+            });
+            return false;
+        }
         
         // Validate branch selection
         const branchId = $('#salesBranchId').val();
@@ -2078,7 +2092,7 @@ $(document).ready(function() {
         }
         
         // Validate items
-        if (salesItems.length === 0) {
+        if (!salesItems || salesItems.length === 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'No Items',
@@ -2122,16 +2136,26 @@ $(document).ready(function() {
             }
         });
         
+        // Debug: Log form data
+        console.log('Submitting sale:', formData);
+        console.log('Sales items:', salesItems);
+        
         // Submit via AJAX
         $.ajax({
             url: $(this).attr('action'),
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
             data: formData,
+            dataType: 'json',
             success: function(response) {
+                console.log('Sale created successfully:', response);
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
-                    text: 'Sale created successfully!',
+                    text: response.message || 'Sale created successfully!',
                     timer: 2000,
                     showConfirmButton: false
                 }).then(() => {
@@ -2139,12 +2163,18 @@ $(document).ready(function() {
                 });
             },
             error: function(xhr) {
+                console.error('Sale creation error:', xhr);
                 let errorMessage = 'Failed to create sale. Please try again.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    const errors = Object.values(xhr.responseJSON.errors).flat();
-                    errorMessage = errors.join('<br>');
+                
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseJSON.errors) {
+                        const errors = Object.values(xhr.responseJSON.errors).flat();
+                        errorMessage = errors.join('<br>');
+                    }
+                } else if (xhr.responseText) {
+                    errorMessage = xhr.responseText;
                 }
                 
                 Swal.fire({

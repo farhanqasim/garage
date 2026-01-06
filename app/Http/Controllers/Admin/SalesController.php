@@ -17,6 +17,7 @@ use App\Models\SaleItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class SalesController extends Controller
 {
@@ -667,25 +668,36 @@ class SalesController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'branch_id' => 'required|exists:branches,id',
-            'sale_date' => 'required|date',
-            'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|exists:items,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.rate' => 'required|numeric|min:0',
-            'items.*.unit' => 'nullable|string',
-            'items.*.discount' => 'nullable|numeric|min:0',
-            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
-            'items.*.tax_amount' => 'nullable|numeric|min:0',
-            'items.*.total' => 'required|numeric|min:0',
-            'order_tax' => 'nullable|numeric|min:0',
-            'discount' => 'nullable|numeric|min:0',
-            'shipping' => 'nullable|numeric|min:0',
-            'reference' => 'nullable|string|max:255',
-            'status' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'customer_id' => 'required|exists:customers,id',
+                'branch_id' => 'required|exists:branches,id',
+                'sale_date' => 'required|date',
+                'items' => 'required|array|min:1',
+                'items.*.item_id' => 'required|exists:items,id',
+                'items.*.quantity' => 'required|numeric|min:0.01',
+                'items.*.rate' => 'required|numeric|min:0',
+                'items.*.unit' => 'nullable|string',
+                'items.*.discount' => 'nullable|numeric|min:0',
+                'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+                'items.*.tax_amount' => 'nullable|numeric|min:0',
+                'items.*.total' => 'required|numeric|min:0',
+                'order_tax' => 'nullable|numeric|min:0',
+                'discount' => 'nullable|numeric|min:0',
+                'shipping' => 'nullable|numeric|min:0',
+                'reference' => 'nullable|string|max:255',
+                'status' => 'nullable|string',
+            ]);
+        } catch (ValidationException $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
+        }
 
         try {
             DB::beginTransaction();
@@ -749,12 +761,29 @@ class SalesController extends Controller
 
             DB::commit();
 
+            // Return JSON response for AJAX requests
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Sale created successfully!',
+                    'sale_id' => $sale->id
+                ]);
+            }
+
             return redirect()->route('all_sales')
                 ->with('success', 'Sale created successfully!');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Sale creation error: ' . $e->getMessage());
+            Log::error('Sale creation stack trace: ' . $e->getTraceAsString());
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create sale: ' . $e->getMessage()
+                ], 500);
+            }
             
             return redirect()->back()
                 ->withInput()
