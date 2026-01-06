@@ -415,6 +415,8 @@ Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
     ->name('sales.items.ajax.search');
 Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])
     ->name('sales.filter.options');
+Route::get('sales/items/{id}',[SalesController::class,'getItemDetails'])->name('sales.items.details');
+Route::get('sales/items/{id}/stock-status',[SalesController::class,'getItemStockStatus'])->name('sales.items.stock.status');
 
 // purchases
 Route::get('all/purchases',[PurchaseController::class,'all_purchases'])->name('all_purchases');

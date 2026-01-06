@@ -354,6 +354,137 @@
 				</div>
 			</div>
 		</div>
+
+<!-- Add Item Modal - ITEM DETAILS (Similar to Purchase) -->
+<div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-2">
+                <h5 class="modal-title fw-bold">
+                    <i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Product Name (Read-only, pre-filled) -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
+                    <input type="text" id="sales-item-name" class="form-control" placeholder="Item will be selected from search" readonly style="background-color: #f8f9fa; border-radius: 8px;">
+                    <input type="hidden" id="sales-selected-item-id">
+                    <input type="hidden" id="sales-selected-warehouse-id">
+                </div>
+                
+                <!-- STOCK STATUS Section (Shows when item is selected) -->
+                <div id="sales-stock-status-section" class="mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0">
+                            <i class="ti ti-settings me-2"></i>STOCK STATUS
+                        </label>
+                        <small class="text-muted" style="cursor: pointer;" id="sales-stock-status-toggle">
+                            DOUBLE-CLICK TO EXPAND
+                        </small>
+                    </div>
+                    <div id="sales-stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto; display: none;">
+                        <div id="sales-stock-status-list">
+                            <p class="text-muted mb-0 small text-center">Loading stock status...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quantity and Unit Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">QUANTITY</label>
+                        <select id="sales-item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <option value="1">Qty</option>
+                            <option value="0.5">0.5</option>
+                            <option value="1">1</option>
+                            <option value="1.5">1.5</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="150">150</option>
+                            <option value="200">200</option>
+                            <option value="250">250</option>
+                            <option value="300">300</option>
+                            <option value="400">400</option>
+                            <option value="500">500</option>
+                            <option value="600">600</option>
+                            <option value="700">700</option>
+                            <option value="800">800</option>
+                            <option value="900">900</option>
+                            <option value="1000">1000</option>
+                        </select>
+                        <input type="number" id="sales-item-quantity-input" class="form-control mt-2" value="1" min="0.01" step="0.01" placeholder="Or enter custom quantity" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
+                        <small class="text-muted" style="font-size: 11px;">Select or enter quantity</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">UNIT</label>
+                        <select id="sales-item-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <option value="Can">Can</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Box">Box</option>
+                            <option value="Piece">Piece</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Liter">Liter</option>
+                            <option value="Pack">Pack</option>
+                            <option value="Set">Set</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sale Rate and Warranty Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">SALE RATE</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">Rs</span>
+                            <input type="number" id="sales-item-rate" class="form-control" value="0" step="0.01" min="0" placeholder="0" style="background-color: #f8f9fa; border-radius: 8px;">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold mb-2">WARRANTY</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <select id="sales-warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="">-</option>
+                                    <option value="7">7</option>
+                                    <option value="15">15</option>
+                                    <option value="30">30</option>
+                                    <option value="60">60</option>
+                                    <option value="90">90</option>
+                                    <option value="180">180</option>
+                                    <option value="365">365</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select id="sales-warranty-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="Days">Days</option>
+                                    <option value="Weeks">Weeks</option>
+                                    <option value="Months">Months</option>
+                                    <option value="Years">Years</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary fw-bold" id="sales-confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
+                    CONFIRM SELECTION
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 @push('styles')
 <style>
@@ -715,7 +846,7 @@
         $('#shop-stock').text(Math.round(shopStock) + ' Units');
     }
     
-    // Add item to sales table
+    // Add item to sales detail modal (instead of directly to table)
     $(document).on('click', '.item-card, .add-item-btn', function(e) {
         e.stopPropagation();
         const card = $(this).closest('.item-card');
@@ -724,6 +855,142 @@
         const itemPrice = card.data('price');
         const itemStock = card.data('stock');
         
+        // Close search modal
+        modal.modal('hide');
+        
+        // Load item details and open detail modal
+        loadSalesItemDetails(itemId);
+        
+        // Open detail modal
+        $('#add-item-modal').modal('show');
+    });
+    
+    // Load item details for sales
+    function loadSalesItemDetails(itemId) {
+        $.ajax({
+            url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(response) {
+                $('#sales-selected-item-id').val(response.id);
+                $('#sales-item-name').val(response.name);
+                $('#sales-item-rate').val(parseFloat(response.rate || 0).toFixed(2));
+                $('#sales-item-unit').val(response.unit || 'Can');
+                
+                // Load stock status
+                loadSalesItemStockStatus(itemId);
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to load item details'
+                });
+            }
+        });
+    }
+    
+    // Load stock status for selected item (Sales)
+    function loadSalesItemStockStatus(itemId) {
+        $('#sales-stock-status-section').show();
+        $('#sales-stock-status-list').html('<p class="text-muted mb-0 small text-center">Loading stock status...</p>');
+        
+        $.ajax({
+            url: '{{ route("sales.items.stock.status", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(stockData) {
+                if (stockData.length === 0) {
+                    $('#sales-stock-status-list').html('<p class="text-muted mb-0 small text-center">No stock found</p>');
+                    return;
+                }
+                
+                let html = '';
+                stockData.forEach(function(stock) {
+                    if (stock.type === 'branch') {
+                        // Branch total
+                        html += `
+                            <div class="p-2 mb-1 border-bottom sales-stock-branch-item" style="background-color: #fff;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="fw-bold">${stock.display}</div>
+                                    <div class="text-muted">
+                                        <span class="fw-bold">${stock.cartons}C</span> | <span class="fw-bold">${stock.loose}L</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (stock.type === 'warehouse') {
+                        // Warehouse item - check if selected
+                        const isSelected = $('#sales-selected-warehouse-id').val() == stock.id;
+                        html += `
+                            <div class="p-2 mb-1 sales-stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
+                                 data-warehouse-id="${stock.id}"
+                                 data-branch-id="${stock.branch_id}"
+                                 style="cursor: pointer; transition: all 0.2s; ${isSelected ? '' : 'background-color: #f0f0f0;'}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">${isSelected ? '✓' : ''}</span>
+                                        <span class="${isSelected ? 'text-white' : ''}">${stock.display}</span>
+                                    </div>
+                                    <div class="${isSelected ? 'text-white' : 'text-muted'}">
+                                        <span class="fw-bold">${stock.cartons} C</span> | <span class="fw-bold">${stock.loose} L</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                $('#sales-stock-status-list').html(html);
+            },
+            error: function() {
+                $('#sales-stock-status-list').html('<p class="text-danger mb-0 small text-center">Error loading stock status</p>');
+            }
+        });
+    }
+    
+    // Toggle stock status expand/collapse (Sales)
+    $('#sales-stock-status-toggle').on('dblclick', function() {
+        $('#sales-stock-status-content').slideToggle();
+    });
+    
+    // Select warehouse from stock status (Sales)
+    $(document).on('click', '.sales-stock-warehouse-item', function() {
+        // Remove previous selection
+        $('.sales-stock-warehouse-item').removeClass('bg-primary text-white').addClass('bg-light');
+        $('.sales-stock-warehouse-item').find('span:first').text('');
+        
+        // Select this warehouse
+        $(this).removeClass('bg-light').addClass('bg-primary text-white');
+        $(this).find('span:first').html('✓');
+        
+        const warehouseId = $(this).data('warehouse-id');
+        $('#sales-selected-warehouse-id').val(warehouseId);
+    });
+    
+    // Confirm entry and add to sales table
+    $('#sales-confirm-entry').on('click', function() {
+        const itemId = $('#sales-selected-item-id').val();
+        let quantity = parseFloat($('#sales-item-quantity').val()) || 0;
+        
+        // If custom quantity input is visible and has value, use that
+        if ($('#sales-item-quantity-input').is(':visible') && $('#sales-item-quantity-input').val()) {
+            quantity = parseFloat($('#sales-item-quantity-input').val()) || 0;
+        }
+        
+        const unit = $('#sales-item-unit').val();
+        const rate = parseFloat($('#sales-item-rate').val()) || 0;
+        const itemName = $('#sales-item-name').val();
+        const warrantyValue = $('#sales-warranty-value').val();
+        const warrantyUnit = $('#sales-warranty-unit').val();
+
+        if (!itemId || quantity <= 0 || rate <= 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Validation Error',
+                text: 'Please select an item and enter valid quantity and rate'
+            });
+            return;
+        }
+
         // Check if item already exists in table
         let exists = false;
         $('#sales-items-body tr').each(function() {
@@ -734,21 +1001,25 @@
         });
         
         if (exists) {
-            alert('Item already added to the list!');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Item Already Added',
+                text: 'This item is already in the list!'
+            });
             return;
         }
-        
+
         // Add to table
         const newRow = `
             <tr>
                 <td>${itemName}</td>
-                <td><input type="number" value="1" min="1" max="${itemStock}" class="form-control qty" style="width: 80px;"></td>
-                <td>$${parseFloat(itemPrice).toFixed(2)}</td>
+                <td><input type="number" value="${quantity}" min="0.01" step="0.01" class="form-control qty" style="width: 80px;"></td>
+                <td>$${parseFloat(rate).toFixed(2)}</td>
                 <td><input type="number" value="0" class="form-control discount" style="width: 80px;"></td>
                 <td><input type="number" value="0" class="form-control tax" style="width: 80px;"></td>
                 <td class="tax-amount">$0.00</td>
-                <td class="unit-cost">$${parseFloat(itemPrice).toFixed(2)}</td>
-                <td class="total-cost">$${parseFloat(itemPrice).toFixed(2)}</td>
+                <td class="unit-cost">$${parseFloat(rate).toFixed(2)}</td>
+                <td class="total-cost">$${(quantity * rate).toFixed(2)}</td>
                 <td>
                     <button type="button" class="btn btn-sm btn-danger remove-item">
                         <i class="fas fa-trash"></i>
@@ -759,14 +1030,36 @@
         
         // Remove empty row if exists
         $('#sales-items-body tr:first').remove();
-            $('#sales-items-body').prepend(newRow);
+        $('#sales-items-body').prepend(newRow);
         
         // Close modal
-        modal.modal('hide');
+        $('#add-item-modal').modal('hide');
         
-        // Clear search
-            searchInput.val('');
-        clearSearchBtn.addClass('d-none');
+        // Reset form
+        $('#sales-item-name').val('');
+        $('#sales-selected-item-id').val('');
+        $('#sales-selected-warehouse-id').val('');
+        $('#sales-item-quantity').val('1');
+        $('#sales-item-unit').val('Can');
+        $('#sales-item-rate').val('0');
+        $('#sales-warranty-value').val('');
+        $('#sales-warranty-unit').val('Days');
+        $('#sales-stock-status-section').hide();
+        $('#sales-stock-status-content').hide();
+    });
+    
+    // Reset form when modal opens (Sales)
+    $('#add-item-modal').on('show.bs.modal', function() {
+        $('#sales-item-name').val('');
+        $('#sales-selected-item-id').val('');
+        $('#sales-selected-warehouse-id').val('');
+        $('#sales-item-quantity').val('1');
+        $('#sales-item-unit').val('Can');
+        $('#sales-item-rate').val('0');
+        $('#sales-warranty-value').val('');
+        $('#sales-warranty-unit').val('Days');
+        $('#sales-stock-status-section').hide();
+        $('#sales-stock-status-content').hide();
     });
     
     // Remove item from table
