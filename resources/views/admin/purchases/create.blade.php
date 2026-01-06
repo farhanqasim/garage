@@ -187,8 +187,8 @@
 
                         <!-- Add Item Button -->
                         <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#purchase-item-search-modal">
-                                <i class="ti ti-plus me-2"></i>NAYA ITEM ADD KARAIN
+                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                                <i class="ti ti-plus me-2"></i>ADD NEW ITEM
                             </button>
                         </div>
 
@@ -370,15 +370,22 @@
         <div class="modal-content" style="border-radius: 12px;">
             <div class="modal-header border-0 pb-2">
                 <h5 class="modal-title fw-bold">
-                    <i class="ti ti-shopping-cart me-2"></i>ITEM DETAIL BOX
+                    <i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Item Name (Read-only, pre-filled) -->
+                <!-- Product Name (Searchable/Selectable) -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold mb-2">ITEM NAME</label>
-                    <input type="text" id="item-search" class="form-control" placeholder="Item will be selected from search" readonly style="background-color: #f8f9fa; border-radius: 8px;">
+                    <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
+                    <div class="position-relative">
+                        <input type="text" id="item-search" class="form-control" placeholder="Search or select product..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
+                        <!-- Search Results Dropdown -->
+                        <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
+                        </div>
+                    </div>
+                    <input type="hidden" id="selected-item-id">
                 </div>
                 <!-- Quantity and Unit Row -->
                 <div class="row mb-3">
@@ -465,18 +472,18 @@
                     </div>
                 </div>
 
-                <!-- Customer History Section -->
+                <!-- Purchase History Section -->
                 <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label fw-bold mb-0">
-                            <i class="ti ti-clock me-2"></i>CUSTOMER HISTORY
+                            <i class="ti ti-history me-2"></i>PURCHASE HISTORY
                         </label>
                         <a href="javascript:void(0)" class="text-primary text-decoration-none" id="hold-rate-link" style="display: none;">
                             Hold Rate to Apply
                         </a>
                     </div>
-                    <div id="customer-history-content" class="p-3" style="background-color: #f8f9fa; border-radius: 8px; min-height: 60px;">
-                        <p class="text-muted mb-0 small">Select item to see history</p>
+                    <div id="customer-history-content" class="p-3" style="background-color: #f8f9fa; border-radius: 8px; min-height: 60px; max-height: 150px; overflow-y: auto;">
+                        <p class="text-muted mb-0 small">Select item to view history</p>
                     </div>
                 </div>
 
@@ -501,12 +508,11 @@
                     </div>
                 </div>
 
-                <input type="hidden" id="selected-item-id">
             </div>
             <div class="modal-footer border-0 pt-2">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
-                    CONFIRM ITEM
+                    CONFIRM SELECTION
                 </button>
             </div>
         </div>
@@ -1015,7 +1021,7 @@ $(document).ready(function() {
     });
 
     // Check branch selection before opening item modal
-    $('#purchase-item-search-modal').on('show.bs.modal', function() {
+    $('#add-item-modal').on('show.bs.modal', function() {
         const branchId = $('#purchaseBranchId').val();
         if (!branchId) {
             Swal.fire({
@@ -1026,6 +1032,119 @@ $(document).ready(function() {
             });
             $(this).modal('hide');
             return false;
+        }
+        
+        // Reset form when modal opens
+        $('#item-search').val('');
+        $('#selected-item-id').val('');
+        $('#item-quantity').val('1');
+        $('#item-unit').val('Can');
+        $('#item-rate').val('0');
+        $('#warranty-value').val('');
+        $('#warranty-unit').val('Days');
+        $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
+        $('#item-search-results').hide();
+    });
+    
+    // Product name search with dropdown
+    let itemSearchTimeout = null;
+    $('#item-search').on('input', function() {
+        const query = $(this).val().trim();
+        const branchId = $('#purchaseBranchId').val();
+        const resultsDiv = $('#item-search-results');
+        
+        // Clear previous timeout
+        clearTimeout(itemSearchTimeout);
+        
+        if (query.length < 2) {
+            resultsDiv.hide();
+            $('#selected-item-id').val('');
+            return;
+        }
+        
+        // Debounce search
+        itemSearchTimeout = setTimeout(function() {
+            if (!branchId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Branch Required',
+                    text: 'Please select a branch first.'
+                });
+                return;
+            }
+            
+            $.ajax({
+                url: "{{ route('purchases.items.ajax.search') }}",
+                method: 'GET',
+                data: {
+                    q: query,
+                    branch_id: branchId,
+                    limit: 10
+                },
+                success: function(items) {
+                    if (items.length === 0) {
+                        resultsDiv.html('<div class="p-3 text-muted text-center">No items found</div>');
+                    } else {
+                        let html = '';
+                        items.forEach(function(item) {
+                            const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
+                            const partNumber = item.partnumber_item?.name || '';
+                            const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
+                            const model = item.vehical_item?.model_vehical?.name || '';
+                            
+                            let displayName = itemName;
+                            if (partNumber) displayName += ' - ' + partNumber;
+                            if (manufacturer) displayName += ' ' + manufacturer;
+                            if (model) displayName += ' ' + model;
+                            
+                            html += `
+                                <div class="p-2 border-bottom item-search-result" 
+                                     data-id="${item.id}" 
+                                     data-name="${displayName.replace(/"/g, '&quot;')}"
+                                     data-rate="${item.packing_purchase_rate || 0}"
+                                     data-unit="${item.unit || 'Unit'}"
+                                     style="cursor: pointer; transition: background 0.2s;">
+                                    <div class="fw-bold">${displayName}</div>
+                                    <div class="small text-muted">
+                                        ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
+                                        ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        resultsDiv.html(html);
+                    }
+                    resultsDiv.show();
+                },
+                error: function() {
+                    resultsDiv.html('<div class="p-3 text-danger text-center">Error searching items</div>');
+                    resultsDiv.show();
+                }
+            });
+        }, 300);
+    });
+    
+    // Select item from search results
+    $(document).on('click', '.item-search-result', function() {
+        const itemId = $(this).data('id');
+        const itemName = $(this).data('name');
+        const itemRate = $(this).data('rate');
+        const itemUnit = $(this).data('unit');
+        
+        $('#item-search').val(itemName);
+        $('#selected-item-id').val(itemId);
+        $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
+        $('#item-unit').val(itemUnit || 'Unit');
+        $('#item-search-results').hide();
+        
+        // Load purchase history
+        loadCustomerHistory(itemId);
+    });
+    
+    // Hide search results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#item-search, #item-search-results').length) {
+            $('#item-search-results').hide();
         }
     });
 
