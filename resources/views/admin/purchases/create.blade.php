@@ -1020,20 +1020,8 @@ $(document).ready(function() {
         setInterval(updateDateTime, 1000);
     });
 
-    // Check branch selection before opening item modal
+    // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
-        const branchId = $('#purchaseBranchId').val();
-        if (!branchId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Branch Required',
-                text: 'Please select a branch first to view its warehouse products.',
-                confirmButtonText: 'OK'
-            });
-            $(this).modal('hide');
-            return false;
-        }
-        
         // Reset form when modal opens
         $('#item-search').val('');
         $('#selected-item-id').val('');
@@ -1064,15 +1052,6 @@ $(document).ready(function() {
         
         // Debounce search
         itemSearchTimeout = setTimeout(function() {
-            if (!branchId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Branch Required',
-                    text: 'Please select a branch first.'
-                });
-                return;
-            }
-            
             $.ajax({
                 url: "{{ route('purchases.items.ajax.search') }}",
                 method: 'GET',
@@ -1081,36 +1060,79 @@ $(document).ready(function() {
                     branch_id: branchId,
                     limit: 10
                 },
-                success: function(items) {
-                    if (items.length === 0) {
-                        resultsDiv.html('<div class="p-3 text-muted text-center">No items found</div>');
+                success: function(results) {
+                    if (results.length === 0) {
+                        resultsDiv.html('<div class="p-3 text-muted text-center">No results found</div>');
                     } else {
                         let html = '';
-                        items.forEach(function(item) {
-                            const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                            const partNumber = item.partnumber_item?.name || '';
-                            const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
-                            const model = item.vehical_item?.model_vehical?.name || '';
-                            
-                            let displayName = itemName;
-                            if (partNumber) displayName += ' - ' + partNumber;
-                            if (manufacturer) displayName += ' ' + manufacturer;
-                            if (model) displayName += ' ' + model;
-                            
-                            html += `
-                                <div class="p-2 border-bottom item-search-result" 
-                                     data-id="${item.id}" 
-                                     data-name="${displayName.replace(/"/g, '&quot;')}"
-                                     data-rate="${item.packing_purchase_rate || 0}"
-                                     data-unit="${item.unit || 'Unit'}"
-                                     style="cursor: pointer; transition: background 0.2s;">
-                                    <div class="fw-bold">${displayName}</div>
-                                    <div class="small text-muted">
-                                        ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
-                                        ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
+                        results.forEach(function(result) {
+                            if (result.type === 'branch') {
+                                // Branch result
+                                html += `
+                                    <div class="p-2 border-bottom branch-search-result" 
+                                         data-type="branch"
+                                         data-id="${result.id}"
+                                         style="background-color: #e7f3ff; cursor: pointer; transition: background 0.2s;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ti ti-building me-2 text-primary"></i>
+                                            <div>
+                                                <div class="fw-bold text-primary">${result.display}</div>
+                                                <div class="small text-muted">Branch</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            `;
+                                `;
+                            } else if (result.type === 'warehouse') {
+                                // Warehouse header
+                                html += `
+                                    <div class="p-2 border-bottom warehouse-search-result" 
+                                         data-type="warehouse"
+                                         data-id="${result.id}"
+                                         style="background-color: #f0f9ff; cursor: pointer; transition: background 0.2s;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ti ti-archive me-2 text-info"></i>
+                                            <div>
+                                                <div class="fw-bold text-info">${result.display}</div>
+                                                <div class="small text-muted">Warehouse${result.branch_name ? ' - ' + result.branch_name : ''}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (result.type === 'item') {
+                                // Item result
+                                const item = result.item;
+                                const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
+                                const partNumber = item.partnumber_item?.name || '';
+                                const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
+                                const model = item.vehical_item?.model_vehical?.name || '';
+                                
+                                let displayName = itemName;
+                                if (partNumber) displayName += ' - ' + partNumber;
+                                if (manufacturer) displayName += ' ' + manufacturer;
+                                if (model) displayName += ' ' + model;
+                                
+                                html += `
+                                    <div class="p-2 border-bottom item-search-result" 
+                                         data-type="item"
+                                         data-id="${item.id}" 
+                                         data-name="${displayName.replace(/"/g, '&quot;')}"
+                                         data-rate="${item.packing_purchase_rate || 0}"
+                                         data-unit="${item.unit || 'Unit'}"
+                                         style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
+                                            <div class="flex-grow-1">
+                                                <div class="fw-bold">${displayName}</div>
+                                                <div class="small text-muted">
+                                                    ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
+                                                    ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
+                                                    ${result.warehouse_id ? ' | Warehouse ID: ' + result.warehouse_id : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }
                         });
                         resultsDiv.html(html);
                     }
@@ -1124,21 +1146,42 @@ $(document).ready(function() {
         }, 300);
     });
     
-    // Select item from search results
-    $(document).on('click', '.item-search-result', function() {
-        const itemId = $(this).data('id');
-        const itemName = $(this).data('name');
-        const itemRate = $(this).data('rate');
-        const itemUnit = $(this).data('unit');
+    // Select from search results (branch, warehouse, or item)
+    $(document).on('click', '.branch-search-result, .warehouse-search-result, .item-search-result', function() {
+        const resultType = $(this).data('type');
+        const resultId = $(this).data('id');
         
-        $('#item-search').val(itemName);
-        $('#selected-item-id').val(itemId);
-        $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
-        $('#item-unit').val(itemUnit || 'Unit');
-        $('#item-search-results').hide();
-        
-        // Load purchase history
-        loadCustomerHistory(itemId);
+        if (resultType === 'branch') {
+            // Select branch and reload search
+            selectPurchaseBranch(resultId, $(this).find('.fw-bold').text(), '');
+            $('#item-search').val(''); // Clear search to show all items for this branch
+            $('#item-search-results').hide();
+            // Trigger search again after branch selection
+            setTimeout(function() {
+                $('#item-search').trigger('input');
+            }, 500);
+        } else if (resultType === 'warehouse') {
+            // Filter by warehouse - reload search with warehouse filter
+            const currentQuery = $('#item-search').val();
+            $('#item-search').val(currentQuery + ' [Warehouse: ' + resultId + ']');
+            $('#item-search-results').hide();
+            // Could add warehouse filter here if needed
+        } else if (resultType === 'item') {
+            // Select item
+            const itemId = resultId;
+            const itemName = $(this).data('name');
+            const itemRate = $(this).data('rate');
+            const itemUnit = $(this).data('unit');
+            
+            $('#item-search').val(itemName);
+            $('#selected-item-id').val(itemId);
+            $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
+            $('#item-unit').val(itemUnit || 'Unit');
+            $('#item-search-results').hide();
+            
+            // Load purchase history
+            loadCustomerHistory(itemId);
+        }
     });
     
     // Hide search results when clicking outside

@@ -266,45 +266,84 @@ class PurchaseController extends Controller
 
     /**
      * Advanced search with multiple filters (YouTube-style)
-     * Filtered by selected branch's warehouse items
+     * Shows branches first, then warehouses, then items
      */
     public function ajaxSearch(Request $request)
     {
-        // Get branch_id from request or session
+        $search = $request->input('q', '');
+        $results = [];
+        
+        // 1. Search branches first (if search term provided)
+        if ($search) {
+            $matchingBranches = \App\Models\Branch::where('status', 'active')
+                ->where(function($q) use ($search) {
+                    $q->where('branch_name', 'LIKE', "%{$search}%")
+                      ->orWhere('branch_code', 'LIKE', "%{$search}%");
+                })
+                ->limit(5)
+                ->get();
+            
+            foreach ($matchingBranches as $branch) {
+                $results[] = [
+                    'type' => 'branch',
+                    'id' => $branch->id,
+                    'name' => $branch->branch_name,
+                    'code' => $branch->branch_code,
+                    'display' => $branch->branch_name . ($branch->branch_code ? ' (' . $branch->branch_code . ')' : '')
+                ];
+            }
+        }
+        
+        // 2. Search warehouses (if search term provided)
+        if ($search) {
+            $matchingWarehouses = \App\Models\Warehouse::with('branch')
+                ->where(function($q) use ($search) {
+                    $q->where('warehouse_name', 'LIKE', "%{$search}%")
+                      ->orWhere('warehouse_code', 'LIKE', "%{$search}%");
+                })
+                ->limit(10)
+                ->get();
+            
+            foreach ($matchingWarehouses as $warehouse) {
+                $results[] = [
+                    'type' => 'warehouse',
+                    'id' => $warehouse->id,
+                    'name' => $warehouse->warehouse_name,
+                    'code' => $warehouse->warehouse_code,
+                    'branch_id' => $warehouse->branch_id,
+                    'branch_name' => $warehouse->branch ? $warehouse->branch->branch_name : '',
+                    'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($warehouse->branch ? ' - ' . $warehouse->branch->branch_name : '')
+                ];
+            }
+        }
+        
+        // 3. Search items (filtered by selected branch if provided, or show all)
         $branchId = $request->input('branch_id') ?? session('selected_branch_id');
         
-        if (!$branchId) {
-            return response()->json([
-                'error' => 'Please select a branch first'
-            ], 400);
-        }
-
-        // Get warehouse for this branch
-        $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
-        
-        if (!$warehouse) {
-            return response()->json([
-                'error' => 'No warehouse found for selected branch'
-            ], 400);
-        }
-
-        // Get item IDs from warehouse_items for this warehouse
-        $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
-            ->pluck('item_id')
-            ->toArray();
-
-        // If no items in warehouse, return empty
-        if (empty($warehouseItemIds)) {
-            return response()->json([]);
-        }
-
         $query = Item::with([
             'partnumber_item',
             'vehical_item.manutacturer_vehical',
             'vehical_item.model_vehical',
             'category',
             'subcategory',
-        ])->whereIn('id', $warehouseItemIds); // Filter by warehouse items only
+        ]);
+        
+        // If branch is selected, filter by that branch's warehouse items
+        if ($branchId) {
+            $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
+            if ($warehouse) {
+                $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
+                    ->pluck('item_id')
+                    ->toArray();
+                
+                if (!empty($warehouseItemIds)) {
+                    $query->whereIn('id', $warehouseItemIds);
+                } else {
+                    // No items in warehouse, return only branches/warehouses
+                    return response()->json($results);
+                }
+            }
+        }
 
         // Text search
         $search = $request->input('q', '');
@@ -425,6 +464,66 @@ class PurchaseController extends Controller
         $limit = $request->input('limit', 50);
         $items = $query->limit($limit)->get();
 
-        return response()->json($items);
+        // Group items by warehouse
+        $warehouseItems = [];
+        foreach ($items as $item) {
+            // Get warehouse for this item (through warehouse_items)
+            $warehouseItem = \App\Models\WarehouseItem::where('item_id', $item->id)->first();
+            if ($warehouseItem) {
+                $warehouse = $warehouseItem->warehouse;
+                if ($warehouse) {
+                    $warehouseId = $warehouse->id;
+                    if (!isset($warehouseItems[$warehouseId])) {
+                        $warehouseItems[$warehouseId] = [
+                            'warehouse' => $warehouse,
+                            'branch' => $warehouse->branch,
+                            'items' => []
+                        ];
+                    }
+                    $warehouseItems[$warehouseId]['items'][] = $item;
+                }
+            }
+        }
+        
+        // Add warehouses with their items (warehouses appear before items)
+        foreach ($warehouseItems as $warehouseId => $data) {
+            $warehouse = $data['warehouse'];
+            $branch = $data['branch'];
+            
+            // Add warehouse header
+            $results[] = [
+                'type' => 'warehouse',
+                'id' => $warehouse->id,
+                'name' => $warehouse->warehouse_name,
+                'code' => $warehouse->warehouse_code,
+                'branch_id' => $warehouse->branch_id,
+                'branch_name' => $branch ? $branch->branch_name : '',
+                'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($branch ? ' - ' . $branch->branch_name : '')
+            ];
+            
+            // Add items under this warehouse
+            foreach ($data['items'] as $item) {
+                $results[] = [
+                    'type' => 'item',
+                    'id' => $item->id,
+                    'warehouse_id' => $warehouse->id,
+                    'warehouse_name' => $warehouse->warehouse_name,
+                    'item' => $item
+                ];
+            }
+        }
+        
+        // If no warehouse grouping, just return items
+        if (empty($warehouseItems) && !empty($items)) {
+            foreach ($items as $item) {
+                $results[] = [
+                    'type' => 'item',
+                    'id' => $item->id,
+                    'item' => $item
+                ];
+            }
+        }
+
+        return response()->json($results);
     }
 }
