@@ -1,361 +1,370 @@
 @extends('layouts.app')
-@section('title', 'Sales')
+
+@section('title', 'Create Sales')
+
 @section('content')
 <div class="content">
     <div class="page-header">
-        <div class="add-item d-flex">
-            <div class="page-title">
-                <h4>Create Sales</h4>
-            </div>
+        <div class="page-title">
+            <h4>Create Sales</h4>
+            <h6>Add new sales order</h6>
         </div>
-        <ul class="table-top-head">
-            <li>
-                <a data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf">
-                    <img src="{{ asset('assets/img/icons/pdf.svg') }}" alt="img">
-                </a>
-            </li>
-            <li>
-                <a data-bs-toggle="tooltip" data-bs-placement="top" title="Excel">
-                    <img src="{{ asset('assets/img/icons/excel.svg') }}" alt="img">
-                </a>
-            </li>
-            <li>
-                <a data-bs-toggle="tooltip" data-bs-placement="top" title="Refresh">
-                    <i class="ti ti-refresh"></i>
-                </a>
-            </li>
-            <li>
-                <a data-bs-toggle="tooltip" data-bs-placement="top" title="Collapse" id="collapse-header">
-                    <i class="ti ti-chevron-up"></i>
-                </a>
-            </li>
-        </ul>
         <div class="page-btn">
-            <a href="{{ route('all_sales') }}" class="btn btn-primary"><i class="ti ti-circle-plus me-1"></i>All
-                Sales</a>
+            <a href="{{ route('all_sales') }}" class="btn btn-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Back
+            </a>
         </div>
     </div>
-    <div class="card">
-        <div class="card-body">
-            <form action="">
-                <div class="card border-0">
-                    <div class="card-body pb-0">
-                        <div class="table-responsive no-pagination mb-3">
-                            <table class="table datanew">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Qty</th>
-                                        <th>Purchase Price($)</th>
-                                        <th>Discount($)</th>
-                                        <th>Tax(%)</th>
-                                        <th>Tax Amount($)</th>
-                                        <th>Unit Cost($)</th>
-                                        <th>Total Cost($)</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="sales-items-body">
-                                    <tr>
-                                        <td colspan="9" class="text-center text-muted">No items added yet</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="row">
-                            <div class="col-lg-4 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Customer Name<span
-                                            class="text-danger ms-1">*</span></label>
-                                    <div class="row">
-                                        <div class="col-lg-10 col-sm-10 col-10">
-                                            <select class="select form-control">
-                                                <option>Select</option>
-                                                <option>Carl Evans</option>
-                                                <option>Minerva Rameriz</option>
-                                                <option>Robert Lamon</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-lg-2 col-sm-2 col-2 ps-0">
-                                            <div class="add-icon">
-                                                <a href="#" class="bg-dark text-white p-2 rounded"
-                                                    data-bs-toggle="modal" data-bs-target="#add_customer"><i
-                                                        data-feather="plus-circle" class="plus"></i></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-4 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Date<span class="text-danger ms-1">*</span></label>
-                                    <div class="input-group">
-                                        <input type="date" class=" form-control" placeholder="Choose">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-4 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Supplier<span class="text-danger ms-1">*</span></label>
-                                    <select class="select form-control">
-                                        <option>Select</option>
-                                        <option>Apex Computers</option>
-                                        <option>Beats Headphones</option>
-                                        <option>Dazzle Shoes</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-lg-12 col-12">
-                                <div class="mb-3 position-relative">
-                                    <label class="form-label">
-                                        Product <span class="text-danger ms-1">*</span>
-                                    </label>
 
-                                    <div class="input-group">
-                                        <input type="text" id="product-search" class="form-control"
-                                            placeholder="Type barcode / part number / vehicle / model / year">
-
-                                        <a class="btn btn-primary"   data-bs-toggle="modal" data-bs-target="#add-sales-new">
-                                            <i class="fas fa-search"></i> Search
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                        <div class="row">
-                            <div class="col-lg-6 ms-auto">
-                                <div class="total-order w-100 max-widthauto m-auto mb-4">
-                                    <ul class="border-1 rounded-2">
-                                        <li class="border-bottom">
-                                            <h4 class="border-end">Order Tax</h4>
-                                            <h5>$ 0.00</h5>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-body p-4">
+                    <form action="" method="POST" id="salesForm">
+                        @csrf
+                        
+                        <!-- ACTIVE BRANCH Selector (Pill-shaped like Gemini design) -->
+                        <div class="mb-4">
+                            <div class="d-inline-flex align-items-center px-3 py-2 rounded-pill" style="border: 1px solid #0d6efd; background: #f8f9fa;">
+                                <i class="ti ti-user me-2 text-muted"></i>
+                                <span class="fw-bold me-2 text-uppercase" style="font-size: 12px;">ACTIVE BRANCH:</span>
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle fw-bold" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 14px;">
+                                        <span id="selectedBranchName">{{ session('selected_branch_name', 'Select Branch') }}</span>
+                                        @if(session('selected_branch_code'))
+                                            <span id="selectedBranchCode"> ({{ session('selected_branch_code') }})</span>
+                                        @endif
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="branchDropdown">
+                                        @php
+                                            $branches = \App\Models\Branch::where('status', 'active')->get();
+                                            $currentBranchId = session('selected_branch_id');
+                                        @endphp
+                                        @foreach($branches as $branch)
+                                        <li>
+                                            <a class="dropdown-item" href="javascript:void(0)" onclick="selectSalesBranch({{ $branch->id }}, '{{ $branch->branch_name }}', '{{ $branch->branch_code ?? '' }}')">
+                                                {{ $branch->branch_name }} 
+                                                @if($branch->branch_code) ({{ $branch->branch_code }}) @endif
+                                            </a>
                                         </li>
-                                        <li class="border-bottom">
-                                            <h4 class="border-end">Discount</h4>
-                                            <h5>$ 0.00</h5>
-                                        </li>
-                                        <li class="border-bottom">
-                                            <h4 class="border-end">Shipping</h4>
-                                            <h5>$ 0.00</h5>
-                                        </li>
-                                        <li class="border-bottom">
-                                            <h4 class="border-end">Grand Total</h4>
-                                            <h5>$ 0.00</h5>
-                                        </li>
+                                        @endforeach
                                     </ul>
                                 </div>
                             </div>
+                            <input type="hidden" name="branch_id" id="salesBranchId" value="{{ session('selected_branch_id') }}" required>
                         </div>
 
-                        <div class="row">
-                            <div class="col-lg-3 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Order Tax<span class="text-danger ms-1">*</span></label>
-                                    <div class="input-group">
-                                        <input type="text" value="0" class="form-control p-2">
+                        <!-- Business Information Panel (Like Gemini Design) -->
+                        <div class="mb-4 p-3 rounded" style="border: 1px solid #0d6efd; background: #f8f9fa;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded p-2 me-3" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="ti ti-file-invoice fs-20"></i>
                                     </div>
-
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Discount<span class="text-danger ms-1">*</span></label>
-                                    <div class="input-group">
-                                        <input type="text" value="0" class="form-control p-2">
+                                    <div>
+                                        <h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4>
+                                        <p class="mb-0 text-primary" style="font-size: 13px;">
+                                            <i class="ti ti-phone me-1"></i>
+                                            HELPLINE: <span id="helplineNumber">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
+                                        </p>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-lg-3 col-sm-6 col-12">
-                                <div class="mb-3">
-                                    <label class="form-label">Shipping<span class="text-danger ms-1">*</span></label>
-                                    <div class="input-group">
-                                        <input type="text" value="0" class="form-control p-2">
+                                <div class="text-end">
+                                    <div class="mb-1">
+                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="sales-number">INV #{{ str_pad((\App\Models\Sale::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT) }}</span>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-3 col-sm-6 col-12">
-                                <div class="mb-3 mb-5">
-                                    <label class="form-label">Status<span class="text-danger ms-1">*</span></label>
-                                    <select class="select form-control">
-                                        <option>Select</option>
-                                        <option>Completed</option>
-                                        <option>Inprogress</option>
-                                    </select>
+                                    <div style="font-size: 13px; color: #6c757d;">
+                                        <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        
+                        <!-- Hidden sales date field -->
+                        <input type="hidden" name="sale_date" id="sale_date" value="{{ date('Y-m-d') }}" required>
+
+                        <!-- Customer Information (Like Gemini Design) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">CUSTOMER NAME</label>
+                                <select name="customer_id" id="customer_id" class="form-control @error('customer_id') is-invalid @enderror" required style="border-radius: 6px;">
+                                    <option value="">Party Name</option>
+                                    @foreach($customers as $customer)
+                                        <option value="{{ $customer->id }}" 
+                                                data-name="{{ $customer->names[0] ?? '' }}" 
+                                                data-phone="{{ $customer->phones[0] ?? '' }}"
+                                                data-company="{{ $customer->company ?? '' }}"
+                                                data-address="{{ $customer->address ?? '' }}"
+                                                data-area="{{ $customer->area ?? '' }}">
+                                            {{ $customer->names[0] ?? 'N/A' }} @if($customer->company) - {{ $customer->company }} @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('customer_id')
+                                    <div class="text-danger small">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NUMBER</label>
+                                <input type="text" id="customer_mobile" name="customer_mobile" class="form-control" placeholder="03xx..." style="border-radius: 6px;">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">ADDRESS</label>
+                                <input type="text" id="customer_address" name="customer_address" class="form-control" placeholder="Shop/House #" style="border-radius: 6px;">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">AREA</label>
+                                <input type="text" id="customer_area" name="customer_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- Reference (Optional) -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
+                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;">
+                            </div>
+                        </div>
+
+                        <!-- Items Summary Section -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold mb-3">ITEMS SUMMARY</h5>
+                            <div id="items-summary-container" class="text-center py-5" style="background: #f8f9fa; border-radius: 8px; min-height: 200px;">
+                                <div id="empty-items-state">
+                                    <i class="ti ti-package fs-48 text-muted mb-3" style="display: block;"></i>
+                                    <p class="text-muted mb-0">ABHI KOI ITEM NAHI HAI</p>
+                                </div>
+                                <div id="items-list" style="display: none;">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>Item</th>
+                                                    <th>Qty</th>
+                                                    <th>Unit</th>
+                                                    <th>Rate</th>
+                                                    <th>Discount</th>
+                                                    <th>Tax %</th>
+                                                    <th>Total</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="items-tbody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Amount Summary -->
+                        <div class="row mb-4">
+                            <div class="col-md-6 offset-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold">GROSS AMOUNT</span>
+                                    <span class="fw-bold" id="gross-amount">Rs 0</span>
+                                </div>
+                                <div class="bg-primary text-white p-3 rounded mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold fs-16">GRAND TOTAL</div>
+                                            <div class="small">Total Payable Amount</div>
+                                        </div>
+                                        <div class="fw-bold fs-24" id="grand-total">Rs 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden fields for order tax, discount, shipping -->
+                        <input type="hidden" name="order_tax" id="order_tax" value="0">
+                        <input type="hidden" name="discount" id="discount" value="0">
+                        <input type="hidden" name="shipping" id="shipping" value="0">
+                        <input type="hidden" name="status" value="pending">
+
+                        <!-- Add Item Button -->
+                        <div class="text-center mb-4">
+                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                                <i class="ti ti-plus me-2"></i>ADD NEW ITEM
+                            </button>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ route('all_sales') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="ti ti-check me-1"></i> Save Sale
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary add-cancel me-3"
-                        data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary add-sale">Submit</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
-	<!-- YouTube-Style Search & Filter Modal -->
-	<div class="modal fade" id="add-sales-new" tabindex="-1" aria-labelledby="addSalesModalLabel" aria-hidden="true">
-		<div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-			<div class="modal-content" style="border-radius: 12px; overflow: hidden;">
-				<div class="modal-header border-bottom" style="background: #f8f9fa;">
-						<div class="page-title">
-						<h4 class="mb-0">Search & Filter Items</h4>
-						<small class="text-muted">Find items using advanced filters</small>
-					</div>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="modal-body p-0">
-					<!-- Search Bar -->
-					<div class="p-4 border-bottom" style="background: #fff;">
-						<div class="position-relative">
-							<input type="text" id="item-search-input" class="form-control form-control-lg ps-5" 
-								placeholder="Search by barcode, part number, vehicle, model, year..." 
-								style="border-radius: 24px; border: 2px solid #e0e0e0;">
-							<i class="fas fa-search position-absolute" style="left: 20px; top: 50%; transform: translateY(-50%); color: #999;"></i>
-							<button type="button" id="clear-search" class="btn btn-link position-absolute d-none" 
-								style="right: 10px; top: 50%; transform: translateY(-50%); padding: 0; color: #999;">
-								<i class="fas fa-times"></i>
-							</button>
-						</div>
-					</div>
-
-					<!-- Filter Chips (YouTube-style) -->
-					<div class="px-4 py-3 border-bottom" style="background: #f8f9fa; overflow-x: auto;">
-						<div class="d-flex gap-2 flex-wrap align-items-center">
-							<span class="text-muted small fw-bold me-2">Filters:</span>
-							<button type="button" class="btn btn-sm filter-chip" data-filter="in_stock" data-value="yes" style="border-radius: 16px; white-space: nowrap;">
-								<i class="fas fa-check-circle me-1"></i> In Stock
-							</button>
-							<button type="button" class="btn btn-sm filter-chip" data-filter="is_active" data-value="1" style="border-radius: 16px; white-space: nowrap;">
-								<i class="fas fa-toggle-on me-1"></i> Active
-							</button>
-							<button type="button" class="btn btn-sm" id="advanced-filters-toggle" style="border-radius: 16px; white-space: nowrap;">
-								<i class="fas fa-filter me-1"></i> More Filters
-							</button>
-							<button type="button" class="btn btn-sm btn-outline-danger d-none" id="clear-all-filters" style="border-radius: 16px; white-space: nowrap;">
-								<i class="fas fa-times me-1"></i> Clear All
-						</button>
-						</div>
-					</div>
-
-					<!-- Advanced Filters Panel (Collapsible) -->
-					<div class="collapse" id="advancedFiltersPanel">
-						<div class="p-4 border-bottom" style="background: #fff;">
-							<div class="row g-3">
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Category</label>
-									<select class="form-select form-select-sm" id="filter-category">
-										<option value="">All Categories</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Manufacturer</label>
-									<select class="form-select form-select-sm" id="filter-manufacturer">
-										<option value="">All Manufacturers</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Part Number</label>
-									<select class="form-select form-select-sm" id="filter-part-number">
-										<option value="">All Part Numbers</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Technology</label>
-									<select class="form-select form-select-sm" id="filter-technology">
-										<option value="">All Technologies</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Grade</label>
-									<select class="form-select form-select-sm" id="filter-grade">
-										<option value="">All Grades</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Volt</label>
-									<select class="form-select form-select-sm" id="filter-volt">
-										<option value="">All Volts</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">CCA</label>
-									<select class="form-select form-select-sm" id="filter-cca">
-										<option value="">All CCAs</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Supplier</label>
-									<select class="form-select form-select-sm" id="filter-supplier">
-										<option value="">All Suppliers</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Rack</label>
-									<select class="form-select form-select-sm" id="filter-rack">
-										<option value="">All Racks</option>
-									</select>
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Min Price</label>
-									<input type="number" class="form-control form-control-sm" id="filter-min-price" placeholder="0.00" step="0.01">
-								</div>
-								<div class="col-md-3">
-									<label class="form-label small fw-bold text-muted">Max Price</label>
-									<input type="number" class="form-control form-control-sm" id="filter-max-price" placeholder="0.00" step="0.01">
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<!-- Stock Info -->
-					<div class="row g-2 px-4 py-3 border-bottom" style="background: #f8f9fa;">
-          <div class="col-6">
-            <div class="p-2 rounded" style="background-color: #f0fff4; border: 1px solid #d1fae5;">
-              <small class="text-success fw-bold d-block mb-1" style="font-size: 0.7rem;">WAREHOUSE</small>
-								<div class="fw-bold text-success" id="warehouse-stock">0 Units</div>
+<!-- YouTube-Style Search & Filter Modal for Sales -->
+<div class="modal fade" id="sales-item-search-modal" tabindex="-1" aria-labelledby="salesItemSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header border-bottom" style="background: #f8f9fa;">
+                <div class="page-title">
+                    <h4 class="mb-0">Search & Filter Items</h4>
+                    <small class="text-muted">Find items using advanced filters</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-          </div>
-          <div class="col-6">
-            <div class="p-2 rounded" style="background-color: #fffaf0; border: 1px solid #feebc8;">
-              <small class="text-warning fw-bold d-block mb-1" style="font-size: 0.7rem; color: #c05621 !important;">SHOP</small>
-								<div class="fw-bold" style="color: #c05621;" id="shop-stock">0 Units</div>
+            <div class="modal-body p-0">
+                <!-- Search Bar -->
+                <div class="p-4 border-bottom" style="background: #fff;">
+                    <div class="position-relative">
+                        <input type="text" id="sales-item-search-input" class="form-control form-control-lg ps-5" 
+                            placeholder="Search by barcode, part number, vehicle, model, year..." 
+                            style="border-radius: 24px; border: 2px solid #e0e0e0;">
+                        <i class="fas fa-search position-absolute" style="left: 20px; top: 50%; transform: translateY(-50%); color: #999;"></i>
+                        <button type="button" id="sales-clear-search" class="btn btn-link position-absolute d-none" 
+                            style="right: 10px; top: 50%; transform: translateY(-50%); padding: 0; color: #999;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Chips (YouTube-style) -->
+                <div class="px-4 py-3 border-bottom" style="background: #f8f9fa; overflow-x: auto;">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <span class="text-muted small fw-bold me-2">Filters:</span>
+                        <button type="button" class="btn btn-sm filter-chip" data-filter="in_stock" data-value="yes" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-check-circle me-1"></i> In Stock
+                        </button>
+                        <button type="button" class="btn btn-sm filter-chip" data-filter="is_active" data-value="1" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-toggle-on me-1"></i> Active
+                        </button>
+                        <button type="button" class="btn btn-sm" id="sales-advanced-filters-toggle" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-filter me-1"></i> More Filters
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger d-none" id="sales-clear-all-filters" style="border-radius: 16px; white-space: nowrap;">
+                            <i class="fas fa-times me-1"></i> Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advanced Filters Panel (Collapsible) -->
+                <div class="collapse" id="salesAdvancedFiltersPanel">
+                    <div class="p-4 border-bottom" style="background: #fff;">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Category</label>
+                                <select class="form-select form-select-sm" id="sales-filter-category">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Manufacturer</label>
+                                <select class="form-select form-select-sm" id="sales-filter-manufacturer">
+                                    <option value="">All Manufacturers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Part Number</label>
+                                <select class="form-select form-select-sm" id="sales-filter-part-number">
+                                    <option value="">All Part Numbers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Technology</label>
+                                <select class="form-select form-select-sm" id="sales-filter-technology">
+                                    <option value="">All Technologies</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Grade</label>
+                                <select class="form-select form-select-sm" id="sales-filter-grade">
+                                    <option value="">All Grades</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Volt</label>
+                                <select class="form-select form-select-sm" id="sales-filter-volt">
+                                    <option value="">All Volts</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">CCA</label>
+                                <select class="form-select form-select-sm" id="sales-filter-cca">
+                                    <option value="">All CCAs</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Supplier</label>
+                                <select class="form-select form-select-sm" id="sales-filter-supplier">
+                                    <option value="">All Suppliers</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Rack</label>
+                                <select class="form-select form-select-sm" id="sales-filter-rack">
+                                    <option value="">All Racks</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Min Price</label>
+                                <input type="number" class="form-control form-control-sm" id="sales-filter-min-price" placeholder="0.00" step="0.01">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold text-muted">Max Price</label>
+                                <input type="number" class="form-control form-control-sm" id="sales-filter-max-price" placeholder="0.00" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Info -->
+                <div class="row g-2 px-4 py-3 border-bottom" style="background: #f8f9fa;">
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background-color: #f0fff4; border: 1px solid #d1fae5;">
+                            <small class="text-success fw-bold d-block mb-1" style="font-size: 0.7rem;">WAREHOUSE</small>
+                            <div class="fw-bold text-success" id="sales-warehouse-stock">0 Units</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded" style="background-color: #fffaf0; border: 1px solid #feebc8;">
+                            <small class="text-warning fw-bold d-block mb-1" style="font-size: 0.7rem; color: #c05621 !important;">SHOP</small>
+                            <div class="fw-bold" style="color: #c05621;" id="sales-shop-stock">0 Units</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Container -->
+                <div class="p-4" style="max-height: 400px; overflow-y: auto;">
+                    <div id="sales-search-results-container">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                            <p>Start typing to search items or use filters above</p>
+                        </div>
+                    </div>
+                    <div id="sales-no-results" class="text-center text-muted py-5 d-none">
+                        <i class="fas fa-inbox fa-3x mb-3" style="opacity: 0.3;"></i>
+                        <p>No items found. Try adjusting your search or filters.</p>
+                    </div>
+                    <div id="sales-loading-results" class="text-center py-5 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Searching...</p>
+                    </div>
+                </div>
             </div>
-          </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
+    </div>
+</div>
 
-					<!-- Results Container -->
-					<div class="p-4" style="max-height: 400px; overflow-y: auto;">
-						<div id="search-results-container">
-							<div class="text-center text-muted py-5">
-								<i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
-								<p>Start typing to search items or use filters above</p>
-            </div>
-          </div>
-						<div id="no-results" class="text-center text-muted py-5 d-none">
-							<i class="fas fa-inbox fa-3x mb-3" style="opacity: 0.3;"></i>
-							<p>No items found. Try adjusting your search or filters.</p>
-              </div>
-						<div id="loading-results" class="text-center py-5 d-none">
-							<div class="spinner-border text-primary" role="status">
-								<span class="visually-hidden">Loading...</span>
-							</div>
-							<p class="mt-2 text-muted">Searching...</p>
-						</div>
-					</div>
-						</div>
-				<div class="modal-footer border-top">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-				</div>
-				</div>
-			</div>
-		</div>
-
-<!-- Add Item Modal - ITEM DETAILS (Similar to Purchase) -->
+<!-- Add Item Modal - ITEM DETAIL BOX -->
 <div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
@@ -366,26 +375,32 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Product Name (Read-only, pre-filled) -->
+                <!-- Product Name (Searchable/Selectable) -->
                 <div class="mb-3">
                     <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
-                    <input type="text" id="sales-item-name" class="form-control" placeholder="Item will be selected from search" readonly style="background-color: #f8f9fa; border-radius: 8px;">
-                    <input type="hidden" id="sales-selected-item-id">
-                    <input type="hidden" id="sales-selected-warehouse-id">
+                    <div class="position-relative">
+                        <input type="text" id="item-search" class="form-control" placeholder="Search or select product..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
+                        <!-- Search Results Dropdown -->
+                        <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
+                        </div>
+                    </div>
+                    <input type="hidden" id="selected-item-id">
+                    <input type="hidden" id="selected-warehouse-id">
                 </div>
                 
                 <!-- STOCK STATUS Section (Shows when item is selected) -->
-                <div id="sales-stock-status-section" class="mb-3" style="display: none;">
+                <div id="stock-status-section" class="mb-3" style="display: none;">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label fw-bold mb-0">
                             <i class="ti ti-settings me-2"></i>STOCK STATUS
                         </label>
-                        <small class="text-muted" style="cursor: pointer;" id="sales-stock-status-toggle">
+                        <small class="text-muted" style="cursor: pointer;" id="stock-status-toggle">
                             DOUBLE-CLICK TO EXPAND
                         </small>
                     </div>
-                    <div id="sales-stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto; display: none;">
-                        <div id="sales-stock-status-list">
+                    <div id="stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto; display: none;">
+                        <div id="stock-status-list">
                             <p class="text-muted mb-0 small text-center">Loading stock status...</p>
                         </div>
                     </div>
