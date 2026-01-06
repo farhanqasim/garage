@@ -15,14 +15,12 @@
             </a>
         </div>
     </div>
-
     <div class="row">
         <div class="col-lg-12">
             <div class="card">
                 <div class="card-body p-4">
                     <form action="" method="POST" id="salesForm">
                         @csrf
-                        
                         <!-- ACTIVE BRANCH Selector (Pill-shaped like Gemini design) -->
                         <div class="mb-4">
                             <div class="d-inline-flex align-items-center px-3 py-2 rounded-pill" style="border: 1px solid #0d6efd; background: #f8f9fa;">
@@ -53,7 +51,6 @@
                             </div>
                             <input type="hidden" name="branch_id" id="salesBranchId" value="{{ session('selected_branch_id') }}" required>
                         </div>
-
                         <!-- Business Information Panel (Like Gemini Design) -->
                         <div class="mb-4 p-3 rounded" style="border: 1px solid #0d6efd; background: #f8f9fa;">
                             <div class="d-flex align-items-center justify-content-between">
@@ -79,10 +76,8 @@
                                 </div>
                             </div>
                         </div>
-                        
                         <!-- Hidden sales date field -->
                         <input type="hidden" name="sale_date" id="sale_date" value="{{ date('Y-m-d') }}" required>
-
                         <!-- Customer Information (Like Gemini Design) -->
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
@@ -120,7 +115,6 @@
                                 <input type="text" id="customer_area" name="customer_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;">
                             </div>
                         </div>
-
                         <!-- Reference (Optional) -->
                         <div class="row mb-4">
                             <div class="col-md-6">
@@ -128,7 +122,6 @@
                                 <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;">
                             </div>
                         </div>
-
                         <!-- Items Summary Section -->
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">ITEMS SUMMARY</h5>
@@ -159,7 +152,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <!-- Amount Summary -->
                         <div class="row mb-4">
                             <div class="col-md-6 offset-md-6">
@@ -222,7 +214,7 @@
                 <div class="p-4 border-bottom" style="background: #fff;">
                     <div class="position-relative">
                         <input type="text" id="sales-item-search-input" class="form-control form-control-lg ps-5" 
-                            placeholder="Search by barcode, part number, vehicle, model, year..." 
+                            placeholder="Search by product name, barcode, category, part number, vehicle, model, year, specifications..." 
                             style="border-radius: 24px; border: 2px solid #e0e0e0;">
                         <i class="fas fa-search position-absolute" style="left: 20px; top: 50%; transform: translateY(-50%); color: #999;"></i>
                         <button type="button" id="sales-clear-search" class="btn btn-link position-absolute d-none" 
@@ -379,7 +371,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
                     <div class="position-relative">
-                        <input type="text" id="item-search" class="form-control" placeholder="Search or select product..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <input type="text" id="item-search" class="form-control" placeholder="Search by product name, barcode, category, part number..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
                         <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">

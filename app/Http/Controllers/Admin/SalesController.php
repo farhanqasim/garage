@@ -179,44 +179,145 @@ class SalesController extends Controller
             }
         }
 
-        // Text search
+        // Comprehensive text search - Search ALL fields from ItemController validation
         $search = $request->input('q', '');
         if ($search) {
             $query->where(function ($q) use ($search) {
+                // Product Name Fields (Primary Search)
                 $q->where('bar_code', 'LIKE', "%{$search}%")
-                  ->orWhere('serial_number', 'LIKE', "%{$search}%")
                   ->orWhere('pro_dis', 'LIKE', "%{$search}%")
                   ->orWhere('short_disc', 'LIKE', "%{$search}%")
-                  ->orWhere('battery_size', 'LIKE', "%{$search}%")
-                  ->orWhere('p_id', 'LIKE', "%{$search}%")
-                  ->orWhere('type', 'LIKE', "%{$search}%")
-                  ->orWhere('volt', 'LIKE', "%{$search}%")
+                  ->orWhere('p_id', 'LIKE', "%{$search}%");
+                
+                // Category Search
+                $q->orWhereHas('category', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('subcategory', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                });
+                
+                // Part Number Search
+                $q->orWhereHas('partnumber_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                });
+                
+                // Vehicle Related Fields
+                $q->orWhere('vehical_id', 'LIKE', "%{$search}%")
+                  ->orWhereHas('vehical_item', function ($subQ) use ($search) {
+                      $subQ->where('year_from', 'LIKE', "%{$search}%")
+                           ->orWhere('year_to', 'LIKE', "%{$search}%")
+                           ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($search) {
+                      $subQ->where('name', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($search) {
+                      $subQ->where('name', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($search) {
+                      $subQ->where('name', 'LIKE', "%{$search}%");
+                  })
+                  ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($search) {
+                      $subQ->where('name', 'LIKE', "%{$search}%");
+                  });
+                
+                // Product Type and Identification
+                $q->orWhere('type', 'LIKE', "%{$search}%")
+                  ->orWhere('plat_id', 'LIKE', "%{$search}%")
+                  ->orWhere('amphors', 'LIKE', "%{$search}%")
+                  ->orWhere('lineitems', 'LIKE', "%{$search}%")
+                  ->orWhere('company_id', 'LIKE', "%{$search}%")
+                  ->orWhere('serial_number', 'LIKE', "%{$search}%")
+                  ->orWhere('p_brochure', 'LIKE', "%{$search}%");
+                
+                // Battery/Product Specifications
+                $q->orWhere('volt', 'LIKE', "%{$search}%")
                   ->orWhere('cca', 'LIKE', "%{$search}%")
+                  ->orWhere('minus_pole_direction', 'LIKE', "%{$search}%")
+                  ->orWhere('minus_pool_direction', 'LIKE', "%{$search}%")
                   ->orWhere('technology', 'LIKE', "%{$search}%")
                   ->orWhere('grade', 'LIKE', "%{$search}%")
                   ->orWhere('farmula', 'LIKE', "%{$search}%")
-                  ->orWhere('rack', 'LIKE', "%{$search}%")
-                  ->orWhere('supplier', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('partnumber_item', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item', function ($q) use ($search) {
-                $q->where('year_from', 'LIKE', "%{$search}%")
-                  ->orWhere('year_to', 'LIKE', "%{$search}%")
-                  ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item.engine_vehical', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item.country_vehical', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item.manutacturer_vehical', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item.model_vehical', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
+                  ->orWhere('battery_size', 'LIKE', "%{$search}%");
+                
+                // Location and Business Fields
+                $q->orWhere('business_location', 'LIKE', "%{$search}%")
+                  ->orWhere('bussiness_location', 'LIKE', "%{$search}%")
+                  ->orWhere('quality_id', 'LIKE', "%{$search}%")
+                  ->orWhere('l_stock', 'LIKE', "%{$search}%")
+                  ->orWhere('m_stock', 'LIKE', "%{$search}%");
+                
+                // Unit and Packaging
+                $q->orWhere('unit', 'LIKE', "%{$search}%")
+                  ->orWhere('packing', 'LIKE', "%{$search}%")
+                  ->orWhere('scale', 'LIKE', "%{$search}%")
+                  ->orWhere('filling', 'LIKE', "%{$search}%")
+                  ->orWhere('weight_for_delivery', 'LIKE', "%{$search}%")
+                  ->orWhere('weight_unit', 'LIKE', "%{$search}%")
+                  ->orWhere('packing_purchase_rate', 'LIKE', "%{$search}%");
+                
+                // Storage and Supplier
+                $q->orWhere('rack', 'LIKE', "%{$search}%")
+                  ->orWhere('supplier', 'LIKE', "%{$search}%")
+                  ->orWhere('update_date', 'LIKE', "%{$search}%");
+                
+                // Additional Product Information
+                $q->orWhere('services', 'LIKE', "%{$search}%")
+                  ->orWhere('warrenty', 'LIKE', "%{$search}%")
+                  ->orWhere('group', 'LIKE', "%{$search}%")
+                  ->orWhere('gorup', 'LIKE', "%{$search}%")
+                  ->orWhere('made_in', 'LIKE', "%{$search}%");
+                
+                // Related Model Searches
+                $q->orWhereHas('product_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('company_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('volt_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('cca_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('technology_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('grade_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('farmula_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('quality_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('unit_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('services_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('warrenty_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('group_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('made_in_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('plate_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('amphors_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('lineitems_item', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%");
+                });
             });
         }
 
