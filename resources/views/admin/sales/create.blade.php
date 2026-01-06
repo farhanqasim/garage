@@ -546,7 +546,460 @@
 
 @push('scripts')
 <script>
+$(document).ready(function() {
+    let salesItems = [];
+    let itemCounter = 0;
+
+    // Customer change handler
+    $('#customer_id').on('change', function() {
+        const selected = $(this).find('option:selected');
+        const name = selected.data('name') || '';
+        const phone = selected.data('phone') || '';
+        const address = selected.data('address') || '';
+        const area = selected.data('area') || '';
+        
+        $('#customer_mobile').val(phone);
+        $('#customer_address').val(address);
+        $('#customer_area').val(area);
+    });
+
+    // Branch selection for sales
+    function selectSalesBranch(branchId, branchName, branchCode) {
+        // Update UI immediately
+        $('#selectedBranchName').text(branchName);
+        if (branchCode) {
+            if ($('#selectedBranchCode').length) {
+                $('#selectedBranchCode').text(' (' + branchCode + ')');
+            } else {
+                $('#selectedBranchName').after('<span id="selectedBranchCode"> (' + branchCode + ')</span>');
+            }
+        } else {
+            $('#selectedBranchCode').remove();
+        }
+        $('#salesBranchId').val(branchId);
+        
+        // Update session via AJAX
+        $.ajax({
+            url: '{{ route("branch.select.complete") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                branch_id: branchId
+            },
+            success: function() {
+                // Load warehouse info for this branch
+                loadBranchWarehouseInfo(branchId);
+                
+                // Update helpline from branch if available
+                $.ajax({
+                    url: '/branches/' + branchId,
+                    method: 'GET',
+                    success: function(branch) {
+                        if (branch && branch.phone) {
+                            $('#helplineNumber').text(branch.phone);
+                        }
+                    }
+                });
+                
+                // Clear any existing items from table
+                salesItems = [];
+                $('#items-tbody').empty();
+                $('#empty-items-state').show();
+                $('#items-list').hide();
+                calculateTotals();
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to select branch. Please try again.'
+                });
+            }
+        });
+    }
+    window.selectSalesBranch = selectSalesBranch;
+
+    // Load warehouse info for selected branch
+    function loadBranchWarehouseInfo(branchId) {
+        $.ajax({
+            url: '{{ route("warehouses.by.branch", ":id") }}'.replace(':id', branchId),
+            method: 'GET',
+            success: function(warehouse) {
+                if (warehouse && !warehouse.error) {
+                    // Warehouse info loaded successfully
+                    console.log('Warehouse loaded:', warehouse);
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No Warehouse',
+                        text: 'This branch does not have a warehouse. Please create one first.',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading warehouse:', xhr);
+            }
+        });
+    }
+
+    // Update date/time display every second
+    function updateDateTime() {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        
+        $('#currentDateTime').text(`${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`);
+    }
+    
+    // Load warehouse info on page load if branch is already selected
     $(document).ready(function() {
+        const branchId = $('#salesBranchId').val();
+        if (branchId) {
+            loadBranchWarehouseInfo(branchId);
+        }
+        
+        // Start updating date/time every second
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+    });
+
+    // ========== YouTube-Style Search Modal Functionality ==========
+    const salesSearchInput = $('#sales-item-search-input');
+    const salesClearSearchBtn = $('#sales-clear-search');
+    const salesSearchModal = $('#sales-item-search-modal');
+    const salesResultsContainer = $('#sales-search-results-container');
+    const salesNoResults = $('#sales-no-results');
+    const salesLoadingResults = $('#sales-loading-results');
+    const salesAdvancedFiltersToggle = $('#sales-advanced-filters-toggle');
+    const salesClearAllFiltersBtn = $('#sales-clear-all-filters');
+    
+    // Filter state
+    let salesActiveFilters = {};
+    let salesFilterOptions = {};
+    let salesSearchTimeout = null;
+    
+    // Initialize: Load filter options when modal opens
+    salesSearchModal.on('show.bs.modal', function() {
+        if (Object.keys(salesFilterOptions).length === 0) {
+            loadSalesFilterOptions();
+        }
+        salesSearchInput.focus();
+    });
+    
+    // Load filter options
+    function loadSalesFilterOptions() {
+        $.ajax({
+            url: "{{ route('sales.filter.options') }}",
+            success: function(data) {
+                salesFilterOptions = data;
+                populateSalesFilterDropdowns(data);
+            },
+            error: function(xhr) {
+                console.error('Error loading filter options:', xhr);
+            }
+        });
+    }
+    
+    // Populate filter dropdowns
+    function populateSalesFilterDropdowns(data) {
+        if (data.categories) {
+            data.categories.forEach(cat => {
+                $('#sales-filter-category').append(`<option value="${cat.id}">${cat.name}</option>`);
+            });
+        }
+        if (data.manufacturers) {
+            data.manufacturers.forEach(man => {
+                $('#sales-filter-manufacturer').append(`<option value="${man.id}">${man.name}</option>`);
+            });
+        }
+        if (data.part_numbers) {
+            data.part_numbers.forEach(pn => {
+                $('#sales-filter-part-number').append(`<option value="${pn.id}">${pn.name}</option>`);
+            });
+        }
+        if (data.technologies) {
+            data.technologies.forEach(tech => {
+                $('#sales-filter-technology').append(`<option value="${tech.id}">${tech.name}</option>`);
+            });
+        }
+        if (data.grades) {
+            data.grades.forEach(grade => {
+                $('#sales-filter-grade').append(`<option value="${grade.id}">${grade.name}</option>`);
+            });
+        }
+        if (data.volts) {
+            data.volts.forEach(volt => {
+                $('#sales-filter-volt').append(`<option value="${volt.id}">${volt.name}</option>`);
+            });
+        }
+        if (data.ccas) {
+            data.ccas.forEach(cca => {
+                $('#sales-filter-cca').append(`<option value="${cca.id}">${cca.name}</option>`);
+            });
+        }
+        if (data.suppliers) {
+            data.suppliers.forEach(supplier => {
+                $('#sales-filter-supplier').append(`<option value="${supplier}">${supplier}</option>`);
+            });
+        }
+        if (data.racks) {
+            data.racks.forEach(rack => {
+                $('#sales-filter-rack').append(`<option value="${rack}">${rack}</option>`);
+            });
+        }
+    }
+    
+    // Live search with debounce
+    salesSearchInput.on('input', function() {
+        const query = $(this).val().trim();
+        salesClearSearchBtn.toggleClass('d-none', !query);
+        
+        clearTimeout(salesSearchTimeout);
+        salesSearchTimeout = setTimeout(function() {
+            if (query.length >= 2 || Object.keys(salesActiveFilters).length > 0) {
+                performSalesSearch();
+            } else {
+                salesResultsContainer.html(`
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                        <p>Start typing to search items or use filters above</p>
+                    </div>
+                `);
+            }
+        }, 500);
+    });
+    
+    // Clear search
+    salesClearSearchBtn.on('click', function() {
+        salesSearchInput.val('');
+        $(this).addClass('d-none');
+        performSalesSearch();
+    });
+    
+    // Filter chip clicks
+    $('.filter-chip').on('click', function() {
+        const filter = $(this).data('filter');
+        const value = $(this).data('value');
+        
+        if ($(this).hasClass('active')) {
+            $(this).removeClass('active');
+            delete salesActiveFilters[filter];
+        } else {
+            $('.filter-chip[data-filter="' + filter + '"]').removeClass('active');
+            $(this).addClass('active');
+            salesActiveFilters[filter] = value;
+        }
+        
+        updateSalesClearAllButton();
+        performSalesSearch();
+    });
+    
+    // Advanced filter changes
+    $('#sales-filter-category, #sales-filter-manufacturer, #sales-filter-part-number, #sales-filter-technology, #sales-filter-grade, #sales-filter-volt, #sales-filter-cca, #sales-filter-supplier, #sales-filter-rack, #sales-filter-min-price, #sales-filter-max-price').on('change input', function() {
+        const filterId = $(this).attr('id').replace('sales-filter-', '').replace('-', '_');
+        const value = $(this).val();
+        
+        if (value) {
+            salesActiveFilters[filterId] = value;
+        } else {
+            delete salesActiveFilters[filterId];
+        }
+        
+        updateSalesClearAllButton();
+        performSalesSearch();
+    });
+    
+    // Toggle advanced filters
+    salesAdvancedFiltersToggle.on('click', function() {
+        $('#salesAdvancedFiltersPanel').collapse('toggle');
+    });
+    
+    // Clear all filters
+    salesClearAllFiltersBtn.on('click', function() {
+        salesActiveFilters = {};
+        $('.filter-chip').removeClass('active');
+        $('#sales-filter-category, #sales-filter-manufacturer, #sales-filter-part-number, #sales-filter-technology, #sales-filter-grade, #sales-filter-volt, #sales-filter-cca, #sales-filter-supplier, #sales-filter-rack').val('');
+        $('#sales-filter-min-price, #sales-filter-max-price').val('');
+        salesSearchInput.val('');
+        salesClearSearchBtn.addClass('d-none');
+        updateSalesClearAllButton();
+        performSalesSearch();
+    });
+    
+    // Update clear all button visibility
+    function updateSalesClearAllButton() {
+        const hasFilters = Object.keys(salesActiveFilters).length > 0 || salesSearchInput.val().trim().length > 0;
+        salesClearAllFiltersBtn.toggleClass('d-none', !hasFilters);
+    }
+    
+    // Perform search
+    function performSalesSearch() {
+        const query = salesSearchInput.val().trim();
+        
+        // Build search params
+        const params = {
+            q: query,
+            limit: 50
+        };
+        
+        // Add active filters
+        Object.keys(salesActiveFilters).forEach(key => {
+            params[key] = salesActiveFilters[key];
+        });
+        
+        // Show loading
+        salesResultsContainer.hide();
+        salesNoResults.hide();
+        salesLoadingResults.show();
+        
+        // Get selected branch ID
+        const branchId = $('#salesBranchId').val();
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first.'
+            });
+            return;
+        }
+        
+        // Add branch_id to params
+        params.branch_id = branchId;
+        
+        // Perform AJAX search
+        $.ajax({
+            url: "{{ route('sales.items.ajax.search') }}",
+            data: params,
+            success: function(items) {
+                salesLoadingResults.hide();
+                
+                if (items.length === 0) {
+                    salesNoResults.show();
+                    salesResultsContainer.hide();
+                    return;
+                }
+                
+                salesNoResults.hide();
+                salesResultsContainer.show();
+                
+                let html = '';
+                const searchTerm = query.toLowerCase();
+                const regex = searchTerm ? new RegExp(searchTerm.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'gi') : null;
+                
+                items.forEach(item => {
+                    const partNumber = item.partnumber_item?.name || 'N/A';
+                    const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
+                    const model = item.vehical_item?.model_vehical?.name || '';
+                    const yearFrom = item.vehical_item?.year_from || '';
+                    const yearTo = item.vehical_item?.year_to || '';
+                    const yearDisplay = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : (yearFrom || yearTo || '');
+                    const price = item.sale_price || item.packing_purchase_rate || 0;
+                    const stock = item.on_hand || 0;
+                    const barCode = item.bar_code || '';
+                    const serialNumber = item.serial_number || '';
+                    
+                    // Highlight search term
+                    let displayPartNumber = partNumber;
+                    let displayManufacturer = manufacturer;
+                    let displayModel = model;
+                    let displayYear = yearDisplay;
+                    
+                    if (regex) {
+                        displayPartNumber = partNumber.replace(regex, match => `<mark>${match}</mark>`);
+                        displayManufacturer = manufacturer.replace(regex, match => `<mark>${match}</mark>`);
+                        displayModel = model.replace(regex, match => `<mark>${match}</mark>`);
+                        displayYear = yearDisplay.replace(regex, match => `<mark>${match}</mark>`);
+                    }
+                    
+                    html += `
+                        <div class="item-card" data-id="${item.id}" 
+                             data-name="${partNumber.replace(/"/g, '&quot;')}"
+                             data-price="${price}"
+                             data-stock="${stock}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold">${displayPartNumber}</h6>
+                                    <div class="small text-muted mb-2">
+                                        ${displayManufacturer ? displayManufacturer + ' ' : ''}${displayModel}${displayYear ? ' (' + displayYear + ')' : ''}
+                                    </div>
+                                    <div class="d-flex gap-3 small">
+                                        ${barCode ? `<span><i class="fas fa-barcode me-1"></i>${barCode}</span>` : ''}
+                                        ${serialNumber ? `<span><i class="fas fa-hashtag me-1"></i>${serialNumber}</span>` : ''}
+                                        <span class="text-${stock > 0 ? 'success' : 'danger'}">
+                                            <i class="fas fa-box me-1"></i>Stock: ${stock}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary mb-1">Rs ${parseFloat(price).toFixed(2)}</div>
+                                    <button class="btn btn-sm btn-primary sales-add-item-btn">
+                                        <i class="fas fa-plus me-1"></i>Select
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                salesResultsContainer.html(html);
+                
+                // Update stock info
+                updateSalesStockInfo(items);
+            },
+            error: function(xhr) {
+                salesLoadingResults.hide();
+                console.error('Search error:', xhr);
+                salesResultsContainer.html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading items. Please try again.
+                    </div>
+                `);
+            }
+        });
+    }
+    
+    // Update stock info
+    function updateSalesStockInfo(items) {
+        let warehouseStock = 0;
+        let shopStock = 0;
+        
+        items.forEach(item => {
+            const stock = item.on_hand || 0;
+            warehouseStock += stock * 0.7;
+            shopStock += stock * 0.3;
+        });
+        
+        $('#sales-warehouse-stock').text(Math.round(warehouseStock) + ' Units');
+        $('#sales-shop-stock').text(Math.round(shopStock) + ' Units');
+    }
+    
+    // Add item to sales detail modal
+    $(document).on('click', '.item-card, .sales-add-item-btn', function(e) {
+        e.stopPropagation();
+        const card = $(this).closest('.item-card');
+        const itemId = card.data('id');
+        const itemName = card.data('name');
+        const itemPrice = card.data('price');
+        
+        // Close search modal
+        salesSearchModal.modal('hide');
+        
+        // Load item details and open detail modal
+        loadItemDetails(itemId);
+        
+        // Open detail modal
+        $('#add-item-modal').modal('show');
+    });
+    // ========== End YouTube-Style Search Modal ==========
+
+    // Old code below - keeping for reference but will be replaced
     // Elements
     const searchInput = $('#item-search-input');
     const clearSearchBtn = $('#clear-search');
