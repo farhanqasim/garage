@@ -189,7 +189,95 @@ class PurchaseController extends Controller
             'shop_stock' => 0,
             'bar_code' => $item->bar_code,
             'serial_number' => $item->serial_number,
+            'packing' => $item->packing ?? 1, // Packing size for cartons calculation
         ]);
+    }
+    
+    /**
+     * Get stock status for an item across all branches and warehouses
+     */
+    public function getItemStockStatus($id)
+    {
+        $item = Item::findOrFail($id);
+        $packingSize = $item->packing ?? 1; // Default packing size
+        
+        // Get all warehouse items for this item
+        $warehouseItems = \App\Models\WarehouseItem::with(['warehouse.branch'])
+            ->where('item_id', $id)
+            ->get();
+        
+        $stockStatus = [];
+        
+        // Group by branch first
+        $branchStocks = [];
+        foreach ($warehouseItems as $warehouseItem) {
+            $warehouse = $warehouseItem->warehouse;
+            $branch = $warehouse ? $warehouse->branch : null;
+            $branchId = $branch ? $branch->id : 0;
+            $branchName = $branch ? $branch->branch_name : 'No Branch';
+            $branchCode = $branch ? $branch->branch_code : '';
+            
+            $quantity = floatval($warehouseItem->quantity ?? 0);
+            $cartons = floor($quantity / $packingSize);
+            $loose = $quantity % $packingSize;
+            
+            if (!isset($branchStocks[$branchId])) {
+                $branchStocks[$branchId] = [
+                    'branch_id' => $branchId,
+                    'branch_name' => $branchName,
+                    'branch_code' => $branchCode,
+                    'display' => $branchName . ($branchCode ? ' (' . $branchCode . ')' : ''),
+                    'total_cartons' => 0,
+                    'total_loose' => 0,
+                    'warehouses' => []
+                ];
+            }
+            
+            $warehouseData = [
+                'warehouse_id' => $warehouse->id,
+                'warehouse_name' => $warehouse->warehouse_name,
+                'warehouse_code' => $warehouse->warehouse_code,
+                'quantity' => $quantity,
+                'cartons' => $cartons,
+                'loose' => $loose,
+                'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '')
+            ];
+            
+            $branchStocks[$branchId]['warehouses'][] = $warehouseData;
+            $branchStocks[$branchId]['total_cartons'] += $cartons;
+            $branchStocks[$branchId]['total_loose'] += $loose;
+        }
+        
+        // Convert to array format
+        foreach ($branchStocks as $branchStock) {
+            // Add branch total
+            $stockStatus[] = [
+                'type' => 'branch',
+                'id' => $branchStock['branch_id'],
+                'name' => $branchStock['branch_name'],
+                'code' => $branchStock['branch_code'],
+                'display' => $branchStock['display'],
+                'cartons' => $branchStock['total_cartons'],
+                'loose' => $branchStock['total_loose'],
+            ];
+            
+            // Add warehouses under branch
+            foreach ($branchStock['warehouses'] as $warehouse) {
+                $stockStatus[] = [
+                    'type' => 'warehouse',
+                    'id' => $warehouse['warehouse_id'],
+                    'name' => $warehouse['warehouse_name'],
+                    'code' => $warehouse['warehouse_code'],
+                    'display' => $warehouse['display'],
+                    'cartons' => $warehouse['cartons'],
+                    'loose' => $warehouse['loose'],
+                    'quantity' => $warehouse['quantity'],
+                    'branch_id' => $branchStock['branch_id'],
+                ];
+            }
+        }
+        
+        return response()->json($stockStatus);
     }
 
     /**

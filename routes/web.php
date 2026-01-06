@@ -427,6 +427,7 @@ Route::get('/purchases/items/ajax-search', [PurchaseController::class, 'ajaxSear
 Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOptions'])
     ->name('purchases.filter.options');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
+Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
 
 // warehouses
 Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.index')->middleware('auth');

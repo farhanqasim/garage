@@ -386,7 +386,26 @@
                         </div>
                     </div>
                     <input type="hidden" id="selected-item-id">
+                    <input type="hidden" id="selected-warehouse-id">
                 </div>
+                
+                <!-- STOCK STATUS Section (Shows when item is selected) -->
+                <div id="stock-status-section" class="mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0">
+                            <i class="ti ti-settings me-2"></i>STOCK STATUS
+                        </label>
+                        <small class="text-muted" style="cursor: pointer;" id="stock-status-toggle">
+                            DOUBLE-CLICK TO EXPAND
+                        </small>
+                    </div>
+                    <div id="stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto; display: none;">
+                        <div id="stock-status-list">
+                            <p class="text-muted mb-0 small text-center">Loading stock status...</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Quantity and Unit Row -->
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -1025,6 +1044,7 @@ $(document).ready(function() {
         // Reset form when modal opens
         $('#item-search').val('');
         $('#selected-item-id').val('');
+        $('#selected-warehouse-id').val('');
         $('#item-quantity').val('1');
         $('#item-unit').val('Can');
         $('#item-rate').val('0');
@@ -1032,6 +1052,8 @@ $(document).ready(function() {
         $('#warranty-unit').val('Days');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
         $('#item-search-results').hide();
+        $('#stock-status-section').hide();
+        $('#stock-status-content').hide();
     });
     
     // Product name search with dropdown
@@ -1179,9 +1201,89 @@ $(document).ready(function() {
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
             
+            // Load stock status
+            loadItemStockStatus(itemId);
+            
             // Load purchase history
             loadCustomerHistory(itemId);
         }
+    });
+    
+    // Load stock status for selected item
+    function loadItemStockStatus(itemId) {
+        $('#stock-status-section').show();
+        $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">Loading stock status...</p>');
+        
+        $.ajax({
+            url: '{{ route("purchases.items.stock.status", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(stockData) {
+                if (stockData.length === 0) {
+                    $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">No stock found</p>');
+                    return;
+                }
+                
+                let html = '';
+                stockData.forEach(function(stock) {
+                    if (stock.type === 'branch') {
+                        // Branch total
+                        html += `
+                            <div class="p-2 mb-1 border-bottom stock-branch-item" style="background-color: #fff;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="fw-bold">${stock.display}</div>
+                                    <div class="text-muted">
+                                        <span class="fw-bold">${stock.cartons}C</span> | <span class="fw-bold">${stock.loose}L</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (stock.type === 'warehouse') {
+                        // Warehouse item - check if selected
+                        const isSelected = $('#selected-warehouse-id').val() == stock.id;
+                        html += `
+                            <div class="p-2 mb-1 stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
+                                 data-warehouse-id="${stock.id}"
+                                 data-branch-id="${stock.branch_id}"
+                                 style="cursor: pointer; transition: all 0.2s; ${isSelected ? '' : 'background-color: #f0f0f0;'}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">${isSelected ? '✓' : ''}</span>
+                                        <span class="${isSelected ? 'text-white' : ''}">${stock.display}</span>
+                                    </div>
+                                    <div class="${isSelected ? 'text-white' : 'text-muted'}">
+                                        <span class="fw-bold">${stock.cartons} C</span> | <span class="fw-bold">${stock.loose} L</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                $('#stock-status-list').html(html);
+            },
+            error: function() {
+                $('#stock-status-list').html('<p class="text-danger mb-0 small text-center">Error loading stock status</p>');
+            }
+        });
+    }
+    
+    // Toggle stock status expand/collapse
+    $('#stock-status-toggle').on('dblclick', function() {
+        $('#stock-status-content').slideToggle();
+    });
+    
+    // Select warehouse from stock status
+    $(document).on('click', '.stock-warehouse-item', function() {
+        // Remove previous selection
+        $('.stock-warehouse-item').removeClass('bg-primary text-white').addClass('bg-light');
+        $('.stock-warehouse-item').find('span:first').text('');
+        
+        // Select this warehouse
+        $(this).removeClass('bg-light').addClass('bg-primary text-white');
+        $(this).find('span:first').html('✓');
+        
+        const warehouseId = $(this).data('warehouse-id');
+        $('#selected-warehouse-id').val(warehouseId);
     });
     
     // Hide search results when clicking outside
