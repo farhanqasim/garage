@@ -12,7 +12,11 @@ use App\Models\Grade;
 use App\Models\Volt;
 use App\Models\Cca;
 use App\Models\Customer;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SalesController extends Controller
 {
@@ -634,5 +638,105 @@ class SalesController extends Controller
         }
         
         return response()->json($stockStatus);
+    }
+    
+    /**
+     * Store a new sale
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'customer_id' => 'required|exists:customers,id',
+            'branch_id' => 'required|exists:branches,id',
+            'sale_date' => 'required|date',
+            'items' => 'required|array|min:1',
+            'items.*.item_id' => 'required|exists:items,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.rate' => 'required|numeric|min:0',
+            'items.*.unit' => 'nullable|string',
+            'items.*.discount' => 'nullable|numeric|min:0',
+            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.tax_amount' => 'nullable|numeric|min:0',
+            'items.*.total' => 'required|numeric|min:0',
+            'order_tax' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
+            'shipping' => 'nullable|numeric|min:0',
+            'reference' => 'nullable|string|max:255',
+            'status' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Calculate totals
+            $itemsTotal = 0;
+            foreach ($request->items as $item) {
+                $itemsTotal += floatval($item['total']);
+            }
+
+            $orderTax = floatval($request->order_tax ?? 0);
+            $discount = floatval($request->discount ?? 0);
+            $shipping = floatval($request->shipping ?? 0);
+            $grandTotal = $itemsTotal + $orderTax - $discount + $shipping;
+
+            // Create sale record
+            $sale = Sale::create([
+                'customer_id' => $request->customer_id,
+                'branch_id' => $request->branch_id,
+                'sale_date' => $request->sale_date,
+                'reference' => $request->reference,
+                'status' => $request->status ?? 'pending',
+                'subtotal' => $itemsTotal,
+                'order_tax' => $orderTax,
+                'discount' => $discount,
+                'shipping' => $shipping,
+                'grand_total' => $grandTotal,
+                'user_id' => auth()->id(),
+            ]);
+
+            // Create sale items
+            foreach ($request->items as $itemData) {
+                SaleItem::create([
+                    'sale_id' => $sale->id,
+                    'item_id' => $itemData['item_id'],
+                    'quantity' => $itemData['quantity'],
+                    'unit' => $itemData['unit'] ?? 'Unit',
+                    'rate' => $itemData['rate'],
+                    'discount' => $itemData['discount'] ?? 0,
+                    'tax_percentage' => $itemData['tax_percentage'] ?? 0,
+                    'tax_amount' => $itemData['tax_amount'] ?? 0,
+                    'total' => $itemData['total'],
+                    'warranty' => $itemData['warranty'] ?? null,
+                ]);
+
+                // Update warehouse stock if warehouse_id is provided
+                if (isset($itemData['warehouse_id'])) {
+                    $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $itemData['warehouse_id'])
+                        ->where('item_id', $itemData['item_id'])
+                        ->first();
+                    
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity -= floatval($itemData['quantity']);
+                        if ($warehouseItem->quantity < 0) {
+                            $warehouseItem->quantity = 0;
+                        }
+                        $warehouseItem->save();
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('all_sales')
+                ->with('success', 'Sale created successfully!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Sale creation error: ' . $e->getMessage());
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to create sale: ' . $e->getMessage());
+        }
     }
 }

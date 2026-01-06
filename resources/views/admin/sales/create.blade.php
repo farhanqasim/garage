@@ -19,7 +19,7 @@
         <div class="col-lg-12">
             <div class="card">
                 <div class="card-body p-4">
-                    <form action="" method="POST" id="salesForm">
+                    <form action="{{ route('sales.store') }}" method="POST" id="salesForm">
                         @csrf
                         <!-- ACTIVE BRANCH Selector (Pill-shaped like Gemini design) -->
                         <div class="mb-4">
@@ -1988,6 +1988,102 @@ $(document).ready(function() {
         row.find('.unit-cost').text('$' + (subtotal / qty).toFixed(2));
         row.find('.total-cost').text('$' + total.toFixed(2));
         });
+    });
+    
+    // Form submission handler
+    $('#salesForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate branch selection
+        const branchId = $('#salesBranchId').val();
+        if (!branchId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Branch Required',
+                text: 'Please select a branch first.'
+            });
+            return false;
+        }
+        
+        // Validate items
+        if (salesItems.length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'No Items',
+                text: 'Please add at least one item to the sale.'
+            });
+            return false;
+        }
+        
+        // Prepare form data
+        const formData = {
+            _token: '{{ csrf_token() }}',
+            customer_id: $('#customer_id').val(),
+            branch_id: branchId,
+            sale_date: $('#sale_date').val(),
+            reference: $('#reference').val(),
+            status: $('input[name="status"]').val(),
+            order_tax: $('#order_tax').val() || 0,
+            discount: $('#discount').val() || 0,
+            shipping: $('#shipping').val() || 0,
+            items: salesItems.map(item => ({
+                item_id: item.item_id,
+                quantity: item.quantity,
+                unit: item.unit,
+                rate: item.rate,
+                discount: item.discount,
+                tax_percentage: item.tax_percentage,
+                tax_amount: item.tax_amount,
+                total: item.total,
+                warranty: item.warranty || null,
+                warehouse_id: $('#selected-warehouse-id').val() || null
+            }))
+        };
+        
+        // Show loading
+        Swal.fire({
+            title: 'Processing...',
+            text: 'Please wait while we create your sale.',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Submit via AJAX
+        $.ajax({
+            url: $(this).attr('action'),
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: 'Sale created successfully!',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.href = '{{ route("all_sales") }}';
+                });
+            },
+            error: function(xhr) {
+                let errorMessage = 'Failed to create sale. Please try again.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    const errors = Object.values(xhr.responseJSON.errors).flat();
+                    errorMessage = errors.join('<br>');
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    html: errorMessage
+                });
+            }
+        });
+        
+        return false;
     });
 </script>
 @endpush
