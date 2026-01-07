@@ -204,6 +204,9 @@
                     <!-- Action Buttons -->
                     <div class="d-flex justify-content-end gap-2 mt-4 no-print">
                         <a href="{{ route('all_purchases') }}" class="btn btn-secondary">Back to List</a>
+                        <a href="{{ route('purchases.pdf', $purchase->id) }}" class="btn btn-danger" target="_blank">
+                            <i class="ti ti-file-pdf me-1"></i> Download PDF
+                        </a>
                         <button type="button" class="btn btn-success" onclick="window.print()">
                             <i class="ti ti-printer me-1"></i> Print Invoice
                         </button>

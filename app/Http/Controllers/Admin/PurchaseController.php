@@ -17,6 +17,7 @@ use App\Models\Cca;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PurchaseController extends Controller
 {
@@ -189,6 +190,44 @@ class PurchaseController extends Controller
         $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
         
         return view('admin.purchases.show', compact('purchase'));
+    }
+
+    public function pdf($id)
+    {
+        $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
+        
+        // Get logo path and convert to base64 for PDF
+        $logoData = null;
+        $logoMime = null;
+        
+        $logoPath = public_path('assets/img/logo.svg');
+        if (!file_exists($logoPath)) {
+            $logoPath = public_path('assets/img/logo.png');
+            if (file_exists($logoPath)) {
+                $logoMime = 'image/png';
+            }
+        } else {
+            $logoMime = 'image/svg+xml';
+        }
+        
+        if (file_exists($logoPath)) {
+            $logoContent = file_get_contents($logoPath);
+            $logoData = 'data:' . $logoMime . ';base64,' . base64_encode($logoContent);
+        }
+        
+        $data = [
+            'purchase' => $purchase,
+            'logoData' => $logoData,
+            'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+        ];
+        
+        $pdf = Pdf::loadView('admin.purchases.pdf', $data);
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf->setOption('isRemoteEnabled', true);
+        
+        return $pdf->download('Invoice-' . $purchase->invoice_no . '.pdf');
     }
 
     public function edit($id)
