@@ -2193,6 +2193,28 @@ $(document).ready(function() {
             salesItems = [];
             $('#items-tbody').empty();
             
+            // Get warehouse ID for the branch
+            const branchId = purchaseData.branch_id || $('#salesBranchId').val();
+            let warehouseId = null;
+            
+            // Fetch warehouse for this branch
+            if (branchId) {
+                $.ajax({
+                    url: '{{ route("warehouses.by.branch", ":id") }}'.replace(':id', branchId),
+                    method: 'GET',
+                    async: false, // Synchronous to get warehouse before loading items
+                    success: function(warehouse) {
+                        if (warehouse && !warehouse.error && warehouse.id) {
+                            warehouseId = warehouse.id;
+                            $('#selected-warehouse-id').val(warehouseId);
+                        }
+                    },
+                    error: function() {
+                        console.warn('Could not fetch warehouse for branch:', branchId);
+                    }
+                });
+            }
+            
             // Load each item from purchase
             purchaseData.items.forEach(function(itemData) {
                 // Fetch item details to get name
@@ -2213,7 +2235,7 @@ $(document).ready(function() {
                             tax_amount: parseFloat(itemData.tax_amount || 0),
                             total: parseFloat(itemData.total),
                             warranty: null,
-                            warehouse_id: null
+                            warehouse_id: warehouseId
                         };
                         
                         salesItems.push(item);
@@ -2233,7 +2255,7 @@ $(document).ready(function() {
                             tax_amount: parseFloat(itemData.tax_amount || 0),
                             total: parseFloat(itemData.total),
                             warranty: null,
-                            warehouse_id: null
+                            warehouse_id: warehouseId
                         };
                         
                         salesItems.push(item);

@@ -14,8 +14,11 @@ use App\Models\Technology;
 use App\Models\Grade;
 use App\Models\Volt;
 use App\Models\Cca;
+use App\Models\Warehouse;
+use App\Models\WarehouseItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -101,88 +104,116 @@ class PurchaseController extends Controller
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        // Generate invoice number
-        $invoiceNo = 'PUR-' . date('Y') . '-' . str_pad(Purchase::max('id') + 1, 5, '0', STR_PAD_LEFT);
-
-        // Calculate totals
-        $subtotal = 0;
-        foreach ($request->items as $item) {
-            $quantity = $item['quantity'];
-            $rate = $item['rate'];
-            $discount = $item['discount'] ?? 0;
-            $taxPercentage = $item['tax_percentage'] ?? 0;
-            
-            $itemSubtotal = ($quantity * $rate) - $discount;
-            $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
-            $itemTotal = $itemSubtotal + $taxAmount;
-            
-            $subtotal += $itemTotal;
+        $warehouse = Warehouse::where('branch_id', $request->branch_id)->first();
+        if (!$warehouse) {
+            return redirect()->back()->withInput()->with('error', 'Warehouse not found for selected branch.');
         }
 
-        $orderTax = $request->order_tax ?? 0;
-        $discount = $request->discount ?? 0;
-        $shipping = $request->shipping ?? 0;
-        $grandTotal = $subtotal + $orderTax - $discount + $shipping;
-
-        // Convert date format (handle both d/m/Y and Y-m-d)
+        DB::beginTransaction();
         try {
-            $purchaseDate = Carbon::createFromFormat('d/m/Y', $request->purchase_date)->format('Y-m-d');
-        } catch (\Exception $e) {
-            // If already in Y-m-d format or other format, try to parse directly
-            $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
-        }
+            $invoiceNo = 'PUR-' . date('Y') . '-' . str_pad((Purchase::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
 
-        $purchase = Purchase::create([
-            'invoice_no' => $invoiceNo,
-            'branch_id' => $request->branch_id,
-            'supplier_id' => $request->supplier_id,
-            'purchase_date' => $purchaseDate,
-            'reference' => $request->reference,
-            'status' => $request->status,
-            'subtotal' => $subtotal,
-            'order_tax' => $orderTax,
-            'discount' => $discount,
-            'shipping' => $shipping,
-            'grand_total' => $grandTotal,
-            'description' => $request->description,
-        ]);
+            $subtotal = 0;
+            foreach ($request->items as $item) {
+                $itemModel = Item::find($item['item_id']);
+                if (!$itemModel) {
+                    throw new \Exception("Item not found: {$item['item_id']}");
+                }
 
-        // Create purchase items
-        foreach ($request->items as $item) {
-            $quantity = $item['quantity'];
-            $rate = $item['rate'];
-            $discount = $item['discount'] ?? 0;
-            $taxPercentage = $item['tax_percentage'] ?? 0;
-            
-            $itemSubtotal = ($quantity * $rate) - $discount;
-            $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
-            $unitCost = $itemSubtotal / $quantity;
-            $totalCost = $itemSubtotal + $taxAmount;
+                $quantity = floatval($item['quantity']);
+                $rate = floatval($item['rate']);
+                $discount = floatval($item['discount'] ?? 0);
+                $taxPercentage = floatval($item['tax_percentage'] ?? 0);
+                
+                $itemSubtotal = ($quantity * $rate) - $discount;
+                $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
+                $itemTotal = $itemSubtotal + $taxAmount;
+                
+                $subtotal += $itemTotal;
+            }
 
-            PurchaseItem::create([
-                'purchase_id' => $purchase->id,
-                'item_id' => $item['item_id'],
-                'quantity' => $quantity,
-                'unit' => $item['unit'] ?? null,
-                'rate' => $rate,
+            $orderTax = floatval($request->order_tax ?? 0);
+            $discount = floatval($request->discount ?? 0);
+            $shipping = floatval($request->shipping ?? 0);
+            $grandTotal = $subtotal + $orderTax - $discount + $shipping;
+
+            try {
+                $purchaseDate = Carbon::createFromFormat('d/m/Y', $request->purchase_date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
+            }
+
+            $purchase = Purchase::create([
+                'invoice_no' => $invoiceNo,
+                'branch_id' => $request->branch_id,
+                'supplier_id' => $request->supplier_id,
+                'purchase_date' => $purchaseDate,
+                'reference' => $request->reference,
+                'status' => $request->status,
+                'subtotal' => $subtotal,
+                'order_tax' => $orderTax,
                 'discount' => $discount,
-                'tax_percentage' => $taxPercentage,
-                'tax_amount' => $taxAmount,
-                'unit_cost' => $unitCost,
-                'total_cost' => $totalCost,
+                'shipping' => $shipping,
+                'grand_total' => $grandTotal,
+                'description' => $request->description,
             ]);
 
-            // Update item stock if status is 'received'
-            if ($request->status === 'received') {
-                $itemModel = Item::find($item['item_id']);
-                if ($itemModel) {
+            foreach ($request->items as $item) {
+                $itemModel = Item::findOrFail($item['item_id']);
+                $quantity = floatval($item['quantity']);
+                $rate = floatval($item['rate']);
+                $discount = floatval($item['discount'] ?? 0);
+                $taxPercentage = floatval($item['tax_percentage'] ?? 0);
+                
+                $itemSubtotal = ($quantity * $rate) - $discount;
+                $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
+                $unitCost = $itemSubtotal / $quantity;
+                $totalCost = $itemSubtotal + $taxAmount;
+
+                PurchaseItem::create([
+                    'purchase_id' => $purchase->id,
+                    'item_id' => $item['item_id'],
+                    'quantity' => $quantity,
+                    'unit' => $item['unit'] ?? null,
+                    'rate' => $rate,
+                    'discount' => $discount,
+                    'tax_percentage' => $taxPercentage,
+                    'tax_amount' => $taxAmount,
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $totalCost,
+                ]);
+
+                if ($request->status === 'received') {
+                    $warehouseItem = WarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $item['item_id'])
+                        ->first();
+
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity += $quantity;
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    } else {
+                        WarehouseItem::create([
+                            'warehouse_id' => $warehouse->id,
+                            'item_id' => $item['item_id'],
+                            'quantity' => $quantity,
+                            'reserved_quantity' => 0,
+                            'available_quantity' => $quantity,
+                        ]);
+                    }
+
                     $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
                     $itemModel->save();
                 }
             }
-        }
 
-        return redirect()->route('all_purchases')->with('success', 'Purchase created successfully');
+            DB::commit();
+            return redirect()->route('all_purchases')->with('success', 'Purchase created successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()->with('error', 'Failed to create purchase: ' . $e->getMessage());
+        }
     }
 
     public function show($id)
@@ -295,7 +326,7 @@ class PurchaseController extends Controller
 
     public function update(Request $request, $id)
     {
-        $purchase = Purchase::findOrFail($id);
+        $purchase = Purchase::with('items')->findOrFail($id);
         
         $request->validate([
             'branch_id' => 'required|exists:branches,id',
@@ -312,125 +343,182 @@ class PurchaseController extends Controller
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        // Calculate totals
-        $subtotal = 0;
-        foreach ($request->items as $item) {
-            $quantity = $item['quantity'];
-            $rate = $item['rate'];
-            $discount = $item['discount'] ?? 0;
-            $taxPercentage = $item['tax_percentage'] ?? 0;
-            
-            $itemSubtotal = ($quantity * $rate) - $discount;
-            $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
-            $itemTotal = $itemSubtotal + $taxAmount;
-            
-            $subtotal += $itemTotal;
+        $warehouse = Warehouse::where('branch_id', $request->branch_id)->first();
+        if (!$warehouse) {
+            return redirect()->back()->withInput()->with('error', 'Warehouse not found for selected branch.');
         }
 
-        $orderTax = $request->order_tax ?? 0;
-        $discount = $request->discount ?? 0;
-        $shipping = $request->shipping ?? 0;
-        $grandTotal = $subtotal + $orderTax - $discount + $shipping;
-
-        // Convert date format
+        DB::beginTransaction();
         try {
-            $purchaseDate = Carbon::createFromFormat('d/m/Y', $request->purchase_date)->format('Y-m-d');
-        } catch (\Exception $e) {
-            $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
-        }
+            $subtotal = 0;
+            foreach ($request->items as $item) {
+                $itemModel = Item::find($item['item_id']);
+                if (!$itemModel) {
+                    throw new \Exception("Item not found: {$item['item_id']}");
+                }
 
-        // Get old status to check if we need to revert stock
-        $oldStatus = $purchase->status;
+                $quantity = floatval($item['quantity']);
+                $rate = floatval($item['rate']);
+                $discount = floatval($item['discount'] ?? 0);
+                $taxPercentage = floatval($item['tax_percentage'] ?? 0);
+                
+                $itemSubtotal = ($quantity * $rate) - $discount;
+                $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
+                $itemTotal = $itemSubtotal + $taxAmount;
+                
+                $subtotal += $itemTotal;
+            }
 
-        // Update purchase
-        $purchase->update([
-            'branch_id' => $request->branch_id,
-            'supplier_id' => $request->supplier_id,
-            'purchase_date' => $purchaseDate,
-            'reference' => $request->reference,
-            'status' => $request->status,
-            'subtotal' => $subtotal,
-            'order_tax' => $orderTax,
-            'discount' => $discount,
-            'shipping' => $shipping,
-            'grand_total' => $grandTotal,
-            'description' => $request->description,
-        ]);
+            $orderTax = floatval($request->order_tax ?? 0);
+            $discount = floatval($request->discount ?? 0);
+            $shipping = floatval($request->shipping ?? 0);
+            $grandTotal = $subtotal + $orderTax - $discount + $shipping;
 
-        // Revert stock if old status was 'received'
-        if ($oldStatus === 'received') {
-            foreach ($purchase->items as $oldItem) {
-                $itemModel = Item::find($oldItem->item_id);
-                if ($itemModel) {
-                    $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - $oldItem->quantity);
-                    $itemModel->save();
+            try {
+                $purchaseDate = Carbon::createFromFormat('d/m/Y', $request->purchase_date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
+            }
+
+            $oldStatus = $purchase->status;
+            $oldBranchId = $purchase->branch_id;
+            $oldWarehouse = Warehouse::where('branch_id', $oldBranchId)->first();
+
+            if ($oldStatus === 'received' && $oldWarehouse) {
+                foreach ($purchase->items as $oldItem) {
+                    $warehouseItem = WarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $oldWarehouse->id)
+                        ->where('item_id', $oldItem->item_id)
+                        ->first();
+
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity = max(0, $warehouseItem->quantity - floatval($oldItem->quantity));
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    }
+
+                    $itemModel = Item::find($oldItem->item_id);
+                    if ($itemModel) {
+                        $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - floatval($oldItem->quantity));
+                        $itemModel->save();
+                    }
                 }
             }
-        }
 
-        // Delete old purchase items
-        $purchase->items()->delete();
-
-        // Create new purchase items
-        foreach ($request->items as $item) {
-            $quantity = $item['quantity'];
-            $rate = $item['rate'];
-            $discount = $item['discount'] ?? 0;
-            $taxPercentage = $item['tax_percentage'] ?? 0;
-            
-            $itemSubtotal = ($quantity * $rate) - $discount;
-            $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
-            $unitCost = $itemSubtotal / $quantity;
-            $totalCost = $itemSubtotal + $taxAmount;
-
-            PurchaseItem::create([
-                'purchase_id' => $purchase->id,
-                'item_id' => $item['item_id'],
-                'quantity' => $quantity,
-                'unit' => $item['unit'] ?? null,
-                'rate' => $rate,
+            $purchase->update([
+                'branch_id' => $request->branch_id,
+                'supplier_id' => $request->supplier_id,
+                'purchase_date' => $purchaseDate,
+                'reference' => $request->reference,
+                'status' => $request->status,
+                'subtotal' => $subtotal,
+                'order_tax' => $orderTax,
                 'discount' => $discount,
-                'tax_percentage' => $taxPercentage,
-                'tax_amount' => $taxAmount,
-                'unit_cost' => $unitCost,
-                'total_cost' => $totalCost,
+                'shipping' => $shipping,
+                'grand_total' => $grandTotal,
+                'description' => $request->description,
             ]);
 
-            // Update item stock if status is 'received'
-            if ($request->status === 'received') {
-                $itemModel = Item::find($item['item_id']);
-                if ($itemModel) {
+            $purchase->items()->delete();
+
+            foreach ($request->items as $item) {
+                $itemModel = Item::findOrFail($item['item_id']);
+                $quantity = floatval($item['quantity']);
+                $rate = floatval($item['rate']);
+                $discount = floatval($item['discount'] ?? 0);
+                $taxPercentage = floatval($item['tax_percentage'] ?? 0);
+                
+                $itemSubtotal = ($quantity * $rate) - $discount;
+                $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
+                $unitCost = $itemSubtotal / $quantity;
+                $totalCost = $itemSubtotal + $taxAmount;
+
+                PurchaseItem::create([
+                    'purchase_id' => $purchase->id,
+                    'item_id' => $item['item_id'],
+                    'quantity' => $quantity,
+                    'unit' => $item['unit'] ?? null,
+                    'rate' => $rate,
+                    'discount' => $discount,
+                    'tax_percentage' => $taxPercentage,
+                    'tax_amount' => $taxAmount,
+                    'unit_cost' => $unitCost,
+                    'total_cost' => $totalCost,
+                ]);
+
+                if ($request->status === 'received') {
+                    $warehouseItem = WarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $item['item_id'])
+                        ->first();
+
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity += $quantity;
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    } else {
+                        WarehouseItem::create([
+                            'warehouse_id' => $warehouse->id,
+                            'item_id' => $item['item_id'],
+                            'quantity' => $quantity,
+                            'reserved_quantity' => 0,
+                            'available_quantity' => $quantity,
+                        ]);
+                    }
+
                     $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
                     $itemModel->save();
                 }
             }
-        }
 
-        return redirect()->route('all_purchases')->with('success', 'Purchase updated successfully');
+            DB::commit();
+            return redirect()->route('all_purchases')->with('success', 'Purchase updated successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()->with('error', 'Failed to update purchase: ' . $e->getMessage());
+        }
     }
 
     public function destroy($id)
     {
         $purchase = Purchase::with('items')->findOrFail($id);
         
-        // Revert stock if status was 'received'
-        if ($purchase->status === 'received') {
-            foreach ($purchase->items as $purchaseItem) {
-                $itemModel = Item::find($purchaseItem->item_id);
-                if ($itemModel) {
-                    $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - $purchaseItem->quantity);
-                    $itemModel->save();
+        DB::beginTransaction();
+        try {
+            if ($purchase->status === 'received') {
+                $warehouse = Warehouse::where('branch_id', $purchase->branch_id)->first();
+                
+                if ($warehouse) {
+                    foreach ($purchase->items as $purchaseItem) {
+                        $warehouseItem = WarehouseItem::lockForUpdate()
+                            ->where('warehouse_id', $warehouse->id)
+                            ->where('item_id', $purchaseItem->item_id)
+                            ->first();
+
+                        if ($warehouseItem) {
+                            $warehouseItem->quantity = max(0, $warehouseItem->quantity - floatval($purchaseItem->quantity));
+                            $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                            $warehouseItem->save();
+                        }
+
+                        $itemModel = Item::find($purchaseItem->item_id);
+                        if ($itemModel) {
+                            $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - floatval($purchaseItem->quantity));
+                            $itemModel->save();
+                        }
+                    }
                 }
             }
+
+            $purchase->items()->delete();
+            $purchase->delete();
+
+            DB::commit();
+            return redirect()->route('all_purchases')->with('success', 'Purchase deleted successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Failed to delete purchase: ' . $e->getMessage());
         }
-
-        // Delete purchase items
-        $purchase->items()->delete();
-        
-        // Delete purchase
-        $purchase->delete();
-
-        return redirect()->route('all_purchases')->with('success', 'Purchase deleted successfully');
     }
 
     public function searchItems(Request $request)

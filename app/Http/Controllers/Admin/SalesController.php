@@ -14,6 +14,8 @@ use App\Models\Cca;
 use App\Models\Customer;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Warehouse;
+use App\Models\WarehouseItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -714,10 +716,38 @@ class SalesController extends Controller
             throw $e;
         }
 
-        try {
-            DB::beginTransaction();
+        $warehouse = Warehouse::where('branch_id', $request->branch_id)->first();
+        if (!$warehouse) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Warehouse not found for selected branch.'
+                ], 422);
+            }
+            return redirect()->back()->withInput()->with('error', 'Warehouse not found for selected branch.');
+        }
 
-            // Calculate totals
+        DB::beginTransaction();
+        try {
+            foreach ($request->items as $itemData) {
+                $item = Item::findOrFail($itemData['item_id']);
+                $saleQuantity = floatval($itemData['quantity']);
+
+                $warehouseItem = WarehouseItem::lockForUpdate()
+                    ->where('warehouse_id', $warehouse->id)
+                    ->where('item_id', $itemData['item_id'])
+                    ->first();
+
+                if (!$warehouseItem) {
+                    throw new \Exception("Item '{$item->bar_code}' not found in warehouse stock.");
+                }
+
+                $availableQuantity = floatval($warehouseItem->available_quantity ?? 0);
+                if ($availableQuantity < $saleQuantity) {
+                    throw new \Exception("Insufficient stock for item '{$item->bar_code}'. Available: {$availableQuantity}, Required: {$saleQuantity}");
+                }
+            }
+
             $itemsTotal = 0;
             foreach ($request->items as $item) {
                 $itemsTotal += floatval($item['total']);
@@ -728,7 +758,6 @@ class SalesController extends Controller
             $shipping = floatval($request->shipping ?? 0);
             $grandTotal = $itemsTotal + $orderTax - $discount + $shipping;
 
-            // Create sale record
             $sale = Sale::create([
                 'customer_id' => $request->customer_id,
                 'branch_id' => $request->branch_id,
@@ -743,7 +772,6 @@ class SalesController extends Controller
                 'user_id' => auth()->id(),
             ]);
 
-            // Create sale items
             foreach ($request->items as $itemData) {
                 SaleItem::create([
                     'sale_id' => $sale->id,
@@ -758,23 +786,32 @@ class SalesController extends Controller
                     'warranty' => $itemData['warranty'] ?? null,
                 ]);
 
-                // Update warehouse stock if warehouse_id is provided
-                if (isset($itemData['warehouse_id'])) {
-                    $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $itemData['warehouse_id'])
-                        ->where('item_id', $itemData['item_id'])
-                        ->first();
-                    
-                    if ($warehouseItem) {
-                        $warehouseItem->quantity -= floatval($itemData['quantity']);
-                        if ($warehouseItem->quantity < 0) {
-                            $warehouseItem->quantity = 0;
-                        }
-                        $warehouseItem->save();
-                    }
+                $saleQuantity = floatval($itemData['quantity']);
+                $warehouseItem = WarehouseItem::lockForUpdate()
+                    ->where('warehouse_id', $warehouse->id)
+                    ->where('item_id', $itemData['item_id'])
+                    ->firstOrFail();
+
+                $warehouseItem->quantity -= $saleQuantity;
+                if ($warehouseItem->quantity < 0) {
+                    $warehouseItem->quantity = 0;
+                }
+                $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                $warehouseItem->save();
+
+                $item = Item::find($itemData['item_id']);
+                if ($item) {
+                    $item->on_hand = max(0, ($item->on_hand ?? 0) - $saleQuantity);
+                    $item->save();
                 }
             }
 
             DB::commit();
+
+            // Clear purchase_to_sale session data after successful sale creation
+            if (session()->has('purchase_to_sale')) {
+                session()->forget('purchase_to_sale');
+            }
 
             // Return JSON response for AJAX requests
             if ($request->ajax() || $request->wantsJson()) {
@@ -796,13 +833,13 @@ class SalesController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create sale: ' . $e->getMessage()
-                ], 500);
+                    'message' => $e->getMessage()
+                ], 422);
             }
             
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create sale: ' . $e->getMessage());
+                ->with('error', $e->getMessage());
         }
     }
 }
