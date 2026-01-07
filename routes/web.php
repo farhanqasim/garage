@@ -432,6 +432,7 @@ Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOp
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
 Route::get('purchases/suppliers/search-phone',[PurchaseController::class,'searchSuppliersByPhone'])->name('purchases.suppliers.search.phone');
+Route::get('purchases/{id}',[PurchaseController::class,'show'])->name('purchases.show')->middleware('auth');
 Route::get('purchases/{id}/edit',[PurchaseController::class,'edit'])->name('purchases.edit')->middleware('auth');
 Route::put('purchases/{id}',[PurchaseController::class,'update'])->name('purchases.update');
 Route::delete('purchases/{id}',[PurchaseController::class,'destroy'])->name('purchases.destroy');

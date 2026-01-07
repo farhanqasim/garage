@@ -184,6 +184,13 @@ class PurchaseController extends Controller
         return redirect()->route('all_purchases')->with('success', 'Purchase created successfully');
     }
 
+    public function show($id)
+    {
+        $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
+        
+        return view('admin.purchases.show', compact('purchase'));
+    }
+
     public function edit($id)
     {
         $purchase = Purchase::with(['supplier', 'items.item', 'branch'])->findOrFail($id);

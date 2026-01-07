@@ -106,6 +106,9 @@
                                         class="ti ti-point-filled me-1 fs-11"></i>Paid</span></td>
                             <td class="action-table-data no-highlight">
                                 <div class="edit-delete-action">
+                                    <a class="me-2 p-2" href="{{ route('purchases.show', $purchase->id) }}" title="View">
+                                        <i data-feather="eye" class="action-eye"></i>
+                                    </a>
                                     <a class="me-2 p-2" href="{{ route('purchases.edit', $purchase->id) }}" title="Edit">
                                         <i data-feather="edit" class="feather-edit"></i>
                                     </a>
