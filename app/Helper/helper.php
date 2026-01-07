@@ -73,3 +73,62 @@ if (!function_exists('setting_value')) {
         return Setting::where('key', $key)->first()->value ?? $optional;
     }
 }
+
+if (!function_exists('numberToWords')) {
+    function numberToWords($number) {
+        $ones = array(
+            0 => 'Zero', 1 => 'One', 2 => 'Two', 3 => 'Three', 4 => 'Four',
+            5 => 'Five', 6 => 'Six', 7 => 'Seven', 8 => 'Eight', 9 => 'Nine',
+            10 => 'Ten', 11 => 'Eleven', 12 => 'Twelve', 13 => 'Thirteen',
+            14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen', 17 => 'Seventeen',
+            18 => 'Eighteen', 19 => 'Nineteen'
+        );
+        
+        $tens = array(
+            2 => 'Twenty', 3 => 'Thirty', 4 => 'Forty', 5 => 'Fifty',
+            6 => 'Sixty', 7 => 'Seventy', 8 => 'Eighty', 9 => 'Ninety'
+        );
+        
+        $number = (int)$number;
+        
+        if ($number < 20) {
+            return $ones[$number];
+        } elseif ($number < 100) {
+            $tensDigit = (int)($number / 10);
+            $onesDigit = $number % 10;
+            return $tens[$tensDigit] . ($onesDigit > 0 ? ' ' . $ones[$onesDigit] : '');
+        } elseif ($number < 1000) {
+            $hundreds = (int)($number / 100);
+            $remainder = $number % 100;
+            $result = $ones[$hundreds] . ' Hundred';
+            if ($remainder > 0) {
+                $result .= ' ' . numberToWords($remainder);
+            }
+            return $result;
+        } elseif ($number < 100000) {
+            $thousands = (int)($number / 1000);
+            $remainder = $number % 1000;
+            $result = numberToWords($thousands) . ' Thousand';
+            if ($remainder > 0) {
+                $result .= ' ' . numberToWords($remainder);
+            }
+            return $result;
+        } elseif ($number < 10000000) {
+            $lakhs = (int)($number / 100000);
+            $remainder = $number % 100000;
+            $result = numberToWords($lakhs) . ' Lakh';
+            if ($remainder > 0) {
+                $result .= ' ' . numberToWords($remainder);
+            }
+            return $result;
+        } else {
+            $crores = (int)($number / 10000000);
+            $remainder = $number % 10000000;
+            $result = numberToWords($crores) . ' Crore';
+            if ($remainder > 0) {
+                $result .= ' ' . numberToWords($remainder);
+            }
+            return $result;
+        }
+    }
+}

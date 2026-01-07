@@ -189,7 +189,13 @@ class PurchaseController extends Controller
     {
         $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
         
-        return view('admin.purchases.show', compact('purchase'));
+        $data = [
+            'purchase' => $purchase,
+            'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+        ];
+        
+        return view('admin.purchases.show', $data);
     }
 
     public function pdf($id)
