@@ -14,53 +14,49 @@
         body {
             font-family: 'DejaVu Sans', Arial, sans-serif;
             font-size: 12px;
-            line-height: 1.6;
+            line-height: 1.5;
             color: #333;
         }
         
         .invoice-container {
             width: 100%;
+            max-width: 210mm;
             margin: 0 auto;
             padding: 15mm 20mm;
             background: #fff;
         }
         
         .invoice-header {
-            border-bottom: 3px solid #0d6efd;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            margin-bottom: 20px;
             page-break-inside: avoid;
         }
         
-        .logo-section {
+        .company-section {
             display: flex;
             align-items: center;
             gap: 15px;
         }
         
         .logo-img {
-            max-width: 100px;
-            max-height: 100px;
-            border-radius: 5px;
+            max-width: 90px;
+            max-height: 90px;
             object-fit: contain;
         }
         
         .company-info h1 {
-            font-size: 22px;
+            font-size: 28px;
             font-weight: bold;
             color: #0d6efd;
             margin-bottom: 8px;
-            line-height: 1.2;
         }
         
         .company-info p {
-            font-size: 10px;
+            font-size: 11px;
             color: #555;
             margin: 3px 0;
-            line-height: 1.4;
         }
         
         .invoice-info {
@@ -68,128 +64,101 @@
         }
         
         .invoice-info h2 {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
             color: #0d6efd;
-            margin-bottom: 8px;
-            line-height: 1.2;
+            margin-bottom: 10px;
         }
         
         .invoice-info p {
-            font-size: 10px;
-            color: #555;
+            font-size: 12px;
             margin: 4px 0;
-            line-height: 1.4;
         }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: #28a745;
+            color: #fff;
+        }
+        
+        .status-pending { background-color: #ffc107; color: #000; }
+        .status-ordered { background-color: #17a2b8; color: #fff; }
         
         .invoice-details {
             display: flex;
             justify-content: space-between;
+            gap: 20px;
             margin-bottom: 25px;
             page-break-inside: avoid;
         }
         
         .detail-section {
-            width: 48%;
-            background-color: #f9f9f9;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #e0e0e0;
+            flex: 1;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
         }
         
         .detail-section h3 {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
-            color: #555;
+            color: #495057;
             text-transform: uppercase;
-            margin-bottom: 8px;
-            border-bottom: 1px solid #d0d0d0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
             padding-bottom: 5px;
         }
         
         .detail-section p {
-            font-size: 10px;
-            margin: 4px 0;
-            word-wrap: break-word;
-            word-break: break-word;
-            line-height: 1.5;
+            font-size: 11px;
+            margin: 6px 0;
         }
         
         .detail-section strong {
             display: inline-block;
-            min-width: 90px;
+            width: 110px;
             font-weight: bold;
-            color: #333;
         }
         
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             page-break-inside: auto;
         }
         
         .items-table th {
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
+            background-color: #0d6efd;
+            color: #fff;
+            border: 1px solid #0d6efd;
             padding: 10px 8px;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: bold;
             text-transform: uppercase;
             text-align: left;
-            color: #333;
         }
         
         .items-table td {
-            border: 1px solid #ccc;
+            border: 1px solid #dee2e6;
             padding: 10px 8px;
-            font-size: 10px;
-            word-wrap: break-word;
-            word-break: break-word;
+            font-size: 11px;
             vertical-align: top;
-            line-height: 1.4;
-        }
-        
-        .items-table tbody tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
         }
         
         .items-table tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
+            background-color: #f8f9fa;
         }
         
-        .items-table tbody tr:hover {
-            background-color: #f5f5f5;
-        }
-        
-        .items-table .item-name strong {
-            display: block;
-            margin-bottom: 3px;
-        }
-        
-        .items-table .item-name small {
-            font-size: 9px;
-            color: #666;
-        }
-        
-        .items-table .item-name {
-            min-width: 180px;
-            max-width: 250px;
-            width: 30%;
-        }
-        
-        .items-table .text-right {
-            text-align: right;
-        }
-        
-        .items-table .text-center {
-            text-align: center;
-        }
+        .items-table .text-right { text-align: right; }
+        .items-table .text-center { text-align: center; }
         
         .summary-section {
-            width: 100%;
-            margin-top: 20px;
             page-break-inside: avoid;
         }
         
@@ -197,71 +166,34 @@
             width: 45%;
             margin-left: auto;
             border-collapse: collapse;
-            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
         .summary-table td {
-            padding: 10px 15px;
-            font-size: 10px;
-            border: 1px solid #ddd;
+            padding: 10px 20px;
+            font-size: 12px;
+            border-bottom: 1px solid #dee2e6;
         }
         
         .summary-table td:first-child {
             font-weight: bold;
-            text-align: right;
-            background-color: #f0f0f0;
-            color: #333;
+            text-align: left;
         }
         
         .summary-table td:last-child {
             text-align: right;
             font-weight: bold;
-            color: #333;
         }
         
         .summary-table .grand-total td {
-            border-top: 2px solid #0d6efd;
-            border-bottom: 2px solid #0d6efd;
-            font-size: 13px;
-            font-weight: bold;
-            padding: 14px 15px;
-            background-color: #e9ecef;
-            color: #0d6efd;
-        }
-        
-        .invoice-footer {
-            margin-top: 40px;
-            padding-top: 15px;
-            border-top: 2px solid #0d6efd;
-            text-align: center;
-            page-break-inside: avoid;
-        }
-        
-        .invoice-footer p {
-            font-size: 10px;
-            color: #555;
-            margin: 5px 0;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-            background-color: #28a745;
+            background-color: #0d6efd;
             color: #fff;
-        }
-        
-        .status-pending {
-            background-color: #ffc107;
-            color: #000;
-        }
-        
-        .status-ordered {
-            background-color: #17a2b8;
-            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            padding: 15px 20px;
         }
         
         .description-section {
@@ -270,52 +202,51 @@
         }
         
         .description-section h3 {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
-            color: #555;
+            color: #495057;
             text-transform: uppercase;
-            margin-bottom: 8px;
-            border-bottom: 1px solid #d0d0d0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
             padding-bottom: 5px;
         }
         
         .description-section p {
             font-size: 11px;
-            word-wrap: break-word;
-            word-break: break-word;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .invoice-footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #0d6efd;
+            text-align: center;
+            font-size: 11px;
+            color: #555;
+            page-break-inside: avoid;
         }
         
         @page {
-            margin: 0;
+            margin: 10mm;
             size: A4 portrait;
         }
         
-        body {
-            margin: 0;
-            padding: 0;
-        }
-        
         @media print {
-            .invoice-container {
-                box-shadow: none;
-            }
+            body { -webkit-print-color-adjust: exact; }
         }
     </style>
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Invoice Header -->
+        <!-- Header -->
         <div class="invoice-header">
-            <div class="logo-section">
-                @if($logoData)
-                    <img src="{{ $logoData }}" alt="Logo" class="logo-img">
-                @endif
+            <div class="company-section">
+                <img src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Logo" class="logo-img">
                 <div class="company-info">
-                    <h1>{{ $companyName }}</h1>
+                    <h1>{{ setting_value('logo_text', 'Auto Shop') }}</h1>
                     <p><strong>Helpline:</strong> {{ $helpline }}</p>
                     @if($purchase->branch)
                         <p><strong>Branch:</strong> {{ $purchase->branch->branch_name }} 
@@ -335,7 +266,7 @@
             </div>
         </div>
 
-        <!-- Invoice Details -->
+        <!-- Details -->
         <div class="invoice-details">
             <div class="detail-section">
                 <h3>Supplier Information</h3>
@@ -370,21 +301,21 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">#</th>
-                    <th class="item-name">Item Name</th>
-                    <th style="width: 8%;" class="text-center">Qty</th>
-                    <th style="width: 8%;" class="text-center">Unit</th>
-                    <th style="width: 10%;" class="text-right">Rate</th>
-                    <th style="width: 10%;" class="text-right">Discount</th>
-                    <th style="width: 8%;" class="text-center">Tax %</th>
-                    <th style="width: 12%;" class="text-right">Total</th>
+                    <th style="width:5%;">#</th>
+                    <th>Item Name</th>
+                    <th style="width:8%;" class="text-center">Qty</th>
+                    <th style="width:8%;" class="text-center">Unit</th>
+                    <th style="width:12%;" class="text-right">Rate</th>
+                    <th style="width:12%;" class="text-right">Discount</th>
+                    <th style="width:8%;" class="text-center">Tax %</th>
+                    <th style="width:12%;" class="text-right">Total</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($purchase->items as $index => $purchaseItem)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="item-name">
+                    <td>
                         @php
                             $item = $purchaseItem->item;
                             $itemName = $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'N/A';
@@ -395,9 +326,9 @@
                                 $itemName .= ' - ' . $item->category->name;
                             }
                         @endphp
-                        <strong style="display: block; margin-bottom: 3px; color: #333;">{{ $itemName }}</strong>
+                        <strong>{{ $itemName }}</strong>
                         @if($item->bar_code)
-                            <small style="font-size: 8px; color: #666;">Barcode: {{ $item->bar_code }}</small>
+                            <br><small>Barcode: {{ $item->bar_code }}</small>
                         @endif
                     </td>
                     <td class="text-center">{{ number_format($purchaseItem->quantity, 2) }}</td>
@@ -411,7 +342,7 @@
             </tbody>
         </table>
 
-        <!-- Summary Section -->
+        <!-- Summary -->
         <div class="summary-section">
             <table class="summary-table">
                 <tr>
@@ -445,7 +376,7 @@
         </div>
         @endif
 
-        <!-- Invoice Footer -->
+        <!-- Footer -->
         <div class="invoice-footer">
             <p><strong>Thank You for Your Business!</strong></p>
             <p>This is a computer generated invoice and does not require a signature.</p>
