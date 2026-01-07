@@ -106,13 +106,10 @@
                                         class="ti ti-point-filled me-1 fs-11"></i>Paid</span></td>
                             <td class="action-table-data no-highlight">
                                 <div class="edit-delete-action">
-                                    <a class="me-2 p-2" href="javascript:void(0);" title="View">
-                                        <i data-feather="eye" class="action-eye"></i>
-                                    </a>
-                                    <a class="me-2 p-2" href="javascript:void(0);" title="Edit">
+                                    <a class="me-2 p-2" href="{{ route('purchases.edit', $purchase->id) }}" title="Edit">
                                         <i data-feather="edit" class="feather-edit"></i>
                                     </a>
-                                    <a href="javascript:void(0);" class="p-2 text-danger" title="Delete">
+                                    <a href="javascript:void(0);" class="p-2 text-danger delete-purchase" data-id="{{ $purchase->id }}" title="Delete">
                                         <i data-feather="trash-2" class="feather-trash-2"></i>
                                     </a>
                                 </div>
@@ -592,3 +589,49 @@
 	</div>
 	<!-- /Import Purchase -->
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    // Delete purchase functionality
+    $(document).on('click', '.delete-purchase', function(e) {
+        e.preventDefault();
+        const purchaseId = $(this).data('id');
+        
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Create delete form
+                const form = $('<form>', {
+                    'method': 'POST',
+                    'action': '{{ url("purchases") }}/' + purchaseId
+                });
+                
+                form.append($('<input>', {
+                    'type': 'hidden',
+                    'name': '_token',
+                    'value': '{{ csrf_token() }}'
+                }));
+                
+                form.append($('<input>', {
+                    'type': 'hidden',
+                    'name': '_method',
+                    'value': 'DELETE'
+                }));
+                
+                // Submit form
+                $('body').append(form);
+                form.submit();
+            }
+        });
+    });
+});
+</script>
+@endpush
