@@ -802,33 +802,14 @@ class PurchaseController extends Controller
             }
         }
         
-        // 3. Search items (filtered by selected branch if provided, or show all)
-        $branchId = $request->input('branch_id') ?? session('selected_branch_id');
-        
+        // 3. Search items - Show ALL items for purchase (no warehouse filter)
         $query = Item::with([
             'partnumber_item',
             'vehical_item.manutacturer_vehical',
             'vehical_item.model_vehical',
             'category',
             'subcategory',
-        ]);
-        
-        // If branch is selected, filter by that branch's warehouse items
-        if ($branchId) {
-            $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
-            if ($warehouse) {
-                $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
-                    ->pluck('item_id')
-                    ->toArray();
-                
-                if (!empty($warehouseItemIds)) {
-                    $query->whereIn('id', $warehouseItemIds);
-                } else {
-                    // No items in warehouse, return only branches/warehouses
-                    return response()->json($results);
-                }
-            }
-        }
+        ])->where('is_active', 1);
 
         // Comprehensive text search - Copy exact logic from SalesController (which works correctly)
         $search = trim($request->input('q', ''));

@@ -183,7 +183,20 @@ class WarehouseController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $items = Item::where('is_active', 1)->orderBy('short_disc', 'asc')->get();
+        $branchId = $warehouse->branch_id;
+        
+        $purchasedItemIds = \App\Models\PurchaseItem::whereHas('purchase', function($query) use ($branchId) {
+            $query->where('branch_id', $branchId);
+        })->distinct()->pluck('item_id');
+        
+        $existingWarehouseItemIds = WarehouseItem::where('warehouse_id', $id)->pluck('item_id');
+        
+        $itemIds = $purchasedItemIds->merge($existingWarehouseItemIds)->unique();
+        
+        $items = Item::where('is_active', 1)
+            ->whereIn('id', $itemIds)
+            ->orderBy('short_disc', 'asc')
+            ->get();
 
         return view('admin.warehouses.add-item', compact('warehouse', 'items'));
     }
