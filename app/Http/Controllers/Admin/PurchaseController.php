@@ -198,6 +198,39 @@ class PurchaseController extends Controller
         return view('admin.purchases.show', $data);
     }
 
+    public function convertToSale($id)
+    {
+        $purchase = Purchase::with(['items.item', 'branch'])->findOrFail($id);
+        
+        // Store purchase data in session to pre-fill sales form
+        session([
+            'purchase_to_sale' => [
+                'purchase_id' => $purchase->id,
+                'branch_id' => $purchase->branch_id,
+                'items' => $purchase->items->map(function($item) {
+                    return [
+                        'item_id' => $item->item_id,
+                        'quantity' => $item->quantity,
+                        'unit' => $item->unit,
+                        'rate' => $item->rate,
+                        'discount' => $item->discount ?? 0,
+                        'tax_percentage' => $item->tax_percentage ?? 0,
+                        'tax_amount' => $item->tax_amount ?? 0,
+                        'total' => $item->total_cost,
+                    ];
+                })->toArray(),
+                'subtotal' => $purchase->subtotal,
+                'order_tax' => $purchase->order_tax,
+                'discount' => $purchase->discount,
+                'shipping' => $purchase->shipping,
+                'grand_total' => $purchase->grand_total,
+                'reference' => $purchase->reference,
+            ]
+        ]);
+        
+        return redirect()->route('create_sale')->with('success', 'Purchase items loaded. Please select a customer to create sale.');
+    }
+
     public function pdf($id)
     {
         $purchase = Purchase::with(['items.item', 'supplier', 'branch'])->findOrFail($id);

@@ -28,7 +28,21 @@ class SalesController extends Controller
     
     public function create_sale(){
         $customers = Customer::orderBy('created_at', 'desc')->get();
-        return view('admin.sales.create', compact('customers'));
+        $purchaseData = session('purchase_to_sale', null);
+        
+        // Set branch if coming from purchase
+        if ($purchaseData && isset($purchaseData['branch_id'])) {
+            $branch = \App\Models\Branch::find($purchaseData['branch_id']);
+            if ($branch) {
+                session([
+                    'selected_branch_id' => $branch->id,
+                    'selected_branch_name' => $branch->branch_name,
+                    'selected_branch_code' => $branch->branch_code ?? '',
+                ]);
+            }
+        }
+        
+        return view('admin.sales.create', compact('customers', 'purchaseData'));
     }
 
     /**

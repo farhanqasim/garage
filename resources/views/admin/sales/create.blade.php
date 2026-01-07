@@ -119,9 +119,16 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
-                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;">
+                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" value="{{ $purchaseData['reference'] ?? '' }}" style="border-radius: 6px;">
                             </div>
                         </div>
+                        
+                        @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="ti ti-check me-2"></i>{{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        @endif
                         <!-- Items Summary Section -->
                         <div class="mb-4">
                             <h5 class="fw-bold mb-3">ITEMS SUMMARY</h5>
@@ -2175,5 +2182,93 @@ $(document).ready(function() {
         
         return false;
     });
+    
+    // Load purchase items if coming from purchase conversion
+    @if(isset($purchaseData) && $purchaseData)
+    $(document).ready(function() {
+        const purchaseData = @json($purchaseData);
+        
+        if (purchaseData && purchaseData.items && purchaseData.items.length > 0) {
+            // Clear existing items
+            salesItems = [];
+            $('#items-tbody').empty();
+            
+            // Load each item from purchase
+            purchaseData.items.forEach(function(itemData) {
+                // Fetch item details to get name
+                $.ajax({
+                    url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemData.item_id),
+                    method: 'GET',
+                    async: false, // Synchronous to maintain order
+                    success: function(itemDetails) {
+                        const item = {
+                            id: itemCounter++,
+                            item_id: itemData.item_id,
+                            name: itemDetails.name || 'Item #' + itemData.item_id,
+                            quantity: parseFloat(itemData.quantity),
+                            unit: itemData.unit || 'Unit',
+                            rate: parseFloat(itemData.rate),
+                            discount: parseFloat(itemData.discount || 0),
+                            tax_percentage: parseFloat(itemData.tax_percentage || 0),
+                            tax_amount: parseFloat(itemData.tax_amount || 0),
+                            total: parseFloat(itemData.total),
+                            warranty: null,
+                            warehouse_id: null
+                        };
+                        
+                        salesItems.push(item);
+                        addItemToTable(item);
+                    },
+                    error: function() {
+                        // If item details fetch fails, still add with basic info
+                        const item = {
+                            id: itemCounter++,
+                            item_id: itemData.item_id,
+                            name: 'Item #' + itemData.item_id,
+                            quantity: parseFloat(itemData.quantity),
+                            unit: itemData.unit || 'Unit',
+                            rate: parseFloat(itemData.rate),
+                            discount: parseFloat(itemData.discount || 0),
+                            tax_percentage: parseFloat(itemData.tax_percentage || 0),
+                            tax_amount: parseFloat(itemData.tax_amount || 0),
+                            total: parseFloat(itemData.total),
+                            warranty: null,
+                            warehouse_id: null
+                        };
+                        
+                        salesItems.push(item);
+                        addItemToTable(item);
+                    }
+                });
+            });
+            
+            // Update totals
+            calculateTotals();
+            
+            // Set order tax, discount, shipping if available
+            if (purchaseData.order_tax) {
+                $('#order_tax').val(purchaseData.order_tax);
+            }
+            if (purchaseData.discount) {
+                $('#discount').val(purchaseData.discount);
+            }
+            if (purchaseData.shipping) {
+                $('#shipping').val(purchaseData.shipping);
+            }
+            
+            // Recalculate totals after setting tax/discount/shipping
+            calculateTotals();
+            
+            // Show success message
+            Swal.fire({
+                icon: 'success',
+                title: 'Purchase Items Loaded',
+                text: purchaseData.items.length + ' items loaded from purchase. Please select a customer to complete the sale.',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        }
+    });
+    @endif
 </script>
 @endpush

@@ -292,8 +292,11 @@
         <a href="javascript:void(0);" onclick="window.print()" class="btn btn-primary d-flex justify-content-center align-items-center me-2">
             <i class="ti ti-printer me-2"></i>Print Invoice
         </a>
-        <a href="{{ route('purchases.pdf', $purchase->id) }}" class="btn btn-secondary d-flex justify-content-center align-items-center border" target="_blank">
+        <a href="{{ route('purchases.pdf', $purchase->id) }}" class="btn btn-secondary d-flex justify-content-center align-items-center border me-2" target="_blank">
             <i class="ti ti-file-pdf me-2"></i>Download PDF
+        </a>
+        <a href="{{ route('purchases.convert.to.sale', $purchase->id) }}" class="btn btn-success d-flex justify-content-center align-items-center">
+            <i class="ti ti-shopping-cart me-2"></i>Create Sale
         </a>
     </div>
 </div>
