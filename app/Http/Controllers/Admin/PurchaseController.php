@@ -200,57 +200,54 @@ class PurchaseController extends Controller
 
     public function pdf($id)
     {
-        $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
-        
-        // Get logo from settings or default
-        $logoUrl = setting_value('logo');
+        $purchase = Purchase::with(['items.item', 'supplier', 'branch'])->findOrFail($id);
+    
+        // Logo handling
+        $logoUrl = setting_value('logo') ?: asset('assets/img/logo.svg');
         $logoData = null;
-        
-        if ($logoUrl) {
-            // If it's a full URL, convert to path
-            $logoPath = str_replace(url('/'), public_path(), $logoUrl);
-            if (!file_exists($logoPath)) {
-                // Try direct path
-                $logoPath = public_path(str_replace(url('/') . '/', '', $logoUrl));
-            }
-        } else {
-            // Try default logo paths
-            $logoPath = public_path('assets/img/logo.svg');
-            if (!file_exists($logoPath)) {
-                $logoPath = public_path('assets/img/logo.png');
+        if ($logoPath = setting_value('logo')) {
+            $fullPath = str_replace(url('/'), public_path(), $logoPath);
+            if (file_exists($fullPath)) {
+                $logoData = 'data:image/' . pathinfo($fullPath, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($fullPath));
             }
         }
-        
-        // Convert logo to base64 for PDF
-        if (file_exists($logoPath)) {
-            $logoContent = file_get_contents($logoPath);
-            $extension = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
-            
-            $mimeTypes = [
-                'svg' => 'image/svg+xml',
-                'png' => 'image/png',
-                'jpg' => 'image/jpeg',
-                'jpeg' => 'image/jpeg',
-            ];
-            
-            $mimeType = $mimeTypes[$extension] ?? 'image/png';
-            $logoData = 'data:' . $mimeType . ';base64,' . base64_encode($logoContent);
+    
+        // Signature handling
+        $signatureData = null;
+        if ($signatureUrl = setting_value('signature')) {
+            $signaturePath = str_replace(url('/'), public_path(), $signatureUrl);
+            if (!file_exists($signaturePath)) {
+                $signaturePath = public_path(str_replace(url('/') . '/', '', $signatureUrl));
+            }
+            if (file_exists($signaturePath)) {
+                $ext = strtolower(pathinfo($signaturePath, PATHINFO_EXTENSION));
+                $mime = $ext === 'png' ? 'png' : ($ext === 'jpg' || $ext === 'jpeg' ? 'jpeg' : 'svg+xml');
+                $signatureData = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($signaturePath));
+            }
         }
-        
+    
         $data = [
-            'purchase' => $purchase,
-            'logoData' => $logoData,
-            'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
-            'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+            'purchase'     => $purchase,
+            'logoData'     => $logoData,
+            'logoUrl'      => $logoUrl,
+            'companyName'  => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline'     => setting_value('helpline', '+92-335-08-999-08'),
+            'address'      => setting_value('address', ''),
+            'city'         => setting_value('city', ''),
+            'state'        => setting_value('state', ''),
+            'zip'          => setting_value('zip', ''),
+            'country'      => setting_value('country', ''),
+            'signatureData'=> $signatureData,
         ];
-        
-        $pdf = Pdf::loadView('admin.purchases.pdf', $data);
-        $pdf->setPaper('A4', 'portrait');
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('enable-font-subsetting', true);
-        $pdf->setOption('defaultFont', 'DejaVu Sans');
-        
+    
+        $pdf = Pdf::loadView('admin.purchases.pdf', $data)
+                  ->setPaper('a4', 'portrait')
+                  ->setOptions([
+                      'isHtml5ParserEnabled' => true,
+                      'isRemoteEnabled'      => true,
+                      'defaultFont'          => 'DejaVu Sans',
+                  ]);
+    
         return $pdf->download('Invoice-' . $purchase->invoice_no . '.pdf');
     }
 
