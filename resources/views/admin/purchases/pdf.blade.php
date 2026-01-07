@@ -16,6 +16,7 @@
             font-size: 12px;
             line-height: 1.5;
             color: #333;
+            background: #fff;
         }
         
         .invoice-container {
@@ -26,361 +27,626 @@
             background: #fff;
         }
         
+        /* Header Section */
         .invoice-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             page-break-inside: avoid;
         }
         
-        .company-section {
+        .logo-section {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 15px;
         }
         
         .logo-img {
-            max-width: 90px;
-            max-height: 90px;
+            width: 80px;
+            height: 80px;
             object-fit: contain;
+            border-radius: 5px;
         }
         
-        .company-info h1 {
-            font-size: 28px;
+        .company-details {
+            flex: 1;
+        }
+        
+        .company-name {
+            font-size: 20px;
             font-weight: bold;
             color: #0d6efd;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
         
-        .company-info p {
-            font-size: 11px;
+        .company-address {
+            font-size: 10px;
             color: #555;
-            margin: 3px 0;
+            line-height: 1.6;
         }
         
-        .invoice-info {
+        .invoice-title-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .invoice-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0d6efd;
+            letter-spacing: 2px;
+        }
+        
+        .invoice-number-section {
             text-align: right;
         }
         
-        .invoice-info h2 {
-            font-size: 24px;
+        .invoice-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .invoice-number {
+            font-size: 16px;
             font-weight: bold;
             color: #0d6efd;
-            margin-bottom: 10px;
         }
         
-        .invoice-info p {
-            font-size: 12px;
-            margin: 4px 0;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-            background-color: #28a745;
-            color: #fff;
-        }
-        
-        .status-pending { background-color: #ffc107; color: #000; }
-        .status-ordered { background-color: #17a2b8; color: #fff; }
-        
-        .invoice-details {
+        /* Billing and Shipping Section */
+        .billing-section {
             display: flex;
             justify-content: space-between;
-            gap: 20px;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             page-break-inside: avoid;
         }
         
-        .detail-section {
-            flex: 1;
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
+        .bill-to, .ship-to {
+            width: 48%;
+            background-color: #f9f9f9;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
         }
         
-        .detail-section h3 {
-            font-size: 12px;
+        .section-title {
+            font-size: 11px;
             font-weight: bold;
-            color: #495057;
+            color: #0d6efd;
             text-transform: uppercase;
             margin-bottom: 10px;
-            border-bottom: 1px solid #dee2e6;
             padding-bottom: 5px;
+            border-bottom: 2px solid #0d6efd;
         }
         
-        .detail-section p {
+        .address-info {
+            font-size: 10px;
+            color: #333;
+            line-height: 1.8;
+        }
+        
+        .address-info p {
+            margin: 3px 0;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        /* Invoice Details Bar */
+        .invoice-details-bar {
+            background-color: #0d6efd;
+            color: #fff;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 5px;
+            page-break-inside: avoid;
+        }
+        
+        .detail-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
             font-size: 11px;
-            margin: 6px 0;
-        }
-        
-        .detail-section strong {
-            display: inline-block;
-            width: 110px;
             font-weight: bold;
         }
         
+        /* Items Table */
         .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 25px;
-            page-break-inside: auto;
+        }
+        
+        .items-table thead {
+            background-color: #0d6efd;
+            color: #fff;
         }
         
         .items-table th {
-            background-color: #0d6efd;
-            color: #fff;
-            border: 1px solid #0d6efd;
-            padding: 10px 8px;
-            font-size: 11px;
+            padding: 12px 10px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
             text-align: left;
+            border: none;
         }
         
-        .items-table td {
-            border: 1px solid #dee2e6;
-            padding: 10px 8px;
-            font-size: 11px;
-            vertical-align: top;
+        .items-table th.text-center {
+            text-align: center;
         }
         
-        .items-table tbody tr:nth-child(even) {
-            background-color: #f8f9fa;
+        .items-table th.text-right {
+            text-align: right;
         }
         
-        .items-table .text-right { text-align: right; }
-        .items-table .text-center { text-align: center; }
-        
-        .summary-section {
+        .items-table tbody tr {
+            border-bottom: 1px solid #e0e0e0;
             page-break-inside: avoid;
         }
         
-        .summary-table {
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .items-table td {
+            padding: 12px 10px;
+            font-size: 10px;
+            vertical-align: top;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .items-table td.text-center {
+            text-align: center;
+        }
+        
+        .items-table td.text-right {
+            text-align: right;
+        }
+        
+        .item-number {
+            width: 5%;
+            text-align: center;
+        }
+        
+        .item-description {
             width: 45%;
-            margin-left: auto;
-            border-collapse: collapse;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         
-        .summary-table td {
-            padding: 10px 20px;
-            font-size: 12px;
-            border-bottom: 1px solid #dee2e6;
+        .item-description strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #333;
+            font-size: 11px;
         }
         
-        .summary-table td:first-child {
-            font-weight: bold;
-            text-align: left;
+        .item-description small {
+            font-size: 9px;
+            color: #666;
+            display: block;
+            margin-top: 3px;
         }
         
-        .summary-table td:last-child {
+        .item-qty {
+            width: 12%;
+            text-align: center;
+        }
+        
+        .item-rate {
+            width: 12%;
+            text-align: right;
+        }
+        
+        .item-amount {
+            width: 12%;
             text-align: right;
             font-weight: bold;
         }
         
-        .summary-table .grand-total td {
-            background-color: #0d6efd;
-            color: #fff;
-            font-size: 15px;
-            font-weight: bold;
-            padding: 15px 20px;
-        }
-        
-        .description-section {
+        /* Summary Section */
+        .summary-section {
+            display: flex;
+            justify-content: space-between;
             margin-top: 30px;
             page-break-inside: avoid;
         }
         
-        .description-section h3 {
-            font-size: 12px;
-            font-weight: bold;
-            color: #495057;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 5px;
+        .thank-you {
+            width: 45%;
+            padding-top: 10px;
         }
         
-        .description-section p {
+        .thank-you-text {
             font-size: 11px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .totals-box {
+            width: 45%;
+            background-color: #f9f9f9;
             padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
         }
         
-        .invoice-footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 2px solid #0d6efd;
-            text-align: center;
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
             font-size: 11px;
-            color: #555;
+        }
+        
+        .total-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .total-label {
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .total-value {
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .tax-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 11px;
+        }
+        
+        .tax-label {
+            color: #666;
+        }
+        
+        .tax-value {
+            color: #333;
+        }
+        
+        .grand-total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            margin-top: 10px;
+            border-top: 2px solid #0d6efd;
+            border-bottom: 2px solid #0d6efd;
+        }
+        
+        .grand-total-label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #0d6efd;
+            text-transform: uppercase;
+        }
+        
+        .grand-total-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        
+        .balance-due-box {
+            background-color: #0d6efd;
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .balance-due-label {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .balance-due-value {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        /* Terms & Conditions */
+        .terms-section {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 2px solid #0d6efd;
             page-break-inside: avoid;
         }
         
+        .terms-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #0d6efd;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        
+        .terms-text {
+            font-size: 10px;
+            color: #555;
+            line-height: 1.6;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-received {
+            background-color: #28a745;
+            color: #fff;
+        }
+        
+        .status-pending {
+            background-color: #ffc107;
+            color: #000;
+        }
+        
+        .status-ordered {
+            background-color: #17a2b8;
+            color: #fff;
+        }
+        
         @page {
-            margin: 10mm;
+            margin: 0;
             size: A4 portrait;
         }
         
         @media print {
-            body { -webkit-print-color-adjust: exact; }
+            .invoice-container {
+                padding: 10mm 15mm;
+            }
         }
     </style>
 </head>
 <body>
     <div class="invoice-container">
-        <!-- Header -->
+        <!-- Header Section -->
         <div class="invoice-header">
-            <div class="company-section">
-                <img src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Logo" class="logo-img">
-                <div class="company-info">
-                    <h1>{{ setting_value('logo_text', 'Auto Shop') }}</h1>
-                    <p><strong>Helpline:</strong> {{ $helpline }}</p>
-                    @if($purchase->branch)
-                        <p><strong>Branch:</strong> {{ $purchase->branch->branch_name }} 
-                           @if($purchase->branch->branch_code) ({{ $purchase->branch->branch_code }}) @endif
-                        </p>
+            <div class="logo-section">
+                @if($logoData)
+                    <img src="{{ $logoData }}" alt="Logo" class="logo-img">
+                @endif
+                <div class="company-details">
+                    <div class="company-name">{{ $companyName }}</div>
+                    <div class="company-address">
+                        @php
+                            $address = setting_value('address', '');
+                            $city = setting_value('city', '');
+                            $state = setting_value('state', '');
+                            $zip = setting_value('zip', '');
+                            $country = setting_value('country', '');
+                        @endphp
+                        @if($address)
+                            <p>{{ $address }}</p>
+                        @endif
+                        @if($city || $state || $zip)
+                            <p>
+                                @if($city) {{ $city }} @endif
+                                @if($state) {{ $state }} @endif
+                                @if($zip) {{ $zip }} @endif
+                            </p>
+                        @endif
+                        @if($country)
+                            <p>{{ $country }}</p>
+                        @endif
+                        <p><strong>Helpline:</strong> {{ $helpline }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="invoice-number-section">
+                <div class="invoice-label">Invoice#</div>
+                <div class="invoice-number">{{ $purchase->invoice_no }}</div>
+            </div>
+        </div>
+        
+        <!-- Invoice Title -->
+        <div class="invoice-title-section">
+            <div class="invoice-title">INVOICE</div>
+        </div>
+        
+        <!-- Billing and Shipping Section -->
+        <div class="billing-section">
+            <div class="bill-to">
+                <div class="section-title">Bill To</div>
+                <div class="address-info">
+                    <p><strong>{{ $purchase->supplier->names[0] ?? 'N/A' }}</strong></p>
+                    @if($purchase->supplier && $purchase->supplier->company)
+                        <p>{{ $purchase->supplier->company }}</p>
+                    @endif
+                    @if($purchase->supplier && $purchase->supplier->address)
+                        <p>{{ $purchase->supplier->address }}</p>
+                    @endif
+                    @if($purchase->supplier && $purchase->supplier->area)
+                        <p>{{ $purchase->supplier->area }}</p>
+                    @endif
+                    @if($purchase->supplier && isset($purchase->supplier->phones[0]))
+                        <p><strong>Phone:</strong> {{ $purchase->supplier->phones[0] }}</p>
                     @endif
                 </div>
             </div>
-            <div class="invoice-info">
-                <h2>INVOICE #{{ $purchase->invoice_no }}</h2>
-                <p><strong>Date:</strong> {{ $purchase->purchase_date->format('d/m/Y') }}</p>
-                <p><strong>Status:</strong> 
+            <div class="ship-to">
+                <div class="section-title">Ship To</div>
+                <div class="address-info">
+                    @if($purchase->branch)
+                        <p><strong>{{ $purchase->branch->branch_name }}</strong></p>
+                        @if($purchase->branch->branch_code)
+                            <p>Code: {{ $purchase->branch->branch_code }}</p>
+                        @endif
+                        @if($purchase->branch->address)
+                            <p>{{ $purchase->branch->address }}</p>
+                        @endif
+                    @else
+                        <p><strong>Same as Bill To</strong></p>
+                    @endif
+                </div>
+            </div>
+        </div>
+        
+        <!-- Invoice Details Bar -->
+        <div class="invoice-details-bar">
+            <div class="detail-item">
+                <div class="detail-label">Invoice Date</div>
+                <div class="detail-value">{{ $purchase->purchase_date->format('d M Y') }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Terms</div>
+                <div class="detail-value">Due on Receipt</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Due Date</div>
+                <div class="detail-value">{{ $purchase->purchase_date->format('d M Y') }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Status</div>
+                <div class="detail-value">
                     <span class="status-badge status-{{ $purchase->status }}">
                         {{ strtoupper($purchase->status) }}
                     </span>
-                </p>
+                </div>
             </div>
         </div>
-
-        <!-- Details -->
-        <div class="invoice-details">
-            <div class="detail-section">
-                <h3>Supplier Information</h3>
-                <p><strong>Name:</strong> {{ $purchase->supplier->names[0] ?? 'N/A' }}</p>
-                @if($purchase->supplier && $purchase->supplier->company)
-                    <p><strong>Company:</strong> {{ $purchase->supplier->company }}</p>
-                @endif
-                @if($purchase->supplier && isset($purchase->supplier->phones[0]))
-                    <p><strong>Phone:</strong> {{ $purchase->supplier->phones[0] }}</p>
-                @endif
-                @if($purchase->supplier && $purchase->supplier->address)
-                    <p><strong>Address:</strong> {{ $purchase->supplier->address }}</p>
-                @endif
-                @if($purchase->supplier && $purchase->supplier->area)
-                    <p><strong>Area:</strong> {{ $purchase->supplier->area }}</p>
-                @endif
-            </div>
-            <div class="detail-section">
-                <h3>Purchase Information</h3>
-                <p><strong>Reference:</strong> {{ $purchase->reference ?? '-' }}</p>
-                <p><strong>Purchase Date:</strong> {{ $purchase->purchase_date->format('d/m/Y') }}</p>
-                <p><strong>Invoice #:</strong> {{ $purchase->invoice_no }}</p>
-                @if($purchase->branch)
-                    <p><strong>Branch:</strong> {{ $purchase->branch->branch_name }}
-                       @if($purchase->branch->branch_code) ({{ $purchase->branch->branch_code }}) @endif
-                    </p>
-                @endif
-            </div>
-        </div>
-
+        
         <!-- Items Table -->
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width:5%;">#</th>
-                    <th>Item Name</th>
-                    <th style="width:8%;" class="text-center">Qty</th>
-                    <th style="width:8%;" class="text-center">Unit</th>
-                    <th style="width:12%;" class="text-right">Rate</th>
-                    <th style="width:12%;" class="text-right">Discount</th>
-                    <th style="width:8%;" class="text-center">Tax %</th>
-                    <th style="width:12%;" class="text-right">Total</th>
+                    <th class="item-number">#</th>
+                    <th class="item-description">Item & Description</th>
+                    <th class="item-qty text-center">Qty</th>
+                    <th class="item-rate text-right">Rate</th>
+                    <th class="item-amount text-right">Amount</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($purchase->items as $index => $purchaseItem)
                 <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>
+                    <td class="item-number text-center">{{ $index + 1 }}</td>
+                    <td class="item-description">
                         @php
                             $item = $purchaseItem->item;
                             $itemName = $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'N/A';
                             if ($item->partnumber_item) {
                                 $itemName = $item->partnumber_item->name ?? $itemName;
                             }
+                            $description = '';
                             if ($item->category) {
-                                $itemName .= ' - ' . $item->category->name;
+                                $description .= $item->category->name;
+                            }
+                            if ($item->vehical_item && $item->vehical_item->manutacturer_vehical) {
+                                if ($description) $description .= ', ';
+                                $description .= $item->vehical_item->manutacturer_vehical->name;
+                            }
+                            if ($item->vehical_item && $item->vehical_item->model_vehical) {
+                                if ($description) $description .= ' ';
+                                $description .= $item->vehical_item->model_vehical->name;
                             }
                         @endphp
                         <strong>{{ $itemName }}</strong>
+                        @if($description)
+                            <small>{{ $description }}</small>
+                        @endif
                         @if($item->bar_code)
-                            <br><small>Barcode: {{ $item->bar_code }}</small>
+                            <small>Barcode: {{ $item->bar_code }}</small>
+                        @endif
+                        @if($purchaseItem->unit && $purchaseItem->unit != 'Unit')
+                            <small>Unit: {{ $purchaseItem->unit }}</small>
                         @endif
                     </td>
-                    <td class="text-center">{{ number_format($purchaseItem->quantity, 2) }}</td>
-                    <td class="text-center">{{ $purchaseItem->unit ?? 'Unit' }}</td>
-                    <td class="text-right">Rs {{ number_format($purchaseItem->rate, 2) }}</td>
-                    <td class="text-right">Rs {{ number_format($purchaseItem->discount, 2) }}</td>
-                    <td class="text-center">{{ number_format($purchaseItem->tax_percentage, 2) }}%</td>
-                    <td class="text-right"><strong>Rs {{ number_format($purchaseItem->total_cost, 2) }}</strong></td>
+                    <td class="item-qty text-center">{{ number_format($purchaseItem->quantity, 2) }} {{ $purchaseItem->unit ?? 'pcs' }}</td>
+                    <td class="item-rate text-right">Rs {{ number_format($purchaseItem->rate, 2) }}</td>
+                    <td class="item-amount text-right">Rs {{ number_format($purchaseItem->total_cost, 2) }}</td>
                 </tr>
                 @endforeach
             </tbody>
         </table>
-
-        <!-- Summary -->
+        
+        <!-- Summary Section -->
         <div class="summary-section">
-            <table class="summary-table">
-                <tr>
-                    <td>Subtotal:</td>
-                    <td>Rs {{ number_format($purchase->subtotal, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Order Tax:</td>
-                    <td>Rs {{ number_format($purchase->order_tax, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Discount:</td>
-                    <td>- Rs {{ number_format($purchase->discount, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Shipping:</td>
-                    <td>Rs {{ number_format($purchase->shipping, 2) }}</td>
-                </tr>
-                <tr class="grand-total">
-                    <td>GRAND TOTAL:</td>
-                    <td>Rs {{ number_format($purchase->grand_total, 2) }}</td>
-                </tr>
-            </table>
+            <div class="thank-you">
+                <p class="thank-you-text">Thanks for your business.</p>
+                @if($purchase->description)
+                    <div style="margin-top: 15px;">
+                        <div style="font-size: 10px; font-weight: bold; color: #666; margin-bottom: 5px;">Note:</div>
+                        <div style="font-size: 10px; color: #555; word-wrap: break-word; word-break: break-word;">{{ $purchase->description }}</div>
+                    </div>
+                @endif
+            </div>
+            <div class="totals-box">
+                <div class="total-row">
+                    <span class="total-label">Sub Total</span>
+                    <span class="total-value">Rs {{ number_format($purchase->subtotal, 2) }}</span>
+                </div>
+                @if($purchase->order_tax > 0)
+                <div class="tax-row">
+                    <span class="tax-label">Tax Rate</span>
+                    <span class="tax-value">
+                        @php
+                            $taxRate = $purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0;
+                        @endphp
+                        {{ number_format($taxRate, 2) }}%
+                    </span>
+                </div>
+                <div class="total-row">
+                    <span class="total-label">Tax Amount</span>
+                    <span class="total-value">Rs {{ number_format($purchase->order_tax, 2) }}</span>
+                </div>
+                @endif
+                @if($purchase->discount > 0)
+                <div class="total-row">
+                    <span class="total-label">Discount</span>
+                    <span class="total-value">- Rs {{ number_format($purchase->discount, 2) }}</span>
+                </div>
+                @endif
+                @if($purchase->shipping > 0)
+                <div class="total-row">
+                    <span class="total-label">Shipping</span>
+                    <span class="total-value">Rs {{ number_format($purchase->shipping, 2) }}</span>
+                </div>
+                @endif
+                <div class="grand-total-row">
+                    <span class="grand-total-label">Total</span>
+                    <span class="grand-total-value">Rs {{ number_format($purchase->grand_total, 2) }}</span>
+                </div>
+                <div class="balance-due-box">
+                    <span class="balance-due-label">Balance Due</span>
+                    <span class="balance-due-value">Rs {{ number_format($purchase->grand_total, 2) }}</span>
+                </div>
+            </div>
         </div>
-
-        <!-- Description -->
-        @if($purchase->description)
-        <div class="description-section">
-            <h3>Description</h3>
-            <p>{{ $purchase->description }}</p>
-        </div>
-        @endif
-
-        <!-- Footer -->
-        <div class="invoice-footer">
-            <p><strong>Thank You for Your Business!</strong></p>
-            <p>This is a computer generated invoice and does not require a signature.</p>
-            <p>For any queries, please contact: {{ $helpline }}</p>
+        
+        <!-- Terms & Conditions -->
+        <div class="terms-section">
+            <div class="terms-title">Terms & Conditions</div>
+            <div class="terms-text">
+                Full payment is due upon receipt of this invoice. Late payments may incur additional charges or interest as per the applicable laws. 
+                @if($purchase->reference)
+                    Reference: {{ $purchase->reference }}
+                @endif
+            </div>
         </div>
     </div>
 </body>
