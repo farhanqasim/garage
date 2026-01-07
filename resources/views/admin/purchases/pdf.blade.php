@@ -15,7 +15,7 @@
             font-family: 'DejaVu Sans', Arial, sans-serif;
             font-size: 12px;
             line-height: 1.6;
-            color: #000;
+            color: #333;
         }
         
         .invoice-container {
@@ -24,6 +24,7 @@
             margin: 0 auto;
             padding: 20mm;
             background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
         }
         
         .invoice-header {
@@ -32,7 +33,8 @@
             margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
+            page-break-inside: avoid;
         }
         
         .logo-section {
@@ -44,6 +46,7 @@
         .logo-img {
             max-width: 80px;
             max-height: 80px;
+            border-radius: 5px;
         }
         
         .company-info h1 {
@@ -55,7 +58,7 @@
         
         .company-info p {
             font-size: 11px;
-            color: #666;
+            color: #555;
             margin: 0;
         }
         
@@ -72,7 +75,7 @@
         
         .invoice-info p {
             font-size: 11px;
-            color: #666;
+            color: #555;
             margin: 2px 0;
         }
         
@@ -80,19 +83,24 @@
             display: flex;
             justify-content: space-between;
             margin-bottom: 25px;
+            page-break-inside: avoid;
         }
         
         .detail-section {
             width: 48%;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
         }
         
         .detail-section h3 {
             font-size: 11px;
             font-weight: bold;
-            color: #666;
+            color: #555;
             text-transform: uppercase;
             margin-bottom: 8px;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #d0d0d0;
             padding-bottom: 5px;
         }
         
@@ -113,11 +121,12 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            page-break-inside: auto;
         }
         
         .items-table th {
             background-color: #f0f0f0;
-            border: 1px solid #000;
+            border: 1px solid #ccc;
             padding: 8px;
             font-size: 10px;
             font-weight: bold;
@@ -126,12 +135,21 @@
         }
         
         .items-table td {
-            border: 1px solid #000;
+            border: 1px solid #ccc;
             padding: 8px;
             font-size: 11px;
             word-wrap: break-word;
             word-break: break-word;
             vertical-align: top;
+        }
+        
+        .items-table tbody tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+        
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
         }
         
         .items-table .item-name {
@@ -150,12 +168,16 @@
         .summary-section {
             width: 100%;
             margin-top: 20px;
+            page-break-inside: avoid;
         }
         
         .summary-table {
             width: 40%;
             margin-left: auto;
             border-collapse: collapse;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
         }
         
         .summary-table td {
@@ -167,7 +189,7 @@
         .summary-table td:first-child {
             font-weight: bold;
             text-align: right;
-            background-color: #f9f9f9;
+            background-color: #f0f0f0;
         }
         
         .summary-table td:last-child {
@@ -176,24 +198,26 @@
         }
         
         .summary-table .grand-total td {
-            border-top: 2px solid #000;
-            border-bottom: 2px solid #000;
+            border-top: 2px solid #333;
+            border-bottom: 2px solid #333;
             font-size: 14px;
             font-weight: bold;
             padding: 12px 15px;
-            background-color: #f0f0f0;
+            background-color: #e9ecef;
+            color: #0d6efd;
         }
         
         .invoice-footer {
             margin-top: 40px;
             padding-top: 15px;
-            border-top: 2px solid #000;
+            border-top: 2px solid #0d6efd;
             text-align: center;
+            page-break-inside: avoid;
         }
         
         .invoice-footer p {
             font-size: 10px;
-            color: #666;
+            color: #555;
             margin: 5px 0;
         }
         
@@ -218,9 +242,40 @@
             color: #fff;
         }
         
+        .description-section {
+            margin-top: 30px;
+            page-break-inside: avoid;
+        }
+        
+        .description-section h3 {
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #d0d0d0;
+            padding-bottom: 5px;
+        }
+        
+        .description-section p {
+            font-size: 11px;
+            word-wrap: break-word;
+            word-break: break-word;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
         @page {
             margin: 15mm;
             size: A4 portrait;
+        }
+        
+        @media print {
+            .invoice-container {
+                box-shadow: none;
+            }
         }
     </style>
 </head>
@@ -229,11 +284,9 @@
         <!-- Invoice Header -->
         <div class="invoice-header">
             <div class="logo-section">
-                @if($logoData)
-                    <img src="{{ $logoData }}" alt="Logo" class="logo-img">
-                @endif
+                <img src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Logo" class="logo-img">
                 <div class="company-info">
-                    <h1>{{ $companyName }}</h1>
+                    <h1>{{ setting_value('logo_text', 'Auto Shop') }}</h1>
                     <p><strong>Helpline:</strong> {{ $helpline }}</p>
                     @if($purchase->branch)
                         <p><strong>Branch:</strong> {{ $purchase->branch->branch_name }} 
@@ -357,11 +410,9 @@
 
         <!-- Description -->
         @if($purchase->description)
-        <div style="margin-top: 30px;">
-            <h3 style="font-size: 11px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px;">Description</h3>
-            <p style="font-size: 11px; word-wrap: break-word; word-break: break-word; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd;">
-                {{ $purchase->description }}
-            </p>
+        <div class="description-section">
+            <h3>Description</h3>
+            <p>{{ $purchase->description }}</p>
         </div>
         @endif
 
@@ -374,4 +425,3 @@
     </div>
 </body>
 </html>
-
