@@ -27,9 +27,21 @@
                         <select name="item_id" class="form-control @error('item_id') is-invalid @enderror" required>
                             <option value="">Select Item</option>
                             @foreach($items as $item)
+                                @php
+                                    $itemName = $item->short_disc ?? $item->pro_dis ?? '';
+                                    if (empty($itemName) && $item->partnumber_item) {
+                                        $itemName = $item->partnumber_item->name ?? '';
+                                    }
+                                    if (empty($itemName)) {
+                                        $itemName = $item->bar_code ?? 'N/A';
+                                    }
+                                    if ($item->category) {
+                                        $itemName .= ' - ' . $item->category->name;
+                                    }
+                                @endphp
                                 <option value="{{ $item->id }}" {{ old('item_id') == $item->id ? 'selected' : '' }}>
-                                    {{ $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'N/A' }}
-                                    @if($item->bar_code) - {{ $item->bar_code }} @endif
+                                    {{ $itemName }}
+                                    @if($item->bar_code && $itemName != $item->bar_code) ({{ $item->bar_code }}) @endif
                                 </option>
                             @endforeach
                         </select>

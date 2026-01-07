@@ -193,7 +193,8 @@ class WarehouseController extends Controller
         
         $itemIds = $purchasedItemIds->merge($existingWarehouseItemIds)->unique();
         
-        $items = Item::where('is_active', 1)
+        $items = Item::with(['partnumber_item', 'category'])
+            ->where('is_active', 1)
             ->whereIn('id', $itemIds)
             ->orderBy('short_disc', 'asc')
             ->get();
