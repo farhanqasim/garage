@@ -196,23 +196,39 @@ class PurchaseController extends Controller
     {
         $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
         
-        // Get logo path and convert to base64 for PDF
+        // Get logo from settings or default
+        $logoUrl = setting_value('logo');
         $logoData = null;
-        $logoMime = null;
         
-        $logoPath = public_path('assets/img/logo.svg');
-        if (!file_exists($logoPath)) {
-            $logoPath = public_path('assets/img/logo.png');
-            if (file_exists($logoPath)) {
-                $logoMime = 'image/png';
+        if ($logoUrl) {
+            // If it's a full URL, convert to path
+            $logoPath = str_replace(url('/'), public_path(), $logoUrl);
+            if (!file_exists($logoPath)) {
+                // Try direct path
+                $logoPath = public_path(str_replace(url('/') . '/', '', $logoUrl));
             }
         } else {
-            $logoMime = 'image/svg+xml';
+            // Try default logo paths
+            $logoPath = public_path('assets/img/logo.svg');
+            if (!file_exists($logoPath)) {
+                $logoPath = public_path('assets/img/logo.png');
+            }
         }
         
+        // Convert logo to base64 for PDF
         if (file_exists($logoPath)) {
             $logoContent = file_get_contents($logoPath);
-            $logoData = 'data:' . $logoMime . ';base64,' . base64_encode($logoContent);
+            $extension = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
+            
+            $mimeTypes = [
+                'svg' => 'image/svg+xml',
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+            ];
+            
+            $mimeType = $mimeTypes[$extension] ?? 'image/png';
+            $logoData = 'data:' . $mimeType . ';base64,' . base64_encode($logoContent);
         }
         
         $data = [
@@ -226,6 +242,8 @@ class PurchaseController extends Controller
         $pdf->setPaper('A4', 'portrait');
         $pdf->setOption('isHtml5ParserEnabled', true);
         $pdf->setOption('isRemoteEnabled', true);
+        $pdf->setOption('enable-font-subsetting', true);
+        $pdf->setOption('defaultFont', 'DejaVu Sans');
         
         return $pdf->download('Invoice-' . $purchase->invoice_no . '.pdf');
     }

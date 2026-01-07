@@ -20,11 +20,9 @@
         
         .invoice-container {
             width: 100%;
-            max-width: 210mm;
             margin: 0 auto;
-            padding: 20mm;
+            padding: 15mm 20mm;
             background: #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
         }
         
         .invoice-header {
@@ -44,22 +42,25 @@
         }
         
         .logo-img {
-            max-width: 80px;
-            max-height: 80px;
+            max-width: 100px;
+            max-height: 100px;
             border-radius: 5px;
+            object-fit: contain;
         }
         
         .company-info h1 {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             color: #0d6efd;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            line-height: 1.2;
         }
         
         .company-info p {
-            font-size: 11px;
+            font-size: 10px;
             color: #555;
-            margin: 0;
+            margin: 3px 0;
+            line-height: 1.4;
         }
         
         .invoice-info {
@@ -67,16 +68,18 @@
         }
         
         .invoice-info h2 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
             color: #0d6efd;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            line-height: 1.2;
         }
         
         .invoice-info p {
-            font-size: 11px;
+            font-size: 10px;
             color: #555;
-            margin: 2px 0;
+            margin: 4px 0;
+            line-height: 1.4;
         }
         
         .invoice-details {
@@ -105,16 +108,18 @@
         }
         
         .detail-section p {
-            font-size: 11px;
-            margin: 5px 0;
+            font-size: 10px;
+            margin: 4px 0;
             word-wrap: break-word;
             word-break: break-word;
+            line-height: 1.5;
         }
         
         .detail-section strong {
             display: inline-block;
-            min-width: 100px;
+            min-width: 90px;
             font-weight: bold;
+            color: #333;
         }
         
         .items-table {
@@ -127,20 +132,22 @@
         .items-table th {
             background-color: #f0f0f0;
             border: 1px solid #ccc;
-            padding: 8px;
-            font-size: 10px;
+            padding: 10px 8px;
+            font-size: 9px;
             font-weight: bold;
             text-transform: uppercase;
             text-align: left;
+            color: #333;
         }
         
         .items-table td {
             border: 1px solid #ccc;
-            padding: 8px;
-            font-size: 11px;
+            padding: 10px 8px;
+            font-size: 10px;
             word-wrap: break-word;
             word-break: break-word;
             vertical-align: top;
+            line-height: 1.4;
         }
         
         .items-table tbody tr {
@@ -152,9 +159,24 @@
             background-color: #f9f9f9;
         }
         
+        .items-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .items-table .item-name strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .items-table .item-name small {
+            font-size: 9px;
+            color: #666;
+        }
+        
         .items-table .item-name {
-            min-width: 150px;
-            max-width: 200px;
+            min-width: 180px;
+            max-width: 250px;
+            width: 30%;
         }
         
         .items-table .text-right {
@@ -172,17 +194,15 @@
         }
         
         .summary-table {
-            width: 40%;
+            width: 45%;
             margin-left: auto;
             border-collapse: collapse;
             border: 1px solid #ddd;
-            border-radius: 5px;
-            overflow: hidden;
         }
         
         .summary-table td {
-            padding: 8px 15px;
-            font-size: 11px;
+            padding: 10px 15px;
+            font-size: 10px;
             border: 1px solid #ddd;
         }
         
@@ -190,19 +210,21 @@
             font-weight: bold;
             text-align: right;
             background-color: #f0f0f0;
+            color: #333;
         }
         
         .summary-table td:last-child {
             text-align: right;
             font-weight: bold;
+            color: #333;
         }
         
         .summary-table .grand-total td {
-            border-top: 2px solid #333;
-            border-bottom: 2px solid #333;
-            font-size: 14px;
+            border-top: 2px solid #0d6efd;
+            border-bottom: 2px solid #0d6efd;
+            font-size: 13px;
             font-weight: bold;
-            padding: 12px 15px;
+            padding: 14px 15px;
             background-color: #e9ecef;
             color: #0d6efd;
         }
@@ -268,8 +290,13 @@
         }
         
         @page {
-            margin: 15mm;
+            margin: 0;
             size: A4 portrait;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
         }
         
         @media print {
@@ -284,9 +311,11 @@
         <!-- Invoice Header -->
         <div class="invoice-header">
             <div class="logo-section">
-                <img src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Logo" class="logo-img">
+                @if($logoData)
+                    <img src="{{ $logoData }}" alt="Logo" class="logo-img">
+                @endif
                 <div class="company-info">
-                    <h1>{{ setting_value('logo_text', 'Auto Shop') }}</h1>
+                    <h1>{{ $companyName }}</h1>
                     <p><strong>Helpline:</strong> {{ $helpline }}</p>
                     @if($purchase->branch)
                         <p><strong>Branch:</strong> {{ $purchase->branch->branch_name }} 
@@ -366,9 +395,9 @@
                                 $itemName .= ' - ' . $item->category->name;
                             }
                         @endphp
-                        <strong>{{ $itemName }}</strong>
+                        <strong style="display: block; margin-bottom: 3px; color: #333;">{{ $itemName }}</strong>
                         @if($item->bar_code)
-                            <br><small>Barcode: {{ $item->bar_code }}</small>
+                            <small style="font-size: 8px; color: #666;">Barcode: {{ $item->bar_code }}</small>
                         @endif
                     </td>
                     <td class="text-center">{{ number_format($purchaseItem->quantity, 2) }}</td>
