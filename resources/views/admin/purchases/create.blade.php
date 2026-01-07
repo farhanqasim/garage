@@ -187,7 +187,7 @@
 
                         <!-- Add Item Button -->
                         <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn">
                                 <i class="ti ti-plus me-2"></i>ADD NEW ITEM
                             </button>
                         </div>
@@ -917,7 +917,7 @@ $(document).ready(function() {
     });
     // ========== End YouTube-Style Search Modal ==========
 
-    // Supplier change handler
+    // Supplier change handler - auto-fill phone when name is selected
     $('#supplier_id').on('change', function() {
         const selected = $(this).find('option:selected');
         const name = selected.data('name') || '';
@@ -928,6 +928,50 @@ $(document).ready(function() {
         $('#supplier_mobile').val(phone);
         $('#supplier_address').val(address);
         $('#supplier_area').val(area);
+    });
+    
+    // Auto-select supplier name when phone number is entered
+    let supplierPhoneTimeout = null;
+    $('#supplier_mobile').on('input', function() {
+        const phone = $(this).val().trim();
+        
+        // Clear previous timeout
+        clearTimeout(supplierPhoneTimeout);
+        
+        // Only search if phone has at least 3 characters
+        if (phone.length < 3) {
+            return;
+        }
+        
+        // Debounce search
+        supplierPhoneTimeout = setTimeout(function() {
+            $.ajax({
+                url: '{{ route("purchases.suppliers.search.phone") }}',
+                method: 'GET',
+                data: { phone: phone },
+                success: function(suppliers) {
+                    if (suppliers.length > 0) {
+                        // Auto-select first matching supplier
+                        const supplier = suppliers[0];
+                        $('#supplier_id').val(supplier.id);
+                        
+                        // Update address and area if available
+                        if (supplier.address) {
+                            $('#supplier_address').val(supplier.address);
+                        }
+                        if (supplier.area) {
+                            $('#supplier_area').val(supplier.area);
+                        }
+                        
+                        // Trigger change event to ensure all handlers fire
+                        $('#supplier_id').trigger('change');
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error searching suppliers:', xhr);
+                }
+            });
+        }, 500); // Wait 500ms after user stops typing
     });
 
     // Branch selection for purchase
@@ -1039,14 +1083,34 @@ $(document).ready(function() {
         setInterval(updateDateTime, 1000);
     });
 
+    // Handle "Add New Item" button click - check branch first
+    $('#add-new-item-btn').on('click', function() {
+        const branchId = $('#purchaseBranchId').val();
+        
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first before adding items.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        // Open the modal
+        $('#add-item-modal').modal('show');
+    });
+    
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
+        const branchId = $('#purchaseBranchId').val();
+        
         // Reset form when modal opens
         $('#item-search').val('');
         $('#selected-item-id').val('');
         $('#selected-warehouse-id').val('');
         $('#item-quantity').val('1');
-        $('#item-unit').val('Can');
+        $('#item-unit').val('Unit');
         $('#item-rate').val('0');
         $('#warranty-value').val('');
         $('#warranty-unit').val('Days');
@@ -1054,6 +1118,11 @@ $(document).ready(function() {
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
+        
+        // Focus on search input
+        setTimeout(function() {
+            $('#item-search').focus();
+        }, 300);
     });
     
     // Product name search with dropdown
@@ -1189,23 +1258,49 @@ $(document).ready(function() {
             $('#item-search-results').hide();
             // Could add warehouse filter here if needed
         } else if (resultType === 'item') {
-            // Select item
+            // Select item - load full details to get total_price and warehouse
             const itemId = resultId;
             const itemName = $(this).data('name');
             const itemRate = $(this).data('rate');
             const itemUnit = $(this).data('unit');
+            const warehouseId = $(this).closest('.item-search-result').data('warehouse-id');
             
             $('#item-search').val(itemName);
             $('#selected-item-id').val(itemId);
-            $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
             
-            // Load stock status
-            loadItemStockStatus(itemId);
-            
-            // Load purchase history
-            loadCustomerHistory(itemId);
+            // Load full item details to get total_price and warehouse
+            $.ajax({
+                url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
+                method: 'GET',
+                success: function(response) {
+                    // Use total_price if available, otherwise use rate
+                    const itemRate = response.total_price || response.rate || itemRate || 0;
+                    $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                    
+                    // Auto-select warehouse if available (from response or from search result)
+                    const finalWarehouseId = response.warehouse_id || warehouseId;
+                    if (finalWarehouseId) {
+                        $('#selected-warehouse-id').val(finalWarehouseId);
+                    }
+                    
+                    // Load stock status to show warehouse options and auto-select
+                    loadItemStockStatus(itemId);
+                    
+                    // Load purchase history
+                    loadCustomerHistory(itemId);
+                },
+                error: function() {
+                    // Fallback to basic data if API fails
+                    $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
+                    if (warehouseId) {
+                        $('#selected-warehouse-id').val(warehouseId);
+                    }
+                    loadItemStockStatus(itemId);
+                    loadCustomerHistory(itemId);
+                }
+            });
         }
     });
     
@@ -1304,8 +1399,27 @@ $(document).ready(function() {
             success: function(response) {
                 $('#selected-item-id').val(response.id);
                 $('#item-search').val(response.name);
-                $('#item-rate').val(parseFloat(response.rate || 0).toFixed(2));
-                $('#item-unit').val(response.unit || 'Can');
+                
+                // Set rate - use total_price if available, otherwise use rate
+                const itemRate = response.total_price || response.rate || 0;
+                $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                
+                // Set unit from item
+                $('#item-unit').val(response.unit || 'Unit');
+                
+                // Auto-select warehouse if available
+                if (response.warehouse_id) {
+                    $('#selected-warehouse-id').val(response.warehouse_id);
+                    // Update warehouse selection in stock status
+                    $('.stock-warehouse-item[data-warehouse-id="' + response.warehouse_id + '"]')
+                        .removeClass('bg-light')
+                        .addClass('bg-primary text-white')
+                        .find('span:first')
+                        .html('✓');
+                }
+                
+                // Load stock status to show warehouse options
+                loadItemStockStatus(itemId);
                 
                 // Load customer history for this item
                 loadCustomerHistory(itemId);

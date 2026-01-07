@@ -31,7 +31,56 @@ class PurchaseController extends Controller
     public function create()
     {
         $suppliers = Supplier::orderBy('created_at', 'desc')->get();
-        return view('admin.purchases.create', compact('suppliers'));
+        $branches = \App\Models\Branch::where('status', 'active')->get();
+        return view('admin.purchases.create', compact('suppliers', 'branches'));
+    }
+    
+    /**
+     * Search suppliers by phone number
+     */
+    public function searchSuppliersByPhone(Request $request)
+    {
+        $phone = $request->input('phone', '');
+        
+        if (empty($phone)) {
+            return response()->json([]);
+        }
+        
+        $suppliers = Supplier::where(function($q) use ($phone) {
+            $q->whereJsonContains('phones', $phone)
+              ->orWhereJsonContains('phones', '%' . $phone . '%');
+        })
+        ->orWhere(function($q) use ($phone) {
+            $q->where('phones', 'LIKE', "%{$phone}%");
+        })
+        ->limit(10)
+        ->get();
+        
+        $results = [];
+        foreach ($suppliers as $supplier) {
+            $phones = is_array($supplier->phones) ? $supplier->phones : json_decode($supplier->phones, true) ?? [];
+            $names = is_array($supplier->names) ? $supplier->names : json_decode($supplier->names, true) ?? [];
+            
+            // Find matching phone
+            $matchingPhone = '';
+            foreach ($phones as $p) {
+                if (stripos($p, $phone) !== false) {
+                    $matchingPhone = $p;
+                    break;
+                }
+            }
+            
+            $results[] = [
+                'id' => $supplier->id,
+                'name' => $names[0] ?? 'N/A',
+                'phone' => $matchingPhone ?: ($phones[0] ?? ''),
+                'company' => $supplier->company ?? '',
+                'address' => $supplier->address ?? '',
+                'area' => $supplier->area ?? '',
+            ];
+        }
+        
+        return response()->json($results);
     }
 
     public function store(Request $request)
@@ -179,10 +228,27 @@ class PurchaseController extends Controller
             $itemName .= ' ' . $item->vehical_item->model_vehical->name;
         }
         
+        // Get warehouse for this item from selected branch
+        $warehouseId = null;
+        $branchId = session('selected_branch_id');
+        if ($branchId) {
+            $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
+            if ($warehouse) {
+                $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
+                    ->where('item_id', $item->id)
+                    ->first();
+                if ($warehouseItem) {
+                    $warehouseId = $warehouse->id;
+                }
+            }
+        }
+        
         return response()->json([
             'id' => $item->id,
             'name' => $itemName,
             'rate' => $item->packing_purchase_rate ?? 0,
+            'total_price' => $item->total_price ?? 0,
+            'price_per_unit' => $item->price_per_unit ?? 0,
             'unit' => $item->unit ?? 'Unit',
             'stock' => $item->on_hand ?? 0,
             'warehouse_stock' => $item->on_hand ?? 0,
@@ -190,6 +256,7 @@ class PurchaseController extends Controller
             'bar_code' => $item->bar_code,
             'serial_number' => $item->serial_number,
             'packing' => $item->packing ?? 1, // Packing size for cartons calculation
+            'warehouse_id' => $warehouseId,
         ]);
     }
     
@@ -433,38 +500,72 @@ class PurchaseController extends Controller
             }
         }
 
-        // Text search
+        // Text search - search all Item columns from lines 15-26
         $search = $request->input('q', '');
         if ($search) {
             $query->where(function ($q) use ($search) {
+                // Direct Item columns search
                 $q->where('bar_code', 'LIKE', "%{$search}%")
                   ->orWhere('serial_number', 'LIKE', "%{$search}%")
                   ->orWhere('pro_dis', 'LIKE', "%{$search}%")
                   ->orWhere('short_disc', 'LIKE', "%{$search}%")
                   ->orWhere('battery_size', 'LIKE', "%{$search}%")
                   ->orWhere('p_id', 'LIKE', "%{$search}%")
+                  ->orWhere('mileage', 'LIKE', "%{$search}%")
                   ->orWhere('type', 'LIKE', "%{$search}%")
+                  ->orWhere('plat_id', 'LIKE', "%{$search}%")
+                  ->orWhere('amphors', 'LIKE', "%{$search}%")
+                  ->orWhere('lineitems', 'LIKE', "%{$search}%")
+                  ->orWhere('car_company', 'LIKE', "%{$search}%")
                   ->orWhere('volt', 'LIKE', "%{$search}%")
                   ->orWhere('cca', 'LIKE', "%{$search}%")
+                  ->orWhere('minus_pool_direction', 'LIKE', "%{$search}%")
                   ->orWhere('technology', 'LIKE', "%{$search}%")
                   ->orWhere('grade', 'LIKE', "%{$search}%")
                   ->orWhere('farmula', 'LIKE', "%{$search}%")
+                  ->orWhere('bussiness_location', 'LIKE', "%{$search}%")
                   ->orWhere('rack', 'LIKE', "%{$search}%")
-                  ->orWhere('supplier', 'LIKE', "%{$search}%");
+                  ->orWhere('supplier', 'LIKE', "%{$search}%")
+                  ->orWhere('gorup', 'LIKE', "%{$search}%")
+                  ->orWhere('made_in', 'LIKE', "%{$search}%")
+                  ->orWhere('level', 'LIKE', "%{$search}%");
+            });
+            
+            // Search through relationships
+            $query->orWhereHas('partnumber_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
             })
-            ->orWhereHas('partnumber_item', function ($q) use ($search) {
+            ->orWhereHas('category', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('subcategory', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('company_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('volt_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('cca_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('technology_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('grade_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('farmula_item', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('quality_item', function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%");
             })
             ->orWhereHas('vehical_item', function ($q) use ($search) {
                 $q->where('year_from', 'LIKE', "%{$search}%")
                   ->orWhere('year_to', 'LIKE', "%{$search}%")
                   ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item.engine_vehical', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('vehical_item.country_vehical', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%");
             })
             ->orWhereHas('vehical_item.manutacturer_vehical', function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%");

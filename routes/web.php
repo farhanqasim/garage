@@ -431,6 +431,7 @@ Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOp
     ->name('purchases.filter.options');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
+Route::get('purchases/suppliers/search-phone',[PurchaseController::class,'searchSuppliersByPhone'])->name('purchases.suppliers.search.phone');
 
 // warehouses
 Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.index')->middleware('auth');
