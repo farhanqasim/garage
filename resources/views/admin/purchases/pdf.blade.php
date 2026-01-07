@@ -1,14 +1,273 @@
-@extends('layouts.app')
-@section('title', 'Purchase PDF')
-@section('content')
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice #{{ $purchase->invoice_no }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+        }
+        
+        .content {
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .card {
+            width: 100%;
+            margin: 0 auto;
+            background: #fff;
+            border: none;
+            box-shadow: none;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-left: -15px;
+            margin-right: -15px;
+        }
+        
+        .col-md-2, .col-md-5, .col-md-6, .col-md-7 {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+        
+        .col-md-2 {
+            width: 16.666667%;
+        }
+        
+        .col-md-5 {
+            width: 41.666667%;
+        }
+        
+        .col-md-6 {
+            width: 50%;
+        }
+        
+        .col-md-7 {
+            width: 58.333333%;
+        }
+        
+        .ms-auto {
+            margin-left: auto;
+        }
+        
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        .mt-3 { margin-top: 1rem; }
+        
+        .border-bottom {
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .text-end {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-dark {
+            color: #212529;
+        }
+        
+        .text-primary {
+            color: #0d6efd;
+        }
+        
+        .text-gray {
+            color: #6c757d;
+        }
+        
+        .text-gray-9 {
+            color: #495057;
+        }
+        
+        .text-muted {
+            color: #6c757d;
+        }
+        
+        .fw-medium {
+            font-weight: 500;
+        }
+        
+        .fw-semibold {
+            font-weight: 600;
+        }
+        
+        .fs-10 {
+            font-size: 10px;
+        }
+        
+        .fs-12 {
+            font-size: 12px;
+        }
+        
+        .fs-14 {
+            font-size: 14px;
+        }
+        
+        .img-fluid {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        h4 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        h5 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        h6 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        p {
+            margin-bottom: 0.5rem;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+        
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        
+        .table thead th.text-end {
+            text-align: right;
+        }
+        
+        .table tbody td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 11px;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        .d-flex {
+            display: flex;
+        }
+        
+        .justify-content-between {
+            justify-content: space-between;
+        }
+        
+        .justify-content-center {
+            justify-content: center;
+        }
+        
+        .align-items-center {
+            align-items: center;
+        }
+        
+        .pe-3 {
+            padding-right: 1rem;
+        }
+        
+        .me-2 {
+            margin-right: 0.5rem;
+        }
+        
+        .me-3 {
+            margin-right: 1rem;
+        }
+        
+        .bg-success {
+            background-color: #28a745;
+        }
+        
+        .text-white {
+            color: #fff;
+        }
+        
+        .rounded {
+            border-radius: 0.25rem;
+        }
+        
+        .px-1 {
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+        }
+        
+        .small {
+            font-size: 0.875rem;
+        }
+        
+        .text-title {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        @page {
+            margin: 15mm;
+            size: A4 portrait;
+        }
+    </style>
+</head>
+<body>
 <div class="content">
-<div class="card">
+    <!-- Invoices -->
+    <div class="card">
         <div class="card-body">
             <div class="row justify-content-between align-items-center border-bottom mb-3">
                 <div class="col-md-6">
                     <div class="mb-2">
+                        @php
+                            $logoUrl = setting_value('logo');
+                            if (!$logoUrl) {
+                                $logoUrl = asset('assets/img/logo.svg');
+                            }
+                        @endphp
                         @if($logoData)
                             <img src="{{ $logoData }}" width="130" class="img-fluid" alt="logo">
+                        @else
+                            <img src="{{ $logoUrl }}" width="130" class="img-fluid" alt="logo">
                         @endif
                     </div>
                     @php
@@ -80,7 +339,6 @@
                     <div class="mb-3">
                         <p class="text-title mb-2 fw-medium">Payment Status</p>
                         <span class="bg-success text-white fs-10 px-1 rounded">
-                            <i class="ti ti-point-filled"></i>
                             {{ $purchase->status == 'received' ? 'Paid' : ($purchase->status == 'pending' ? 'Pending' : 'Ordered') }}
                         </span>
                         @if($purchase->branch)
@@ -246,6 +504,8 @@
                 <div class="mb-3">
                     @if($logoData)
                         <img src="{{ $logoData }}" width="130" class="img-fluid" alt="logo">
+                    @else
+                        <img src="{{ $logoUrl }}" width="130" class="img-fluid" alt="logo">
                     @endif
                 </div>
                 <p class="text-dark mb-1">Payment Made Via bank transfer / Cheque in the name of {{ $companyName }}</p>
@@ -270,5 +530,7 @@
             </div>
         </div>
     </div>
+    <!-- /Invoices -->
 </div>
-@endsection
+</body>
+</html>
