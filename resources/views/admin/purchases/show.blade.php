@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'View Purchase')
+@section('title', 'View Purchase - Invoice #{{ $purchase->invoice_no }}')
 
 @section('content')
 <div class="content">
@@ -202,16 +202,222 @@
                     @endif
 
                     <!-- Action Buttons -->
-                    <div class="d-flex justify-content-end gap-2 mt-4">
+                    <div class="d-flex justify-content-end gap-2 mt-4 no-print">
                         <a href="{{ route('all_purchases') }}" class="btn btn-secondary">Back to List</a>
+                        <button type="button" class="btn btn-success" onclick="window.print()">
+                            <i class="ti ti-printer me-1"></i> Print Invoice
+                        </button>
                         <a href="{{ route('purchases.edit', $purchase->id) }}" class="btn btn-primary">
                             <i class="ti ti-edit me-1"></i> Edit Purchase
                         </a>
+                    </div>
+                    
+                    <!-- Invoice Footer (Only visible when printing) -->
+                    <div class="invoice-footer" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Thank You for Your Business!</strong></p>
+                                <p class="mb-0 small text-muted">This is a computer generated invoice and does not require a signature.</p>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <p class="mb-0"><strong>Invoice #{{ $purchase->invoice_no }}</strong></p>
+                                <p class="mb-0 small text-muted">Date: {{ $purchase->purchase_date->format('d/m/Y') }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+@push('styles')
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        
+        .content, .content * {
+            visibility: visible;
+        }
+        
+        .content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        
+        .page-header,
+        .page-btn,
+        .btn,
+        .no-print {
+            display: none !important;
+        }
+        
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        .card-body {
+            padding: 0 !important;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        
+        th, td {
+            padding: 8px;
+        }
+        
+        .invoice-header {
+            margin-bottom: 30px;
+        }
+        
+        .invoice-footer {
+            display: block !important;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #000;
+        }
+        
+        .page-header,
+        .page-btn,
+        .btn,
+        .no-print {
+            display: none !important;
+        }
+        
+        /* Improve invoice layout */
+        .card-body {
+            background: white;
+        }
+        
+        .mb-4 {
+            margin-bottom: 20px !important;
+        }
+        
+        .mb-3 {
+            margin-bottom: 15px !important;
+        }
+        
+        /* Make invoice header more prominent */
+        .rounded {
+            border-radius: 0 !important;
+            border: 1px solid #e0e0e0 !important;
+            background: white !important;
+        }
+        
+        /* Better spacing for print */
+        .row {
+            margin-left: -10px;
+            margin-right: -10px;
+        }
+        
+        .col-md-6, .col-md-12 {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        
+        /* Hide badges and make status text only */
+        .badge {
+            display: inline;
+            padding: 0;
+            background: none !important;
+            color: #000 !important;
+            font-weight: bold;
+        }
+        
+        /* Form control styling for print */
+        .form-control {
+            border: none !important;
+            background: transparent !important;
+            padding: 5px 0 !important;
+        }
+        
+        .table-bordered {
+            border: 2px solid #000 !important;
+        }
+        
+        .table-bordered th,
+        .table-bordered td {
+            border: 1px solid #000 !important;
+        }
+        
+        .table-light {
+            background: #f0f0f0 !important;
+        }
+        
+        .text-primary {
+            color: #000 !important;
+        }
+        
+        .text-danger {
+            color: #000 !important;
+        }
+        
+        @page {
+            margin: 15mm;
+            size: A4;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    }
+    
+    @media screen {
+        .invoice-print {
+            background: #fff;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+    }
+    
+    .invoice-header {
+        border-bottom: 2px solid #0d6efd;
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .invoice-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #0d6efd;
+        margin-bottom: 5px;
+    }
+    
+    .invoice-subtitle {
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .invoice-section {
+        margin-bottom: 25px;
+    }
+    
+    .invoice-section-title {
+        font-size: 12px;
+        font-weight: bold;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 5px;
+    }
+</style>
+@endpush
+
 @endsection
 
