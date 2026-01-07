@@ -183,29 +183,27 @@ class PurchaseController extends Controller
                     'total_cost' => $totalCost,
                 ]);
 
-                if ($request->status === 'received') {
-                    $warehouseItem = WarehouseItem::lockForUpdate()
-                        ->where('warehouse_id', $warehouse->id)
-                        ->where('item_id', $item['item_id'])
-                        ->first();
+                $warehouseItem = WarehouseItem::lockForUpdate()
+                    ->where('warehouse_id', $warehouse->id)
+                    ->where('item_id', $item['item_id'])
+                    ->first();
 
-                    if ($warehouseItem) {
-                        $warehouseItem->quantity += $quantity;
-                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                        $warehouseItem->save();
-                    } else {
-                        WarehouseItem::create([
-                            'warehouse_id' => $warehouse->id,
-                            'item_id' => $item['item_id'],
-                            'quantity' => $quantity,
-                            'reserved_quantity' => 0,
-                            'available_quantity' => $quantity,
-                        ]);
-                    }
-
-                    $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
-                    $itemModel->save();
+                if ($warehouseItem) {
+                    $warehouseItem->quantity += $quantity;
+                    $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                    $warehouseItem->save();
+                } else {
+                    WarehouseItem::create([
+                        'warehouse_id' => $warehouse->id,
+                        'item_id' => $item['item_id'],
+                        'quantity' => $quantity,
+                        'reserved_quantity' => 0,
+                        'available_quantity' => $quantity,
+                    ]);
                 }
+
+                $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
+                $itemModel->save();
             }
 
             DB::commit();
@@ -380,11 +378,10 @@ class PurchaseController extends Controller
                 $purchaseDate = Carbon::parse($request->purchase_date)->format('Y-m-d');
             }
 
-            $oldStatus = $purchase->status;
             $oldBranchId = $purchase->branch_id;
             $oldWarehouse = Warehouse::where('branch_id', $oldBranchId)->first();
 
-            if ($oldStatus === 'received' && $oldWarehouse) {
+            if ($oldWarehouse) {
                 foreach ($purchase->items as $oldItem) {
                     $warehouseItem = WarehouseItem::lockForUpdate()
                         ->where('warehouse_id', $oldWarehouse->id)
@@ -446,29 +443,27 @@ class PurchaseController extends Controller
                     'total_cost' => $totalCost,
                 ]);
 
-                if ($request->status === 'received') {
-                    $warehouseItem = WarehouseItem::lockForUpdate()
-                        ->where('warehouse_id', $warehouse->id)
-                        ->where('item_id', $item['item_id'])
-                        ->first();
+                $warehouseItem = WarehouseItem::lockForUpdate()
+                    ->where('warehouse_id', $warehouse->id)
+                    ->where('item_id', $item['item_id'])
+                    ->first();
 
-                    if ($warehouseItem) {
-                        $warehouseItem->quantity += $quantity;
-                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                        $warehouseItem->save();
-                    } else {
-                        WarehouseItem::create([
-                            'warehouse_id' => $warehouse->id,
-                            'item_id' => $item['item_id'],
-                            'quantity' => $quantity,
-                            'reserved_quantity' => 0,
-                            'available_quantity' => $quantity,
-                        ]);
-                    }
-
-                    $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
-                    $itemModel->save();
+                if ($warehouseItem) {
+                    $warehouseItem->quantity += $quantity;
+                    $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                    $warehouseItem->save();
+                } else {
+                    WarehouseItem::create([
+                        'warehouse_id' => $warehouse->id,
+                        'item_id' => $item['item_id'],
+                        'quantity' => $quantity,
+                        'reserved_quantity' => 0,
+                        'available_quantity' => $quantity,
+                    ]);
                 }
+
+                $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
+                $itemModel->save();
             }
 
             DB::commit();
@@ -485,27 +480,25 @@ class PurchaseController extends Controller
         
         DB::beginTransaction();
         try {
-            if ($purchase->status === 'received') {
-                $warehouse = Warehouse::where('branch_id', $purchase->branch_id)->first();
-                
-                if ($warehouse) {
-                    foreach ($purchase->items as $purchaseItem) {
-                        $warehouseItem = WarehouseItem::lockForUpdate()
-                            ->where('warehouse_id', $warehouse->id)
-                            ->where('item_id', $purchaseItem->item_id)
-                            ->first();
+            $warehouse = Warehouse::where('branch_id', $purchase->branch_id)->first();
+            
+            if ($warehouse) {
+                foreach ($purchase->items as $purchaseItem) {
+                    $warehouseItem = WarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $purchaseItem->item_id)
+                        ->first();
 
-                        if ($warehouseItem) {
-                            $warehouseItem->quantity = max(0, $warehouseItem->quantity - floatval($purchaseItem->quantity));
-                            $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                            $warehouseItem->save();
-                        }
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity = max(0, $warehouseItem->quantity - floatval($purchaseItem->quantity));
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    }
 
-                        $itemModel = Item::find($purchaseItem->item_id);
-                        if ($itemModel) {
-                            $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - floatval($purchaseItem->quantity));
-                            $itemModel->save();
-                        }
+                    $itemModel = Item::find($purchaseItem->item_id);
+                    if ($itemModel) {
+                        $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) - floatval($purchaseItem->quantity));
+                        $itemModel->save();
                     }
                 }
             }
