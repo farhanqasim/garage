@@ -183,7 +183,7 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'parts' }"
                                  data-type="parts"
-                                 @click="selectType('parts')">
+                                @click="selectType('parts')">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
@@ -192,7 +192,8 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'filters' }"
                                  data-type="filters"
-                                 @click="selectType('filters')">
+                                 @click="selectType('filters')"
+                                 onclick="selectItemType('filters'); return false;">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
                             </div>
@@ -201,7 +202,8 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'breakpad' }"
                                  data-type="breakpad"
-                                 @click="selectType('breakpad')">
+                                 @click="selectType('breakpad')"
+                                 onclick="selectItemType('breakpad'); return false;">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
                             </div>
@@ -210,7 +212,8 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'oil' }"
                                  data-type="oil"
-                                 @click="selectType('oil')">
+                                 @click="selectType('oil')"
+                                 onclick="selectItemType('oil'); return false;">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
                             </div>
@@ -219,7 +222,8 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'battery' }"
                                  data-type="battery"
-                                 @click="selectType('battery')">
+                                 @click="selectType('battery')"
+                                 onclick="selectItemType('battery'); return false;">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
                             </div>
@@ -228,7 +232,8 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'scrap' }"
                                  data-type="scrap"
-                                 @click="selectType('scrap')">
+                                 @click="selectType('scrap')"
+                                 onclick="selectItemType('scrap'); return false;">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
                             </div>
@@ -237,7 +242,8 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'services' }"
                                  data-type="services"
-                                 @click="selectType('services')">
+                                 @click="selectType('services')"
+                                 onclick="selectItemType('services'); return false;">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
                             </div>
@@ -2959,8 +2965,8 @@
             selectType(type) {
                 try {
                     console.log('🎯 Type selected:', type);
-                    this.selectedType = type;
-                    localStorage.setItem('selectedType', type);
+                this.selectedType = type;
+                localStorage.setItem('selectedType', type);
                     
                     // Update visual selection immediately
                     $('.type-box').removeClass('selected');
@@ -2979,14 +2985,14 @@
                         console.warn('filterDropdownsByType function not found');
                     }
                     
-                    // Load items by type when type changes
-                    if (type) {
+                // Load items by type when type changes
+                if (type) {
                         if (typeof loadItemsByType === 'function') {
-                            loadItemsByType(type);
+                    loadItemsByType(type);
                         }
-                    } else {
+                } else {
                         if (typeof loadAllItems === 'function') {
-                            loadAllItems();
+                    loadAllItems();
                         }
                     }
                 } catch (error) {
@@ -3062,39 +3068,131 @@
         }
     }
 
-    // Fallback jQuery click handler for type boxes (in case Alpine.js fails)
-    $(document).ready(function() {
-        $(document).on('click', '.type-box', function(e) {
-            const type = $(this).data('type') || $(this).attr('data-type');
-            if (type) {
-                // Try to call Alpine.js method if available
-                try {
-                    const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
-                    if (alpineComponent && typeof alpineComponent.selectType === 'function') {
-                        alpineComponent.selectType(type);
-                    } else {
-                        // Fallback: manually update
-                        console.log('Alpine.js not available, using fallback');
-                        $('.type-box').removeClass('selected');
-                        $(this).addClass('selected');
-                        localStorage.setItem('selectedType', type);
-                        
-                        // Try to filter dropdowns
-                        if (typeof filterDropdownsByType === 'function') {
-                            setTimeout(() => {
-                                filterDropdownsByType(type);
-                            }, 300);
+    // Global function for type selection (works from inline onclick)
+    window.selectItemType = function(type) {
+        console.log('🎯 selectItemType called with:', type);
+        
+        // Update visual selection immediately
+        $('.type-box').removeClass('selected');
+        $(`.type-box[data-type="${type}"]`).addClass('selected');
+        
+        // Update localStorage
+        localStorage.setItem('selectedType', type);
+        
+        // Try to update Alpine.js component if available
+        setTimeout(() => {
+            try {
+                if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                    const alpineElement = document.querySelector('[x-data*="productForm"]');
+                    if (alpineElement) {
+                        const alpineComponent = Alpine.$data(alpineElement);
+                        if (alpineComponent) {
+                            alpineComponent.selectedType = type;
+                            if (typeof alpineComponent.selectType === 'function') {
+                                alpineComponent.selectType(type);
+                            }
                         }
                     }
-                } catch (error) {
-                    console.error('Error in type selection:', error);
-                    // Still update visual
-                    $('.type-box').removeClass('selected');
-                    $(this).addClass('selected');
-                    localStorage.setItem('selectedType', type);
+                }
+            } catch (e) {
+                console.log('Alpine.js update failed:', e);
+            }
+        }, 50);
+        
+        // Filter dropdowns
+        if (typeof filterDropdownsByType === 'function') {
+            setTimeout(() => {
+                try {
+                    filterDropdownsByType(type);
+                } catch (e) {
+                    console.error('Error filtering dropdowns:', e);
+                }
+            }, 300);
+        }
+        
+        // Load items by type
+        if (typeof loadItemsByType === 'function') {
+            try {
+                loadItemsByType(type);
+            } catch (e) {
+                console.error('Error loading items:', e);
+            }
+        }
+    };
+
+    // Primary jQuery click handler for type boxes (works immediately, doesn't wait for Alpine.js)
+    $(document).ready(function() {
+        // Remove any existing handlers to avoid duplicates
+        $(document).off('click', '.type-box');
+        
+        // Add click handler
+        $(document).on('click', '.type-box', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const $box = $(this);
+            const type = $box.data('type') || $box.attr('data-type') || $box.closest('[data-type]').data('type');
+            
+            if (!type) {
+                console.error('No type found for clicked box');
+                return;
+            }
+            
+            console.log('🖱️ Type box clicked:', type);
+            
+            // Update visual selection immediately
+            $('.type-box').removeClass('selected');
+            $box.addClass('selected');
+            
+            // Update localStorage
+            localStorage.setItem('selectedType', type);
+            
+            // Try to update Alpine.js component if available
+            try {
+                // Wait a bit for Alpine.js to be ready
+                setTimeout(() => {
+                    try {
+                        const alpineElement = document.querySelector('[x-data*="productForm"]');
+                        if (alpineElement && window.Alpine) {
+                            const alpineComponent = Alpine.$data(alpineElement);
+                            if (alpineComponent) {
+                                alpineComponent.selectedType = type;
+                                console.log('✅ Updated Alpine.js component');
+                            }
+                        }
+                    } catch (alpineError) {
+                        console.log('Alpine.js not available or not ready:', alpineError);
+                    }
+                }, 100);
+            } catch (e) {
+                console.log('Alpine.js check failed:', e);
+            }
+            
+            // Filter dropdowns
+            if (typeof filterDropdownsByType === 'function') {
+                setTimeout(() => {
+                    try {
+                        filterDropdownsByType(type);
+                        console.log('✅ Filtered dropdowns for type:', type);
+                    } catch (filterError) {
+                        console.error('Error filtering dropdowns:', filterError);
+                    }
+                }, 300);
+            } else {
+                console.warn('filterDropdownsByType function not found');
+            }
+            
+            // Load items by type
+            if (typeof loadItemsByType === 'function') {
+                try {
+                    loadItemsByType(type);
+                } catch (loadError) {
+                    console.error('Error loading items:', loadError);
                 }
             }
         });
+        
+        console.log('✅ Type box click handlers initialized');
     });
 
     // Function to load all items (initial load)
@@ -3850,41 +3948,41 @@
                     const $dropdown = $container.find('.select2-dropdown, .select2-results');
                     
                     if ($dropdown.length) {
-                        const observer = new MutationObserver(function(mutations) {
-                            mutations.forEach(function(mutation) {
-                                if (mutation.addedNodes.length) {
-                                    $(mutation.addedNodes).each(function() {
-                                        const $node = $(this);
-                                        // Check if this is a "No results found" message
-                                        const text = $node.text().toLowerCase();
-                                        if (text.includes('no results') || text.includes('not found')) {
-                                            // Find the associated select
-                                            const $select2Container = $node.closest('.select2-container, .select2-dropdown');
-                                            if ($select2Container.length) {
-                                                const $select = $select2Container.prev('select.searchable-select');
-                                                if ($select.length) {
-                                                    const $searchInput = $select2Container.find('.select2-search__field');
-                                                    if ($searchInput.length && $searchInput.val()) {
-                                                        const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                                                        const searchVal = $searchInput.val().trim();
-                                                        activeSelectSearch = {
-                                                            select: $select,
-                                                            searchTerm: searchVal,
-                                                            selectId: selectId
-                                                        };
-                                                        lastSearchTerm[selectId] = searchVal;
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes.length) {
+                        $(mutation.addedNodes).each(function() {
+                            const $node = $(this);
+                            // Check if this is a "No results found" message
+                            const text = $node.text().toLowerCase();
+                            if (text.includes('no results') || text.includes('not found')) {
+                                // Find the associated select
+                                const $select2Container = $node.closest('.select2-container, .select2-dropdown');
+                                if ($select2Container.length) {
+                                    const $select = $select2Container.prev('select.searchable-select');
+                                    if ($select.length) {
+                                        const $searchInput = $select2Container.find('.select2-search__field');
+                                        if ($searchInput.length && $searchInput.val()) {
+                                            const selectId = $select.attr('id') || $select.attr('name') || 'default';
+                                            const searchVal = $searchInput.val().trim();
+                                            activeSelectSearch = {
+                                                select: $select,
+                                                searchTerm: searchVal,
+                                                selectId: selectId
+                                            };
+                                            lastSearchTerm[selectId] = searchVal;
                                                         
                                                         // Add "ADD NEW" button
                                                         setTimeout(() => {
                                                             addNewButtonToSelect2($select, searchVal);
                                                         }, 100);
-                                                    }
-                                                }
-                                            }
-                                        });
+                                        }
                                     }
-                                });
+                                }
+                                        });
                             }
+                        });
+                    }
                             
                             // Observe the dropdown for changes
                             observer.observe($dropdown[0], {
