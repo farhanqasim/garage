@@ -1903,19 +1903,19 @@
                                     <input type="checkbox" name="type_checkbox[]" value="parts" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
                                     <span style="font-weight: 500; color: #495057;">PARTS</span>
                                 </label>
-                            </div>
+                        </div>
                             <div class="col-md-6 col-6">
                                 <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
                                     <input type="checkbox" name="type_checkbox[]" value="filters" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
                                     <span style="font-weight: 500; color: #495057;">FILTERS</span>
                                 </label>
-                            </div>
+                    </div>
                             <div class="col-md-6 col-6">
                                 <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
                                     <input type="checkbox" name="type_checkbox[]" value="breakpad" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
                                     <span style="font-weight: 500; color: #495057;">BREAK PAD</span>
                                 </label>
-                            </div>
+                </div>
                             <div class="col-md-6 col-6">
                                 <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
                                     <input type="checkbox" name="type_checkbox[]" value="oil" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
@@ -2925,17 +2925,33 @@
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
+                // Filter dropdowns on initial load if type is already selected
+                const initialType = this.selectedType;
+                if (initialType) {
+                    // Wait for Select2 to initialize first
+                    setTimeout(() => {
+                        filterDropdownsByType(initialType);
+                    }, 1500);
+                }
+                
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType) => {
-                    // Filter all dropdowns based on selected type
-                    filterDropdownsByType(newType);
+                    // Filter all dropdowns based on selected type with delay
+                    setTimeout(() => {
+                        filterDropdownsByType(newType);
+                    }, 300);
                 });
             },
             selectType(type) {
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
-                // Filter dropdowns by selected type
-                filterDropdownsByType(type);
+                console.log('🎯 Type selected:', type);
+                
+                // Filter dropdowns by selected type with delay to ensure Select2 is ready
+                setTimeout(() => {
+                    filterDropdownsByType(type);
+                }, 300);
+                
                 // Load items by type when type changes
                 if (type) {
                     loadItemsByType(type);
@@ -3023,7 +3039,7 @@
 
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
-        console.log('Filtering dropdowns by type:', selectedType);
+        console.log('🔍 Filtering dropdowns by type:', selectedType);
         
         // List of all dropdowns that need filtering
         const dropdowns = [
@@ -3046,27 +3062,48 @@
                 
                 // Show/hide options based on type
                 let visibleCount = 0;
+                let hiddenCount = 0;
+                
+                // Store all options with their data before filtering
+                const allOptions = [];
+                $select.find('option').each(function() {
+                    const $option = $(this);
+                    allOptions.push({
+                        element: $option[0],
+                        value: $option.val(),
+                        text: $option.text(),
+                        type: $option.data('type') || '',
+                        selected: $option.prop('selected')
+                    });
+                });
+                
                 $select.find('option').each(function() {
                     const $option = $(this);
                     const optionType = $option.data('type') || '';
+                    const optionValue = $option.val();
                     
                     // Show option if:
                     // 1. It's the empty/default option
                     // 2. No type is selected (show all)
                     // 3. Option type matches selected type
                     // 4. Option has no type (backward compatibility)
-                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
-                        $option.show().prop('disabled', false);
-                        if ($option.val() !== '') visibleCount++;
+                    const shouldShow = optionValue === '' || !selectedType || optionType === selectedType || optionType === '';
+                    
+                    if (shouldShow) {
+                        $option.show().prop('disabled', false).removeAttr('data-hidden-by-filter');
+                        if (optionValue !== '') visibleCount++;
                     } else {
-                        $option.hide().prop('disabled', true);
+                        $option.hide().prop('disabled', true).attr('data-hidden-by-filter', 'true');
+                        if (optionValue !== '') hiddenCount++;
                     }
                 });
-                console.log(`Filtered ${selector}: ${visibleCount} options visible for type "${selectedType}"`);
+                
+                console.log(`✅ Filtered ${selector}: ${visibleCount} visible, ${hiddenCount} hidden for type "${selectedType}"`);
 
                 // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
                 if ($selectedOption.length && ($selectedOption.is(':hidden') || $selectedOption.prop('disabled'))) {
+                    console.log(`⚠️ Clearing invalid selection in ${selector}`);
                     selectedValue = '';
                     $select.val('').trigger('change');
                 }
@@ -3074,26 +3111,77 @@
                 // For Select2, we need to destroy and reinitialize to properly reflect changes
                 if (isSelect2) {
                     try {
-                        // Destroy Select2
-                        $select.select2('destroy');
+                        // Destroy Select2 completely
+                        if ($.fn.select2) {
+                            $select.select2('destroy');
+                        }
+                        // Remove Select2 classes and container
                         $select.removeClass('select2-hidden-accessible');
-                        $select.next('.select2-container').remove();
+                        const $container = $select.next('.select2-container');
+                        if ($container.length) {
+                            $container.remove();
+                        }
                         
-                        // Reinitialize Select2 with same options
+                        // Reinitialize Select2 after a short delay with templateResult to filter
                         setTimeout(() => {
-                            $select.select2({
-                                placeholder: 'Please Select',
-                                allowClear: true,
-                                width: '100%'
-                            });
-                            
-                            // Restore selection if it's still valid
-                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
-                                $select.val(selectedValue).trigger('change');
+                            if ($.fn.select2) {
+                                // Check if Select2 is not already initialized
+                                if (!$select.hasClass('select2-hidden-accessible')) {
+                                    $select.select2({
+                                        placeholder: 'Please Select',
+                                        allowClear: true,
+                                        width: '100%',
+                                        matcher: function(params, data) {
+                                            // If no search term, show all matching type options
+                                            if (!params.term) {
+                                                const $option = $select.find(`option[value="${data.id}"]`);
+                                                const optionType = $option.data('type') || '';
+                                                
+                                                // Show if matches type or has no type
+                                                if (!selectedType || optionType === selectedType || optionType === '') {
+                                                    return data;
+                                                }
+                                                return null;
+                                            }
+                                            
+                                            // If search term exists, use default matcher but also check type
+                                            const $option = $select.find(`option[value="${data.id}"]`);
+                                            const optionType = $option.data('type') || '';
+                                            
+                                            // Check type match first
+                                            if (selectedType && optionType && optionType !== selectedType) {
+                                                return null;
+                                            }
+                                            
+                                            // Then check text match
+                                            if (data.text && data.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0) {
+                                                return data;
+                                            }
+                                            
+                                            return null;
+                                        }
+                                    });
+                                } else {
+                                    // If already initialized, trigger update
+                                    $select.trigger('change.select2');
+                                }
+                                
+                                // Restore selection if it's still valid
+                                if (selectedValue) {
+                                    const $validOption = $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`);
+                                    if ($validOption.length) {
+                                        setTimeout(() => {
+                                            $select.val(selectedValue).trigger('change');
+                                            console.log(`✅ Restored selection in ${selector}: ${selectedValue}`);
+                                        }, 50);
+                                    } else {
+                                        console.log(`⚠️ Could not restore selection in ${selector}: ${selectedValue} (option hidden/disabled)`);
+                                    }
+                                }
                             }
-                        }, 50);
+                        }, 150);
                     } catch(e) {
-                        console.log('Error refreshing Select2 for ' + selector + ':', e);
+                        console.error('❌ Error refreshing Select2 for ' + selector + ':', e);
                         // Fallback: just trigger change
                         $select.trigger('change');
                     }
@@ -3103,6 +3191,8 @@
                 }
             });
         });
+        
+        console.log('✅ Filtering complete for type:', selectedType);
     }
 
     // Function to update the items table
@@ -4006,7 +4096,7 @@
                     $select.val(oldVal);
                 }
             }, 500);
-        }, 100);
+                        }, 150);
 
         // =========================
         // PART NUMBER COUNT & ITEMS VIEW
