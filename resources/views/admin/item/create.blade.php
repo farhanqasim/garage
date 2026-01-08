@@ -3247,9 +3247,15 @@
         loadAllItemsByType();
     });
 
-    // Function to filter dropdowns by selected type
+    // Store current selected type globally for matcher function
+    let currentFilterType = '';
+
+    // Function to filter dropdowns by selected type (optimized - no blinking)
     function filterDropdownsByType(selectedType) {
         console.log('🔍 Filtering dropdowns by type:', selectedType);
+        
+        // Store globally for matcher function
+        currentFilterType = selectedType || '';
         
         // List of all dropdowns that need filtering
         const dropdowns = [
@@ -3267,26 +3273,7 @@
                 const currentValue = $select.val();
                 const isSelect2 = $select.hasClass('select2-hidden-accessible');
                 
-                // Store current value before filtering
-                let selectedValue = currentValue;
-                
-                // Show/hide options based on type
-                let visibleCount = 0;
-                let hiddenCount = 0;
-                
-                // Store all options with their data before filtering
-                const allOptions = [];
-                $select.find('option').each(function() {
-                    const $option = $(this);
-                    allOptions.push({
-                        element: $option[0],
-                        value: $option.val(),
-                        text: $option.text(),
-                        type: $option.data('type') || '',
-                        selected: $option.prop('selected')
-                    });
-                });
-                
+                // Show/hide options based on type (for DOM)
                 $select.find('option').each(function() {
                     const $option = $(this);
                     const optionType = $option.data('type') || '';
@@ -3300,100 +3287,88 @@
                     const shouldShow = optionValue === '' || !selectedType || optionType === selectedType || optionType === '';
                     
                     if (shouldShow) {
-                        $option.show().prop('disabled', false).removeAttr('data-hidden-by-filter');
-                        if (optionValue !== '') visibleCount++;
+                        $option.show().prop('disabled', false);
                     } else {
-                        $option.hide().prop('disabled', true).attr('data-hidden-by-filter', 'true');
-                        if (optionValue !== '') hiddenCount++;
+                        $option.hide().prop('disabled', true);
                     }
                 });
-                
-                console.log(`✅ Filtered ${selector}: ${visibleCount} visible, ${hiddenCount} hidden for type "${selectedType}"`);
 
                 // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
                 if ($selectedOption.length && ($selectedOption.is(':hidden') || $selectedOption.prop('disabled'))) {
-                    console.log(`⚠️ Clearing invalid selection in ${selector}`);
-                    selectedValue = '';
                     $select.val('').trigger('change');
                 }
 
-                // For Select2, we need to destroy and reinitialize to properly reflect changes
+                // For Select2, update matcher without destroying (prevents blinking)
                 if (isSelect2) {
                     try {
-                        // Destroy Select2 completely
-                        if ($.fn.select2) {
-                            $select.select2('destroy');
-                        }
-                        // Remove Select2 classes and container
-                        $select.removeClass('select2-hidden-accessible');
-                        const $container = $select.next('.select2-container');
-                        if ($container.length) {
-                            $container.remove();
-                        }
-                        
-                        // Reinitialize Select2 after a short delay with templateResult to filter
-                        setTimeout(() => {
-                            if ($.fn.select2) {
-                                // Check if Select2 is not already initialized
-                                if (!$select.hasClass('select2-hidden-accessible')) {
-                                    $select.select2({
-                                        placeholder: 'Please Select',
-                                        allowClear: true,
-                                        width: '100%',
-                                        matcher: function(params, data) {
-                                            // If no search term, show all matching type options
-                                            if (!params.term) {
-                                                const $option = $select.find(`option[value="${data.id}"]`);
-                                                const optionType = $option.data('type') || '';
-                                                
-                                                // Show if matches type or has no type
-                                                if (!selectedType || optionType === selectedType || optionType === '') {
-                                                    return data;
-                                                }
-                                                return null;
-                                            }
-                                            
-                                            // If search term exists, use default matcher but also check type
-                                            const $option = $select.find(`option[value="${data.id}"]`);
-                                            const optionType = $option.data('type') || '';
-                                            
-                                            // Check type match first
-                                            if (selectedType && optionType && optionType !== selectedType) {
-                                                return null;
-                                            }
-                                            
-                                            // Then check text match
-                                            if (data.text && data.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0) {
-                                                return data;
-                                            }
-                                            
-                                            return null;
-                                        }
-                                    });
-                                } else {
-                                    // If already initialized, trigger update
-                                    $select.trigger('change.select2');
+                        // Get current Select2 instance
+                        const select2Data = $select.data('select2');
+                        if (select2Data) {
+                            // Update the matcher function dynamically
+                            select2Data.options.matcher = function(params, data) {
+                                // If no search term, show all matching type options
+                                if (!params.term) {
+                                    const $option = $select.find(`option[value="${data.id}"]`);
+                                    const optionType = $option.data('type') || '';
+                                    
+                                    // Show if matches type or has no type
+                                    if (!currentFilterType || optionType === currentFilterType || optionType === '') {
+                                        return data;
+                                    }
+                                    return null;
                                 }
                                 
-                                // Restore selection if it's still valid
-                                if (selectedValue) {
-                                    const $validOption = $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`);
-                                    if ($validOption.length) {
-                                        setTimeout(() => {
-                                            $select.val(selectedValue).trigger('change');
-                                            console.log(`✅ Restored selection in ${selector}: ${selectedValue}`);
-                                        }, 50);
-                                    } else {
-                                        console.log(`⚠️ Could not restore selection in ${selector}: ${selectedValue} (option hidden/disabled)`);
-                                    }
+                                // If search term exists, check type first
+                                const $option = $select.find(`option[value="${data.id}"]`);
+                                const optionType = $option.data('type') || '';
+                                
+                                // Check type match first
+                                if (currentFilterType && optionType && optionType !== currentFilterType) {
+                                    return null;
                                 }
+                                
+                                // Then check text match (default Select2 behavior)
+                                if (data.text && data.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0) {
+                                    return data;
+                                }
+                                
+                                return null;
+                            };
+                            
+                            // Trigger refresh without destroying
+                            $select.trigger('change.select2');
+                        } else {
+                            // If Select2 not initialized, initialize it with matcher
+                            if ($.fn.select2) {
+                                $select.select2({
+                                    placeholder: 'Please Select',
+                                    allowClear: true,
+                                    width: '100%',
+                                    matcher: function(params, data) {
+                                        if (!params.term) {
+                                            const $option = $select.find(`option[value="${data.id}"]`);
+                                            const optionType = $option.data('type') || '';
+                                            if (!currentFilterType || optionType === currentFilterType || optionType === '') {
+                                                return data;
+                                            }
+                                            return null;
+                                        }
+                                        const $option = $select.find(`option[value="${data.id}"]`);
+                                        const optionType = $option.data('type') || '';
+                                        if (currentFilterType && optionType && optionType !== currentFilterType) {
+                                            return null;
+                                        }
+                                        if (data.text && data.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0) {
+                                            return data;
+                                        }
+                                        return null;
+                                    }
+                                });
                             }
-                        }, 150);
+                        }
                     } catch(e) {
-                        console.error('❌ Error refreshing Select2 for ' + selector + ':', e);
-                        // Fallback: just trigger change
-                        $select.trigger('change');
+                        console.error('❌ Error updating Select2 for ' + selector + ':', e);
                     }
                 } else {
                     // For regular selects, just trigger change
