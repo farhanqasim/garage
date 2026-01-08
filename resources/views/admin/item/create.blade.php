@@ -1554,81 +1554,87 @@
 </div>
 </div>
 </div>
-<div class="modal fade" id="Unit-add-modal">
-    <div class="modal-dialog modal-dialog-centered ">
+<!-- Unit Manager Modal -->
+<div class="modal fade" id="Unit-add-modal" tabindex="-1" aria-labelledby="UnitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h4 id="Unit-modal-title">Add Unit</h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="Unit-modal-title">Unit Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="Unit-form" method="POST" enctype="multipart/form-data">
+            <form id="Unit-form" method="POST">
                 @csrf
-                <div class="modal-body">
-                    <div class="form-group col-12 mt-2">
-                        <label>Name <span class="text-danger">*</span></label>
-                        <input class="form-control" type="text" name="name" required>
+                <input type="hidden" id="unit-edit-id" name="unit_id" value="">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Unit Name <span class="text-danger">*</span></label>
+                            <input type="text" id="unit-name-input" name="name" class="form-control form-control-sm text-uppercase" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Short Name <span class="text-danger">*</span></label>
+                            <input type="text" id="unit-short-input" name="short_name" class="form-control form-control-sm text-uppercase" required>
+                        </div>
                     </div>
-                    <div class="form-group col-12 mt-3">
-                        <label>Short Name <span class="text-danger">*</span></label>
-                        <input class="form-control" type="text" name="short_name" required>
+                    <div class="row g-3 mt-2 bg-light p-3 rounded">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Allow Decimal? <span class="text-danger">*</span></label>
+                            <select id="unit-allow-decimal" name="allow_decimal" class="form-control form-control-sm" required onchange="toggleDecimalPrecision()">
+                                <option value="0">NO</option>
+                                <option value="1">YES</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="unit-precision-container" style="display: none;">
+                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
+                            <select id="unit-decimal-precision" name="decimal_precision" class="form-control form-control-sm">
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group col-12 mt-4">
-                        <label>Allow Decimal <span class="text-danger">*</span></label>
-                        <select name="allow_decimal" class="form-control" required>
-                            <option value="1">Yes</option>
-                            <option value="0">No</option>
-                        </select>
-                    </div>
-                    <div class="form-group col-12 mt-3">
-                        <label>
-                            <input type="checkbox" name="define_base_unit" value="1" id="toggleBaseUnit">
-                            Add as multiple of another Unit
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="unit-has-base" name="define_base_unit" value="1" onchange="toggleBaseSettings()">
+                        <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base">
+                            Multiple of other units
                         </label>
                     </div>
-                    <div class="col-12 mt-4" id="baseDetails" style="display:none;">
-                        <label class="fw-bold mb-2">Base Unit Options:</label>
-                        <div id="baseUnitsContainer">
-                            <div class="base-unit-item mb-3 p-3 border rounded">
-                                <div class="row g-2">
-                                    <div class="col-5">
-                                        <label class="small">Multiplier</label>
-                                        <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="small">Base Unit</label>
-                                        <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
-                                            <option value="">Select Base Unit</option>
-                                            @foreach($units as $u)
-                                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-1 d-flex align-items-end">
-                                        <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
-                                            <i class="ti ti-x"></i>
-                                        </button>
-                                    </div>
+                    <div id="unit-base-settings" class="mt-3 border-start border-4 border-warning ps-3" style="display: none;">
+                        <div id="unit-base-rows" class="space-y-3">
+                            <div class="row g-2 mb-2 base-unit-row">
+                                <div class="col-5">
+                                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
+                                    <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
+                                    <select name="base_units[0][base_unit_id]" class="form-control form-control-sm base-unit-select">
+                                        <option value="">Select Base Unit</option>
+                                        @foreach($units as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-1 d-flex align-items-end">
+                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;">
+                                        <i class="ti ti-x"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-primary mt-2" id="addBaseUnitBtn">
-                            <i class="ti ti-plus"></i> Add Another Base Unit
+                        <button type="button" class="btn btn-sm btn-warning text-white w-100 mt-2" onclick="addBaseRow()">
+                            <i class="ti ti-plus"></i> ADD ANOTHER
                         </button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-danger d-none" id="deleteUnitBtn">
-                        Delete
-                    </button>
-
-                    <button type="submit" class="btn btn-primary">Save</button>
+                <div class="modal-footer border-top bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger d-none" id="unit-delete-btn" onclick="deleteUnit()">Delete</button>
+                    <button type="submit" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
                 </div>
+            </form>
         </div>
-
-        </form>
     </div>
-</div>
 </div>
 
 <div class="modal fade" id="vehical-add-modal">
@@ -2086,8 +2092,8 @@
                 return;
             }
             currentUnitId = selected.val();
-            $('#Unit-modal-title').text('Edit Unit');
-            $('#deleteUnitBtn').removeClass('d-none');
+            $('#Unit-modal-title').text('Update Unit Settings');
+            $('#unit-delete-btn').removeClass('d-none');
             
             // Fetch unit data including base units
             $.get(`/all/units`, function(units) {
@@ -2109,36 +2115,49 @@
                 success: function(res) {
                     if (res && res.unit) {
                         const unit = res.unit;
-                        $('#Unit-form [name="name"]').val(unit.name);
-                        $('#Unit-form [name="short_name"]').val(unit.short_name);
-                        $('#Unit-form [name="allow_decimal"]').val(unit.allow_decimal);
-                        $('#Unit-form [name="define_base_unit"]').prop('checked', unit.define_base_unit == 1);
+                                    $('#unit-name-input').val(unit.name);
+                        $('#unit-short-input').val(unit.short_name);
+                        $('#unit-allow-decimal').val(unit.allow_decimal);
+                        $('#unit-edit-id').val(unit.id);
+                        $('#unit-has-base').prop('checked', unit.define_base_unit == 1);
                         
                         // Show/hide base details
                         if (unit.define_base_unit == 1) {
-                            $('#baseDetails').show();
+                            $('#unit-has-base').prop('checked', true);
+                            $('#unit-base-settings').show();
                         } else {
-                            $('#baseDetails').hide();
+                            $('#unit-has-base').prop('checked', false);
+                            $('#unit-base-settings').hide();
+                        }
+                        
+                        // Show/hide decimal precision
+                        if (unit.allow_decimal == 1) {
+                            $('#unit-precision-container').show();
+                            if (unit.decimal_precision) {
+                                $('#unit-decimal-precision').val(unit.decimal_precision);
+                            }
+                        } else {
+                            $('#unit-precision-container').hide();
                         }
                         
                         // Clear existing base units
-                        $('#baseUnitsContainer').empty();
-                        baseUnitIndex = 0;
+                        $('#unit-base-rows').empty();
+                        baseUnitRowIndex = 0;
                         
                         // Load base units if available
                         if (unit.base_units && unit.base_units.length > 0) {
                             unit.base_units.forEach(function(baseUnit) {
-                                addBaseUnitRow(baseUnit.base_unit_id, baseUnit.pivot?.multiplier || baseUnit.multiplier);
+                                addBaseUnitRowWithData(baseUnit.base_unit_id, baseUnit.pivot?.multiplier || baseUnit.multiplier);
                             });
                         } else if (unit.base_unit_id) {
                             // Legacy single base unit
-                            addBaseUnitRow(unit.base_unit_id, unit.base_unit_multiplier || 1);
+                            addBaseUnitRowWithData(unit.base_unit_id, unit.base_unit_multiplier || 1);
                         } else {
                             // Add one empty row
-                            addBaseUnitRow('', '');
+                            addBaseUnitRowWithData('', '');
                         }
                         
-                        updateUnitRemoveButtons();
+                        updateRemoveButtons();
                         $('#Unit-add-modal').modal('show');
                     }
                 },
@@ -2150,46 +2169,49 @@
             });
         });
         
-        // Helper function to add base unit row
-        function addBaseUnitRow(baseUnitId, multiplier) {
-            const container = $('#baseUnitsContainer');
-            const newItem = $(`
-                <div class="base-unit-item mb-3 p-3 border rounded">
-                    <div class="row g-2">
-                        <div class="col-5">
-                            <label class="small">Multiplier</label>
-                            <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" value="${multiplier || ''}" placeholder="e.g., 1, 2, 3">
-                        </div>
-                        <div class="col-6">
-                            <label class="small">Base Unit</label>
-                            <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
-                                <option value="">Select Base Unit</option>
-                                @foreach($units as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-1 d-flex align-items-end">
-                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
-                                <i class="ti ti-x"></i>
-                            </button>
-                        </div>
-                    </div>
+        // Helper function to add base unit row with data (for edit mode)
+        function addBaseUnitRowWithData(baseUnitId, multiplier) {
+            const container = document.getElementById('unit-base-rows');
+            if (!container) return;
+            
+            const newRow = document.createElement('div');
+            newRow.className = 'row g-2 mb-2 base-unit-row';
+            newRow.innerHTML = `
+                <div class="col-5">
+                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
+                    <input type="number" step="any" name="base_units[${baseUnitRowIndex}][multiplier]" class="form-control form-control-sm multiplier-input" value="${multiplier || ''}" placeholder="e.g., 1, 2, 3">
                 </div>
-            `);
-            container.append(newItem);
+                <div class="col-6">
+                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
+                    <select name="base_units[${baseUnitRowIndex}][base_unit_id]" class="form-control form-control-sm base-unit-select">
+                        <option value="">Select Base Unit</option>
+                        @foreach($units as $u)
+                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-base-row">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
             
             // Set selected value
             if (baseUnitId) {
-                newItem.find('select[name="base_units[' + baseUnitIndex + '][base_unit_id]"]').val(baseUnitId);
+                const select = newRow.querySelector('select[name="base_units[' + baseUnitRowIndex + '][base_unit_id]"]');
+                if (select) {
+                    select.value = baseUnitId;
+                }
             }
             
-            baseUnitIndex++;
+            baseUnitRowIndex++;
         }
         /* =========================
            DELETE UNIT
         ==========================*/
-        $('#deleteUnitBtn').on('click', function() {
+        function deleteUnit() {
             if (!currentUnitId) return;
             Swal.fire({
                 title: 'Are you sure?',
@@ -2232,25 +2254,25 @@
         ==========================*/
         $('#Unit-add-modal').on('hidden.bs.modal', function() {
             $('#Unit-form')[0].reset();
-            $('#deleteUnitBtn').addClass('d-none');
-            $('#Unit-modal-title').text('Add Unit');
+            $('#unit-delete-btn').addClass('d-none');
+            $('#Unit-modal-title').text('Unit Settings');
             currentUnitId = null;
             
             // Reset base units container
-            $('#baseUnitsContainer').empty();
-            baseUnitIndex = 1;
+            $('#unit-base-rows').empty();
+            baseUnitRowIndex = 0;
             // Add one empty base unit row
-            const container = $('#baseUnitsContainer');
-            container.html(`
-                <div class="base-unit-item mb-3 p-3 border rounded">
-                    <div class="row g-2">
+            const container = document.getElementById('unit-base-rows');
+            if (container) {
+                container.innerHTML = `
+                    <div class="row g-2 mb-2 base-unit-row">
                         <div class="col-5">
-                            <label class="small">Multiplier</label>
-                            <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
+                            <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
                         </div>
                         <div class="col-6">
-                            <label class="small">Base Unit</label>
-                            <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
+                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
+                            <select name="base_units[0][base_unit_id]" class="form-control form-control-sm base-unit-select">
                                 <option value="">Select Base Unit</option>
                                 @foreach($units as $u)
                                 <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
@@ -2258,15 +2280,17 @@
                             </select>
                         </div>
                         <div class="col-1 d-flex align-items-end">
-                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                            <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;">
                                 <i class="ti ti-x"></i>
                             </button>
                         </div>
                     </div>
-                </div>
-            `);
-            $('#baseDetails').hide();
-            $('#toggleBaseUnit').prop('checked', false);
+                `;
+            }
+            $('#unit-base-settings').hide();
+            $('#unit-has-base').prop('checked', false);
+            $('#unit-precision-container').hide();
+            $('#unit-edit-id').val('');
         });
     });
 </script>
@@ -2278,54 +2302,76 @@
         imgPreview.src = imgURL;
         imgPreview.style.display = 'block';
     });
-    document.getElementById('toggleBaseUnit').addEventListener("change", function() {
-        document.getElementById('baseDetails').style.display = this.checked ? "block" : "none";
-    });
+    // Toggle decimal precision visibility
+    function toggleDecimalPrecision() {
+        const allowDecimal = document.getElementById('unit-allow-decimal').value;
+        const precisionContainer = document.getElementById('unit-precision-container');
+        if (allowDecimal == '1') {
+            precisionContainer.style.display = 'block';
+        } else {
+            precisionContainer.style.display = 'none';
+        }
+    }
     
-    // Add Base Unit functionality for Unit Modal
-    let baseUnitIndex = 1;
-    document.getElementById('addBaseUnitBtn')?.addEventListener('click', function() {
-        const container = document.getElementById('baseUnitsContainer');
+    // Toggle base settings visibility
+    function toggleBaseSettings() {
+        const hasBase = document.getElementById('unit-has-base').checked;
+        const baseSettings = document.getElementById('unit-base-settings');
+        if (hasBase) {
+            baseSettings.style.display = 'block';
+        } else {
+            baseSettings.style.display = 'none';
+        }
+    }
+    
+    // Add base unit row
+    let baseUnitRowIndex = 1;
+    function addBaseRow() {
+        const container = document.getElementById('unit-base-rows');
         if (!container) return;
         
-        const newItem = document.createElement('div');
-        newItem.className = 'base-unit-item mb-3 p-3 border rounded';
-        newItem.innerHTML = `
-            <div class="row g-2">
-                <div class="col-5">
-                    <label class="small">Multiplier</label>
-                    <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
-                </div>
-                <div class="col-6">
-                    <label class="small">Base Unit</label>
-                    <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
-                        <option value="">Select Base Unit</option>
-                        @foreach($units as $u)
-                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-1 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
-                        <i class="ti ti-x"></i>
-                    </button>
-                </div>
+        const newRow = document.createElement('div');
+        newRow.className = 'row g-2 mb-2 base-unit-row';
+        newRow.innerHTML = `
+            <div class="col-5">
+                <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
+                <input type="number" step="any" name="base_units[${baseUnitRowIndex}][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
+            </div>
+            <div class="col-6">
+                <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
+                <select name="base_units[${baseUnitRowIndex}][base_unit_id]" class="form-control form-control-sm base-unit-select">
+                    <option value="">Select Base Unit</option>
+                    @foreach($units as $u)
+                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm remove-base-row">
+                    <i class="ti ti-x"></i>
+                </button>
             </div>
         `;
-        container.appendChild(newItem);
-        baseUnitIndex++;
-        updateUnitRemoveButtons();
-    });
+        container.appendChild(newRow);
+        baseUnitRowIndex++;
+        updateRemoveButtons();
+    }
     
-    // Remove Base Unit functionality for Unit Modal
-    function updateUnitRemoveButtons() {
-        const container = document.getElementById('baseUnitsContainer');
+    // Remove base unit row
+    function removeRow(btn) {
+        btn.closest('.base-unit-row').remove();
+        updateRemoveButtons();
+    }
+    
+    // Update remove buttons visibility
+    function updateRemoveButtons() {
+        const container = document.getElementById('unit-base-rows');
         if (!container) return;
         
-        const allItems = container.querySelectorAll('.base-unit-item');
-        allItems.forEach(function(item) {
-            const removeBtn = item.querySelector('.removeBaseUnit');
-            if (allItems.length > 1) {
+        const allRows = container.querySelectorAll('.base-unit-row');
+        allRows.forEach(function(row) {
+            const removeBtn = row.querySelector('.remove-base-row');
+            if (allRows.length > 1) {
                 removeBtn.style.display = 'block';
             } else {
                 removeBtn.style.display = 'none';
@@ -2333,16 +2379,17 @@
         });
     }
     
-    // Event delegation for remove buttons in Unit Modal
+    // Event delegation for remove buttons
     document.addEventListener('click', function(e) {
-        if (e.target.closest('.removeBaseUnit') && e.target.closest('#baseUnitsContainer')) {
-            e.target.closest('.base-unit-item').remove();
-            updateUnitRemoveButtons();
+        if (e.target.closest('.remove-base-row')) {
+            removeRow(e.target.closest('.remove-base-row'));
         }
     });
     
     // Initialize remove buttons on page load
-    updateUnitRemoveButtons();
+    if (document.getElementById('unit-base-rows')) {
+        updateRemoveButtons();
+    }
     $('#unit_parts').on('change', function() {
         let selected = $(this).find(':selected');
         let unitName = selected.data('name');
