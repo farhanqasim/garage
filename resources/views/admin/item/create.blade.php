@@ -2990,6 +2990,7 @@
         
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+            isInternalUpdate: false,
             init() {
                 console.log('📦 productForm init, selectedType:', this.selectedType);
                 
@@ -3008,7 +3009,19 @@
                 }
                 
                 // Watch for selectedType changes and filter dropdown options
-                this.$watch('selectedType', (newType) => {
+                // Only watch if change is from external source (not from our own updates)
+                this.$watch('selectedType', (newType, oldType) => {
+                    // Skip if this is an internal update (to prevent loops)
+                    if (this.isInternalUpdate) {
+                        this.isInternalUpdate = false;
+                        return;
+                    }
+                    
+                    // Skip if value didn't actually change
+                    if (newType === oldType) {
+                        return;
+                    }
+                    
                     console.log('👀 selectedType changed to:', newType);
                     // Filter all dropdowns based on selected type with delay
                     setTimeout(() => {
@@ -3020,15 +3033,35 @@
             },
             selectType(type) {
                 console.log('🎯 Alpine selectType called with:', type);
-                // Call the global function instead
-                if (typeof window.selectItemType === 'function') {
-                    window.selectItemType(type);
-                } else {
-                    // Fallback if global function not available
-                    this.selectedType = type;
-                    localStorage.setItem('selectedType', type);
-                    $('.type-box').removeClass('selected');
-                    $(`.type-box[data-type="${type}"]`).addClass('selected');
+                
+                // Prevent infinite loop - if already set, don't update
+                if (this.selectedType === type) {
+                    return;
+                }
+                
+                // Mark as internal update to prevent watcher from triggering
+                this.isInternalUpdate = true;
+                this.selectedType = type;
+                
+                // Update localStorage and visual
+                localStorage.setItem('selectedType', type);
+                $('.type-box').removeClass('selected');
+                $(`.type-box[data-type="${type}"]`).addClass('selected');
+                
+                // Filter dropdowns directly (don't call window.selectItemType to avoid loop)
+                setTimeout(() => {
+                    if (typeof filterDropdownsByType === 'function') {
+                        filterDropdownsByType(type);
+                    }
+                }, 100);
+                
+                // Load items
+                if (typeof loadItemsByType === 'function') {
+                    try {
+                        loadItemsByType(type);
+                    } catch (e) {
+                        console.error('Error loading items:', e);
+                    }
                 }
             }
         }));
@@ -3112,6 +3145,13 @@
     window.selectItemType = function(type) {
         console.log('🎯 selectItemType called with:', type);
         
+        // Prevent if type is already selected (prevent automatic changes)
+        const currentType = localStorage.getItem('selectedType');
+        if (currentType === type) {
+            console.log('⚠️ Type already selected, skipping update');
+            return;
+        }
+        
         // Update visual selection immediately
         $('.type-box').removeClass('selected');
         $(`.type-box[data-type="${type}"]`).addClass('selected');
@@ -3119,7 +3159,7 @@
         // Update localStorage
         localStorage.setItem('selectedType', type);
         
-        // Try to update Alpine.js component if available
+        // Try to update Alpine.js component if available (but prevent loop)
         setTimeout(() => {
             try {
                 if (typeof Alpine !== 'undefined' && Alpine.$data) {
@@ -3127,9 +3167,13 @@
                     if (alpineElement) {
                         const alpineComponent = Alpine.$data(alpineElement);
                         if (alpineComponent) {
-                            alpineComponent.selectedType = type;
-                            if (typeof alpineComponent.selectType === 'function') {
-                                alpineComponent.selectType(type);
+                            // Only update if different (prevent loop)
+                            if (alpineComponent.selectedType !== type) {
+                                // Mark as internal update to prevent watcher
+                                if (alpineComponent.isInternalUpdate !== undefined) {
+                                    alpineComponent.isInternalUpdate = true;
+                                }
+                                alpineComponent.selectedType = type;
                             }
                         }
                     }
@@ -3147,7 +3191,7 @@
                 } catch (e) {
                     console.error('Error filtering dropdowns:', e);
                 }
-            }, 300);
+            }, 100);
         }
         
         // Load items by type
@@ -3180,6 +3224,13 @@
             
             console.log('🖱️ Type box clicked:', type);
             
+            // Prevent if type is already selected (prevent automatic changes)
+            const currentType = localStorage.getItem('selectedType');
+            if (currentType === type) {
+                console.log('⚠️ Type already selected, skipping update');
+                return;
+            }
+            
             // Update visual selection immediately
             $('.type-box').removeClass('selected');
             $box.addClass('selected');
@@ -3196,8 +3247,12 @@
                         if (alpineElement && window.Alpine) {
                             const alpineComponent = Alpine.$data(alpineElement);
                             if (alpineComponent) {
-                                alpineComponent.selectedType = type;
-                                console.log('✅ Updated Alpine.js component');
+                                // Only update if different (prevent loop)
+                                if (alpineComponent.selectedType !== type) {
+                                    alpineComponent.isInternalUpdate = true;
+                                    alpineComponent.selectedType = type;
+                                    console.log('✅ Updated Alpine.js component');
+                                }
                             }
                         }
                     } catch (alpineError) {
