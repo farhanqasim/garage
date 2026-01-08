@@ -2941,68 +2941,114 @@
 </script>
 <script>
 
+    // Global function for type selection (works from inline onclick)
+    window.selectItemType = function(type) {
+        console.log('🎯 selectItemType called with:', type);
+        
+        // Update visual selection immediately
+        $('.type-box').removeClass('selected');
+        $(`.type-box[data-type="${type}"]`).addClass('selected');
+        
+        // Update localStorage
+        localStorage.setItem('selectedType', type);
+        
+        // Try to update Alpine.js component if available
+        setTimeout(() => {
+            try {
+                if (typeof Alpine !== 'undefined' && Alpine.$data) {
+                    const alpineElement = document.querySelector('[x-data*="productForm"]');
+                    if (alpineElement) {
+                        const alpineComponent = Alpine.$data(alpineElement);
+                        if (alpineComponent) {
+                            alpineComponent.selectedType = type;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Alpine.js update failed:', e);
+            }
+        }, 50);
+        
+        // Filter dropdowns
+        if (typeof filterDropdownsByType === 'function') {
+            setTimeout(() => {
+                try {
+                    filterDropdownsByType(type);
+                } catch (e) {
+                    console.error('Error filtering dropdowns:', e);
+                }
+            }, 300);
+        }
+        
+        // Load items by type
+        if (typeof loadItemsByType === 'function') {
+            try {
+                loadItemsByType(type);
+            } catch (e) {
+                console.error('Error loading items:', e);
+            }
+        }
+    };
+
+    // Initialize Alpine.js component
     document.addEventListener('alpine:init', () => {
+        console.log('🚀 Alpine.js initialized, setting up productForm');
+        
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
-                // Filter dropdowns on initial load if type is already selected
+                console.log('📦 productForm init, selectedType:', this.selectedType);
+                
+                // Update visual selection based on stored type
                 const initialType = this.selectedType;
                 if (initialType) {
+                    $('.type-box').removeClass('selected');
+                    $(`.type-box[data-type="${initialType}"]`).addClass('selected');
+                    
                     // Wait for Select2 to initialize first
                     setTimeout(() => {
-                        filterDropdownsByType(initialType);
+                        if (typeof filterDropdownsByType === 'function') {
+                            filterDropdownsByType(initialType);
+                        }
                     }, 1500);
                 }
                 
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType) => {
+                    console.log('👀 selectedType changed to:', newType);
                     // Filter all dropdowns based on selected type with delay
                     setTimeout(() => {
-                        filterDropdownsByType(newType);
+                        if (typeof filterDropdownsByType === 'function') {
+                            filterDropdownsByType(newType);
+                        }
                     }, 300);
                 });
             },
             selectType(type) {
-                try {
-                    console.log('🎯 Type selected:', type);
-                this.selectedType = type;
-                localStorage.setItem('selectedType', type);
-                    
-                    // Update visual selection immediately
-                    $('.type-box').removeClass('selected');
-                    $(`.type-box[data-type="${type}"]`).addClass('selected');
-                    
-                    // Filter dropdowns by selected type with delay to ensure Select2 is ready
-                    if (typeof filterDropdownsByType === 'function') {
-                        setTimeout(() => {
-                            try {
-                                filterDropdownsByType(type);
-                            } catch (e) {
-                                console.error('Error filtering dropdowns:', e);
-                            }
-                        }, 300);
-                    } else {
-                        console.warn('filterDropdownsByType function not found');
-                    }
-                    
-                // Load items by type when type changes
-                if (type) {
-                        if (typeof loadItemsByType === 'function') {
-                    loadItemsByType(type);
-                        }
+                console.log('🎯 Alpine selectType called with:', type);
+                // Call the global function instead
+                if (typeof window.selectItemType === 'function') {
+                    window.selectItemType(type);
                 } else {
-                        if (typeof loadAllItems === 'function') {
-                    loadAllItems();
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error in selectType:', error);
-                    // Still update the type even if filtering fails
+                    // Fallback if global function not available
                     this.selectedType = type;
                     localStorage.setItem('selectedType', type);
+                    $('.type-box').removeClass('selected');
+                    $(`.type-box[data-type="${type}"]`).addClass('selected');
                 }
             }
         }));
+        
+        console.log('✅ productForm component registered');
+    });
+    
+    // Fallback: If Alpine.js doesn't load, still make type selection work
+    $(document).ready(function() {
+        setTimeout(() => {
+            if (typeof Alpine === 'undefined') {
+                console.warn('⚠️ Alpine.js not loaded, using jQuery fallback only');
+            }
+        }, 2000);
     });
 
     // Function to load items by type (with limit option)
