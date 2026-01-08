@@ -3675,21 +3675,19 @@
             }, 50);
         });
         
-        // Method 3: Capture when "No results found" message appears and add "ADD NEW" button
+        // Method 3: Capture when "No results found" message appears (for search term capture only)
         $(document).on('select2:results:message', '.searchable-select', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id') || $select.attr('name') || 'default';
             const message = (e.params && e.params.message) ? e.params.message.toLowerCase() : '';
             
             if (message.includes('no results') || message.includes('not found')) {
-                // Immediate capture
+                // Capture search term for universal modal
                 const $openSelect2 = $('.select2-container--open');
-                let searchVal = '';
-                
                 if ($openSelect2.length) {
                     const $searchInput = $openSelect2.find('.select2-search__field');
                     if ($searchInput.length && $searchInput.val()) {
-                        searchVal = $searchInput.val().trim();
+                        const searchVal = $searchInput.val().trim();
                         activeSelectSearch = {
                             select: $select,
                             searchTerm: searchVal,
@@ -3704,7 +3702,7 @@
                     const $container = $select.next('.select2-container');
                     const $searchInput = $container.find('.select2-search__field');
                     if ($searchInput.length && $searchInput.val()) {
-                        searchVal = $searchInput.val().trim();
+                        const searchVal = $searchInput.val().trim();
                         activeSelectSearch = {
                             select: $select,
                             searchTerm: searchVal,
@@ -3712,190 +3710,8 @@
                         };
                         lastSearchTerm[selectId] = searchVal;
                     }
-                    
-                    // Add "ADD NEW" button below "No results found" message
-                    if (searchVal) {
-                        addNewButtonToSelect2($select, searchVal);
-                    }
-                }, 100);
-            } else {
-                // Remove button if results are found
-                removeAddNewButtonFromSelect2($select);
+                }, 50);
             }
-        });
-        
-        // Also listen for when Select2 results are updated
-        $(document).on('select2:open select2:select select2:unselect', '.searchable-select', function() {
-            const $select = $(this);
-            const $openSelect2 = $('.select2-container--open');
-            
-            setTimeout(() => {
-                const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                if ($noResultsMsg.length && $noResultsMsg.is(':visible')) {
-                    const msgText = $noResultsMsg.text().toUpperCase();
-                    if (msgText.includes('NO RESULTS') || msgText.includes('NOT FOUND')) {
-                        const $searchInput = $openSelect2.find('.select2-search__field');
-                        if ($searchInput.length && $searchInput.val()) {
-                            const searchVal = $searchInput.val().trim();
-                            if (searchVal) {
-                                addNewButtonToSelect2($select, searchVal);
-                            }
-                        }
-                    } else {
-                        removeAddNewButtonFromSelect2($select);
-                    }
-                } else {
-                    removeAddNewButtonFromSelect2($select);
-                }
-            }, 150);
-        });
-        
-        // Function to add "ADD NEW" button to Select2 dropdown
-        function addNewButtonToSelect2($select, searchTerm) {
-            const $container = $select.next('.select2-container');
-            if (!$container.length) return;
-            
-            const $dropdown = $container.find('.select2-dropdown');
-            const $results = $dropdown.find('.select2-results__options');
-            
-            if (!$results.length) return;
-            
-            // Remove existing button if any
-            $results.find('.select2-add-new-button').remove();
-            
-            // Get the button configuration from the select
-            const $addButton = $select.closest('.input-group').find('.open-universal-modal[data-mode="add"]').first();
-            if (!$addButton.length) return;
-            
-            const title = $addButton.data('title') || 'Add New';
-            const route = $addButton.data('route');
-            const targetSelect = $addButton.data('target-select') || $select.attr('class');
-            
-            // Get selected type from Alpine.js
-            let selectedType = '';
-            try {
-                const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
-                if (alpineComponent && alpineComponent.selectedType) {
-                    selectedType = alpineComponent.selectedType;
-                } else {
-                    const typeInput = document.querySelector('input[name="type"]');
-                    if (typeInput) {
-                        selectedType = typeInput.value;
-                    }
-                }
-            } catch (e) {
-                console.log('Could not get selectedType:', e);
-            }
-            
-            // Get type name for display
-            const typeNames = {
-                'parts': 'parts',
-                'filters': 'filters',
-                'breakpad': 'break pad',
-                'oil': 'oil',
-                'battery': 'battery',
-                'scrap': 'scrap',
-                'services': 'services'
-            };
-            const typeDisplayName = typeNames[selectedType] || selectedType || 'selected type';
-            
-            // Create button HTML matching the image style
-            const buttonHtml = `
-                <li class="select2-add-new-button" style="padding: 15px; border-top: 1px solid #e9ecef; background: #fff; list-style: none;">
-                    <div style="text-align: center;">
-                        <div style="color: #6c757d; font-size: 13px; margin-bottom: 12px; font-weight: 500;">
-                            No matches in ${typeDisplayName}
-                        </div>
-                        <button type="button" 
-                                class="btn btn-primary select2-add-new-btn" 
-                                style="background: #ff6b35; border: none; border-radius: 8px; padding: 10px 24px; font-weight: 600; width: 100%; color: white; font-size: 14px; box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);"
-                                data-search-term="${searchTerm}"
-                                data-title="${title}"
-                                data-route="${route}"
-                                data-target-select="${targetSelect}"
-                                data-type="${selectedType}">
-                            ADD NEW "${searchTerm.toUpperCase()}"
-                        </button>
-                    </div>
-                </li>
-            `;
-            
-            // Append button to results
-            $results.append(buttonHtml);
-            console.log('✅ Added "ADD NEW" button for search term:', searchTerm);
-        }
-        
-        // Function to remove "ADD NEW" button from Select2 dropdown
-        function removeAddNewButtonFromSelect2($select) {
-            const $container = $select.next('.select2-container');
-            if ($container.length) {
-                $container.find('.select2-add-new-button').remove();
-            }
-        }
-        
-        // Handle click on "ADD NEW" button in Select2 dropdown
-        $(document).on('click', '.select2-add-new-btn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const searchTerm = $(this).data('search-term');
-            const title = $(this).data('title');
-            const route = $(this).data('route');
-            const targetSelect = $(this).data('target-select');
-            const selectedType = $(this).data('type');
-            
-            // Close Select2 dropdown
-            const $select = $(this).closest('.select2-container').prev('select.searchable-select');
-            if ($select.length && $select.hasClass('select2-hidden-accessible')) {
-                $select.select2('close');
-            }
-            
-            // Open universal modal with pre-filled name
-            setTimeout(() => {
-                // Set type in universal form
-                if (selectedType) {
-                    $('#universal-type').val(selectedType);
-                }
-                
-                // Set title and route
-                $('#universal-modal-title').text(title);
-                $('#universal-modal-subtitle').text('SMART ASSET REGISTRY');
-                $('#universal-form').attr('action', route).attr('method', 'POST');
-                
-                // Pre-fill name with search term
-                $('#universal-name').val(searchTerm);
-                
-                // Show type selection if in add mode
-                $('#universal-type-selection').show();
-                
-                // Check the selected type checkbox
-                if (selectedType) {
-                    $('.universal-type-checkbox').prop('checked', false).closest('label').css({
-                        'background': 'white',
-                        'border-color': '#e9ecef'
-                    });
-                    $(`.universal-type-checkbox[value="${selectedType}"]`).prop('checked', true);
-                    $(`.universal-type-checkbox[value="${selectedType}"]`).closest('label').css({
-                        'background': '#fff4f0',
-                        'border-color': '#ff6b35'
-                    });
-                }
-                
-                // Set target select
-                currentTargetSelect = targetSelect;
-                
-                // Show delete button as hidden
-                $('#universal-delete-btn').addClass('d-none');
-                $('#universal-save-btn').html('<i class="ti ti-check me-2"></i><span>SAVE ENTRY</span>');
-                
-                // Open modal
-                $('#universal-add-modal').modal('show');
-                
-                // Focus on name input
-                setTimeout(() => {
-                    $('#universal-name').focus();
-                }, 300);
-            }, 100);
         });
         
         // Method 3b: Also listen for when results are loaded (to catch "No results" even if event doesn't fire)
@@ -4052,9 +3868,7 @@
                                         const $searchInput = $select2Container.find('.select2-search__field');
                                         if ($searchInput.length && $searchInput.val()) {
                                             const searchVal = $searchInput.val().trim();
-                                            setTimeout(() => {
-                                                addNewButtonToSelect2($select, searchVal);
-                                            }, 100);
+                                            // ADD NEW button functionality removed
                                         }
                                     }
                                 }
