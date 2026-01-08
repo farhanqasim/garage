@@ -180,50 +180,64 @@
                     <!-- 4 Clickable Type Boxes -->
                     <div class="row mb-5 g-3">
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
-                                @click="selectType('parts')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'parts' }"
+                                 data-type="parts"
+                                 @click="selectType('parts')">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
-                                @click="selectType('filters')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'filters' }"
+                                 data-type="filters"
+                                 @click="selectType('filters')">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
-                                @click="selectType('breakpad')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'breakpad' }"
+                                 data-type="breakpad"
+                                 @click="selectType('breakpad')">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
-                                @click="selectType('oil')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'oil' }"
+                                 data-type="oil"
+                                 @click="selectType('oil')">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
-                                @click="selectType('battery')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'battery' }"
+                                 data-type="battery"
+                                 @click="selectType('battery')">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
-                                @click="selectType('scrap')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'scrap' }"
+                                 data-type="scrap"
+                                 @click="selectType('scrap')">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
-                                @click="selectType('services')">
+                            <div class="type-box text-center p-4" 
+                                 :class="{ 'selected': selectedType === 'services' }"
+                                 data-type="services"
+                                 @click="selectType('services')">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
                             </div>
@@ -2943,20 +2957,43 @@
                 });
             },
             selectType(type) {
-                this.selectedType = type;
-                localStorage.setItem('selectedType', type);
-                console.log('🎯 Type selected:', type);
-                
-                // Filter dropdowns by selected type with delay to ensure Select2 is ready
-                setTimeout(() => {
-                    filterDropdownsByType(type);
-                }, 300);
-                
-                // Load items by type when type changes
-                if (type) {
-                    loadItemsByType(type);
-                } else {
-                    loadAllItems();
+                try {
+                    console.log('🎯 Type selected:', type);
+                    this.selectedType = type;
+                    localStorage.setItem('selectedType', type);
+                    
+                    // Update visual selection immediately
+                    $('.type-box').removeClass('selected');
+                    $(`.type-box[data-type="${type}"]`).addClass('selected');
+                    
+                    // Filter dropdowns by selected type with delay to ensure Select2 is ready
+                    if (typeof filterDropdownsByType === 'function') {
+                        setTimeout(() => {
+                            try {
+                                filterDropdownsByType(type);
+                            } catch (e) {
+                                console.error('Error filtering dropdowns:', e);
+                            }
+                        }, 300);
+                    } else {
+                        console.warn('filterDropdownsByType function not found');
+                    }
+                    
+                    // Load items by type when type changes
+                    if (type) {
+                        if (typeof loadItemsByType === 'function') {
+                            loadItemsByType(type);
+                        }
+                    } else {
+                        if (typeof loadAllItems === 'function') {
+                            loadAllItems();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in selectType:', error);
+                    // Still update the type even if filtering fails
+                    this.selectedType = type;
+                    localStorage.setItem('selectedType', type);
                 }
             }
         }));
@@ -3024,6 +3061,41 @@
             loadItemsByType(savedType, true);
         }
     }
+
+    // Fallback jQuery click handler for type boxes (in case Alpine.js fails)
+    $(document).ready(function() {
+        $(document).on('click', '.type-box', function(e) {
+            const type = $(this).data('type') || $(this).attr('data-type');
+            if (type) {
+                // Try to call Alpine.js method if available
+                try {
+                    const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                    if (alpineComponent && typeof alpineComponent.selectType === 'function') {
+                        alpineComponent.selectType(type);
+                    } else {
+                        // Fallback: manually update
+                        console.log('Alpine.js not available, using fallback');
+                        $('.type-box').removeClass('selected');
+                        $(this).addClass('selected');
+                        localStorage.setItem('selectedType', type);
+                        
+                        // Try to filter dropdowns
+                        if (typeof filterDropdownsByType === 'function') {
+                            setTimeout(() => {
+                                filterDropdownsByType(type);
+                            }, 300);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in type selection:', error);
+                    // Still update visual
+                    $('.type-box').removeClass('selected');
+                    $(this).addClass('selected');
+                    localStorage.setItem('selectedType', type);
+                }
+            }
+        });
+    });
 
     // Function to load all items (initial load)
     function loadAllItems() {
