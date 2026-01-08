@@ -1851,35 +1851,77 @@
 </div>
 </div>
 <!-- Universal Modal -->
-<div class="modal fade" id="universal-add-modal">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 id="universal-modal-title">Add Item</h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 20px 25px; border-bottom: none;">
+                <div class="d-flex align-items-center w-100">
+                    <div class="me-3" style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ti ti-plus" style="font-size: 20px;"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h4 class="mb-0 fw-bold" id="universal-modal-title" style="color: white; font-size: 20px;">Add Item</h4>
+                        <small class="text-white-50" id="universal-modal-subtitle" style="font-size: 12px;">Fill in the details below</small>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8; font-size: 18px;"></button>
+                </div>
             </div>
             <form id="universal-form" method="POST" enctype="multipart/form-data">
                 @csrf
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Name:</label>
-                        <input type="text" class="form-control" name="name" id="universal-name" required>
+                <div class="modal-body" style="padding: 30px;">
+                    <div class="form-group mb-4">
+                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
+                            <i class="ti ti-tag me-2 text-primary"></i>Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               name="name" 
+                               id="universal-name" 
+                               required
+                               placeholder="Enter name"
+                               style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px; font-size: 15px; transition: all 0.3s;"
+                               onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 0.2rem rgba(102, 126, 234, 0.25)'"
+                               onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none'">
+                        <div class="invalid-feedback" id="universal-name-error"></div>
                     </div>
-                    <div class="form-group mt-3" id="image-field" style="display: none;">
-                        <label>Image:</label>
-                        <input type="file" class="form-control" name="image" id="universal-image" accept="image/*">
-                        <div class="mb-2">
-                            <img id="universal-image-preview" src="" alt="Preview"
-                                style="max-width: 100px; display:none; border:1px solid #ddd; padding:4px;">
+                    <div class="form-group mt-4" id="image-field" style="display: none;">
+                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
+                            <i class="ti ti-photo me-2 text-primary"></i>Image
+                        </label>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="flex-grow-1">
+                                <input type="file" 
+                                       class="form-control form-control-lg" 
+                                       name="image" 
+                                       id="universal-image" 
+                                       accept="image/*"
+                                       style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px; font-size: 14px;">
+                                <small class="text-muted d-block mt-2">
+                                    <i class="ti ti-info-circle me-1"></i>Supported formats: JPG, PNG, GIF (Max 2MB)
+                                </small>
+                            </div>
+                            <div class="text-center">
+                                <img id="universal-image-preview" 
+                                     src="" 
+                                     alt="Preview"
+                                     style="width: 120px; height: 120px; object-fit: cover; border-radius: 10px; border: 2px solid #e9ecef; display:none; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <div id="universal-image-placeholder" style="width: 120px; height: 120px; background: #f8f9fa; border-radius: 10px; border: 2px dashed #dee2e6; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+                                    <i class="ti ti-photo" style="font-size: 32px;"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer ">
-                    <button type="button" class="btn btn-secondary d-none" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-danger d-none me-3" id="universal-delete-btn">
-                        <i class="fa-solid fa-trash"></i>
+                <div class="modal-footer" style="padding: 20px 30px; background: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
+                    <button type="button" class="btn btn-light btn-lg" data-bs-dismiss="modal" style="border-radius: 8px; padding: 10px 20px; font-weight: 500;">
+                        <i class="ti ti-x me-2"></i>Cancel
                     </button>
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-danger btn-lg d-none me-2" id="universal-delete-btn" style="border-radius: 8px; padding: 10px 20px; font-weight: 500;">
+                        <i class="ti ti-trash me-2"></i>Delete
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg" id="universal-save-btn" style="border-radius: 8px; padding: 10px 25px; font-weight: 500; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                        <i class="ti ti-check me-2"></i><span>Save</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -3471,9 +3513,12 @@
             
             // Reset form
             $('#universal-modal-title').text(title);
-            $('#universal-name').val('');
+            $('#universal-modal-subtitle').text(mode === 'add' ? 'Fill in the details below' : 'Update the details below');
+            $('#universal-name').val('').removeClass('is-invalid');
+            $('#universal-name-error').text('');
             $('#universal-image').val('');
             $('#universal-image-preview').hide().attr('src', '');
+            $('#universal-image-placeholder').show();
             currentEditId = null;
             // Image field toggle
             if (hasImage) {
@@ -3574,10 +3619,15 @@
                         $('#universal-image-preview')
                             .attr('src', '/' + res.image)
                             .show();
+                        $('#universal-image-placeholder').hide();
                     } else {
                         $('#universal-image-preview').hide();
+                        $('#universal-image-placeholder').show();
                     }
                     $('#universal-add-modal').modal('show');
+                    setTimeout(function() {
+                        $('#universal-name').focus();
+                    }, 300);
                 });
             }
         });
@@ -3645,7 +3695,15 @@
                 error: function(xhr) {
                     console.error('AJAX error', xhr);
                     const response = xhr.responseJSON;
-                    if (response && response.message) {
+                    if (response && response.errors) {
+                        if (response.errors.name) {
+                            $('#universal-name').addClass('is-invalid');
+                            $('#universal-name-error').text(response.errors.name[0]);
+                        }
+                        if (response.message) {
+                            toastr.error(response.message);
+                        }
+                    } else if (response && response.message) {
                         toastr.error(response.message);
                     } else {
                         toastr.error('An error occurred. Please try again.');
