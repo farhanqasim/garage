@@ -3631,11 +3631,10 @@
             selectId: null
         };
         
-        // Method 1: Direct capture from Select2 search input (most reliable)
+        // Simple search term capture for universal modal
         $(document).on('input', '.select2-search__field', function(e) {
             const searchValue = $(this).val().trim();
             if (searchValue) {
-                // Find the associated select
                 const $select2Container = $(this).closest('.select2-container');
                 const $select = $select2Container.prev('select.searchable-select');
                 
@@ -3651,21 +3650,18 @@
             }
         });
         
-        // Method 2: Capture when Select2 opens (store reference)
+        // Capture when Select2 opens
         $(document).on('select2:open', '.searchable-select', function() {
             const $select = $(this);
             const selectId = $select.attr('id') || $select.attr('name') || 'default';
             
-            // Wait for search input to be available
             setTimeout(function() {
                 const $container = $select.next('.select2-container');
                 const $searchInput = $container.find('.select2-search__field');
                 if ($searchInput.length) {
-                    // Store reference
                     activeSelectSearch.select = $select;
                     activeSelectSearch.selectId = selectId;
                     
-                    // Capture current value
                     const currentVal = $searchInput.val().trim();
                     if (currentVal) {
                         activeSelectSearch.searchTerm = currentVal;
@@ -3675,92 +3671,8 @@
             }, 50);
         });
         
-        // Method 3: Capture when "No results found" message appears (for search term capture only)
-        $(document).on('select2:results:message', '.searchable-select', function(e) {
-            const $select = $(this);
-            const selectId = $select.attr('id') || $select.attr('name') || 'default';
-            const message = (e.params && e.params.message) ? e.params.message.toLowerCase() : '';
-            
-            if (message.includes('no results') || message.includes('not found')) {
-                // Capture search term for universal modal
-                const $openSelect2 = $('.select2-container--open');
-                if ($openSelect2.length) {
-                    const $searchInput = $openSelect2.find('.select2-search__field');
-                    if ($searchInput.length && $searchInput.val()) {
-                        const searchVal = $searchInput.val().trim();
-                        activeSelectSearch = {
-                            select: $select,
-                            searchTerm: searchVal,
-                            selectId: selectId
-                        };
-                        lastSearchTerm[selectId] = searchVal;
-                    }
-                }
-                
-                // Also try after a short delay
-                setTimeout(function() {
-                    const $container = $select.next('.select2-container');
-                    const $searchInput = $container.find('.select2-search__field');
-                    if ($searchInput.length && $searchInput.val()) {
-                        const searchVal = $searchInput.val().trim();
-                        activeSelectSearch = {
-                            select: $select,
-                            searchTerm: searchVal,
-                            selectId: selectId
-                        };
-                        lastSearchTerm[selectId] = searchVal;
-                    }
-                }, 50);
-            }
-        });
-        
-        // Method 3b: Also listen for when results are loaded (to catch "No results" even if event doesn't fire)
-        $(document).on('select2:select select2:unselect', '.searchable-select', function() {
-            // This fires after results are shown, check for "No results found"
-            setTimeout(function() {
-                const $select = $(this);
-                const $openSelect2 = $('.select2-container--open');
-                if ($openSelect2.length) {
-                    const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                    if ($noResultsMsg.length && $noResultsMsg.is(':visible')) {
-                        const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                        const $searchInput = $openSelect2.find('.select2-search__field');
-                        if ($searchInput.length && $searchInput.val()) {
-                            const searchVal = $searchInput.val().trim();
-                            activeSelectSearch = {
-                                select: $select,
-                                searchTerm: searchVal,
-                                selectId: selectId
-                            };
-                            lastSearchTerm[selectId] = searchVal;
-                        }
-                    }
-                }
-            }.bind(this), 100);
-        });
-        
-        // Method 4: Try to get from Select2 internal data (if available)
-        function getSearchTermFromSelect2($select) {
-            try {
-                const select2Data = $select.data('select2');
-                if (select2Data && select2Data.dropdown) {
-                    const $dropdown = select2Data.dropdown.$dropdown || select2Data.dropdown.$results;
-                    if ($dropdown && $dropdown.length) {
-                        const $searchInput = $dropdown.find('.select2-search__field');
-                        if ($searchInput.length && $searchInput.val()) {
-                            return $searchInput.val().trim();
-                        }
-                    }
-                }
-            } catch(e) {
-                // Select2 API not available or different version
-            }
-            return null;
-        }
-        
         // Helper function: Get search term when "No results found" is visible
         function getSearchTermFromNoResults($select) {
-            // Check open Select2 dropdown
             const $openSelect2 = $('.select2-container--open');
             if ($openSelect2.length) {
                 const $noResultsMsg = $openSelect2.find('.select2-results__message');
@@ -3774,119 +3686,7 @@
                     }
                 }
             }
-            
-            // Check Select2 container (even if dropdown is closed)
-            const $container = $select.next('.select2-container');
-            if ($container.length) {
-                const $noResultsMsg = $container.find('.select2-results__message');
-                if ($noResultsMsg.length) {
-                    const msgText = $noResultsMsg.text().toUpperCase();
-                    if (msgText.includes('NO RESULTS') || msgText.includes('NOT FOUND')) {
-                        const $searchInput = $container.find('.select2-search__field');
-                        if ($searchInput.length && $searchInput.val()) {
-                            return $searchInput.val().trim();
-                        }
-                    }
-                }
-            }
-            
             return null;
-        }
-        
-        // Method 5: MutationObserver to watch for "No results found" messages and add button
-        if (typeof MutationObserver !== 'undefined') {
-            // Watch for changes in Select2 dropdowns
-            $('.searchable-select').each(function() {
-                const $select = $(this);
-                const $container = $select.next('.select2-container');
-                
-                if ($container.length) {
-                    const $dropdown = $container.find('.select2-dropdown, .select2-results');
-                    
-                    if ($dropdown.length) {
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.addedNodes.length) {
-                        $(mutation.addedNodes).each(function() {
-                            const $node = $(this);
-                            // Check if this is a "No results found" message
-                            const text = $node.text().toLowerCase();
-                            if (text.includes('no results') || text.includes('not found')) {
-                                // Find the associated select
-                                const $select2Container = $node.closest('.select2-container, .select2-dropdown');
-                                if ($select2Container.length) {
-                                    const $select = $select2Container.prev('select.searchable-select');
-                                    if ($select.length) {
-                                        const $searchInput = $select2Container.find('.select2-search__field');
-                                        if ($searchInput.length && $searchInput.val()) {
-                                            const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                                            const searchVal = $searchInput.val().trim();
-                                            activeSelectSearch = {
-                                                select: $select,
-                                                searchTerm: searchVal,
-                                                selectId: selectId
-                                            };
-                                            lastSearchTerm[selectId] = searchVal;
-                                                        
-                                                        // Add "ADD NEW" button
-                                                        setTimeout(() => {
-                                                            addNewButtonToSelect2($select, searchVal);
-                                                        }, 100);
-                                        }
-                                    }
-                                }
-                                        });
-                            }
-                        });
-                    }
-                            
-                            // Observe the dropdown for changes
-                            observer.observe($dropdown[0], {
-                                childList: true,
-                                subtree: true,
-                                characterData: true
-                            });
-                        }
-                    }
-                });
-            }
-            
-            // Also observe document body for dynamically created Select2 dropdowns
-            const globalObserver = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.addedNodes.length) {
-                        $(mutation.addedNodes).each(function() {
-                            const $node = $(this);
-                            // Check if this is a "No results found" message
-                            const text = $node.text().toLowerCase();
-                            if (text.includes('no results') || text.includes('not found')) {
-                                // Find the associated select
-                                const $select2Container = $node.closest('.select2-container, .select2-dropdown');
-                                if ($select2Container.length) {
-                                    const $select = $select2Container.prev('select.searchable-select');
-                                    if ($select.length) {
-                                        const $searchInput = $select2Container.find('.select2-search__field');
-                                        if ($searchInput.length && $searchInput.val()) {
-                                            const searchVal = $searchInput.val().trim();
-                                            // ADD NEW button functionality removed
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                });
-            });
-            
-            // Start observing when DOM is ready
-            $(document).ready(function() {
-                // Observe the document body for changes
-                globalObserver.observe(document.body, {
-                    childList: true,
-                    subtree: true,
-                    characterData: true
-                });
-            });
         }
         
         // =========================
@@ -4024,41 +3824,33 @@
                 if ($select && $select.length) {
                     const selectId = $select.attr('id') || $select.attr('name') || 'default';
                     
-                    // PRIORITY 1: Check if "No results found" is visible and get search term directly
-                    const noResultsTerm = getSearchTermFromNoResults($select);
-                    if (noResultsTerm) {
-                        searchTerm = noResultsTerm;
-                    }
-                    
-                    // PRIORITY 2: Get from currently open Select2 dropdown (even if no "No results" message)
-                    if (!searchTerm) {
-                        const $openSelect2 = $('.select2-container--open');
-                        if ($openSelect2.length) {
-                            const $searchInput = $openSelect2.find('.select2-search__field');
-                            if ($searchInput.length && $searchInput.val()) {
-                                searchTerm = $searchInput.val().trim();
-                            }
+                    // Get search term from open Select2 dropdown
+                    const $openSelect2 = $('.select2-container--open');
+                    if ($openSelect2.length) {
+                        const $searchInput = $openSelect2.find('.select2-search__field');
+                        if ($searchInput.length && $searchInput.val()) {
+                            searchTerm = $searchInput.val().trim();
                         }
                     }
                     
-                    // PRIORITY 3: Get from activeSelectSearch (most recent, especially if hasNoResults flag)
+                    // Fallback: Check if "No results found" is visible
+                    if (!searchTerm) {
+                        const noResultsTerm = getSearchTermFromNoResults($select);
+                        if (noResultsTerm) {
+                            searchTerm = noResultsTerm;
+                        }
+                    }
+                    
+                    // Fallback: Get from activeSelectSearch
                     if (!searchTerm) {
                         if (activeSelectSearch.select && activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
                             searchTerm = activeSelectSearch.searchTerm;
                         }
                     }
                     
-                    // PRIORITY 4: Get from stored search terms
+                    // Fallback: Get from stored search terms
                     if (!searchTerm && lastSearchTerm[selectId]) {
                         searchTerm = lastSearchTerm[selectId].trim();
-                    }
-                    
-                    // PRIORITY 5: Try Select2 internal API
-                    if (!searchTerm) {
-                        const internalTerm = getSearchTermFromSelect2($select);
-                        if (internalTerm) {
-                            searchTerm = internalTerm;
-                        }
                     }
                 }
             }
