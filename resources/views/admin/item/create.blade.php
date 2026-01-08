@@ -260,7 +260,8 @@
                                     name="part_number_id" id="part_number_id">
                                     <option value="">Select Part Number</option>
                                     @foreach ($partnumbers as $partnumber)
-                                    <option value="{{ $partnumber->id??'' }}">
+                                    <option value="{{ $partnumber->id??'' }}" 
+                                        data-type="{{ $partnumber->type ?? '' }}">
                                         {{ $partnumber->name ?? '-' }}
                                     </option>
                                     @endforeach
@@ -299,8 +300,9 @@
                                             name="p_id" id="product_name_item">
                                             <option value="">Select Product Name</option>
                                             @foreach ($product as $item)
-                                            <option value="{{ $item->id }}" {{ old('p_id')==$item->id ? 'selected' : ''
-                                                }}>
+                                            <option value="{{ $item->id }}" 
+                                                data-type="{{ $item->type ?? '' }}"
+                                                {{ old('p_id')==$item->id ? 'selected' : '' }}>
                                                 {{ $item->name }}
                                             </option>
                                             @endforeach
@@ -329,8 +331,9 @@
                                             name="category_id" id="category">
                                             <option value="">Select Category</option>
                                             @foreach ($Categories as $category)
-                                            <option value="{{ $category->id }}" {{ old('category_id')==$category->id ?
-                                                'selected' : '' }}>
+                                            <option value="{{ $category->id }}" 
+                                                data-type="{{ $category->type ?? '' }}"
+                                                {{ old('category_id')==$category->id ? 'selected' : '' }}>
                                                 {{ $category->name }}
                                             </option>
                                             @endforeach
@@ -405,8 +408,9 @@
                                             name="company_id" id="company_parts">
                                             <option value="">Select Company</option>
                                             @foreach ($Companies as $company)
-                                            <option value="{{ $company->id }}" {{ old('company_id')==$company->id ?
-                                                'selected' : '' }}>
+                                            <option value="{{ $company->id }}" 
+                                                data-type="{{ $company->type ?? '' }}"
+                                                {{ old('company_id')==$company->id ? 'selected' : '' }}>
                                                 {{ $company->name }}
                                             </option>
                                             @endforeach
@@ -440,8 +444,9 @@
                                             name="technology" id="technology_select">
                                             <option value="">Select</option>
                                             @foreach ($technologies as $tech)
-                                            <option value="{{ $tech->id }}" {{ old('technology')==$tech->id ?
-                                                'selected' : '' }}>
+                                            <option value="{{ $tech->id }}" 
+                                                data-type="{{ $tech->type ?? '' }}"
+                                                {{ old('technology')==$tech->id ? 'selected' : '' }}>
                                                 {{ $tech->name }}
                                             </option>
                                             @endforeach
@@ -483,8 +488,9 @@
                                             name="quality_id" id="quality">
                                             <option value="">Select Quality</option>
                                             @foreach ($qualities as $item)
-                                            <option value="{{ $item->id }}" {{ old('quality_id')==$item->id ?
-                                                'selected' : '' }}>
+                                            <option value="{{ $item->id }}" 
+                                                data-type="{{ $item->type ?? '' }}"
+                                                {{ old('quality_id')==$item->id ? 'selected' : '' }}>
                                                 {{ $item->name }}
                                             </option>
                                             @endforeach
@@ -522,8 +528,10 @@
                                             name="quality_id" id="quality_filters">
                                             <option value="">Select Quality</option>
                                             @foreach ($qualities as $item)
-                                            <option value="{{ $item->id }}" {{ old('quality_id')==$item->id ?
-                                                'selected' : '' }}>
+                                            <option value="{{ $item->id }}" 
+                                                data-type="{{ $item->type ?? '' }}"
+                                                x-show="!selectedType || '{{ $item->type ?? '' }}' === selectedType || '{{ $item->type ?? '' }}' === ''"
+                                                {{ old('quality_id')==$item->id ? 'selected' : '' }}>
                                                 {{ $item->name }}
                                             </option>
                                             @endforeach
@@ -2916,9 +2924,18 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+            init() {
+                // Watch for selectedType changes and filter dropdown options
+                this.$watch('selectedType', (newType) => {
+                    // Filter all dropdowns based on selected type
+                    filterDropdownsByType(newType);
+                });
+            },
             selectType(type) {
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
+                // Filter dropdowns by selected type
+                filterDropdownsByType(type);
                 // Load items by type when type changes
                 if (type) {
                     loadItemsByType(type);
@@ -3003,6 +3020,54 @@
     $(document).on('click', '#loadAllItemsBtn', function() {
         loadAllItemsByType();
     });
+
+    // Function to filter dropdowns by selected type
+    function filterDropdownsByType(selectedType) {
+        // List of all dropdowns that need filtering
+        const dropdowns = [
+            '.company-select',
+            '.technology-select',
+            '.quality-select',
+            '.name-select',
+            '.part_number-select',
+            '.category-select'
+        ];
+
+        dropdowns.forEach(selector => {
+            $(selector).each(function() {
+                const $select = $(this);
+                const currentValue = $select.val();
+                
+                // Show/hide options based on type
+                $select.find('option').each(function() {
+                    const $option = $(this);
+                    const optionType = $option.data('type') || '';
+                    
+                    // Show option if:
+                    // 1. It's the empty/default option
+                    // 2. No type is selected (show all)
+                    // 3. Option type matches selected type
+                    // 4. Option has no type (backward compatibility)
+                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
+                        $option.show();
+                    } else {
+                        $option.hide();
+                    }
+                });
+
+                // If current selected value is hidden, clear selection
+                const $selectedOption = $select.find('option:selected');
+                if ($selectedOption.length && $selectedOption.is(':hidden')) {
+                    $select.val('').trigger('change');
+                }
+
+                // Refresh Select2 if initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.trigger('change.select2');
+                }
+            });
+        });
+    }
 
     // Function to update the items table
     function updateItemsTable(items) {
