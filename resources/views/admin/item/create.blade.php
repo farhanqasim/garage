@@ -1853,15 +1853,15 @@
 <!-- Universal Modal -->
 <div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" >
-            <div class="modal-header" >
+        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 20px 25px; border-bottom: none;">
                 <div class="d-flex align-items-center w-100">
-                    <div class="me-3" >
+                    <div class="me-3" style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                         <i class="ti ti-plus" style="font-size: 20px;"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <h4 class="mb-0 fw-bold" id="universal-modal-title" style="color: white; font-size: 20px;">Add Item</h4>
-                        <small class="text-white-50" id="universal-modal-subtitle" style="font-size: 12px;">Fill in the details below</small>
+                        <h4 class="mb-0 fw-bold" id="universal-modal-title" style="color: white; font-size: 20px;">ADD NEW ENTRY</h4>
+                        <small class="text-white-50" id="universal-modal-subtitle" style="font-size: 12px;">SMART ASSET REGISTRY</small>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8; font-size: 18px;"></button>
                 </div>
@@ -1879,11 +1879,60 @@
                                name="name" 
                                id="universal-name" 
                                required
-                               placeholder="Enter name"
+                               placeholder="Search or Enter Name..."
                                style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px; font-size: 15px; transition: all 0.3s;"
-                               onfocus="this.style.borderColor='#667eea'; this.style.boxShadow='0 0 0 0.2rem rgba(102, 126, 234, 0.25)'"
+                               onfocus="this.style.borderColor='#ff6b35'; this.style.boxShadow='0 0 0 0.2rem rgba(255, 107, 53, 0.25)'"
                                onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none'">
                         <div class="invalid-feedback" id="universal-name-error"></div>
+                    </div>
+                    <div class="form-group mb-4" id="universal-type-selection" style="display: none;">
+                        <label class="form-label fw-semibold mb-3" style="color: #495057; font-size: 14px;">
+                            <i class="ti ti-category me-2 text-primary"></i>Select Categories
+                        </label>
+                        <div class="row g-2" style="max-height: 200px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="parts" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">PARTS</span>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="filters" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">FILTERS</span>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="breakpad" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">BREAK PAD</span>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="oil" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">OIL</span>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="battery" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">BATTERY</span>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="scrap" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">SCRAP</span>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-6">
+                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                                    <input type="checkbox" name="type_checkbox[]" value="services" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                    <span style="font-weight: 500; color: #495057;">SERVICES</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group mt-4" id="image-field" style="display: none;">
                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
@@ -1920,8 +1969,8 @@
                     <button type="button" class="btn btn-danger btn-lg d-none me-2" id="universal-delete-btn" style="border-radius: 8px; padding: 10px 20px; font-weight: 500;">
                         <i class="ti ti-trash me-2"></i>Delete
                     </button>
-                    <button type="submit" class="btn btn-primary btn-lg" id="universal-save-btn" style="border-radius: 8px; padding: 10px 25px; font-weight: 500; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
-                        <i class="ti ti-check me-2"></i><span>Save</span>
+                    <button type="submit" class="btn btn-primary btn-lg" id="universal-save-btn" style="border-radius: 8px; padding: 12px 30px; font-weight: 600; background: #ff6b35; border: none; box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4); color: white; font-size: 16px;">
+                        <i class="ti ti-check me-2"></i><span>SAVE ENTRY</span>
                     </button>
                 </div>
             </form>
@@ -3479,10 +3528,28 @@
                 }
             }
             
-            // Set type in universal form
-            if (selectedType && mode === 'add') {
-                $('#universal-type').val(selectedType);
+            // Set type in universal form and show type selection
+            if (mode === 'add') {
+                $('#universal-type-selection').show();
+                // Uncheck all checkboxes first
+                $('.universal-type-checkbox').prop('checked', false).closest('label').css({
+                    'background': 'white',
+                    'border-color': '#e9ecef'
+                });
+                
+                // Check the selected type checkbox
+                if (selectedType) {
+                    $(`.universal-type-checkbox[value="${selectedType}"]`).prop('checked', true);
+                    $(`.universal-type-checkbox[value="${selectedType}"]`).closest('label').css({
+                        'background': '#fff4f0',
+                        'border-color': '#ff6b35'
+                    });
+                    $('#universal-type').val(selectedType);
+                } else {
+                    $('#universal-type').val('');
+                }
             } else {
+                $('#universal-type-selection').hide();
                 $('#universal-type').val('');
             }
             
@@ -3545,8 +3612,8 @@
             }
             
             // Reset form
-            $('#universal-modal-title').text(title);
-            $('#universal-modal-subtitle').text(mode === 'add' ? 'Fill in the details below' : 'Update the details below');
+            $('#universal-modal-title').text(mode === 'add' ? 'ADD NEW ENTRY' : title);
+            $('#universal-modal-subtitle').text(mode === 'add' ? 'SMART ASSET REGISTRY' : 'Update the details below');
             $('#universal-name').val('').removeClass('is-invalid');
             $('#universal-name-error').text('');
             $('#universal-image').val('');
@@ -3559,6 +3626,39 @@
             } else {
                 $('#image-field').addClass('d-none').hide();
             }
+            
+            // Handle type checkboxes change
+            $('.universal-type-checkbox').off('change').on('change', function() {
+                const $label = $(this).closest('label');
+                if ($(this).is(':checked')) {
+                    $label.css({
+                        'background': '#fff4f0',
+                        'border-color': '#ff6b35'
+                    });
+                    // Set the first checked type as the main type
+                    const checkedTypes = $('.universal-type-checkbox:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+                    if (checkedTypes.length > 0) {
+                        $('#universal-type').val(checkedTypes[0]); // Use first checked type
+                    }
+                } else {
+                    $label.css({
+                        'background': 'white',
+                        'border-color': '#e9ecef'
+                    });
+                    // Update type if no checkboxes are checked
+                    const checkedTypes = $('.universal-type-checkbox:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+                    if (checkedTypes.length === 0) {
+                        $('#universal-type').val('');
+                    } else {
+                        $('#universal-type').val(checkedTypes[0]);
+                    }
+                }
+            });
+            
             // =========================
             // ADD MODE
             // =========================
@@ -3567,7 +3667,7 @@
                     .attr('action', $(this).data('route'))
                     .attr('method', 'POST');
                 $('#universal-delete-btn').addClass('d-none');
-                $('#universal-save-btn').text('Save');
+                $('#universal-save-btn').html('<i class="ti ti-check me-2"></i><span>SAVE ENTRY</span>');
                 
                 // Pre-fill the modal input with the captured search term
                 if (searchTerm) {
@@ -3700,6 +3800,15 @@
             if (currentEditId) {
                 formData.append('_method', 'PUT');
             }
+            
+            // Get the checked type from checkboxes (use first checked, or the hidden field value)
+            const checkedType = $('.universal-type-checkbox:checked').first().val();
+            if (checkedType) {
+                formData.set('type', checkedType);
+            } else if ($('#universal-type').val()) {
+                formData.set('type', $('#universal-type').val());
+            }
+            
             $.ajax({
                 url: formAction,
                 method: 'POST',
