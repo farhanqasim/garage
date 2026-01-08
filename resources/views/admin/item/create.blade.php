@@ -3023,6 +3023,8 @@
 
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
+        console.log('Filtering dropdowns by type:', selectedType);
+        
         // List of all dropdowns that need filtering
         const dropdowns = [
             '.company-select',
@@ -3037,8 +3039,13 @@
             $(selector).each(function() {
                 const $select = $(this);
                 const currentValue = $select.val();
+                const isSelect2 = $select.hasClass('select2-hidden-accessible');
+                
+                // Store current value before filtering
+                let selectedValue = currentValue;
                 
                 // Show/hide options based on type
+                let visibleCount = 0;
                 $select.find('option').each(function() {
                     const $option = $(this);
                     const optionType = $option.data('type') || '';
@@ -3049,21 +3056,50 @@
                     // 3. Option type matches selected type
                     // 4. Option has no type (backward compatibility)
                     if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
-                        $option.show();
+                        $option.show().prop('disabled', false);
+                        if ($option.val() !== '') visibleCount++;
                     } else {
-                        $option.hide();
+                        $option.hide().prop('disabled', true);
                     }
                 });
+                console.log(`Filtered ${selector}: ${visibleCount} options visible for type "${selectedType}"`);
 
-                // If current selected value is hidden, clear selection
+                // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
-                if ($selectedOption.length && $selectedOption.is(':hidden')) {
+                if ($selectedOption.length && ($selectedOption.is(':hidden') || $selectedOption.prop('disabled'))) {
+                    selectedValue = '';
                     $select.val('').trigger('change');
                 }
 
-                // Refresh Select2 if initialized
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    $select.trigger('change.select2');
+                // For Select2, we need to destroy and reinitialize to properly reflect changes
+                if (isSelect2) {
+                    try {
+                        // Destroy Select2
+                        $select.select2('destroy');
+                        $select.removeClass('select2-hidden-accessible');
+                        $select.next('.select2-container').remove();
+                        
+                        // Reinitialize Select2 with same options
+                        setTimeout(() => {
+                            $select.select2({
+                                placeholder: 'Please Select',
+                                allowClear: true,
+                                width: '100%'
+                            });
+                            
+                            // Restore selection if it's still valid
+                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
+                                $select.val(selectedValue).trigger('change');
+                            }
+                        }, 50);
+                    } catch(e) {
+                        console.log('Error refreshing Select2 for ' + selector + ':', e);
+                        // Fallback: just trigger change
+                        $select.trigger('change');
+                    }
+                } else {
+                    // For regular selects, just trigger change
+                    $select.trigger('change');
                 }
             });
         });
