@@ -183,7 +183,7 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'parts' }"
                                  data-type="parts"
-                                @click="selectType('parts')">
+                                 onclick="selectItemType('parts'); return false;">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
@@ -192,7 +192,6 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'filters' }"
                                  data-type="filters"
-                                 @click="selectType('filters')"
                                  onclick="selectItemType('filters'); return false;">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
@@ -202,7 +201,6 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'breakpad' }"
                                  data-type="breakpad"
-                                 @click="selectType('breakpad')"
                                  onclick="selectItemType('breakpad'); return false;">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
@@ -212,7 +210,6 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'oil' }"
                                  data-type="oil"
-                                 @click="selectType('oil')"
                                  onclick="selectItemType('oil'); return false;">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
@@ -222,7 +219,6 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'battery' }"
                                  data-type="battery"
-                                 @click="selectType('battery')"
                                  onclick="selectItemType('battery'); return false;">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
@@ -232,7 +228,6 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'scrap' }"
                                  data-type="scrap"
-                                 @click="selectType('scrap')"
                                  onclick="selectItemType('scrap'); return false;">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
@@ -242,7 +237,6 @@
                             <div class="type-box text-center p-4" 
                                  :class="{ 'selected': selectedType === 'services' }"
                                  data-type="services"
-                                 @click="selectType('services')"
                                  onclick="selectItemType('services'); return false;">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
