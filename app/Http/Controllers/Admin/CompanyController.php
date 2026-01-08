@@ -16,9 +16,11 @@ class CompanyController extends Controller
 
     public function post_companies(Request $request)
     {
-        $companies = Company::create(
-            ['name' => $request->name]
-        );
+        $data = ['name' => $request->name];
+        if ($request->has('type') && $request->type) {
+            $data['type'] = $request->type;
+        }
+        $companies = Company::create($data);
         return response()->json([
             'success' => true,
             'id' => $companies->id,

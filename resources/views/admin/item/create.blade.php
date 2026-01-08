@@ -1853,10 +1853,10 @@
 <!-- Universal Modal -->
 <div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 20px 25px; border-bottom: none;">
+        <div class="modal-content" >
+            <div class="modal-header" >
                 <div class="d-flex align-items-center w-100">
-                    <div class="me-3" style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                    <div class="me-3" >
                         <i class="ti ti-plus" style="font-size: 20px;"></i>
                     </div>
                     <div class="flex-grow-1">
@@ -1868,6 +1868,7 @@
             </div>
             <form id="universal-form" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="type" id="universal-type" value="">
                 <div class="modal-body" style="padding: 30px;">
                     <div class="form-group mb-4">
                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
@@ -3452,6 +3453,38 @@
             const title = $(this).data('title');
             const hasImage = $(this).data('has-image') == 1;
             currentTargetSelect = $(this).data('target-select');
+            
+            // =========================
+            // CAPTURE SELECTED TYPE FROM ALPINE.JS
+            // =========================
+            let selectedType = '';
+            try {
+                // Try to get selectedType from Alpine.js component
+                const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                if (alpineComponent && alpineComponent.selectedType) {
+                    selectedType = alpineComponent.selectedType;
+                } else {
+                    // Fallback: try to get from hidden input
+                    const typeInput = document.querySelector('input[name="type"]');
+                    if (typeInput) {
+                        selectedType = typeInput.value;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not get selectedType from Alpine:', e);
+                // Fallback: try to get from hidden input
+                const typeInput = document.querySelector('input[name="type"]');
+                if (typeInput) {
+                    selectedType = typeInput.value;
+                }
+            }
+            
+            // Set type in universal form
+            if (selectedType && mode === 'add') {
+                $('#universal-type').val(selectedType);
+            } else {
+                $('#universal-type').val('');
+            }
             
             // =========================
             // CAPTURE SEARCH TERM FIRST (before form reset)

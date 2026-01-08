@@ -11,6 +11,7 @@ class Technology extends Model
     protected $fillable = [
         'name',
         'status',
+        'type',
     ];
     public function item_technology()
     {

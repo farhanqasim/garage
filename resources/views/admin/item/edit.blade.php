@@ -1815,6 +1815,7 @@
                 </div>
                 <form id="universal-form" method="POST" enctype="multipart/form-data">
                     @csrf
+                    <input type="hidden" name="type" id="universal-type" value="">
                     <div class="modal-body" style="padding: 30px;">
                         <div class="form-group mb-4">
                             <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
@@ -2857,6 +2858,38 @@ $(document).ready(function () {
             const hasImage = $(this).data('has-image') === 1;
 
             currentTargetSelect = $(this).data('target-select');
+            
+            // =========================
+            // CAPTURE SELECTED TYPE FROM ALPINE.JS
+            // =========================
+            let selectedType = '';
+            try {
+                // Try to get selectedType from Alpine.js component
+                const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                if (alpineComponent && alpineComponent.selectedType) {
+                    selectedType = alpineComponent.selectedType;
+                } else {
+                    // Fallback: try to get from hidden input
+                    const typeInput = document.querySelector('input[name="type"]');
+                    if (typeInput) {
+                        selectedType = typeInput.value;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not get selectedType from Alpine:', e);
+                // Fallback: try to get from hidden input
+                const typeInput = document.querySelector('input[name="type"]');
+                if (typeInput) {
+                    selectedType = typeInput.value;
+                }
+            }
+            
+            // Set type in universal form
+            if (selectedType && mode === 'add') {
+                $('#universal-type').val(selectedType);
+            } else {
+                $('#universal-type').val('');
+            }
             
             // Reset edit state
             currentEditId = null;

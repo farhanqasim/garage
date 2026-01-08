@@ -152,10 +152,11 @@ class AddInputController extends Controller
 
     public function post_technology(Request $request)
     {
-
-        $technology = Technology::create(
-            ['name' => $request->name]
-        );
+        $data = ['name' => $request->name];
+        if ($request->has('type') && $request->type) {
+            $data['type'] = $request->type;
+        }
+        $technology = Technology::create($data);
         return response()->json([
             'success' => true,
             'id' => $technology->id,
@@ -296,9 +297,11 @@ class AddInputController extends Controller
         }
 
         // Create new product
-        $product = Product::create([
-            'name' => $request->name
-        ]);
+        $data = ['name' => $request->name];
+        if ($request->has('type') && $request->type) {
+            $data['type'] = $request->type;
+        }
+        $product = Product::create($data);
 
         return response()->json([
             'success' => true,
@@ -341,9 +344,11 @@ class AddInputController extends Controller
 
     public function post_qualities(Request $request)
     {
-        $quality = Quality::create(
-            ['name' => $request->name]
-        );
+        $data = ['name' => $request->name];
+        if ($request->has('type') && $request->type) {
+            $data['type'] = $request->type;
+        }
+        $quality = Quality::create($data);
         return response()->json([
             'success' => true,
             'id' => $quality->id,
@@ -383,9 +388,11 @@ class AddInputController extends Controller
 
     public function post_part_number(Request $request)
     {
-        $part_number = PartNumber::create(
-            ['name' => $request->name]
-        );
+        $data = ['name' => $request->name];
+        if ($request->has('type') && $request->type) {
+            $data['type'] = $request->type;
+        }
+        $part_number = PartNumber::create($data);
         return response()->json([
             'success' => true,
             'id' => $part_number->id,

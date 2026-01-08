@@ -646,6 +646,7 @@
             </div>
             <form id="universal-form" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="type" id="universal-type" value="">
                 <div class="modal-body" style="padding: 30px;">
                     <div class="form-group mb-4">
                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">

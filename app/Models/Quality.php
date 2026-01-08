@@ -11,6 +11,7 @@ class Quality extends Model
         protected $fillable = [
         'name',
         'status',
+        'type',
     ];
 
     public function item_quality()

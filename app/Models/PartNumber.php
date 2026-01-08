@@ -11,6 +11,7 @@ class PartNumber extends Model
     protected $fillable = [
         'name',
         'status',
+        'type',
     ];
 
     public function item_part_number()
