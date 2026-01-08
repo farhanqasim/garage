@@ -304,74 +304,81 @@
         </div>
     </div>
 
-    <!-- Add Unit Modal -->
-    <div class="modal fade" id="add-category">
+    <!-- Add Unit Modal - Dynamic Unit Manager -->
+    <div class="modal fade" id="add-category" tabindex="-1" aria-labelledby="addUnitModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <div class="page-title">
-                        <h4>Add Unit</h4>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="addUnitModalLabel">Unit Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="{{ route('post.units.detail') }}" method="post">
                     @csrf
-                    <div class="modal-body row">
-                        <div class="form-group col-12 mt-2">
-                            <label>Name <span class="text-danger">*</span></label>
-                            <input class="form-control" type="text" name="name" required>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-uppercase text-muted mb-1">Unit Name <span class="text-danger">*</span></label>
+                                <input type="text" name="name" class="form-control form-control-sm text-uppercase" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-uppercase text-muted mb-1">Short Name <span class="text-danger">*</span></label>
+                                <input type="text" name="short_name" class="form-control form-control-sm text-uppercase" required>
+                            </div>
                         </div>
-                        <div class="form-group col-12 mt-3">
-                            <label>Short Name <span class="text-danger">*</span></label>
-                            <input class="form-control" type="text" name="short_name" required>
+                        <div class="row g-3 mt-2 bg-light p-3 rounded">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-uppercase text-muted mb-1">Allow Decimal? <span class="text-danger">*</span></label>
+                                <select name="allow_decimal" class="form-control form-control-sm" required onchange="toggleDecimalPrecisionUnitPage()">
+                                    <option value="0">NO</option>
+                                    <option value="1">YES</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="unit-precision-container-page" style="display: none;">
+                                <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
+                                <select name="decimal_precision" class="form-control form-control-sm">
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2</option>
+                                    <option value="3">3</option>
+                                </select>
+                            </div>
                         </div>
-                        <div class="form-group col-12 mt-4">
-                            <label>Allow Decimal <span class="text-danger">*</span></label>
-                            <select name="allow_decimal" class="form-control" required>
-                                <option value="1">Yes</option>
-                                <option value="0">No</option>
-                            </select>
-                        </div>
-                        <div class="form-group col-12 mt-3">
-                            <label>
-                                <input type="checkbox" name="define_base_unit" value="1" id="toggleBaseUnit">
-                                Add as multiple of another Unit
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="unit-has-base-page" name="define_base_unit" value="1" onchange="toggleBaseSettingsUnitPage()">
+                            <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base-page">
+                                Multiple of other units
                             </label>
                         </div>
-                        <div class="col-12 mt-4" id="baseDetails" style="display:none;">
-                            <label class="fw-bold mb-2">Base Unit Options:</label>
-                            <div id="baseUnitsContainer">
-                                <div class="base-unit-item mb-3 p-3 border rounded">
-                                    <div class="row g-2">
-                                        <div class="col-5">
-                                            <label class="small">Multiplier</label>
-                                            <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
-                                        </div>
-                                        <div class="col-6">
-                                            <label class="small">Base Unit</label>
-                                            <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
-                                                <option value="">Select Base Unit</option>
-                                                @foreach($units as $u)
-                                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-1 d-flex align-items-end">
-                                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
-                                                <i class="ti ti-x"></i>
-                                            </button>
-                                        </div>
+                        <div id="unit-base-settings-page" class="mt-3 border-start border-4 border-warning ps-3" style="display: none;">
+                            <div id="unit-base-rows-page" class="space-y-3">
+                                <div class="row g-2 mb-2 base-unit-row">
+                                    <div class="col-5">
+                                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
+                                        <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
+                                        <select name="base_units[0][base_unit_id]" class="form-control form-control-sm base-unit-select">
+                                            <option value="">Select Base Unit</option>
+                                            @foreach($units as $u)
+                                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-1 d-flex align-items-end">
+                                        <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;">
+                                            <i class="ti ti-x"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-primary mt-2" id="addBaseUnitBtn">
-                                <i class="ti ti-plus"></i> Add Another Base Unit
+                            <button type="button" class="btn btn-sm btn-warning text-white w-100 mt-2" onclick="addBaseRowUnitPage()">
+                                <i class="ti ti-plus"></i> ADD ANOTHER
                             </button>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                    <div class="modal-footer border-top bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
                     </div>
                 </form>
             </div>
@@ -380,51 +387,111 @@
 </div>
 
 <script>
-    // Show/hide base unit details for add modal
-    document.getElementById('toggleBaseUnit').addEventListener("change", function() {
-        document.getElementById('baseDetails').style.display = this.checked ? "block" : "none";
+    // Toggle decimal precision visibility for unit page
+    function toggleDecimalPrecisionUnitPage() {
+        const allowDecimal = document.querySelector('#add-category select[name="allow_decimal"]');
+        if (!allowDecimal) return;
+        const precisionContainer = document.getElementById('unit-precision-container-page');
+        if (!precisionContainer) return;
+        if (allowDecimal.value == '1') {
+            precisionContainer.style.display = 'block';
+        } else {
+            precisionContainer.style.display = 'none';
+        }
+    }
+    
+    // Toggle base settings visibility for unit page
+    function toggleBaseSettingsUnitPage() {
+        const hasBase = document.getElementById('unit-has-base-page');
+        if (!hasBase) return;
+        const baseSettings = document.getElementById('unit-base-settings-page');
+        if (!baseSettings) return;
+        if (hasBase.checked) {
+            baseSettings.style.display = 'block';
+        } else {
+            baseSettings.style.display = 'none';
+        }
+    }
+    
+    // Add base unit row for unit page
+    let baseUnitRowIndexPage = 1;
+    function addBaseRowUnitPage() {
+        const container = document.getElementById('unit-base-rows-page');
+        if (!container) return;
+        
+        const newRow = document.createElement('div');
+        newRow.className = 'row g-2 mb-2 base-unit-row';
+        newRow.innerHTML = `
+            <div class="col-5">
+                <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
+                <input type="number" step="any" name="base_units[${baseUnitRowIndexPage}][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
+            </div>
+            <div class="col-6">
+                <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
+                <select name="base_units[${baseUnitRowIndexPage}][base_unit_id]" class="form-control form-control-sm base-unit-select">
+                    <option value="">Select Base Unit</option>
+                    @foreach($units as $u)
+                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm remove-base-row">
+                    <i class="ti ti-x"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(newRow);
+        baseUnitRowIndexPage++;
+        updateRemoveButtonsUnitPage();
+    }
+    
+    // Remove base unit row for unit page
+    function removeRowUnitPage(btn) {
+        btn.closest('.base-unit-row').remove();
+        updateRemoveButtonsUnitPage();
+    }
+    
+    // Update remove buttons visibility for unit page
+    function updateRemoveButtonsUnitPage() {
+        const container = document.getElementById('unit-base-rows-page');
+        if (!container) return;
+        
+        const allRows = container.querySelectorAll('.base-unit-row');
+        allRows.forEach(function(row) {
+            const removeBtn = row.querySelector('.remove-base-row');
+            if (allRows.length > 1) {
+                removeBtn.style.display = 'block';
+            } else {
+                removeBtn.style.display = 'none';
+            }
+        });
+    }
+    
+    // Event delegation for remove buttons on unit page
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-base-row') && e.target.closest('#unit-base-rows-page')) {
+            removeRowUnitPage(e.target.closest('.remove-base-row'));
+        }
     });
+    
+    // Initialize remove buttons on page load
+    if (document.getElementById('unit-base-rows-page')) {
+        updateRemoveButtonsUnitPage();
+    }
     
     // Show/hide base unit details for each edit modal
     @foreach($units as $item)
-    document.getElementById('edit-toggle-base-{{ $item->id }}').addEventListener("change", function() {
-        const baseDetailsDiv = document.getElementById('edit-base-details-{{ $item->id }}');
-        baseDetailsDiv.style.display = this.checked ? "block" : "none";
-    });
+    const editToggleBase{{ $item->id }} = document.getElementById('edit-toggle-base-{{ $item->id }}');
+    if (editToggleBase{{ $item->id }}) {
+        editToggleBase{{ $item->id }}.addEventListener("change", function() {
+            const baseDetailsDiv = document.getElementById('edit-base-details-{{ $item->id }}');
+            if (baseDetailsDiv) {
+                baseDetailsDiv.style.display = this.checked ? "block" : "none";
+            }
+        });
+    }
     @endforeach
-
-    // Add Base Unit functionality for Add Modal
-    let baseUnitIndex = 1;
-    document.getElementById('addBaseUnitBtn').addEventListener('click', function() {
-        const container = document.getElementById('baseUnitsContainer');
-        const newItem = document.createElement('div');
-        newItem.className = 'base-unit-item mb-3 p-3 border rounded';
-        newItem.innerHTML = `
-            <div class="row g-2">
-                <div class="col-5">
-                    <label class="small">Multiplier</label>
-                    <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
-                </div>
-                <div class="col-6">
-                    <label class="small">Base Unit</label>
-                    <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
-                        <option value="">Select Base Unit</option>
-                        @foreach($units as $u)
-                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-1 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
-                        <i class="ti ti-x"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        container.appendChild(newItem);
-        baseUnitIndex++;
-        updateRemoveButtons();
-    });
 
     // Add Base Unit functionality for Edit Modals
     @foreach($units as $item)
