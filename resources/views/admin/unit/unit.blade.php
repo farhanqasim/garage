@@ -37,6 +37,131 @@
         </div>
     </div>
 
+    <!-- Unit Manager Interface -->
+    <div class="card mb-4">
+        <div class="card-body p-4">
+            <h3 class="text-center fw-bold mb-4 text-uppercase">Unit Manager</h3>
+            
+            <!-- Unit Selection -->
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-uppercase text-muted mb-2">Select Unit & Conversion:</label>
+                <div class="d-flex gap-2">
+                    <select id="unitSelect" onchange="handleUnitChange()" class="form-select flex-grow">
+                        <option value="">-- PLEASE SELECT --</option>
+                        @foreach ($units as $unit)
+                            @if($unit->baseUnits->count() > 0)
+                                @foreach($unit->baseUnits as $index => $baseUnit)
+                                    <option value="{{ $unit->id }}-{{ $baseUnit->id }}" 
+                                        data-id="{{ $unit->id }}"
+                                        data-original-name="{{ $unit->name }}"
+                                        data-short="{{ $unit->short_name }}"
+                                        data-decimal="{{ $unit->decimal_after_point_digit }}"
+                                        data-conversions='{{ json_encode($unit->baseUnits->map(function($bu) { return ["id" => $bu->id, "name" => $bu->name, "multiplier" => $bu->pivot->multiplier ?? 1]; })->toArray()) }}'
+                                        data-active-conv-index="{{ $index }}">
+                                        1 {{ $unit->name }} = {{ $baseUnit->pivot->multiplier ?? 1 }} {{ $baseUnit->name }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <option value="{{ $unit->id }}" 
+                                    data-id="{{ $unit->id }}"
+                                    data-original-name="{{ $unit->name }}"
+                                    data-short="{{ $unit->short_name }}"
+                                    data-decimal="{{ $unit->decimal_after_point_digit }}"
+                                    data-conversions='[]'
+                                    data-active-conv-index="-1">
+                                    1 {{ $unit->name }}
+                                </option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <button onclick="openUnitModal('add')" class="btn btn-primary" title="Add Unit">
+                        <i class="ti ti-plus"></i>
+                    </button>
+                    <button onclick="openUnitModal('edit')" class="btn btn-secondary" title="Edit Unit">
+                        <i class="ti ti-pencil"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Warning Message -->
+            <div id="priceWarning" class="alert alert-danger d-none mb-3" role="alert">
+                <i class="ti ti-alert-circle me-2"></i>
+                <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
+            </div>
+
+            <!-- Cost Section -->
+            <div class="mb-4">
+                <h6 class="text-uppercase fw-bold text-success mb-3">Cost Price Management</h6>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="card border-success bg-light">
+                            <div class="card-body">
+                                <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-2">Unit Cost:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                    <input type="number" id="costPrice" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success bg-light">
+                            <div class="card-body">
+                                <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-2">Per Base Cost:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                    <input type="number" id="baseCostPrice" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sale Section -->
+            <div class="mb-4">
+                <h6 class="text-uppercase fw-bold text-warning mb-3">Sale Price Management</h6>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="card border-warning bg-light">
+                            <div class="card-body">
+                                <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-2">Unit Sale:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                    <input type="number" id="salePrice" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-warning bg-light">
+                            <div class="card-body">
+                                <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-2">Per Base Sale:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                    <input type="number" id="baseSalePrice" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Prices Button -->
+            <div class="mb-4">
+                <button onclick="saveCurrentPrices()" id="saveEntryBtn" class="btn btn-success w-100 py-2 fw-bold text-uppercase">
+                    <i class="ti ti-check me-2"></i>Save Prices for this Base
+                </button>
+                <p id="saveStatus" class="text-center small mt-2 text-success fw-bold d-none">PRICES SAVED FOR THIS BASE UNIT!</p>
+            </div>
+
+            <!-- Analysis View -->
+            <div id="derivedPricesList" class="mt-4">
+                <!-- Results injected here -->
+            </div>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-end flex-wrap row-gap-3">
             <div class="table-dropdown ">
@@ -551,5 +676,171 @@
 
     // Initialize remove buttons on page load
     updateRemoveButtons();
+    
+    // ========== UNIT MANAGER FUNCTIONS ==========
+    function openUnitModal(mode) {
+        const select = document.getElementById('unitSelect');
+        if (mode === 'add') {
+            // Open add modal
+            const modal = new bootstrap.Modal(document.getElementById('add-category'));
+            modal.show();
+        } else if (mode === 'edit' && select.selectedIndex > 0) {
+            const opt = select.selectedOptions[0];
+            const unitId = opt.getAttribute('data-id');
+            // Find and open edit modal for this unit
+            const editModal = document.getElementById(`edit-category${unitId}`);
+            if (editModal) {
+                const modal = new bootstrap.Modal(editModal);
+                modal.show();
+            }
+        }
+    }
+    
+    function handleUnitChange() {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (opt && opt.value) {
+            const name = opt.getAttribute('data-original-name');
+            const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+            const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+            const baseName = (convs.length > 0 && activeIdx !== -1) ? convs[activeIdx].name : name;
+            
+            document.getElementById('costUnitLabel').innerText = `${name} COST:`;
+            document.getElementById('costBaseLabel').innerText = `PER ${baseName} COST:`;
+            document.getElementById('saleUnitLabel').innerText = `${name} SALE:`;
+            document.getElementById('saleBaseLabel').innerText = `PER ${baseName} SALE:`;
+        }
+        syncPrices();
+    }
+    
+    function calculateFromUnit(type) {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (!opt || opt.value === "") return;
+        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        
+        const unitInput = document.getElementById(type === 'cost' ? 'costPrice' : 'salePrice');
+        const baseInput = document.getElementById(type === 'cost' ? 'baseCostPrice' : 'baseSalePrice');
+        const unitVal = parseFloat(unitInput.value) || 0;
+
+        if (convs.length > 0 && activeIdx !== -1) {
+            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
+            baseInput.value = (unitVal / multiplier).toFixed(2);
+        } else {
+            baseInput.value = unitVal.toFixed(2);
+        }
+        syncPrices();
+    }
+    
+    function calculateFromBase(type) {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (!opt || opt.value === "") return;
+        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        
+        const unitInput = document.getElementById(type === 'cost' ? 'costPrice' : 'salePrice');
+        const baseInput = document.getElementById(type === 'cost' ? 'baseCostPrice' : 'baseSalePrice');
+        const baseVal = parseFloat(baseInput.value) || 0;
+
+        if (convs.length > 0 && activeIdx !== -1) {
+            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
+            unitInput.value = (baseVal * multiplier).toFixed(2);
+        } else {
+            unitInput.value = baseVal.toFixed(2);
+        }
+        syncPrices();
+    }
+    
+    function syncPrices() {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+        const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
+        const list = document.getElementById('derivedPricesList');
+        const warning = document.getElementById('priceWarning');
+        
+        list.innerHTML = '';
+        
+        if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
+            warning.classList.remove('d-none');
+        } else {
+            warning.classList.add('d-none');
+        }
+        
+        if (!opt || opt.value === "" || (salePrice === 0 && costPrice === 0)) return;
+        
+        const unitName = opt.getAttribute('data-original-name');
+        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        const decimal = 2;
+        const totalProfit = salePrice - costPrice;
+        const totalMargin = salePrice > 0 ? (totalProfit / salePrice * 100).toFixed(1) : 0;
+        const isTotalLoss = totalProfit < 0;
+
+        list.innerHTML += `
+            <div class="card border-primary mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-uppercase small">FULL UNIT ANALYSIS: ${unitName}</span>
+                    <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL COST</p>
+                            <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(decimal)}</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL SALE</p>
+                            <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(decimal)}</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL PROFIT</p>
+                            <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(decimal)}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        if (activeIdx !== -1 && convs[activeIdx]) {
+            const c = convs[activeIdx];
+            const baseSale = (salePrice / c.multiplier);
+            const baseCost = (costPrice / c.multiplier);
+            const profit = baseSale - baseCost;
+            const margin = baseSale > 0 ? (profit / baseSale * 100).toFixed(1) : 0;
+            const isLoss = profit < 0;
+            list.innerHTML += `
+                <div class="card border-secondary mb-3 ${isLoss ? 'border-danger' : ''}">
+                    <div class="card-header ${isLoss ? 'bg-danger text-white' : 'bg-secondary text-white'} d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-uppercase small">Analysis per ${c.name}</span>
+                        <span class="badge ${isLoss ? 'bg-dark' : 'bg-success'}">${isLoss ? 'LOSS' : 'Margin'}: ${margin}%</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <p class="small text-muted mb-1">COST/${c.name}</p>
+                                <p class="fw-bold text-success mb-0">Rs.${baseCost.toFixed(decimal)}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="small text-muted mb-1">SALE/${c.name}</p>
+                                <p class="fw-bold text-warning mb-0">Rs.${baseSale.toFixed(decimal)}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="small text-muted mb-1">PROFIT/${c.name}</p>
+                                <p class="fw-bold ${profit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${profit.toFixed(decimal)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+    }
+    
+    function saveCurrentPrices() {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (!opt || opt.value === "") {
+            alert("Please select a unit first");
+            return;
+        }
+        const status = document.getElementById('saveStatus');
+        status.classList.remove('d-none');
+        setTimeout(() => { status.classList.add('d-none'); }, 3000);
+    }
 </script>
 @endsection
