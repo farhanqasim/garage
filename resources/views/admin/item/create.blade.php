@@ -1130,28 +1130,60 @@
                                 <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
                             </div>
 
-                            <!-- Cost Section -->
-                            <div class="mb-4">
-                                <h6 class="text-uppercase fw-bold text-success mb-2 small">Cost Price Management</h6>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <div id="costUnitCard" class="card border-success bg-light">
-                                            <div class="card-body p-2">
-                                                <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
-                                                <div class="d-flex align-items-center">
-                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                    <input type="number" id="costPrice" name="total_price" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                            <!-- Cost and Sale Price Management (Same Row) -->
+                            <div class="row g-3 mb-4">
+                                <!-- Cost Section (Left Side) -->
+                                <div class="col-md-6">
+                                    <h6 class="text-uppercase fw-bold text-success mb-2 small">Cost Price Management</h6>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <div id="costUnitCard" class="card border-success bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                        <input type="number" id="costPrice" name="total_price" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div id="costBaseCard" class="card border-success bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                        <input type="number" id="baseCostPrice" name="price_per_unit" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div id="costBaseCard" class="card border-success bg-light">
-                                            <div class="card-body p-2">
-                                                <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
-                                                <div class="d-flex align-items-center">
-                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                    <input type="number" id="baseCostPrice" name="price_per_unit" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                </div>
+
+                                <!-- Sale Section (Right Side - Same Row) -->
+                                <div class="col-md-6">
+                                    <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <div id="saleUnitCard" class="card border-warning bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Unit Sale:</label>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                        <input type="number" id="salePrice" name="total_sale_price" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div id="saleBaseCard" class="card border-warning bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Per Base Sale:</label>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                        <input type="number" id="baseSalePrice" name="sale_price_per_base" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1159,43 +1191,17 @@
                                 </div>
                             </div>
 
-                            <!-- Full Unit Analysis (First Analysis Card) -->
-                            <div id="fullUnitAnalysisContainer" class="mb-4">
-                                <!-- Full Unit Analysis will be injected here first -->
-                            </div>
-
-                            <!-- Sale Section (Shifted here after Full Unit Analysis) -->
-                            <div class="mb-4">
-                                <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <div id="saleUnitCard" class="card border-warning bg-light">
-                                            <div class="card-body p-2">
-                                                <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Unit Sale:</label>
-                                                <div class="d-flex align-items-center">
-                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                    <input type="number" id="salePrice" name="total_sale_price" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div id="saleBaseCard" class="card border-warning bg-light">
-                                            <div class="card-body p-2">
-                                                <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Per Base Sale:</label>
-                                                <div class="d-flex align-items-center">
-                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                    <input type="number" id="baseSalePrice" name="sale_price_per_base" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <!-- Full Unit Analysis and Analysis per Piece (Same Row) -->
+                            <div class="row g-3 mb-4">
+                                <!-- Full Unit Analysis (Left Side) -->
+                                <div class="col-md-6" id="fullUnitAnalysisContainer">
+                                    <!-- Full Unit Analysis will be injected here -->
                                 </div>
-                            </div>
 
-                            <!-- Analysis per Piece (Shifted here after Sale Price Management) -->
-                            <div id="analysisPerPieceContainer" class="mb-4">
-                                <!-- Analysis per Piece will be injected here -->
+                                <!-- Analysis per Piece (Right Side - Same Row) -->
+                                <div class="col-md-6" id="analysisPerPieceContainer">
+                                    <!-- Analysis per Piece will be injected here -->
+                                </div>
                             </div>
 
                             <!-- Save Prices Button -->
