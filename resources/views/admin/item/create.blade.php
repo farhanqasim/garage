@@ -1110,7 +1110,7 @@
                 <!-- COMMON MEDIA & DESCRIPTION -->
                 <div class="field-group" :class="{ 'active': selectedType }">
                     <div class="row mt-4">
-                        <div class="col-md-6"
+                        <div class="col-md-12"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
                             <label for="unitSelect" class="form-label small fw-bold text-uppercase text-muted mb-2">Select Unit & Conversion:</label>
                             <div class="d-flex gap-2 mb-3">
