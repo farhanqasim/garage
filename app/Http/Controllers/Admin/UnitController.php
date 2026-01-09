@@ -41,13 +41,32 @@ class UnitController extends Controller
             }
         }
 
-        // Load base units for response
-        $unit->load('baseUnits', 'baseUnit');
+        // Load base units and conversions for response
+        $unit->load('baseUnits', 'baseUnit', 'conversions');
+        
+        // Format unit data for frontend
+        $unitData = [
+            'id' => $unit->id,
+            'name' => $unit->name,
+            'short_name' => $unit->short_name,
+            'base_unit_name' => $unit->baseUnit->name ?? null,
+            'base_unit_multiplier' => $unit->base_unit_multiplier,
+            'base_units' => $unit->baseUnits->map(function($bu) {
+                return [
+                    'id' => $bu->id,
+                    'name' => $bu->name,
+                    'short_name' => $bu->short_name,
+                    'multiplier' => $bu->pivot->multiplier ?? 1
+                ];
+            })->toArray()
+        ];
 
         return response()->json([
             'success' => true,
             'id' => $unit->id,
-            'unit' => $unit
+            'unit' => $unitData,
+            'conversions_count' => $unit->conversions()->count(),
+            'message' => 'Unit created successfully with ' . $unit->conversions()->count() . ' conversion(s)'
         ]);
     }
 
@@ -84,22 +103,25 @@ class UnitController extends Controller
                 $unit->baseUnits()->detach();
             }
             
-            // Load base units for response
-            $unit->load('baseUnits', 'baseUnit');
+            // Load base units and conversions for response
+            $unit->load('baseUnits', 'baseUnit', 'conversions');
             
             return response()->json([
                 'success' => true,
                 'unit' => $unit,
-                'message'=>"Unit update Successfully"
+                'conversions_count' => $unit->conversions()->count(),
+                'message'=>"Unit updated successfully with " . $unit->conversions()->count() . " conversion(s)"
             ]);
         }
 
     public function show_unit(Unit $unit)
     {
-        $unit->load('baseUnits', 'baseUnit');
+        $unit->load('baseUnits', 'baseUnit', 'conversions.baseUnit');
         return response()->json([
             'success' => true,
-            'unit' => $unit
+            'unit' => $unit,
+            'conversions' => $unit->conversions()->with('baseUnit')->get(),
+            'conversions_count' => $unit->conversions()->count()
         ]);
     }
 
@@ -141,7 +163,8 @@ class UnitController extends Controller
             }
         }
         
-        return redirect()->back()->with('success','Unit Saved Successfully');
+        $conversionsCount = $unit->conversions()->count();
+        return redirect()->back()->with('success', "Unit Saved Successfully with {$conversionsCount} conversion(s)");
     }
 
 
@@ -188,7 +211,8 @@ class UnitController extends Controller
             $unit->baseUnits()->detach();
         }
         
-        return redirect()->back()->with('success', 'Unit updated successfully.');
+        $conversionsCount = $unit->conversions()->count();
+        return redirect()->back()->with('success', "Unit updated successfully with {$conversionsCount} conversion(s).");
     }
 
 

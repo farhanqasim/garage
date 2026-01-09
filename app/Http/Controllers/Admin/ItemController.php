@@ -113,8 +113,7 @@ class ItemController extends Controller
         $item_types  = Producttype::where('status', 'active')->get();
         // return $Vehicals;
         $items       = Item::all();
-        $units = Unit::with('baseUnit')->orderBy('base_unit_id')->orderBy('base_unit_multiplier')
-            ->get();
+        $units = Unit::with(['baseUnit', 'baseUnits'])->orderBy('name')->get();
 
         // return $units;
         $carCompanies     = CarCompany::orderBy('name')->get();

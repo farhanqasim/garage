@@ -1119,12 +1119,19 @@
                                     name="unit" id="unit_parts">
                                     <option value="">Select Unit</option>
                                     @foreach ($units as $unit)
-                                    <option value="{{ $unit->id }}" data-name="{{ $unit->name }}"
+                                    <option value="{{ $unit->id }}" 
+                                        data-name="{{ $unit->name }}"
+                                        data-short-name="{{ $unit->short_name }}"
                                         data-baseunit="{{ $unit->baseUnit->name ?? '' }}"
-                                        data-multiplier="{{ $unit->base_unit_multiplier ?? '' }}">
-                                        {{ $unit->name }}
-                                        @if ($unit->base_unit_id)
-                                        ( {{ $unit->base_unit_multiplier }}-{{ $unit->baseUnit->name }} )
+                                        data-multiplier="{{ $unit->base_unit_multiplier ?? '' }}"
+                                        data-conversions="{{ json_encode($unit->baseUnits->map(function($bu) { return ['id' => $bu->id, 'name' => $bu->name, 'multiplier' => $bu->pivot->multiplier ?? 1]; })->toArray()) }}">
+                                        {{ $unit->name }} ({{ $unit->short_name }})
+                                        @if ($unit->baseUnits->count() > 0)
+                                            @foreach($unit->baseUnits as $baseUnit)
+                                                - {{ $baseUnit->pivot->multiplier ?? 1 }} {{ $baseUnit->name }}
+                                            @endforeach
+                                        @elseif ($unit->base_unit_id)
+                                            ( {{ $unit->base_unit_multiplier }}-{{ $unit->baseUnit->name }} )
                                         @endif
                                     </option>
                                     @endforeach
@@ -1138,18 +1145,20 @@
                                 </button>
 
                             </div>
-                            <div class="input-group align-items-center gap-2" id="unit-info"
-                                style="display:none; margin-top:10px;">
-                                <span id="unit-name" class="fw-bold"></span>
-                                <span class="equal-sign">=</span>
-                                <input type="text" id="total_can_price" name="total_price"
-                                    class="form-control form-control-sm" style="width:120px;" placeholder="Cost Price">
-                                {{-- <span class="equal-sign">=</span> --}}
-                                <span id="multiplier-text" class="fw-bold"></span>
-                                {{-- <span class="multiply-sign">×</span> --}}
-                                <input type="number" id="base_price" name="price_per_unit"
-                                    class="form-control form-control-sm" placeholder="Price per Unit"
-                                    style="width:100px;">
+                            <div id="unit-info" style="display:none; margin-top:10px;">
+                                <!-- Main Unit Price -->
+                                <div class="input-group align-items-center gap-2 mb-2">
+                                    <span id="unit-name" class="fw-bold"></span>
+                                    <span class="equal-sign">=</span>
+                                    <input type="text" id="total_can_price" name="total_price"
+                                        class="form-control form-control-sm" style="width:120px;" placeholder="Cost Price">
+                                    <span id="multiplier-text" class="fw-bold"></span>
+                                    <input type="number" id="base_price" name="price_per_unit"
+                                        class="form-control form-control-sm" placeholder="Price per Unit"
+                                        style="width:100px;">
+                                </div>
+                                <!-- Derived Prices from Conversions -->
+                                <div id="derived-prices-list" class="mt-2"></div>
                             </div>
                             @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
@@ -2045,16 +2054,41 @@
                             option.text(res.unit.name);
                             option.attr('data-name', res.unit.name);
                         } else {
-                            // ➕ Add new option
+                            // ➕ Add new option with conversions
+                            let conversionsData = [];
+                            if (res.unit.base_units && res.unit.base_units.length > 0) {
+                                conversionsData = res.unit.base_units.map(function(bu) {
+                                    return {
+                                        id: bu.id,
+                                        name: bu.name,
+                                        multiplier: bu.pivot?.multiplier || bu.multiplier || 1
+                                    };
+                                });
+                            }
+                            
+                            let optionText = res.unit.name + ' (' + (res.unit.short_name || '') + ')';
+                            if (conversionsData.length > 0) {
+                                conversionsData.forEach(function(conv) {
+                                    optionText += ' - ' + conv.multiplier + ' ' + conv.name;
+                                });
+                            } else if (res.unit.base_unit_name) {
+                                optionText += ' ( ' + (res.unit.base_unit_multiplier || 1) + '-' + res.unit.base_unit_name + ' )';
+                            }
+                            
                             $("#unit_parts").append(`
                             <option value="${res.unit.id}"
                                 data-name="${res.unit.name}"
+                                data-short-name="${res.unit.short_name || ''}"
                                 data-baseunit="${res.unit.base_unit_name ?? ''}"
                                 data-multiplier="${res.unit.base_unit_multiplier ?? ''}"
+                                data-conversions='${JSON.stringify(conversionsData)}'
                                 selected>
-                                ${res.unit.name}
+                                ${optionText}
                             </option>
                         `);
+                        
+                        // Trigger change to update price calculations
+                        $('#unit_parts').trigger('change');
                         }
                         $('#Unit-add-modal').modal('hide');
                         $('#Unit-form')[0].reset();
@@ -2392,54 +2426,147 @@
     }
     $('#unit_parts').on('change', function() {
         let selected = $(this).find(':selected');
-        let unitName = selected.data('name');
+        if (!selected.val()) {
+            $('#unit-info, #sale-price-info, #derived-prices-list').hide().empty();
+            return;
+        }
+        
+        let unitName = selected.data('name') || selected.text().split('(')[0].trim();
+        let shortName = selected.data('short-name') || '';
         let baseUnit = selected.data('baseunit');
-        let multiplier = parseFloat(selected.data('multiplier'));
+        let multiplier = parseFloat(selected.data('multiplier')) || 0;
+        let conversions = [];
+        
+        try {
+            let conversionsData = selected.data('conversions');
+            if (conversionsData && typeof conversionsData === 'string') {
+                conversions = JSON.parse(conversionsData);
+            } else if (Array.isArray(conversionsData)) {
+                conversions = conversionsData;
+            }
+        } catch(e) {
+            console.log('Error parsing conversions:', e);
+        }
+        
         // Reset values
         $('#base_price, #total_can_price, #sale_base_price, #total_sale_price').val('');
+        $('#derived-prices-list').empty();
+        
         // Always show containers
         $('#unit-info, #sale-price-info').show();
+        
         // Set unit names
-        $('#unit-name, #sale-unit-name').text(unitName);
+        $('#unit-name, #sale-unit-name').text(unitName + (shortName ? ` (${shortName})` : ''));
+        
         // Remove previous listeners
         $('#base_price, #total_can_price, #sale_base_price, #total_sale_price').off('input');
-        if (baseUnit && multiplier) {
-            // 🔥 BASE UNIT CASE
+        
+        // If unit has multiple conversions
+        if (conversions && conversions.length > 0) {
+            // Show first conversion as main
+            let firstConv = conversions[0];
+            $('#multiplier-text, #sale-multiplier-text')
+                .text(`${firstConv.multiplier} ${firstConv.name}`)
+                .show();
+            $('.equal-sign, .sale-equal-sign').show();
+            $('#base_price, #sale_base_price').show();
+            $('#base_price').attr('placeholder', `Price per ${firstConv.name}`);
+            $('#sale_base_price').attr('placeholder', `Sale per ${firstConv.name}`);
+            $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
+            $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
+            
+            // Bidirectional calculation for first conversion
+            $('#base_price').on('input', function() {
+                let val = parseFloat($(this).val()) || 0;
+                $('#total_can_price').val((val * firstConv.multiplier).toFixed(2));
+                syncDerivedPrices(val, firstConv.multiplier, conversions);
+            });
+            $('#total_can_price').on('input', function() {
+                let val = parseFloat($(this).val()) || 0;
+                $('#base_price').val((val / firstConv.multiplier).toFixed(2));
+                syncDerivedPrices(val / firstConv.multiplier, firstConv.multiplier, conversions);
+            });
+            $('#sale_base_price').on('input', function() {
+                let val = parseFloat($(this).val()) || 0;
+                $('#total_sale_price').val((val * firstConv.multiplier).toFixed(2));
+            });
+            $('#total_sale_price').on('input', function() {
+                let val = parseFloat($(this).val()) || 0;
+                $('#sale_base_price').val((val / firstConv.multiplier).toFixed(2));
+            });
+            
+            // Show derived prices for other conversions
+            if (conversions.length > 1) {
+                displayDerivedPrices(conversions);
+            }
+        } else if (baseUnit && multiplier > 0) {
+            // 🔥 SINGLE BASE UNIT CASE (Legacy)
             $('#multiplier-text, #sale-multiplier-text')
                 .text(`${multiplier} ${baseUnit}`)
                 .show();
             $('.equal-sign, .sale-equal-sign').show();
-            // Show base price inputs
             $('#base_price, #sale_base_price').show();
-            // Placeholders
             $('#base_price').attr('placeholder', `Price per ${baseUnit}`);
             $('#sale_base_price').attr('placeholder', `Sale per ${baseUnit}`);
             $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
             $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
+            
             // Bidirectional calculation
             $('#base_price').on('input', function() {
-                $('#total_can_price').val($(this).val() * multiplier || '');
+                $('#total_can_price').val(($(this).val() * multiplier || 0).toFixed(2));
             });
             $('#total_can_price').on('input', function() {
-                $('#base_price').val($(this).val() / multiplier || '');
+                $('#base_price').val(($(this).val() / multiplier || 0).toFixed(2));
             });
             $('#sale_base_price').on('input', function() {
-                $('#total_sale_price').val($(this).val() * multiplier || '');
+                $('#total_sale_price').val(($(this).val() * multiplier || 0).toFixed(2));
             });
             $('#total_sale_price').on('input', function() {
-                $('#sale_base_price').val($(this).val() / multiplier || '');
+                $('#sale_base_price').val(($(this).val() / multiplier || 0).toFixed(2));
             });
         } else {
-            // 🔥 SIMPLE UNIT CASE
-            // Hide base unit related fields
+            // 🔥 SIMPLE UNIT CASE (No conversions)
             $('#base_price, #sale_base_price').hide();
             $('#multiplier-text, #sale-multiplier-text').hide();
             $('.equal-sign, .sale-equal-sign').hide();
-            // Placeholders
             $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
             $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
         }
     });
+    
+    // Function to sync derived prices for multiple conversions
+    function syncDerivedPrices(basePrice, mainMultiplier, conversions) {
+        if (!conversions || conversions.length <= 1) return;
+        
+        conversions.forEach(function(conv, index) {
+            if (index === 0) return; // Skip first (main) conversion
+            
+            let derivedPrice = (basePrice * conv.multiplier).toFixed(2);
+            let priceCard = $(`#derived-price-${index}`);
+            if (priceCard.length) {
+                priceCard.find('.derived-price-value').text(`Rs. ${derivedPrice}`);
+            }
+        });
+    }
+    
+    // Function to display derived prices for multiple conversions
+    function displayDerivedPrices(conversions) {
+        let html = '<div class="small text-muted mb-2 fw-bold">Derived Prices:</div>';
+        conversions.forEach(function(conv, index) {
+            if (index === 0) return; // Skip first conversion (already shown as main)
+            
+            html += `
+                <div class="card card-sm mb-2 p-2 bg-light border" id="derived-price-${index}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold">${conv.name}:</span>
+                        <span class="small fw-bold text-primary derived-price-value">Rs. 0.00</span>
+                    </div>
+                    <small class="text-muted">1 ${$('#unit-name').text()} = ${conv.multiplier} ${conv.name}</small>
+                </div>
+            `;
+        });
+        $('#derived-prices-list').html(html);
+    }
 </script>
 <script>
     $(document).ready(function() {
