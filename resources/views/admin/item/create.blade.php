@@ -1159,7 +1159,12 @@
                                 </div>
                             </div>
 
-                            <!-- Sale Section -->
+                            <!-- Full Unit Analysis (First Analysis Card) -->
+                            <div id="fullUnitAnalysisContainer" class="mb-4">
+                                <!-- Full Unit Analysis will be injected here first -->
+                            </div>
+
+                            <!-- Sale Section (Shifted here after Full Unit Analysis) -->
                             <div class="mb-4">
                                 <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
                                 <div class="row g-2">
@@ -1188,17 +1193,17 @@
                                 </div>
                             </div>
 
+                            <!-- Analysis per Piece (Shifted here after Sale Price Management) -->
+                            <div id="analysisPerPieceContainer" class="mb-4">
+                                <!-- Analysis per Piece will be injected here -->
+                            </div>
+
                             <!-- Save Prices Button -->
                             <div class="mb-4">
                                 <button type="button" onclick="saveCurrentPrices()" id="saveEntryBtn" class="btn btn-success w-100 py-2 fw-bold text-uppercase">
                                     <i class="ti ti-check me-2"></i>Save Prices for this Base
                                 </button>
                                 <p id="saveStatus" class="text-center small mt-2 text-success fw-bold d-none">PRICES SAVED FOR THIS BASE UNIT!</p>
-                            </div>
-
-                            <!-- Analysis View -->
-                            <div id="derivedPricesList" class="mt-4">
-                                <!-- Results injected here -->
                             </div>
                         </div>
                         <div class="col-md-6 "
@@ -2410,10 +2415,14 @@
         const opt = document.getElementById('unitSelect').selectedOptions[0];
         const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
         const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
-        const list = document.getElementById('derivedPricesList');
+        const fullUnitContainer = document.getElementById('fullUnitAnalysisContainer');
+        const analysisPerPieceContainer = document.getElementById('analysisPerPieceContainer');
         const warning = document.getElementById('priceWarning');
         const cards = ['saleUnitCard', 'saleBaseCard', 'costUnitCard', 'costBaseCard'];
-        list.innerHTML = '';
+        
+        // Clear containers
+        if (fullUnitContainer) fullUnitContainer.innerHTML = '';
+        if (analysisPerPieceContainer) analysisPerPieceContainer.innerHTML = '';
         
         if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
             warning.classList.remove('d-none');
@@ -2441,38 +2450,42 @@
         const totalMargin = salePrice > 0 ? (totalProfit / salePrice * 100).toFixed(1) : 0;
         const isTotalLoss = totalProfit < 0;
 
-        list.innerHTML += `
-            <div class="card border-primary mb-3">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
-                    <span class="small fw-bold text-uppercase">FULL UNIT ANALYSIS: ${unitName}</span>
-                    <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
-                </div>
-                <div class="card-body p-2">
-                    <div class="row text-center">
-                        <div class="col-4">
-                            <p class="small text-muted mb-1">TOTAL COST</p>
-                            <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(decimal)}</p>
-                        </div>
-                        <div class="col-4">
-                            <p class="small text-muted mb-1">TOTAL SALE</p>
-                            <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(decimal)}</p>
-                        </div>
-                        <div class="col-4">
-                            <p class="small text-muted mb-1">TOTAL PROFIT</p>
-                            <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(decimal)}</p>
+        // Full Unit Analysis (First - after Cost Price Management)
+        if (fullUnitContainer) {
+            fullUnitContainer.innerHTML = `
+                <div class="card border-primary mb-3">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                        <span class="small fw-bold text-uppercase">FULL UNIT ANALYSIS: ${unitName}</span>
+                        <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <p class="small text-muted mb-1">TOTAL COST</p>
+                                <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(decimal)}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="small text-muted mb-1">TOTAL SALE</p>
+                                <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(decimal)}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="small text-muted mb-1">TOTAL PROFIT</p>
+                                <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(decimal)}</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>`;
+                </div>`;
+        }
 
-        if (activeIdx !== -1 && convs[activeIdx]) {
+        // Analysis per Piece (After Sale Price Management)
+        if (activeIdx !== -1 && convs[activeIdx] && analysisPerPieceContainer) {
             const c = convs[activeIdx];
             const baseSale = (salePrice / c.multiplier);
             const baseCost = (costPrice / c.multiplier);
             const profit = baseSale - baseCost;
             const margin = baseSale > 0 ? (profit / baseSale * 100).toFixed(1) : 0;
             const isLoss = profit < 0;
-            list.innerHTML += `
+            analysisPerPieceContainer.innerHTML = `
                 <div class="card border-secondary mb-3 ${isLoss ? 'border-danger' : ''}">
                     <div class="card-header ${isLoss ? 'bg-danger text-white' : 'bg-secondary text-white'} d-flex justify-content-between align-items-center py-2">
                         <span class="small fw-bold text-uppercase">Analysis per ${c.base}</span>
