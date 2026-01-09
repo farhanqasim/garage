@@ -2072,20 +2072,22 @@
     // These functions are now defined in the Unit Manager section above
     // ========== UNIT MANAGER FUNCTIONS (EXACT FROM YOUR HTML) ==========
     let unitsData = @json($units->map(function($unit) {
+        $conversions = $unit->baseUnits->map(function($bu) {
+            return [
+                'multiplier' => $bu->pivot->multiplier ?? 1,
+                'base' => $bu->name,
+                'base_id' => $bu->id
+            ];
+        })->toArray();
+        
         return [
             'id' => $unit->id,
             'name' => $unit->name,
             'short' => $unit->short_name,
             'decimal' => $unit->decimal_after_point_digit ?? 0,
-            'conversions' => $unit->baseUnits->map(function($bu) {
-                return [
-                    'multiplier' => $bu->pivot->multiplier ?? 1,
-                    'base' => $bu->name,
-                    'base_id' => $bu->id
-                ];
-            })->toArray()
+            'conversions' => $conversions
         ];
-    }));
+    })->toArray());
     
     // Load units from database and merge with localStorage
     function loadFromStorage() {
