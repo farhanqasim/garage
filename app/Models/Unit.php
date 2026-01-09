@@ -13,9 +13,8 @@ class Unit extends Model
         'name',
         'short_name',
         'allow_decimal',
-        'define_base_unit',
-        'base_unit_multiplier',
-        'base_unit_id',
+        'is_base_unit',
+        'decimal_after_point_digit',
         'status'
     ];
 

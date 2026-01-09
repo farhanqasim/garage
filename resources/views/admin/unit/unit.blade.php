@@ -185,8 +185,8 @@
                                                 </div>
                                                 <div class="form-group col-12">
                                                     <label class="col-form-label">
-                                                        <input type="checkbox" name="define_base_unit" value="1"
-                                                            id="edit-toggle-base-{{ $item->id }}" {{ $item->base_unit_id
+                                                        <input type="checkbox" name="is_base_unit" value="1"
+                                                            id="edit-toggle-base-{{ $item->id }}" {{ $item->is_base_unit
                                                         ? 'checked' : '' }}>
                                                         Add as multiple of another Unit
                                                     </label>
@@ -343,7 +343,7 @@
                             </div>
                         </div>
                         <div class="form-check mt-3">
-                            <input class="form-check-input" type="checkbox" id="unit-has-base-page" name="define_base_unit" value="1" onchange="toggleBaseSettingsUnitPage()">
+                            <input class="form-check-input" type="checkbox" id="unit-has-base-page" name="is_base_unit" value="1" onchange="toggleBaseSettingsUnitPage()">
                             <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base-page">
                                 Multiple of other units
                             </label>

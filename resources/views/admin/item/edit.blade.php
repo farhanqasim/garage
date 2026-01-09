@@ -1504,7 +1504,7 @@
                             </div>
                             <div class="col-md-6" id="unit-precision-container" style="display: none;">
                                 <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
-                                <select id="unit-decimal-precision" name="decimal_precision" class="form-control form-control-sm">
+                                <input type="number" id="unit-decimal-precision" name="decimal_after_point_digit" class="form-control form-control-sm" min="0" max="10" value="2">
                                     <option value="1">1</option>
                                     <option value="2" selected>2</option>
                                     <option value="3">3</option>
@@ -1512,7 +1512,7 @@
                             </div>
                         </div>
                         <div class="form-check mt-3">
-                            <input class="form-check-input" type="checkbox" id="unit-has-base" name="define_base_unit" value="1" onchange="toggleBaseSettings()">
+                            <input class="form-check-input" type="checkbox" id="unit-has-base" name="is_base_unit" value="1" onchange="toggleBaseSettings()">
                             <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base">
                                 Multiple of other units
                             </label>
@@ -2680,10 +2680,10 @@ function md5(string) {
                         $('#unit-short-input').val(unit.short_name);
                         $('#unit-allow-decimal').val(unit.allow_decimal);
                         $('#unit-edit-id').val(unit.id);
-                        $('#unit-has-base').prop('checked', unit.define_base_unit == 1);
+                        $('#unit-has-base').prop('checked', unit.is_base_unit == 1);
                         
                         // Show/hide base details
-                        if (unit.define_base_unit == 1) {
+                        if (unit.is_base_unit == 1) {
                             $('#unit-base-settings').show();
                         } else {
                             $('#unit-base-settings').hide();
@@ -2692,8 +2692,8 @@ function md5(string) {
                         // Show/hide decimal precision
                         if (unit.allow_decimal == 1) {
                             $('#unit-precision-container').show();
-                            if (unit.decimal_precision) {
-                                $('#unit-decimal-precision').val(unit.decimal_precision);
+                            if (unit.decimal_after_point_digit !== undefined) {
+                                $('#unit-decimal-precision').val(unit.decimal_after_point_digit);
                             }
                         } else {
                             $('#unit-precision-container').hide();

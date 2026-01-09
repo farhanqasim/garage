@@ -165,6 +165,7 @@ Route::get('/delete-scales/{id}', [ScaleController::class, 'deletescales'])->nam
 
 // Units Routes
 Route::get('/all/units', [UnitController::class, 'all_units'])->name('all.units');
+Route::get('/unit-manager', [UnitController::class, 'unit_manager'])->name('unit.manager');
 Route::post('/post/units', [UnitController::class, 'post_units'])->name('post.units');
 Route::get('/units/{unit}', [UnitController::class, 'show_unit'])->name('show.unit');
 Route::put('/units/{unit}', [UnitController::class, 'update_units'])->name('update.unit');

@@ -1145,20 +1145,74 @@
                                 </button>
 
                             </div>
-                            <div id="unit-info" style="display:none; margin-top:10px;">
-                                <!-- Main Unit Price -->
-                                <div class="input-group align-items-center gap-2 mb-2">
-                                    <span id="unit-name" class="fw-bold"></span>
-                                    <span class="equal-sign">=</span>
-                                    <input type="text" id="total_can_price" name="total_price"
-                                        class="form-control form-control-sm" style="width:120px;" placeholder="Cost Price">
-                                    <span id="multiplier-text" class="fw-bold"></span>
-                                    <input type="number" id="base_price" name="price_per_unit"
-                                        class="form-control form-control-sm" placeholder="Price per Unit"
-                                        style="width:100px;">
+                            <!-- Unit Manager Interface -->
+                            <div id="unit-info" style="display:none; margin-top:15px;">
+                                <!-- Warning Message -->
+                                <div id="priceWarning" class="alert alert-danger d-none mb-3" role="alert">
+                                    <i class="ti ti-alert-circle me-2"></i>
+                                    <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
                                 </div>
-                                <!-- Derived Prices from Conversions -->
-                                <div id="derived-prices-list" class="mt-2"></div>
+                                
+                                <!-- Cost Section -->
+                                <div class="mb-3">
+                                    <h6 class="text-uppercase fw-bold text-success mb-2 small">Cost Price Management</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <div class="card border-success bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                                        <input type="number" id="total_can_price" name="total_price" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-success">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card border-success bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                                        <input type="number" id="base_price" name="price_per_unit" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-success">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sale Section -->
+                                <div class="mb-3">
+                                    <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <div class="card border-warning bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Unit Sale:</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                                        <input type="number" id="total_sale_price" name="total_sale_price" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-warning">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card border-warning bg-light">
+                                                <div class="card-body p-2">
+                                                    <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Per Base Sale:</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
+                                                        <input type="number" id="sale_base_price" name="sale_price_per_unit" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-warning">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Analysis View -->
+                                <div id="derived-prices-list" class="mt-3"></div>
                             </div>
                             @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
@@ -1595,15 +1649,11 @@
                         </div>
                         <div class="col-md-6" id="unit-precision-container" style="display: none;">
                             <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
-                            <select id="unit-decimal-precision" name="decimal_precision" class="form-control form-control-sm">
-                                <option value="1">1</option>
-                                <option value="2" selected>2</option>
-                                <option value="3">3</option>
-                            </select>
+                            <input type="number" id="unit-decimal-precision" name="decimal_after_point_digit" class="form-control form-control-sm" min="0" max="10" value="2">
                         </div>
                     </div>
                     <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" id="unit-has-base" name="define_base_unit" value="1" onchange="toggleBaseSettings()">
+                        <input class="form-check-input" type="checkbox" id="unit-has-base" name="is_base_unit" value="1" onchange="toggleBaseSettings()">
                         <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base">
                             Multiple of other units
                         </label>
@@ -2153,10 +2203,10 @@
                         $('#unit-short-input').val(unit.short_name);
                         $('#unit-allow-decimal').val(unit.allow_decimal);
                         $('#unit-edit-id').val(unit.id);
-                        $('#unit-has-base').prop('checked', unit.define_base_unit == 1);
+                        $('#unit-has-base').prop('checked', unit.is_base_unit == 1);
                         
                         // Show/hide base details
-                        if (unit.define_base_unit == 1) {
+                        if (unit.is_base_unit == 1) {
                             $('#unit-has-base').prop('checked', true);
                             $('#unit-base-settings').show();
                         } else {
@@ -2167,8 +2217,8 @@
                         // Show/hide decimal precision
                         if (unit.allow_decimal == 1) {
                             $('#unit-precision-container').show();
-                            if (unit.decimal_precision) {
-                                $('#unit-decimal-precision').val(unit.decimal_precision);
+                            if (unit.decimal_after_point_digit !== undefined) {
+                                $('#unit-decimal-precision').val(unit.decimal_after_point_digit);
                             }
                         } else {
                             $('#unit-precision-container').hide();
@@ -2465,11 +2515,8 @@
         if (conversions && conversions.length > 0) {
             // Show first conversion as main
             let firstConv = conversions[0];
-            $('#multiplier-text, #sale-multiplier-text')
-                .text(`${firstConv.multiplier} ${firstConv.name}`)
-                .show();
-            $('.equal-sign, .sale-equal-sign').show();
-            $('#base_price, #sale_base_price').show();
+            $('#costBaseLabel').text(`PER ${firstConv.name} COST:`);
+            $('#saleBaseLabel').text(`PER ${firstConv.name} SALE:`);
             $('#base_price').attr('placeholder', `Price per ${firstConv.name}`);
             $('#sale_base_price').attr('placeholder', `Sale per ${firstConv.name}`);
             $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
@@ -2501,11 +2548,8 @@
             }
         } else if (baseUnit && multiplier > 0) {
             // 🔥 SINGLE BASE UNIT CASE (Legacy)
-            $('#multiplier-text, #sale-multiplier-text')
-                .text(`${multiplier} ${baseUnit}`)
-                .show();
-            $('.equal-sign, .sale-equal-sign').show();
-            $('#base_price, #sale_base_price').show();
+            $('#costBaseLabel').text(`PER ${baseUnit} COST:`);
+            $('#saleBaseLabel').text(`PER ${baseUnit} SALE:`);
             $('#base_price').attr('placeholder', `Price per ${baseUnit}`);
             $('#sale_base_price').attr('placeholder', `Sale per ${baseUnit}`);
             $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
@@ -2526,12 +2570,14 @@
             });
         } else {
             // 🔥 SIMPLE UNIT CASE (No conversions)
-            $('#base_price, #sale_base_price').hide();
-            $('#multiplier-text, #sale-multiplier-text').hide();
-            $('.equal-sign, .sale-equal-sign').hide();
+            $('#costBaseLabel').text(`PER ${unitName} COST:`);
+            $('#saleBaseLabel').text(`PER ${unitName} SALE:`);
             $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
             $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
         }
+        
+        // Call syncPrices to update analysis
+        syncPrices();
     });
     
     // Function to sync derived prices for multiple conversions
@@ -2567,6 +2613,100 @@
         });
         $('#derived-prices-list').html(html);
     }
+    
+    // Function to sync prices and show analysis
+    function syncPrices() {
+        const salePrice = parseFloat($('#total_sale_price').val()) || 0;
+        const costPrice = parseFloat($('#total_can_price').val()) || 0;
+        const warning = $('#priceWarning');
+        const list = $('#derived-prices-list');
+        
+        // Clear previous analysis
+        list.empty();
+        
+        // Show warning if sale < cost
+        if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
+            warning.removeClass('d-none');
+        } else {
+            warning.addClass('d-none');
+        }
+        
+        // Show analysis if prices are entered
+        if (salePrice > 0 || costPrice > 0) {
+            const unitName = $('#unit-name').text() || 'Unit';
+            const totalProfit = salePrice - costPrice;
+            const totalMargin = salePrice > 0 ? ((totalProfit / salePrice) * 100).toFixed(1) : 0;
+            const isTotalLoss = totalProfit < 0;
+            
+            let html = `
+                <div class="card border-primary mb-2">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                        <span class="small fw-bold text-uppercase">FULL UNIT ANALYSIS: ${unitName}</span>
+                        <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <p class="small text-muted mb-0">TOTAL COST</p>
+                                <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(2)}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="small text-muted mb-0">TOTAL SALE</p>
+                                <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(2)}</p>
+                            </div>
+                            <div class="col-4">
+                                <p class="small text-muted mb-0">TOTAL PROFIT</p>
+                                <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            list.html(html);
+        }
+    }
+    
+    // Update calculateFromUnit to call syncPrices
+    window.calculateFromUnit = function(type) {
+        const opt = $('#unit_parts').find(':selected');
+        if (!opt.val()) return;
+        
+        const convs = JSON.parse(opt.data('conversions') || '[]');
+        const activeIdx = parseInt(opt.data('active-conv-index') || -1);
+        
+        const unitInput = type === 'cost' ? $('#total_can_price') : $('#total_sale_price');
+        const baseInput = type === 'cost' ? $('#base_price') : $('#sale_base_price');
+        const unitVal = parseFloat(unitInput.val()) || 0;
+
+        if (convs.length > 0 && activeIdx !== -1) {
+            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
+            baseInput.val((unitVal / multiplier).toFixed(2));
+        } else {
+            baseInput.val(unitVal.toFixed(2));
+        }
+        syncPrices();
+    };
+    
+    // Update calculateFromBase to call syncPrices
+    window.calculateFromBase = function(type) {
+        const opt = $('#unit_parts').find(':selected');
+        if (!opt.val()) return;
+        
+        const convs = JSON.parse(opt.data('conversions') || '[]');
+        const activeIdx = parseInt(opt.data('active-conv-index') || -1);
+        
+        const unitInput = type === 'cost' ? $('#total_can_price') : $('#total_sale_price');
+        const baseInput = type === 'cost' ? $('#base_price') : $('#sale_base_price');
+        const baseVal = parseFloat(baseInput.val()) || 0;
+
+        if (convs.length > 0 && activeIdx !== -1) {
+            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
+            unitInput.val((baseVal * multiplier).toFixed(2));
+        } else {
+            unitInput.val(baseVal.toFixed(2));
+        }
+        syncPrices();
+    };
 </script>
 <script>
     $(document).ready(function() {
