@@ -1112,109 +1112,94 @@
                     <div class="row mt-4">
                         <div class="col-md-6"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="unit_parts">Unit:</label>
-                            <div class="input-group inputswidth">
-                                <select
-                                    class="form-control pro_unit-select searchable-select @error('unit') is-invalid @enderror"
-                                    name="unit" id="unit_parts">
-                                    <option value="">Select Unit</option>
-                                    @foreach ($units as $unit)
-                                    <option value="{{ $unit->id }}" 
-                                        data-name="{{ $unit->name }}"
-                                        data-short-name="{{ $unit->short_name }}"
-                                        data-baseunit="{{ $unit->baseUnit->name ?? '' }}"
-                                        data-multiplier="{{ $unit->base_unit_multiplier ?? '' }}"
-                                        data-conversions="{{ json_encode($unit->baseUnits->map(function($bu) { return ['id' => $bu->id, 'name' => $bu->name, 'multiplier' => $bu->pivot->multiplier ?? 1]; })->toArray()) }}">
-                                        {{ $unit->name }} ({{ $unit->short_name }})
-                                        @if ($unit->baseUnits->count() > 0)
-                                            @foreach($unit->baseUnits as $baseUnit)
-                                                - {{ $baseUnit->pivot->multiplier ?? 1 }} {{ $baseUnit->name }}
-                                            @endforeach
-                                        @elseif ($unit->base_unit_id)
-                                            ( {{ $unit->base_unit_multiplier }}-{{ $unit->baseUnit->name }} )
-                                        @endif
-                                    </option>
-                                    @endforeach
+                            <label for="unitSelect" class="form-label small fw-bold text-uppercase text-muted mb-2">Select Unit & Conversion:</label>
+                            <div class="d-flex gap-2 mb-3">
+                                <select id="unitSelect" onchange="handleUnitChange()" class="form-select flex-grow @error('unit') is-invalid @enderror" name="unit">
+                                    <option value="">-- PLEASE SELECT --</option>
                                 </select>
-                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-mode="add"
-                                    data-bs-target="#Unit-add-modal">
-                                    <i data-feather="plus" class="feather-plus"></i>
+                                <button type="button" onclick="openModal('add')" class="btn btn-warning text-white fw-bold" style="width: 40px;" title="Add Unit">+</button>
+                                <button type="button" onclick="openModal('edit')" class="btn btn-secondary" style="width: 40px;" title="Edit Unit">
+                                    <i class="ti ti-pencil"></i>
                                 </button>
-                                <button type="button" class="btn btn-secondary" id="editUnitBtn">
-                                    <i data-feather="edit"></i>
-                                </button>
-
-                            </div>
-                            <!-- Unit Manager Interface -->
-                            <div id="unit-info" style="display:none; margin-top:15px;">
-                                <!-- Warning Message -->
-                                <div id="priceWarning" class="alert alert-danger d-none mb-3" role="alert">
-                                    <i class="ti ti-alert-circle me-2"></i>
-                                    <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
-                                </div>
-                                
-                                <!-- Cost Section -->
-                                <div class="mb-3">
-                                    <h6 class="text-uppercase fw-bold text-success mb-2 small">Cost Price Management</h6>
-                                    <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <div class="card border-success bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
-                                                    <div class="input-group input-group-sm">
-                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
-                                                        <input type="number" id="total_can_price" name="total_price" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-success">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card border-success bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
-                                                    <div class="input-group input-group-sm">
-                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
-                                                        <input type="number" id="base_price" name="price_per_unit" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-success">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Sale Section -->
-                                <div class="mb-3">
-                                    <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
-                                    <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <div class="card border-warning bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Unit Sale:</label>
-                                                    <div class="input-group input-group-sm">
-                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
-                                                        <input type="number" id="total_sale_price" name="total_sale_price" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-warning">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card border-warning bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Per Base Sale:</label>
-                                                    <div class="input-group input-group-sm">
-                                                        <span class="input-group-text bg-transparent border-0">Rs.</span>
-                                                        <input type="number" id="sale_base_price" name="sale_price_per_unit" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold text-warning">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Analysis View -->
-                                <div id="derived-prices-list" class="mt-3"></div>
                             </div>
                             @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+
+                            <!-- Warning Message -->
+                            <div id="priceWarning" class="alert alert-danger d-none mb-3" role="alert">
+                                <i class="ti ti-alert-circle me-2"></i>
+                                <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
+                            </div>
+
+                            <!-- Cost Section -->
+                            <div class="mb-4">
+                                <h6 class="text-uppercase fw-bold text-success mb-2 small">Cost Price Management</h6>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div id="costUnitCard" class="card border-success bg-light">
+                                            <div class="card-body p-2">
+                                                <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                    <input type="number" id="costPrice" name="total_price" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="costBaseCard" class="card border-success bg-light">
+                                            <div class="card-body p-2">
+                                                <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                    <input type="number" id="baseCostPrice" name="price_per_unit" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sale Section -->
+                            <div class="mb-4">
+                                <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <div id="saleUnitCard" class="card border-warning bg-light">
+                                            <div class="card-body p-2">
+                                                <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Unit Sale:</label>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                    <input type="number" id="salePrice" name="total_sale_price" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="saleBaseCard" class="card border-warning bg-light">
+                                            <div class="card-body p-2">
+                                                <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Per Base Sale:</label>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="text-muted fw-bold me-1 small">Rs.</span>
+                                                    <input type="number" id="baseSalePrice" name="sale_price_per_base" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Save Prices Button -->
+                            <div class="mb-4">
+                                <button type="button" onclick="saveCurrentPrices()" id="saveEntryBtn" class="btn btn-success w-100 py-2 fw-bold text-uppercase">
+                                    <i class="ti ti-check me-2"></i>Save Prices for this Base
+                                </button>
+                                <p id="saveStatus" class="text-center small mt-2 text-success fw-bold d-none">PRICES SAVED FOR THIS BASE UNIT!</p>
+                            </div>
+
+                            <!-- Analysis View -->
+                            <div id="derivedPricesList" class="mt-4">
+                                <!-- Results injected here -->
+                            </div>
                         </div>
                         <div class="col-md-6 "
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
@@ -1686,12 +1671,11 @@
                         </button>
                     </div>
                 </div>
-                <div class="modal-footer border-top bg-light">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger d-none" id="unit-delete-btn" onclick="deleteUnit()">Delete</button>
-                    <button type="submit" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
-                </div>
-            </form>
+            </div>
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-danger d-none" id="unit-delete-btn" onclick="deleteUnit()">Delete</button>
+                <button type="button" onclick="saveUnit()" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
+            </div>
         </div>
     </div>
 </div>
@@ -2073,309 +2057,8 @@
         /* =========================
            ADD / UPDATE UNIT
         ==========================*/
-        $("#Unit-form").off("submit").on("submit", function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Check if modal is actually visible
-            if (!$('#Unit-add-modal').hasClass('show')) {
-                console.log('Unit modal not visible, ignoring submit');
-                return false;
-            }
-            
-            let formData = new FormData(this);
-            let url = currentUnitId ?
-                `/units/${currentUnitId}` :
-                `{{ route('post.units') }}`;
-            if (currentUnitId) {
-                formData.append('_method', 'PUT');
-            }
-            $.ajax({
-                url: url,
-                type: "POST",
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(res) {
-                    if (res.success) {
-                        if (currentUnitId) {
-                            // 🔄 Update option
-                            let option = $(`#unit_parts option[value="${currentUnitId}"]`);
-                            option.text(res.unit.name);
-                            option.attr('data-name', res.unit.name);
-                        } else {
-                            // ➕ Add new option with conversions
-                            let conversionsData = [];
-                            if (res.unit.base_units && res.unit.base_units.length > 0) {
-                                conversionsData = res.unit.base_units.map(function(bu) {
-                                    return {
-                                        id: bu.id,
-                                        name: bu.name,
-                                        multiplier: bu.pivot?.multiplier || bu.multiplier || 1
-                                    };
-                                });
-                            }
-                            
-                            let optionText = res.unit.name + ' (' + (res.unit.short_name || '') + ')';
-                            if (conversionsData.length > 0) {
-                                conversionsData.forEach(function(conv) {
-                                    optionText += ' - ' + conv.multiplier + ' ' + conv.name;
-                                });
-                            } else if (res.unit.base_unit_name) {
-                                optionText += ' ( ' + (res.unit.base_unit_multiplier || 1) + '-' + res.unit.base_unit_name + ' )';
-                            }
-                            
-                            $("#unit_parts").append(`
-                            <option value="${res.unit.id}"
-                                data-name="${res.unit.name}"
-                                data-short-name="${res.unit.short_name || ''}"
-                                data-baseunit="${res.unit.base_unit_name ?? ''}"
-                                data-multiplier="${res.unit.base_unit_multiplier ?? ''}"
-                                data-conversions='${JSON.stringify(conversionsData)}'
-                                selected>
-                                ${optionText}
-                            </option>
-                        `);
-                        
-                        // Trigger change to update price calculations
-                        $('#unit_parts').trigger('change');
-                        }
-                        $('#Unit-add-modal').modal('hide');
-                        $('#Unit-form')[0].reset();
-                        currentUnitId = null;
-                        
-                        // Only show success message if modal was actually open
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: 'Unit saved successfully'
-                        });
-                        // 🔊 Play save sound when unit is saved
-                        if (typeof playSaveSound === 'function') {
-                            playSaveSound();
-                        }
-                    }
-                },
-                error: function(xhr) {
-                    console.error('Unit save error', xhr);
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        toastr.error(xhr.responseJSON.message);
-                    } else {
-                        toastr.error('Failed to save unit. Please try again.');
-                    }
-                }
-            });
-        });
-        /* =========================
-           EDIT UNIT
-        ==========================*/
-        $('#editUnitBtn').on('click', function() {
-            let selected = $('#unit_parts option:selected');
-            if (!selected.val()) {
-                Swal.fire('Select Unit', 'Please select a unit first', 'warning');
-                return;
-            }
-            currentUnitId = selected.val();
-            $('#Unit-modal-title').text('Update Unit Settings');
-            $('#unit-delete-btn').removeClass('d-none');
-            
-            // Fetch unit data including base units
-            $.get(`/all/units`, function(units) {
-                // Find the unit in the list (we need a better way - add a route to fetch single unit)
-                // For now, use the selected option data
-                const unitName = selected.data('name') || selected.text().split('(')[0].trim();
-                $('#Unit-form [name="name"]').val(unitName);
-            });
-            
-            // Fetch unit details via AJAX - we need to add a route for this
-            // For now, use a workaround - fetch from all units
-            $.ajax({
-                url: `/units/${currentUnitId}`,
-                type: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                success: function(res) {
-                    if (res && res.unit) {
-                        const unit = res.unit;
-                                    $('#unit-name-input').val(unit.name);
-                        $('#unit-short-input').val(unit.short_name);
-                        $('#unit-allow-decimal').val(unit.allow_decimal);
-                        $('#unit-edit-id').val(unit.id);
-                        $('#unit-has-base').prop('checked', unit.is_base_unit == 1);
-                        
-                        // Show/hide base details
-                        if (unit.is_base_unit == 1) {
-                            $('#unit-has-base').prop('checked', true);
-                            $('#unit-base-settings').show();
-                        } else {
-                            $('#unit-has-base').prop('checked', false);
-                            $('#unit-base-settings').hide();
-                        }
-                        
-                        // Show/hide decimal precision
-                        if (unit.allow_decimal == 1) {
-                            $('#unit-precision-container').show();
-                            if (unit.decimal_after_point_digit !== undefined) {
-                                $('#unit-decimal-precision').val(unit.decimal_after_point_digit);
-                            }
-                        } else {
-                            $('#unit-precision-container').hide();
-                        }
-                        
-                        // Clear existing base units
-                        $('#unit-base-rows').empty();
-                        baseUnitRowIndex = 0;
-                        
-                        // Load base units if available
-                        if (unit.base_units && unit.base_units.length > 0) {
-                            unit.base_units.forEach(function(baseUnit) {
-                                addBaseUnitRowWithData(baseUnit.base_unit_id, baseUnit.pivot?.multiplier || baseUnit.multiplier);
-                            });
-                        } else if (unit.base_unit_id) {
-                            // Legacy single base unit
-                            addBaseUnitRowWithData(unit.base_unit_id, unit.base_unit_multiplier || 1);
-                        } else {
-                            // Add one empty row
-                            addBaseUnitRowWithData('', '');
-                        }
-                        
-                        updateRemoveButtons();
-                        $('#Unit-add-modal').modal('show');
-                    }
-                },
-                error: function() {
-                    // Fallback to using option data
-                    $('#Unit-form [name="name"]').val(selected.data('name') || selected.text().split('(')[0].trim());
-                    $('#Unit-add-modal').modal('show');
-                }
-            });
-        });
-        
-        // Helper function to add base unit row with data (for edit mode)
-        function addBaseUnitRowWithData(baseUnitId, multiplier) {
-            const container = document.getElementById('unit-base-rows');
-            if (!container) return;
-            
-            const newRow = document.createElement('div');
-            newRow.className = 'row g-2 mb-2 base-unit-row';
-            newRow.innerHTML = `
-                <div class="col-5">
-                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
-                    <input type="number" step="any" name="base_units[${baseUnitRowIndex}][multiplier]" class="form-control form-control-sm multiplier-input" value="${multiplier || ''}" placeholder="e.g., 1, 2, 3">
-                </div>
-                <div class="col-6">
-                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
-                    <select name="base_units[${baseUnitRowIndex}][base_unit_id]" class="form-control form-control-sm base-unit-select">
-                        <option value="">Select Base Unit</option>
-                        @foreach($units as $u)
-                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-1 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-base-row">
-                        <i class="ti ti-x"></i>
-                    </button>
-                </div>
-            `;
-            container.appendChild(newRow);
-            
-            // Set selected value
-            if (baseUnitId) {
-                const select = newRow.querySelector('select[name="base_units[' + baseUnitRowIndex + '][base_unit_id]"]');
-                if (select) {
-                    select.value = baseUnitId;
-                }
-            }
-            
-            baseUnitRowIndex++;
-        }
-        /* =========================
-           DELETE UNIT
-        ==========================*/
-        function deleteUnit() {
-            if (!currentUnitId) return;
-            Swal.fire({
-                title: 'Are you sure?',
-                text: 'This unit will be deleted',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, delete it'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: `/units/${currentUnitId}`,
-                        type: 'POST',
-                        data: {
-                            _method: 'DELETE',
-                            _token: $('input[name=_token]').val()
-                        },
-                        success: function(res) {
-                            if (res.success) {
-                                // 🔊 Play delete sound
-                                const audio = document.getElementById(
-                                'deleteSound');
-                                audio.currentTime = 0;
-                                audio.play();
-                                // Remove option
-                                $(`#unit_parts option[value="${currentUnitId}"]`)
-                                    .remove();
-                                $('#Unit-add-modal').modal('hide');
-                                $('#Unit-form')[0].reset();
-                                currentUnitId = null;
-                                Swal.fire('Deleted!', 'Unit deleted successfully',
-                                    'success');
-                            }
-                        }
-                    });
-                }
-            });
-        });
-        /* =========================
-           RESET MODAL
-        ==========================*/
-        $('#Unit-add-modal').on('hidden.bs.modal', function() {
-            $('#Unit-form')[0].reset();
-            $('#unit-delete-btn').addClass('d-none');
-            $('#Unit-modal-title').text('Unit Settings');
-            currentUnitId = null;
-            
-            // Reset base units container
-            $('#unit-base-rows').empty();
-            baseUnitRowIndex = 0;
-            // Add one empty base unit row
-            const container = document.getElementById('unit-base-rows');
-            if (container) {
-                container.innerHTML = `
-                    <div class="row g-2 mb-2 base-unit-row">
-                        <div class="col-5">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
-                            <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
-                            <select name="base_units[0][base_unit_id]" class="form-control form-control-sm base-unit-select">
-                                <option value="">Select Base Unit</option>
-                                @foreach($units as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-1 d-flex align-items-end">
-                            <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;">
-                                <i class="ti ti-x"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
-            $('#unit-base-settings').hide();
-            $('#unit-has-base').prop('checked', false);
-            $('#unit-precision-container').hide();
-            $('#unit-edit-id').val('');
-        });
+        // Old Unit-form submit handler removed - now using saveUnit() function from Unit Manager
+        // Old editUnitBtn and deleteUnit handlers removed - now using openModal() and deleteUnit() from Unit Manager
     });
 </script>
 <script>
@@ -2386,327 +2069,468 @@
         imgPreview.src = imgURL;
         imgPreview.style.display = 'block';
     });
-    // Toggle decimal precision visibility
-    function toggleDecimalPrecision() {
-        const allowDecimal = document.getElementById('unit-allow-decimal').value;
-        const precisionContainer = document.getElementById('unit-precision-container');
-        if (allowDecimal == '1') {
-            precisionContainer.style.display = 'block';
-        } else {
-            precisionContainer.style.display = 'none';
-        }
-    }
+    // These functions are now defined in the Unit Manager section above
+    // ========== UNIT MANAGER FUNCTIONS (EXACT FROM YOUR HTML) ==========
+    let unitsData = @json($units->map(function($unit) {
+        return [
+            'id' => $unit->id,
+            'name' => $unit->name,
+            'short' => $unit->short_name,
+            'decimal' => $unit->decimal_after_point_digit ?? 0,
+            'conversions' => $unit->baseUnits->map(function($bu) {
+                return [
+                    'multiplier' => $bu->pivot->multiplier ?? 1,
+                    'base' => $bu->name,
+                    'base_id' => $bu->id
+                ];
+            })->toArray()
+        ];
+    }));
     
-    // Toggle base settings visibility
-    function toggleBaseSettings() {
-        const hasBase = document.getElementById('unit-has-base').checked;
-        const baseSettings = document.getElementById('unit-base-settings');
-        if (hasBase) {
-            baseSettings.style.display = 'block';
-        } else {
-            baseSettings.style.display = 'none';
-        }
-    }
-    
-    // Add base unit row
-    let baseUnitRowIndex = 1;
-    function addBaseRow() {
-        const container = document.getElementById('unit-base-rows');
-        if (!container) return;
+    // Load units from database and merge with localStorage
+    function loadFromStorage() {
+        let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
         
-        const newRow = document.createElement('div');
-        newRow.className = 'row g-2 mb-2 base-unit-row';
-        newRow.innerHTML = `
-            <div class="col-5">
-                <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
-                <input type="number" step="any" name="base_units[${baseUnitRowIndex}][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
-            </div>
-            <div class="col-6">
-                <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
-                <select name="base_units[${baseUnitRowIndex}][base_unit_id]" class="form-control form-control-sm base-unit-select">
-                    <option value="">Select Base Unit</option>
-                    @foreach($units as $u)
-                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-1 d-flex align-items-end">
-                <button type="button" class="btn btn-danger btn-sm remove-base-row">
-                    <i class="ti ti-x"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(newRow);
-        baseUnitRowIndex++;
+        // Merge database units with stored units (prioritize stored for prices)
+        unitsData.forEach(dbUnit => {
+            const stored = storedUnits.find(u => u.id == dbUnit.id);
+            if (stored) {
+                // Keep stored prices but update structure
+                dbUnit.sampleCost = stored.sampleCost || null;
+                dbUnit.sampleSale = stored.sampleSale || null;
+                if (stored.conversions) {
+                    dbUnit.conversions.forEach((conv, idx) => {
+                        if (stored.conversions[idx]) {
+                            conv.sampleCost = stored.conversions[idx].sampleCost || null;
+                            conv.sampleSale = stored.conversions[idx].sampleSale || null;
+                        }
+                    });
+                }
+            }
+        });
+        
+        // Save merged data
+        localStorage.setItem('myUnits', JSON.stringify(unitsData));
+        renderUnits();
+    }
+    
+    function renderUnits() {
+        const select = document.getElementById('unitSelect');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">-- PLEASE SELECT --</option>';
+        const units = JSON.parse(localStorage.getItem('myUnits') || '[]');
+        
+        units.forEach(u => {
+            const group = document.createElement('optgroup');
+            group.label = u.name;
+            group.style.fontWeight = '900';
+            group.style.color = '#ff9f43';
+            group.style.textTransform = 'uppercase';
+
+            if (u.conversions && u.conversions.length > 0) {
+                u.conversions.forEach((c, index) => {
+                    const opt = new Option(`1 ${u.name} = ${c.multiplier} ${c.base}`, `${u.id}-${c.base}`);
+                    setAttr(opt, u, u.conversions, index);
+                    group.appendChild(opt);
+                });
+            } else {
+                const opt = new Option(`1 ${u.name}`, u.id);
+                setAttr(opt, u, [], -1);
+                group.appendChild(opt);
+            }
+            select.appendChild(group);
+        });
+        select.value = currentVal;
+    }
+
+    function setAttr(opt, u, convs, activeIdx) {
+        opt.setAttribute('data-id', u.id);
+        opt.setAttribute('data-original-name', u.name);
+        opt.setAttribute('data-short', u.short);
+        opt.setAttribute('data-decimal', u.decimal);
+        opt.setAttribute('data-conversions', JSON.stringify(convs));
+        opt.setAttribute('data-active-conv-index', activeIdx);
+    }
+
+    function openModal(mode) {
+        const select = document.getElementById('unitSelect');
+        resetForm();
+        if (mode === 'edit' && select.selectedIndex > 0) {
+            document.getElementById('Unit-modal-title').innerText = "Update Unit Settings";
+            document.getElementById('unit-delete-btn').classList.remove('d-none');
+            const opt = select.selectedOptions[0];
+            const unitId = opt.getAttribute('data-id');
+            const units = JSON.parse(localStorage.getItem('myUnits') || '[]');
+            const unit = units.find(u => u.id == unitId);
+            if (unit) {
+                document.getElementById('unit-edit-id').value = unit.id;
+                document.getElementById('unit-name-input').value = unit.name;
+                document.getElementById('unit-short-input').value = unit.short;
+                document.getElementById('unit-allow-decimal').value = unit.decimal > 0 ? "1" : "0";
+                document.getElementById('unit-decimal-precision').value = unit.decimal || "2";
+                toggleDecimalPrecision();
+                if (unit.conversions && unit.conversions.length > 0) {
+                    document.getElementById('unit-has-base').checked = true;
+                    toggleBaseSettings();
+                    const rowsContainer = document.getElementById('unit-base-rows');
+                    unit.conversions.forEach((c, i) => {
+                        if (i > 0) addBaseRow();
+                        const row = rowsContainer.children[i];
+                        row.querySelector('.multiplier-input').value = c.multiplier;
+                        const baseSelect = row.querySelector('.base-unit-select');
+                        // Find unit by name
+                        @foreach($units as $u)
+                        if ('{{ $u->name }}' === c.base) {
+                            baseSelect.value = {{ $u->id }};
+                        }
+                        @endforeach
+                        if (i > 0) row.querySelector('.remove-base-row').style.display = 'block';
+                    });
+                }
+            }
+        } else {
+            document.getElementById('Unit-modal-title').innerText = "Unit Settings";
+            document.getElementById('unit-delete-btn').classList.add('d-none');
+        }
+        const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
+        modal.show();
+    }
+
+    function closeModal() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('Unit-add-modal'));
+        if (modal) modal.hide();
+    }
+
+    function toggleDecimalPrecision() {
+        const container = document.getElementById('unit-precision-container');
+        const allowDecimal = document.getElementById('unit-allow-decimal').value;
+        container.style.display = allowDecimal == '1' ? 'block' : 'none';
+    }
+
+    function toggleBaseSettings() {
+        const container = document.getElementById('unit-base-settings');
+        const hasBase = document.getElementById('unit-has-base').checked;
+        container.style.display = hasBase ? 'block' : 'none';
+    }
+
+    function addBaseRow() {
+        const rows = document.getElementById('unit-base-rows');
+        const newRow = rows.children[0].cloneNode(true);
+        const index = rows.children.length;
+        newRow.querySelector('input').value = '';
+        newRow.querySelector('select').value = '';
+        newRow.querySelector('input').name = `base_units[${index}][multiplier]`;
+        newRow.querySelector('select').name = `base_units[${index}][base_unit_id]`;
+        newRow.querySelector('.remove-base-row').style.display = 'block';
+        rows.appendChild(newRow);
         updateRemoveButtons();
     }
-    
-    // Remove base unit row
+
     function removeRow(btn) {
         btn.closest('.base-unit-row').remove();
         updateRemoveButtons();
     }
-    
-    // Update remove buttons visibility
+
     function updateRemoveButtons() {
-        const container = document.getElementById('unit-base-rows');
-        if (!container) return;
-        
-        const allRows = container.querySelectorAll('.base-unit-row');
-        allRows.forEach(function(row) {
+        const rows = document.querySelectorAll('#unit-base-rows .base-unit-row');
+        rows.forEach((row, index) => {
             const removeBtn = row.querySelector('.remove-base-row');
-            if (allRows.length > 1) {
+            if (rows.length > 1) {
                 removeBtn.style.display = 'block';
             } else {
                 removeBtn.style.display = 'none';
             }
         });
     }
-    
-    // Event delegation for remove buttons
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-base-row')) {
-            removeRow(e.target.closest('.remove-base-row'));
-        }
-    });
-    
-    // Initialize remove buttons on page load
-    if (document.getElementById('unit-base-rows')) {
-        updateRemoveButtons();
-    }
-    $('#unit_parts').on('change', function() {
-        let selected = $(this).find(':selected');
-        if (!selected.val()) {
-            $('#unit-info, #sale-price-info, #derived-prices-list').hide().empty();
+
+    function saveUnit() {
+        const name = document.getElementById('unit-name-input').value.trim().toUpperCase();
+        const short = document.getElementById('unit-short-input').value.trim().toUpperCase();
+        const editId = document.getElementById('unit-edit-id').value;
+        
+        if (!name || !short) {
+            alert("Please fill name and short name");
             return;
         }
         
-        let unitName = selected.data('name') || selected.text().split('(')[0].trim();
-        let shortName = selected.data('short-name') || '';
-        let baseUnit = selected.data('baseunit');
-        let multiplier = parseFloat(selected.data('multiplier')) || 0;
-        let conversions = [];
-        
-        try {
-            let conversionsData = selected.data('conversions');
-            if (conversionsData && typeof conversionsData === 'string') {
-                conversions = JSON.parse(conversionsData);
-            } else if (Array.isArray(conversionsData)) {
-                conversions = conversionsData;
-            }
-        } catch(e) {
-            console.log('Error parsing conversions:', e);
+        let baseUnits = [];
+        if (document.getElementById('unit-has-base').checked) {
+            document.querySelectorAll('#unit-base-rows .base-unit-row').forEach(row => {
+                const m = row.querySelector('.multiplier-input').value;
+                const b = row.querySelector('.base-unit-select').value;
+                if (m && b) {
+                    baseUnits.push({ multiplier: m, base_unit_id: b });
+                }
+            });
         }
         
-        // Reset values
-        $('#base_price, #total_can_price, #sale_base_price, #total_sale_price').val('');
-        $('#derived-prices-list').empty();
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('short_name', short);
+        formData.append('allow_decimal', document.getElementById('unit-allow-decimal').value);
+        formData.append('decimal_after_point_digit', document.getElementById('unit-decimal-precision').value || 2);
+        formData.append('is_base_unit', document.getElementById('unit-has-base').checked ? 1 : 0);
+        baseUnits.forEach((bu, index) => {
+            formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
+            formData.append(`base_units[${index}][base_unit_id]`, bu.base_unit_id);
+        });
         
-        // Always show containers
-        $('#unit-info, #sale-price-info').show();
+        const url = editId ? `/admin/units/${editId}` : '/admin/post/units';
+        const method = editId ? 'PUT' : 'POST';
         
-        // Set unit names
-        $('#unit-name, #sale-unit-name').text(unitName + (shortName ? ` (${shortName})` : ''));
-        
-        // Remove previous listeners
-        $('#base_price, #total_can_price, #sale_base_price, #total_sale_price').off('input');
-        
-        // If unit has multiple conversions
-        if (conversions && conversions.length > 0) {
-            // Show first conversion as main
-            let firstConv = conversions[0];
-            $('#costBaseLabel').text(`PER ${firstConv.name} COST:`);
-            $('#saleBaseLabel').text(`PER ${firstConv.name} SALE:`);
-            $('#base_price').attr('placeholder', `Price per ${firstConv.name}`);
-            $('#sale_base_price').attr('placeholder', `Sale per ${firstConv.name}`);
-            $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
-            $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
-            
-            // Bidirectional calculation for first conversion
-            $('#base_price').on('input', function() {
-                let val = parseFloat($(this).val()) || 0;
-                $('#total_can_price').val((val * firstConv.multiplier).toFixed(2));
-                syncDerivedPrices(val, firstConv.multiplier, conversions);
-            });
-            $('#total_can_price').on('input', function() {
-                let val = parseFloat($(this).val()) || 0;
-                $('#base_price').val((val / firstConv.multiplier).toFixed(2));
-                syncDerivedPrices(val / firstConv.multiplier, firstConv.multiplier, conversions);
-            });
-            $('#sale_base_price').on('input', function() {
-                let val = parseFloat($(this).val()) || 0;
-                $('#total_sale_price').val((val * firstConv.multiplier).toFixed(2));
-            });
-            $('#total_sale_price').on('input', function() {
-                let val = parseFloat($(this).val()) || 0;
-                $('#sale_base_price').val((val / firstConv.multiplier).toFixed(2));
-            });
-            
-            // Show derived prices for other conversions
-            if (conversions.length > 1) {
-                displayDerivedPrices(conversions);
+        fetch(url, {
+            method: method,
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             }
-        } else if (baseUnit && multiplier > 0) {
-            // 🔥 SINGLE BASE UNIT CASE (Legacy)
-            $('#costBaseLabel').text(`PER ${baseUnit} COST:`);
-            $('#saleBaseLabel').text(`PER ${baseUnit} SALE:`);
-            $('#base_price').attr('placeholder', `Price per ${baseUnit}`);
-            $('#sale_base_price').attr('placeholder', `Sale per ${baseUnit}`);
-            $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
-            $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
-            
-            // Bidirectional calculation
-            $('#base_price').on('input', function() {
-                $('#total_can_price').val(($(this).val() * multiplier || 0).toFixed(2));
-            });
-            $('#total_can_price').on('input', function() {
-                $('#base_price').val(($(this).val() / multiplier || 0).toFixed(2));
-            });
-            $('#sale_base_price').on('input', function() {
-                $('#total_sale_price').val(($(this).val() * multiplier || 0).toFixed(2));
-            });
-            $('#total_sale_price').on('input', function() {
-                $('#sale_base_price').val(($(this).val() / multiplier || 0).toFixed(2));
-            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadFromStorage();
+                closeModal();
+            }
+        });
+    }
+
+    function saveCurrentPrices() {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (!opt || opt.value === "") {
+            alert("Please select a unit first");
+            return;
+        }
+        
+        const unitId = opt.getAttribute('data-id');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        const cost = document.getElementById('costPrice').value;
+        const sale = document.getElementById('salePrice').value;
+        
+        let units = JSON.parse(localStorage.getItem('myUnits') || '[]');
+        const uIndex = units.findIndex(u => u.id == unitId);
+        
+        if (uIndex !== -1) {
+            if (activeIdx !== -1) {
+                if (!units[uIndex].conversions) units[uIndex].conversions = [];
+                if (!units[uIndex].conversions[activeIdx]) units[uIndex].conversions[activeIdx] = {};
+                units[uIndex].conversions[activeIdx].sampleCost = cost;
+                units[uIndex].conversions[activeIdx].sampleSale = sale;
+            } else {
+                units[uIndex].sampleCost = cost;
+                units[uIndex].sampleSale = sale;
+            }
+            localStorage.setItem('myUnits', JSON.stringify(units));
+            const status = document.getElementById('saveStatus');
+            status.classList.remove('d-none');
+            setTimeout(() => { status.classList.add('d-none'); }, 3000);
+        }
+    }
+
+    function calculateFromUnit(type) {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (!opt || opt.value === "") return;
+        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        
+        const unitInput = document.getElementById(type === 'cost' ? 'costPrice' : 'salePrice');
+        const baseInput = document.getElementById(type === 'cost' ? 'baseCostPrice' : 'baseSalePrice');
+        const unitVal = parseFloat(unitInput.value) || 0;
+
+        if (convs.length > 0 && activeIdx !== -1) {
+            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
+            baseInput.value = (unitVal / multiplier).toFixed(2);
         } else {
-            // 🔥 SIMPLE UNIT CASE (No conversions)
-            $('#costBaseLabel').text(`PER ${unitName} COST:`);
-            $('#saleBaseLabel').text(`PER ${unitName} SALE:`);
-            $('#total_can_price').attr('placeholder', `${unitName} Cost Price`);
-            $('#total_sale_price').attr('placeholder', `${unitName} Sale Price`);
+            baseInput.value = unitVal.toFixed(2);
         }
-        
-        // Call syncPrices to update analysis
         syncPrices();
-    });
-    
-    // Function to sync derived prices for multiple conversions
-    function syncDerivedPrices(basePrice, mainMultiplier, conversions) {
-        if (!conversions || conversions.length <= 1) return;
-        
-        conversions.forEach(function(conv, index) {
-            if (index === 0) return; // Skip first (main) conversion
-            
-            let derivedPrice = (basePrice * conv.multiplier).toFixed(2);
-            let priceCard = $(`#derived-price-${index}`);
-            if (priceCard.length) {
-                priceCard.find('.derived-price-value').text(`Rs. ${derivedPrice}`);
-            }
-        });
     }
-    
-    // Function to display derived prices for multiple conversions
-    function displayDerivedPrices(conversions) {
-        let html = '<div class="small text-muted mb-2 fw-bold">Derived Prices:</div>';
-        conversions.forEach(function(conv, index) {
-            if (index === 0) return; // Skip first conversion (already shown as main)
-            
-            html += `
-                <div class="card card-sm mb-2 p-2 bg-light border" id="derived-price-${index}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="small fw-bold">${conv.name}:</span>
-                        <span class="small fw-bold text-primary derived-price-value">Rs. 0.00</span>
-                    </div>
-                    <small class="text-muted">1 ${$('#unit-name').text()} = ${conv.multiplier} ${conv.name}</small>
-                </div>
-            `;
-        });
-        $('#derived-prices-list').html(html);
-    }
-    
-    // Function to sync prices and show analysis
-    function syncPrices() {
-        const salePrice = parseFloat($('#total_sale_price').val()) || 0;
-        const costPrice = parseFloat($('#total_can_price').val()) || 0;
-        const warning = $('#priceWarning');
-        const list = $('#derived-prices-list');
+
+    function calculateFromBase(type) {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (!opt || opt.value === "") return;
+        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
         
-        // Clear previous analysis
-        list.empty();
-        
-        // Show warning if sale < cost
-        if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
-            warning.removeClass('d-none');
+        const unitInput = document.getElementById(type === 'cost' ? 'costPrice' : 'salePrice');
+        const baseInput = document.getElementById(type === 'cost' ? 'baseCostPrice' : 'baseSalePrice');
+        const baseVal = parseFloat(baseInput.value) || 0;
+
+        if (convs.length > 0 && activeIdx !== -1) {
+            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
+            unitInput.value = (baseVal * multiplier).toFixed(2);
         } else {
-            warning.addClass('d-none');
+            unitInput.value = baseVal.toFixed(2);
+        }
+        syncPrices();
+    }
+
+    function handleUnitChange() {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        if (opt && opt.value) {
+            const name = opt.getAttribute('data-original-name');
+            const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+            const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+            const baseName = (convs.length > 0 && activeIdx !== -1) ? convs[activeIdx].base : name;
+            
+            document.getElementById('costUnitLabel').innerText = `${name} COST:`;
+            document.getElementById('costBaseLabel').innerText = `PER ${baseName} COST:`;
+            document.getElementById('saleUnitLabel').innerText = `${name} SALE:`;
+            document.getElementById('saleBaseLabel').innerText = `PER ${baseName} SALE:`;
+            
+            const units = JSON.parse(localStorage.getItem('myUnits') || '[]');
+            const unitData = units.find(u => u.id == opt.getAttribute('data-id'));
+            
+            let costToLoad = '';
+            let saleToLoad = '';
+
+            if (unitData) {
+                if (activeIdx !== -1 && unitData.conversions && unitData.conversions[activeIdx]) {
+                    costToLoad = unitData.conversions[activeIdx].sampleCost || '';
+                    saleToLoad = unitData.conversions[activeIdx].sampleSale || '';
+                } else {
+                    costToLoad = unitData.sampleCost || '';
+                    saleToLoad = unitData.sampleSale || '';
+                }
+            }
+
+            document.getElementById('costPrice').value = costToLoad;
+            document.getElementById('salePrice').value = saleToLoad;
+            calculateFromUnit('cost');
+            calculateFromUnit('sale');
+        }
+        syncPrices();
+    }
+
+    function syncPrices() {
+        const opt = document.getElementById('unitSelect').selectedOptions[0];
+        const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
+        const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
+        const list = document.getElementById('derivedPricesList');
+        const warning = document.getElementById('priceWarning');
+        const cards = ['saleUnitCard', 'saleBaseCard', 'costUnitCard', 'costBaseCard'];
+        list.innerHTML = '';
+        
+        if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
+            warning.classList.remove('d-none');
+            cards.forEach(id => {
+                const card = document.getElementById(id);
+                if (card) card.classList.add('border-danger', 'bg-danger-subtle');
+            });
+        } else {
+            warning.classList.add('d-none');
+            cards.forEach(id => {
+                const card = document.getElementById(id);
+                if (card) {
+                    card.classList.remove('border-danger', 'bg-danger-subtle');
+                }
+            });
         }
         
-        // Show analysis if prices are entered
-        if (salePrice > 0 || costPrice > 0) {
-            const unitName = $('#unit-name').text() || 'Unit';
-            const totalProfit = salePrice - costPrice;
-            const totalMargin = salePrice > 0 ? ((totalProfit / salePrice) * 100).toFixed(1) : 0;
-            const isTotalLoss = totalProfit < 0;
-            
-            let html = `
-                <div class="card border-primary mb-2">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
-                        <span class="small fw-bold text-uppercase">FULL UNIT ANALYSIS: ${unitName}</span>
-                        <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
+        if (!opt || opt.value === "" || (salePrice === 0 && costPrice === 0)) return;
+        
+        const unitName = opt.getAttribute('data-original-name');
+        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
+        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        const decimal = 2;
+        const totalProfit = salePrice - costPrice;
+        const totalMargin = salePrice > 0 ? (totalProfit / salePrice * 100).toFixed(1) : 0;
+        const isTotalLoss = totalProfit < 0;
+
+        list.innerHTML += `
+            <div class="card border-primary mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                    <span class="small fw-bold text-uppercase">FULL UNIT ANALYSIS: ${unitName}</span>
+                    <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
+                </div>
+                <div class="card-body p-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL COST</p>
+                            <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(decimal)}</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL SALE</p>
+                            <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(decimal)}</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL PROFIT</p>
+                            <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(decimal)}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        if (activeIdx !== -1 && convs[activeIdx]) {
+            const c = convs[activeIdx];
+            const baseSale = (salePrice / c.multiplier);
+            const baseCost = (costPrice / c.multiplier);
+            const profit = baseSale - baseCost;
+            const margin = baseSale > 0 ? (profit / baseSale * 100).toFixed(1) : 0;
+            const isLoss = profit < 0;
+            list.innerHTML += `
+                <div class="card border-secondary mb-3 ${isLoss ? 'border-danger' : ''}">
+                    <div class="card-header ${isLoss ? 'bg-danger text-white' : 'bg-secondary text-white'} d-flex justify-content-between align-items-center py-2">
+                        <span class="small fw-bold text-uppercase">Analysis per ${c.base}</span>
+                        <span class="badge ${isLoss ? 'bg-dark' : 'bg-success'}">${isLoss ? 'LOSS' : 'Margin'}: ${margin}%</span>
                     </div>
                     <div class="card-body p-2">
                         <div class="row text-center">
                             <div class="col-4">
-                                <p class="small text-muted mb-0">TOTAL COST</p>
-                                <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(2)}</p>
+                                <p class="small text-muted mb-1">COST/${c.base}</p>
+                                <p class="fw-bold text-success mb-0">Rs.${baseCost.toFixed(decimal)}</p>
                             </div>
                             <div class="col-4">
-                                <p class="small text-muted mb-0">TOTAL SALE</p>
-                                <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(2)}</p>
+                                <p class="small text-muted mb-1">SALE/${c.base}</p>
+                                <p class="fw-bold text-warning mb-0">Rs.${baseSale.toFixed(decimal)}</p>
                             </div>
                             <div class="col-4">
-                                <p class="small text-muted mb-0">TOTAL PROFIT</p>
-                                <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(2)}</p>
+                                <p class="small text-muted mb-1">PROFIT/${c.base}</p>
+                                <p class="fw-bold ${profit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${profit.toFixed(decimal)}</p>
                             </div>
                         </div>
                     </div>
-                </div>
-            `;
-            list.html(html);
+                </div>`;
+        }
+    }
+
+    function resetForm() {
+        document.getElementById('unit-name-input').value = '';
+        document.getElementById('unit-short-input').value = '';
+        document.getElementById('unit-edit-id').value = '';
+        document.getElementById('unit-has-base').checked = false;
+        document.getElementById('unit-allow-decimal').value = "0";
+        document.getElementById('unit-delete-btn').classList.add('d-none');
+        toggleDecimalPrecision();
+        toggleBaseSettings();
+        const rows = document.getElementById('unit-base-rows');
+        while (rows.children.length > 1) rows.removeChild(rows.lastChild);
+        rows.children[0].querySelector('input').value = '';
+        rows.children[0].querySelector('select').value = '';
+    }
+
+    function deleteUnit() {
+        const id = document.getElementById('unit-edit-id').value;
+        if (id && confirm("Delete this unit?")) {
+            fetch(`/admin/units/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadFromStorage();
+                    closeModal();
+                }
+            });
         }
     }
     
-    // Update calculateFromUnit to call syncPrices
-    window.calculateFromUnit = function(type) {
-        const opt = $('#unit_parts').find(':selected');
-        if (!opt.val()) return;
-        
-        const convs = JSON.parse(opt.data('conversions') || '[]');
-        const activeIdx = parseInt(opt.data('active-conv-index') || -1);
-        
-        const unitInput = type === 'cost' ? $('#total_can_price') : $('#total_sale_price');
-        const baseInput = type === 'cost' ? $('#base_price') : $('#sale_base_price');
-        const unitVal = parseFloat(unitInput.val()) || 0;
-
-        if (convs.length > 0 && activeIdx !== -1) {
-            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
-            baseInput.val((unitVal / multiplier).toFixed(2));
-        } else {
-            baseInput.val(unitVal.toFixed(2));
-        }
-        syncPrices();
-    };
-    
-    // Update calculateFromBase to call syncPrices
-    window.calculateFromBase = function(type) {
-        const opt = $('#unit_parts').find(':selected');
-        if (!opt.val()) return;
-        
-        const convs = JSON.parse(opt.data('conversions') || '[]');
-        const activeIdx = parseInt(opt.data('active-conv-index') || -1);
-        
-        const unitInput = type === 'cost' ? $('#total_can_price') : $('#total_sale_price');
-        const baseInput = type === 'cost' ? $('#base_price') : $('#sale_base_price');
-        const baseVal = parseFloat(baseInput.val()) || 0;
-
-        if (convs.length > 0 && activeIdx !== -1) {
-            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
-            unitInput.val((baseVal * multiplier).toFixed(2));
-        } else {
-            unitInput.val(baseVal.toFixed(2));
-        }
-        syncPrices();
-    };
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadFromStorage();
+    });
 </script>
 <script>
     $(document).ready(function() {
