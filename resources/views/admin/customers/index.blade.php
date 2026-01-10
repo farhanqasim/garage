@@ -1,6 +1,198 @@
 @extends('layouts.app')
 @section('title','All Customers')
 @section('content')
+<style>
+    /* Customer Form Styling - User Friendly & Responsive */
+    .profile-upload-box:hover, .multiple-upload-box:hover {
+        border-color: #0d6efd !important;
+        background-color: #f8f9fa !important;
+        transition: all 0.3s ease;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .profile-upload-box, .multiple-upload-box {
+        transition: all 0.3s ease;
+    }
+    .form-label.fw-bold {
+        color: #495057;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    .card.border-primary, .card.border-warning {
+        border-width: 2px !important;
+    }
+    .btn-group .btn-check:checked + .btn {
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        font-weight: 600;
+    }
+    .input-group-text {
+        border-right: none;
+        min-width: 45px;
+        justify-content: center;
+    }
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+    .input-group-lg .form-control,
+    .input-group-lg .form-select,
+    .input-group-lg .input-group-text {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+        .modal-body {
+            padding: 1rem !important;
+        }
+        .col-12, .col-md-6 {
+            margin-bottom: 1rem;
+        }
+        .input-group-lg {
+            flex-wrap: wrap;
+        }
+        .input-group-lg .btn {
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+        .btn-group {
+            flex-direction: column;
+        }
+        .btn-group .btn {
+            border-radius: 0.375rem !important;
+            margin-bottom: 0.5rem;
+        }
+        .card-body {
+            padding: 1rem !important;
+        }
+        h6 {
+            font-size: 0.85rem;
+        }
+        .form-label {
+            font-size: 0.9rem;
+        }
+        .input-group-text {
+            min-width: 40px;
+            padding: 0.5rem 0.75rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .modal-xl {
+            max-width: 100%;
+        }
+        .modal-header h4 {
+            font-size: 1.1rem;
+        }
+        .input-group-lg .form-control {
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+        .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+    }
+    
+    /* Touch-friendly buttons on mobile */
+    @media (hover: none) and (pointer: coarse) {
+        .btn, .form-control, .form-select {
+            min-height: 44px; /* iOS recommended touch target */
+        }
+        .mic-btn, .remove-row {
+            min-width: 44px;
+            min-height: 44px;
+        }
+    }
+    
+    /* Better spacing for sections */
+    .mb-4 {
+        margin-bottom: 2rem !important;
+    }
+    
+    /* Smooth scrolling */
+    .modal-dialog-scrollable .modal-body {
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+    
+    /* Better focus states */
+    .form-control:focus, .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        outline: none;
+    }
+    
+    /* Icon sizing */
+    .input-group-text i {
+        font-size: 1.1rem;
+    }
+    
+    /* Card hover effect */
+    .card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    /* Image Preview Styles */
+    #multiple_images_preview {
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    #multiple_images_preview > div {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    #multiple_images_preview > div:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
+    
+    .remove-image-preview {
+        border-radius: 50% !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    .remove-image-preview:hover {
+        transform: scale(1.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .remove-profile-image, .crop-profile-image {
+        transition: all 0.2s ease;
+    }
+    
+    .remove-profile-image:hover, .crop-profile-image:hover {
+        transform: scale(1.1);
+    }
+    
+    /* Cropper Modal Styles */
+    #imageCropModal .modal-body {
+        max-height: 70vh;
+        overflow: auto;
+    }
+    
+    #cropImage {
+        display: block;
+        max-width: 100%;
+    }
+    
+    /* Profile Preview Container */
+    .profile-upload-box .preview-container {
+        position: relative;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
 <div class="content">
     <div class="page-header">
         <div class="add-item d-flex">
@@ -16,7 +208,7 @@
         </ul>
         <div class="page-btn">
             <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                <i class="ti ti-circle-plus me-1"></i>Add
+                <i class="ti ti-user-plus me-1"></i>Add Customer
             </a>
         </div>
     </div>
@@ -101,12 +293,16 @@
 </div>
 
 {{-- Add Modal (Static) --}}
-<div class="modal fade" id="addCustomerModal">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Add Customer</h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0 sticky-top" style="z-index: 1050;">
+                <h4 class="modal-title fw-bold d-flex align-items-center">
+                    <i class="ti ti-user-plus me-2"></i>
+                    <span class="d-none d-sm-inline">Add New Customer</span>
+                    <span class="d-sm-none">Add Customer</span>
+                </h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @include('admin.customers.modals.create-customer-form')
         </div>
@@ -131,6 +327,10 @@
 
 @endsection
 @push('scripts')
+<!-- Cropper.js CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<!-- Cropper.js JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
 <script>
     // IIFE to avoid global pollution
@@ -375,15 +575,23 @@
             }
         });
 
+        // Store selected files for multiple images
+        let selectedMultipleImages = [];
+        let profileImageFile = null;
+        let cropper = null;
+
         // File Input Previews (delegated)
         document.addEventListener('change', function(e) {
             if (e.target.id === 'profile_img') {
                 const file = e.target.files[0];
                 const preview = document.getElementById('profile_preview');
                 const placeholder = e.target.closest('.profile-upload-box').querySelector('.upload-placeholder');
-                const uploadBtn = e.target.closest('.profile-upload-box').querySelector('.upload-btn');
+                const removeBtn = document.querySelector('.remove-profile-image');
+                const cropBtn = document.querySelector('.crop-profile-image');
                 const existing = document.querySelector('.existing-image');
-                if (file) {
+                
+                if (file && file.type.startsWith('image/')) {
+                    profileImageFile = file;
                     const reader = new FileReader();
                     reader.onload = function(ev) {
                         if (preview) {
@@ -391,7 +599,8 @@
                             preview.style.display = 'block';
                         }
                         if (placeholder) placeholder.classList.add('d-none');
-                        if (uploadBtn) uploadBtn.classList.add('d-none');
+                        if (removeBtn) removeBtn.style.display = 'block';
+                        if (cropBtn) cropBtn.style.display = 'block';
                         if (existing) existing.style.display = 'none';
                     };
                     reader.readAsDataURL(file);
@@ -401,8 +610,10 @@
                         preview.style.display = 'none';
                     }
                     if (placeholder) placeholder.classList.remove('d-none');
-                    if (uploadBtn) uploadBtn.classList.remove('d-none');
+                    if (removeBtn) removeBtn.style.display = 'none';
+                    if (cropBtn) cropBtn.style.display = 'none';
                     if (existing) existing.style.display = 'block';
+                    profileImageFile = null;
                 }
             }
 
@@ -440,45 +651,210 @@
                 const files = e.target.files;
                 const previewContainer = document.getElementById('multiple_images_preview');
                 const placeholder = e.target.closest('.multiple-upload-box').querySelector('.upload-placeholder');
-                const uploadBtn = e.target.closest('.multiple-upload-box').querySelector('.upload-btn');
                 const existing = e.target.closest('.multiple-upload-box').querySelector('.existing-images');
+                
                 if (files.length > 0) {
+                    // Add new files to selected images array
+                    Array.from(files).forEach((file) => {
+                        if (file.type.startsWith('image/') && !selectedMultipleImages.find(f => f.name === file.name && f.size === file.size)) {
+                            selectedMultipleImages.push(file);
+                        }
+                    });
+                    
+                    // Update preview
+                    updateMultipleImagesPreview();
+                    
                     if (placeholder) placeholder.style.display = 'none';
-                    if (uploadBtn) uploadBtn.style.display = 'none';
                     if (existing) existing.style.display = 'none';
-                    if (previewContainer) {
-                        previewContainer.classList.remove('d-none');
-                        previewContainer.innerHTML = '';
-                        Array.from(files).forEach((file) => {
-                            if (file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = function(ev) {
-                                    const div = document.createElement('div');
-                                    div.className = 'text-center border rounded p-2 bg-light position-relative';
-                                    div.style.width = '150px';
-                                    div.style.height = '150px';
-                                    div.style.cursor = 'pointer';
-                                    div.innerHTML = `
-                                        <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded" style="max-height: 100px; max-width: 100px; display: block; margin: 0 auto;">
-                                        <small class="d-block text-muted mt-1">${file.name}</small>
-                                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview"><i class="fas fa-trash"></i></button>
-                                    `;
-                                    previewContainer.appendChild(div);
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        });
-                    }
-                } else {
-                    if (placeholder) placeholder.style.display = 'block';
-                    if (uploadBtn) uploadBtn.style.display = 'block';
-                    if (existing) existing.style.display = 'block';
-                    if (previewContainer) {
-                        previewContainer.classList.add('d-none');
-                        previewContainer.innerHTML = '';
-                    }
                 }
             }
+        });
+
+        // Update multiple images preview
+        function updateMultipleImagesPreview() {
+            const previewContainer = document.getElementById('multiple_images_preview');
+            const placeholder = document.querySelector('.multiple-upload-box .upload-placeholder');
+            
+            if (!previewContainer) return;
+            
+            if (selectedMultipleImages.length > 0) {
+                previewContainer.classList.remove('d-none');
+                previewContainer.innerHTML = '';
+                
+                selectedMultipleImages.forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        const div = document.createElement('div');
+                        div.className = 'position-relative border rounded p-2 bg-white shadow-sm';
+                        div.style.width = '120px';
+                        div.style.height = '140px';
+                        div.style.flexShrink = '0';
+                        div.setAttribute('data-index', index);
+                        div.innerHTML = `
+                            <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded" style="max-height: 100px; max-width: 100%; object-fit: cover; width: 100%; height: 100px;">
+                            <small class="d-block text-muted mt-1 text-truncate" style="font-size: 0.7rem;" title="${file.name}">${file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}</small>
+                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 28px; height: 28px; padding: 0; z-index: 10;" title="Remove">
+                                <i class="ti ti-x" style="font-size: 14px;"></i>
+                            </button>
+                        `;
+                        previewContainer.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+                
+                if (placeholder) placeholder.style.display = 'none';
+            } else {
+                previewContainer.classList.add('d-none');
+                previewContainer.innerHTML = '';
+                if (placeholder) placeholder.style.display = 'block';
+            }
+            
+            // Update file input
+            updateMultipleImagesInput();
+        }
+
+        // Update multiple images file input
+        function updateMultipleImagesInput() {
+            const input = document.getElementById('multiple_images');
+            if (!input) return;
+            
+            const dataTransfer = new DataTransfer();
+            selectedMultipleImages.forEach(file => {
+                dataTransfer.items.add(file);
+            });
+            input.files = dataTransfer.files;
+        }
+
+        // Remove profile image
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-profile-image')) {
+                const profileInput = document.getElementById('profile_img');
+                const preview = document.getElementById('profile_preview');
+                const placeholder = document.querySelector('.profile-upload-box .upload-placeholder');
+                const removeBtn = document.querySelector('.remove-profile-image');
+                const cropBtn = document.querySelector('.crop-profile-image');
+                const croppedInput = document.getElementById('profile_img_cropped');
+                
+                if (profileInput) profileInput.value = '';
+                if (preview) {
+                    preview.src = '';
+                    preview.style.display = 'none';
+                }
+                if (placeholder) placeholder.classList.remove('d-none');
+                if (removeBtn) removeBtn.style.display = 'none';
+                if (cropBtn) cropBtn.style.display = 'none';
+                if (croppedInput) croppedInput.value = '';
+                profileImageFile = null;
+                
+                // Destroy cropper if exists
+                if (cropper) {
+                    cropper.destroy();
+                    cropper = null;
+                }
+            }
+            
+            // Remove multiple image
+            if (e.target.closest('.remove-image-preview')) {
+                const btn = e.target.closest('.remove-image-preview');
+                const index = parseInt(btn.getAttribute('data-index'));
+                if (!isNaN(index) && selectedMultipleImages[index]) {
+                    selectedMultipleImages.splice(index, 1);
+                    updateMultipleImagesPreview();
+                }
+            }
+            
+            // Crop profile image
+            if (e.target.closest('.crop-profile-image')) {
+                if (!profileImageFile) {
+                    alert('Please select an image first');
+                    return;
+                }
+                
+                const preview = document.getElementById('profile_preview');
+                const cropModal = new bootstrap.Modal(document.getElementById('imageCropModal'));
+                const cropImage = document.getElementById('cropImage');
+                
+                if (preview && cropImage) {
+                    cropImage.src = preview.src;
+                    cropModal.show();
+                    
+                    // Initialize cropper when modal is shown
+                    document.getElementById('imageCropModal').addEventListener('shown.bs.modal', function() {
+                        if (cropper) {
+                            cropper.destroy();
+                        }
+                        cropper = new Cropper(cropImage, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.8,
+                            restore: false,
+                            guides: true,
+                            center: true,
+                            highlight: false,
+                            cropBoxMovable: true,
+                            cropBoxResizable: true,
+                            toggleDragModeOnDblclick: false,
+                        });
+                    }, { once: true });
+                }
+            }
+            
+            // Crop and save button
+            if (e.target.id === 'cropImageBtn') {
+                if (!cropper) {
+                    alert('Cropper not initialized');
+                    return;
+                }
+                
+                const canvas = cropper.getCroppedCanvas({
+                    width: 800,
+                    height: 800,
+                    imageSmoothingEnabled: true,
+                    imageSmoothingQuality: 'high',
+                });
+                
+                if (canvas) {
+                    canvas.toBlob(function(blob) {
+                        const preview = document.getElementById('profile_preview');
+                        const croppedInput = document.getElementById('profile_img_cropped');
+                        const profileInput = document.getElementById('profile_img');
+                        
+                        // Create new file from blob
+                        const file = new File([blob], profileImageFile.name, { type: blob.type });
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        if (profileInput) profileInput.files = dataTransfer.files;
+                        
+                        // Update preview
+                        const url = URL.createObjectURL(blob);
+                        if (preview) {
+                            preview.src = url;
+                            preview.style.display = 'block';
+                        }
+                        
+                        // Store cropped image as base64
+                        canvas.toBlob(function(blob) {
+                            const reader = new FileReader();
+                            reader.onload = function() {
+                                if (croppedInput) croppedInput.value = reader.result;
+                            };
+                            reader.readAsDataURL(blob);
+                        }, 'image/jpeg', 0.9);
+                        
+                        // Close modal
+                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('imageCropModal'));
+                        if (cropModal) cropModal.hide();
+                        
+                        // Destroy cropper
+                        if (cropper) {
+                            cropper.destroy();
+                            cropper = null;
+                        }
+                    }, 'image/jpeg', 0.9);
+                }
+            }
+        });
         });
 
         // Credit Limit Radio Toggle
@@ -544,6 +920,47 @@
                 }
             });
         });
+        
+        // Reset form when modal is closed
+        const addCustomerModal = document.getElementById('addCustomerModal');
+        if (addCustomerModal) {
+            addCustomerModal.addEventListener('hidden.bs.modal', function() {
+                // Reset profile image
+                const profileInput = document.getElementById('profile_img');
+                const profilePreview = document.getElementById('profile_preview');
+                const profilePlaceholder = document.querySelector('.profile-upload-box .upload-placeholder');
+                const removeProfileBtn = document.querySelector('.remove-profile-image');
+                const cropProfileBtn = document.querySelector('.crop-profile-image');
+                const croppedInput = document.getElementById('profile_img_cropped');
+                
+                if (profileInput) profileInput.value = '';
+                if (profilePreview) {
+                    profilePreview.src = '';
+                    profilePreview.style.display = 'none';
+                }
+                if (profilePlaceholder) profilePlaceholder.classList.remove('d-none');
+                if (removeProfileBtn) removeProfileBtn.style.display = 'none';
+                if (cropProfileBtn) cropProfileBtn.style.display = 'none';
+                if (croppedInput) croppedInput.value = '';
+                profileImageFile = null;
+                
+                // Reset multiple images
+                selectedMultipleImages = [];
+                updateMultipleImagesPreview();
+                
+                // Destroy cropper if exists
+                if (cropper) {
+                    cropper.destroy();
+                    cropper = null;
+                }
+                
+                // Reset visiting doc
+                const visitingInput = document.getElementById('visiting_doc');
+                const visitingPreview = document.getElementById('visiting_preview');
+                if (visitingInput) visitingInput.value = '';
+                if (visitingPreview) visitingPreview.style.display = 'none';
+            });
+        }
     })();
 </script>
 
