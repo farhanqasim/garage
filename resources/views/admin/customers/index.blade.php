@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','All Customers')
 @section('content')
+<style>
     /* Customer Form Styling - User Friendly & Responsive */
     .profile-upload-box:hover, .multiple-upload-box:hover {
         border-color: #0d6efd !important;
@@ -434,6 +435,10 @@
     }
     
     /* Mic button - only show on first row */
+    .name-phone-row:not(:first-child) .mic-btn {
+        display: none !important;
+    }
+</style>
 <div class="content">
     <div class="page-header">
         <div class="add-item d-flex">
@@ -636,10 +641,8 @@
             controlBtn.classList.remove('play-pause-btn');
             const audioContainer = nameCol.querySelector('.audio-player-container');
             if (audioContainer) audioContainer.remove();
-            const recordingIndicator = nameCol.querySelector('.mt-1');
-            if (recordingIndicator && recordingIndicator.querySelector('.ti-record')) {
-                recordingIndicator.remove();
-            }
+            const recordingIndicator = nameCol.querySelector('.recording-indicator');
+            if (recordingIndicator) recordingIndicator.remove();
             const hiddenInput = document.querySelector('input[name="voice_note"]');
             if (hiddenInput) hiddenInput.remove();
         }
@@ -672,7 +675,7 @@
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-phone"></i></span>
                             <input type="text" name="phones[]" class="form-control" placeholder="03XX-XXXXXXX">
-                    </div>
+                        </div>
                     </div>
                 `;
                 container.appendChild(newRow);
@@ -836,10 +839,10 @@
                 
                 // Add recording indicator
                 const recordingIndicator = document.createElement('div');
-                recordingIndicator.className = 'mt-1';
+                recordingIndicator.className = 'recording-indicator mt-1';
                 recordingIndicator.innerHTML = `
                     <small class="text-danger fw-bold">
-                        <i class="ti ti-record me-1"></i>Recording...
+                        <i class="ti ti-record me-1" style="animation: pulse 1s infinite;"></i>Recording...
                     </small>
                 `;
                 nameCol.appendChild(recordingIndicator);
@@ -853,10 +856,8 @@
                 mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
                 mediaRecorder.onstop = () => {
                     // Remove recording indicator
-                    const indicator = nameCol.querySelector('.mt-1');
-                    if (indicator && indicator.querySelector('.ti-record')) {
-                        indicator.remove();
-                    }
+                    const indicator = nameCol.querySelector('.recording-indicator');
+                    if (indicator) indicator.remove();
                     
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     const audioURL = URL.createObjectURL(audioBlob);
@@ -894,6 +895,7 @@
                 mediaRecorder.start();
                 recognition.start();
                 controlBtn.innerHTML = '<i class="ti ti-stop text-danger"></i>';
+                controlBtn.style.animation = 'pulse 1s infinite';
                 recognition.onresult = (event) => { 
                     transcript = event.results[0][0].transcript;
                     if (transcript.trim()) {
@@ -904,10 +906,8 @@
                     }
                 };
                 recognition.onerror = (event) => {
-                    const indicator = nameCol.querySelector('.mt-1');
-                    if (indicator && indicator.querySelector('.ti-record')) {
-                        indicator.remove();
-                    }
+                    const indicator = nameCol.querySelector('.recording-indicator');
+                    if (indicator) indicator.remove();
                     alert('Speech error: ' + event.error);
                     resetRecordingUI(inputField, controlBtn, nameCol);
                     if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
@@ -1010,8 +1010,8 @@
                 
                 if (files && files.length > 0) {
                     // Add new files to selected images array
-                        Array.from(files).forEach((file) => {
-                            if (file.type.startsWith('image/')) {
+                    Array.from(files).forEach((file) => {
+                        if (file.type.startsWith('image/')) {
                             // Check if file already exists by name and size
                             const exists = selectedMultipleImages.find(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
                             if (!exists) {
@@ -1037,29 +1037,29 @@
                 previewContainer.innerHTML = '';
                 
                 selectedMultipleImages.forEach((file, index) => {
-                                const reader = new FileReader();
-                                reader.onload = function(ev) {
-                                    const div = document.createElement('div');
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        const div = document.createElement('div');
                         div.className = 'position-relative border rounded p-2 bg-white shadow-sm';
                         div.style.width = '130px';
-                                    div.style.height = '150px';
+                        div.style.height = '150px';
                         div.style.flexShrink = '0';
                         div.setAttribute('data-index', index);
-                                    div.innerHTML = `
+                        div.innerHTML = `
                             <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded mb-1" style="max-height: 110px; max-width: 100%; object-fit: cover; width: 100%; height: 110px; display: block;">
                             <small class="d-block text-muted text-truncate text-center" style="font-size: 0.7rem;" title="${file.name}">${file.name.length > 18 ? file.name.substring(0, 18) + '...' : file.name}</small>
                             <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove Image">
                                 <i class="ti ti-x" style="font-size: 16px; font-weight: bold;"></i>
                             </button>
-                                    `;
-                                    previewContainer.appendChild(div);
-                                };
-                                reader.readAsDataURL(file);
-                        });
-                } else {
-                        previewContainer.classList.add('d-none');
-                        previewContainer.innerHTML = '';
-                    }
+                        `;
+                        previewContainer.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            } else {
+                previewContainer.classList.add('d-none');
+                previewContainer.innerHTML = '';
+            }
             
             // Update file input
             updateMultipleImagesInput();
