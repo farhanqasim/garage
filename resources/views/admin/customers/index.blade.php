@@ -662,19 +662,19 @@
                 newRow.innerHTML = `
                     <div class="col-12 col-md-6">
                         <label class="form-label small mb-1">Full Name <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-user"></i></span>
-                            <input type="text" name="names[]" class="form-control" placeholder="Enter name" required>
-                            <button type="button" class="btn btn-danger remove-row" title="Remove">
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-user"></i></span>
+                            <input type="text" name="names[]" class="form-control flex-grow-1" placeholder="Enter name" required>
+                            <button type="button" class="btn btn-danger remove-row d-flex align-items-center justify-content-center" title="Remove">
                                 <i class="ti ti-trash"></i>
                             </button>
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label small mb-1">WhatsApp Number</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-phone"></i></span>
-                            <input type="text" name="phones[]" class="form-control" placeholder="03XX-XXXXXXX">
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-phone"></i></span>
+                            <input type="text" name="phones[]" class="form-control flex-grow-1" placeholder="03XX-XXXXXXX">
                         </div>
                     </div>
                 `;
@@ -842,7 +842,7 @@
                 recordingIndicator.className = 'recording-indicator mt-1';
                 recordingIndicator.innerHTML = `
                     <small class="text-danger fw-bold">
-                        <i class="ti ti-record me-1" style="animation: pulse 1s infinite;"></i>Recording...
+                        <i class="ti ti-record me-1"></i>Recording...
                     </small>
                 `;
                 nameCol.appendChild(recordingIndicator);
@@ -895,7 +895,6 @@
                 mediaRecorder.start();
                 recognition.start();
                 controlBtn.innerHTML = '<i class="ti ti-stop text-danger"></i>';
-                controlBtn.style.animation = 'pulse 1s infinite';
                 recognition.onresult = (event) => { 
                     transcript = event.results[0][0].transcript;
                     if (transcript.trim()) {
@@ -1010,8 +1009,8 @@
                 
                 if (files && files.length > 0) {
                     // Add new files to selected images array
-                    Array.from(files).forEach((file) => {
-                        if (file.type.startsWith('image/')) {
+                        Array.from(files).forEach((file) => {
+                            if (file.type.startsWith('image/')) {
                             // Check if file already exists by name and size
                             const exists = selectedMultipleImages.find(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
                             if (!exists) {
@@ -1037,29 +1036,29 @@
                 previewContainer.innerHTML = '';
                 
                 selectedMultipleImages.forEach((file, index) => {
-                    const reader = new FileReader();
-                    reader.onload = function(ev) {
-                        const div = document.createElement('div');
+                                const reader = new FileReader();
+                                reader.onload = function(ev) {
+                                    const div = document.createElement('div');
                         div.className = 'position-relative border rounded p-2 bg-white shadow-sm';
                         div.style.width = '130px';
-                        div.style.height = '150px';
+                                    div.style.height = '150px';
                         div.style.flexShrink = '0';
                         div.setAttribute('data-index', index);
-                        div.innerHTML = `
+                                    div.innerHTML = `
                             <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded mb-1" style="max-height: 110px; max-width: 100%; object-fit: cover; width: 100%; height: 110px; display: block;">
                             <small class="d-block text-muted text-truncate text-center" style="font-size: 0.7rem;" title="${file.name}">${file.name.length > 18 ? file.name.substring(0, 18) + '...' : file.name}</small>
                             <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove Image">
                                 <i class="ti ti-x" style="font-size: 16px; font-weight: bold;"></i>
                             </button>
-                        `;
-                        previewContainer.appendChild(div);
-                    };
-                    reader.readAsDataURL(file);
-                });
-            } else {
-                previewContainer.classList.add('d-none');
-                previewContainer.innerHTML = '';
-            }
+                                    `;
+                                    previewContainer.appendChild(div);
+                                };
+                                reader.readAsDataURL(file);
+                        });
+                } else {
+                        previewContainer.classList.add('d-none');
+                        previewContainer.innerHTML = '';
+                    }
             
             // Update file input
             updateMultipleImagesInput();

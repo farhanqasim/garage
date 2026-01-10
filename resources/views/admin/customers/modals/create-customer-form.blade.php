@@ -10,19 +10,19 @@
                 <div class="row g-2 mb-2 align-items-end name-phone-row">
                     <div class="col-12 col-md-6">
                         <label class="form-label small mb-1">Full Name <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-user"></i></span>
-                            <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input" placeholder="Enter name" required>
-                            <button type="button" class="btn btn-outline-primary mic-btn" title="Voice Input">
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-user"></i></span>
+                            <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input flex-grow-1" placeholder="Enter name" required>
+                            <button type="button" class="btn btn-outline-primary mic-btn d-flex align-items-center justify-content-center" title="Voice Input">
                                 <i class="ti ti-microphone"></i>
                             </button>
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label small mb-1">WhatsApp Number</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-phone"></i></span>
-                            <input type="text" name="phones[]" value="{{ old('phones.0') }}" class="form-control" placeholder="03XX-XXXXXXX">
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-phone"></i></span>
+                            <input type="text" name="phones[]" value="{{ old('phones.0') }}" class="form-control flex-grow-1" placeholder="03XX-XXXXXXX">
                         </div>
                     </div>
                 </div>
@@ -38,18 +38,18 @@
                 <label for="company" class="form-label fw-bold mb-1">
                     <i class="ti ti-building me-1"></i>Company Name
                 </label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-building"></i></span>
-                    <input type="text" name="company" value="{{ old('company') }}" class="form-control" placeholder="Optional">
+                <div class="input-group flex-nowrap">
+                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-building"></i></span>
+                    <input type="text" name="company" value="{{ old('company') }}" class="form-control flex-grow-1" placeholder="Optional">
                 </div>
             </div>
             <div class="col-12 col-md-6">
                 <label for="email" class="form-label fw-bold mb-1">
                     <i class="ti ti-mail me-1"></i>Email
                 </label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-mail"></i></span>
-                    <input type="email" name="email" value="{{ old('email') }}" class="form-control" placeholder="Optional">
+                <div class="input-group flex-nowrap">
+                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-mail"></i></span>
+                    <input type="email" name="email" value="{{ old('email') }}" class="form-control flex-grow-1" placeholder="Optional">
                 </div>
             </div>
         </div>
@@ -59,9 +59,9 @@
             <label for="group_id" class="form-label fw-bold mb-1">
                 <i class="ti ti-users me-1"></i>Group
             </label>
-            <div class="input-group">
-                <span class="input-group-text"><i class="ti ti-users"></i></span>
-                <select name="group_id" class="form-select">
+            <div class="input-group flex-nowrap">
+                <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-users"></i></span>
+                <select name="group_id" class="form-select flex-grow-1">
                     <option value="">Select Group</option>
                     <option value="1">Group One</option>
                 </select>
@@ -74,10 +74,10 @@
                 <label for="password" class="form-label fw-bold mb-1">
                     <i class="ti ti-key me-1"></i>Password <span class="text-danger">*</span>
                 </label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-lock"></i></span>
-                    <input type="text" name="password" id="password" value="" class="form-control" readonly placeholder="Auto-generated" required>
-                    <button type="button" id="generatePassword" class="btn btn-outline-primary" title="Generate">
+                <div class="input-group flex-nowrap">
+                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-lock"></i></span>
+                    <input type="text" name="password" id="password" value="" class="form-control flex-grow-1" readonly placeholder="Auto-generated" required>
+                    <button type="button" id="generatePassword" class="btn btn-outline-primary d-flex align-items-center justify-content-center" title="Generate">
                         <i class="ti ti-refresh"></i>
                     </button>
                 </div>
@@ -86,9 +86,9 @@
                 <label for="opening_balance" class="form-label fw-bold mb-1">
                     <i class="ti ti-currency-rupee me-1"></i>Opening Balance
                 </label>
-                <div class="input-group">
-                    <span class="input-group-text">Rs.</span>
-                    <input type="number" step="0.01" name="opening_balance" value="{{ old('opening_balance', 0) }}" class="form-control" placeholder="0.00">
+                <div class="input-group flex-nowrap">
+                    <span class="input-group-text d-flex align-items-center justify-content-center">Rs.</span>
+                    <input type="number" step="0.01" name="opening_balance" value="{{ old('opening_balance', 0) }}" class="form-control flex-grow-1" placeholder="0.00">
                 </div>
             </div>
         </div>
@@ -99,9 +99,9 @@
                 <label for="as_of_date" class="form-label fw-bold mb-1">
                     <i class="ti ti-calendar me-1"></i>As Of Date
                 </label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-calendar"></i></span>
-                    <input type="text" name="as_of_date" id="as_of_date" class="form-control" placeholder="DD/MM/YYYY" value="{{ old('as_of_date') }}">
+                <div class="input-group flex-nowrap">
+                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-calendar"></i></span>
+                    <input type="text" name="as_of_date" id="as_of_date" class="form-control flex-grow-1" placeholder="DD/MM/YYYY" value="{{ old('as_of_date') }}">
                 </div>
             </div>
             <div class="col-12 col-md-6">
@@ -135,9 +135,9 @@
                     <label class="form-check-label" for="custom_limit">Custom Amount</label>
                 </div>
                 <div id="custom_limit_input" class="mb-2" style="display: none;">
-                    <div class="input-group">
-                        <span class="input-group-text">Rs.</span>
-                        <input type="number" step="0.01" name="credit_limit" value="{{ old('credit_limit') }}" class="form-control" placeholder="Enter amount">
+                    <div class="input-group flex-nowrap">
+                        <span class="input-group-text d-flex align-items-center justify-content-center">Rs.</span>
+                        <input type="number" step="0.01" name="credit_limit" value="{{ old('credit_limit') }}" class="form-control flex-grow-1" placeholder="Enter amount">
                     </div>
                 </div>
                 <button type="button" id="hideCreditLimitOptions" class="btn btn-sm btn-outline-secondary">
