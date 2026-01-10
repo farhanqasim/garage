@@ -1,7 +1,439 @@
 @extends('layouts.app')
 @section('title','All Customers')
 @section('content')
-
+    /* Customer Form Styling - User Friendly & Responsive */
+    .profile-upload-box:hover, .multiple-upload-box:hover {
+        border-color: #0d6efd !important;
+        background-color: #f8f9fa !important;
+        transition: all 0.3s ease;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .profile-upload-box, .multiple-upload-box {
+        transition: all 0.3s ease;
+    }
+    .form-label.fw-bold {
+        color: #495057;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    .card.border-primary, .card.border-warning {
+        border-width: 2px !important;
+    }
+    .btn-group .btn-check:checked + .btn {
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        font-weight: 600;
+    }
+    .input-group-text {
+        border-right: none;
+        min-width: 45px;
+        justify-content: center;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+    }
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+    .input-group-lg .form-control,
+    .input-group-lg .form-select,
+    .input-group-lg .input-group-text {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+        .modal-body {
+            max-height: calc(100vh - 160px);
+            padding: 1rem !important;
+        }
+        .col-12, .col-md-6 {
+            margin-bottom: 0.75rem;
+        }
+        /* Ensure input-group stays in one row on mobile */
+        .input-group {
+            display: flex;
+            flex-wrap: nowrap;
+            width: 100%;
+            align-items: stretch;
+        }
+        .input-group-text {
+            flex-shrink: 0;
+            min-width: 44px;
+            width: auto;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #ced4da;
+        }
+        .input-group-text i {
+            font-size: 1rem !important;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 1%;
+        }
+        .input-group .btn {
+            flex-shrink: 0;
+            min-width: 44px;
+            width: auto;
+            padding: 0.375rem 0.75rem;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            border-left: 1px solid #ced4da;
+        }
+        .input-group .btn i {
+            font-size: 1rem;
+        }
+        /* Ensure remove-row button is visible when needed */
+        .input-group .remove-row:not(.d-none) {
+            display: flex !important;
+        }
+        .btn-group {
+            flex-direction: row;
+        }
+        .btn-group .btn {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .form-label {
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        .form-control, .form-select {
+            font-size: 0.875rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .remove-row, .mic-btn {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            min-height: 44px;
+            flex-shrink: 0;
+        }
+        .remove-row.d-none,
+        .mic-btn.d-none {
+            display: none !important;
+        }
+        /* Ensure remove-row button shows when needed on mobile */
+        .name-phone-row:not(:first-child) .remove-row:not(.d-none) {
+            display: flex !important;
+            flex-shrink: 0;
+            min-width: 44px;
+        }
+        /* Ensure input-group elements are properly aligned on mobile */
+        .input-group {
+            overflow: hidden;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #multiple_images_preview {
+            gap: 8px !important;
+        }
+        #multiple_images_preview > div {
+            width: 80px !important;
+            height: 100px !important;
+        }
+        #multiple_images_preview img {
+            height: 60px !important;
+        }
+        .profile-preview-container {
+            margin-top: 0.5rem;
+        }
+        .profile-preview-container .btn {
+            min-width: 36px;
+            min-height: 36px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        .form-control[type="file"] {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .modal-lg {
+            max-width: 100%;
+            margin: 0.25rem;
+        }
+        .modal-header h5 {
+            font-size: 1rem;
+        }
+        .modal-body {
+            max-height: calc(100vh - 120px);
+            padding: 0.75rem !important;
+        }
+        .form-control, .form-select {
+            font-size: 16px; /* Prevents zoom on iOS */
+            padding: 0.5rem 0.75rem;
+        }
+        .btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            min-height: 44px;
+        }
+        /* Ensure input-group stays in one row on very small screens */
+        .input-group {
+            display: flex;
+            flex-wrap: nowrap !important;
+            width: 100%;
+        }
+        .input-group-text {
+            flex-shrink: 0;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            min-width: 44px;
+            width: auto;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group-text i {
+            font-size: 1.1rem !important;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 1%;
+        }
+        .input-group .btn {
+            flex-shrink: 0;
+            min-width: 44px;
+            min-height: 44px;
+            width: auto;
+            padding: 0.5rem 0.75rem;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group .btn i {
+            font-size: 1rem;
+        }
+        .form-label {
+            font-size: 0.875rem;
+        }
+        #multiple_images_preview > div {
+            width: 70px !important;
+            height: 90px !important;
+        }
+        #multiple_images_preview img {
+            height: 55px !important;
+        }
+    }
+    
+    /* Touch-friendly buttons on mobile */
+    @media (hover: none) and (pointer: coarse) {
+        .btn, .form-control, .form-select {
+            min-height: 44px; /* iOS recommended touch target */
+        }
+        .mic-btn, .remove-row {
+            min-width: 44px;
+            min-height: 44px;
+        }
+        /* Ensure input-group stays in one row on touch devices */
+        .input-group {
+            flex-wrap: nowrap !important;
+        }
+        .input-group-text {
+            flex-shrink: 0;
+            display: flex !important;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .input-group .btn {
+            flex-shrink: 0;
+            display: flex !important;
+        }
+    }
+    
+    /* General input-group fix - ensure all elements stay in one row */
+    .input-group {
+        display: flex;
+        flex-wrap: nowrap !important;
+        align-items: stretch;
+        width: 100%;
+    }
+    .input-group-text {
+        flex-shrink: 0;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    .input-group .form-control,
+    .input-group .form-select {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 1%;
+    }
+    .input-group .btn:not(.d-none) {
+        flex-shrink: 0;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    /* Ensure input-group elements don't wrap on any screen */
+    .input-group > * {
+        flex-wrap: nowrap;
+    }
+    
+    /* Better spacing for sections */
+    .mb-4 {
+        margin-bottom: 2rem !important;
+    }
+    
+    /* Modal without scroll - content fits */
+    .modal-body {
+        overflow-y: auto;
+        max-height: calc(100vh - 180px);
+    }
+    
+    .modal-lg {
+        max-width: 900px;
+    }
+    
+    /* Better focus states */
+    .form-control:focus, .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        outline: none;
+    }
+    
+    /* Icon sizing */
+    .input-group-text i {
+        font-size: 1.1rem;
+    }
+    
+    /* Card hover effect */
+    .card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    /* Image Preview Styles */
+    #multiple_images_preview {
+        gap: 10px;
+        padding: 10px;
+    }
+    
+    #multiple_images_preview > div {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    #multiple_images_preview > div:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
+    }
+    
+    .remove-image-preview {
+        border-radius: 50% !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    .remove-image-preview:hover {
+        transform: scale(1.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .remove-profile-image, .crop-profile-image {
+        transition: all 0.2s ease;
+    }
+    
+    .remove-profile-image:hover, .crop-profile-image:hover {
+        transform: scale(1.1);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.4) !important;
+    }
+    
+    /* Ensure preview buttons are visible when preview is shown */
+    .profile-preview-container[style*="block"] .remove-profile-image,
+    .profile-preview-container[style*="block"] .crop-profile-image {
+        display: flex !important;
+    }
+    
+    .profile-preview-container[style*="block"] #profile_preview {
+        display: block !important;
+    }
+    
+    /* Image preview styling */
+    #profile_preview, #visiting_img {
+        transition: opacity 0.3s ease;
+    }
+    
+    #multiple_images_preview {
+        min-height: 100px;
+    }
+    
+    /* Ensure remove buttons are always visible on previews */
+    #visiting_preview[style*="block"] .remove-visiting-doc {
+        display: flex !important;
+    }
+    
+    #multiple_images_preview:not(.d-none) .remove-image-preview {
+        display: flex !important;
+    }
+    
+    /* Cropper Modal Styles */
+    #imageCropModal .modal-body {
+        max-height: 70vh;
+        overflow: auto;
+    }
+    
+    #cropImage {
+        display: block;
+        max-width: 100%;
+    }
+    
+    /* Profile Preview Container */
+    .profile-upload-box .preview-container {
+        position: relative;
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Recording Indicator Animation */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .recording-indicator {
+        animation: pulse 1s infinite;
+    }
+    
+    .recording-indicator i.ti-record {
+        color: #dc3545;
+        animation: pulse 1s infinite;
+        font-size: 1.1rem;
+    }
+    
+    /* Mic button - only show on first row */
 <div class="content">
     <div class="page-header">
         <div class="add-item d-flex">
@@ -204,8 +636,10 @@
             controlBtn.classList.remove('play-pause-btn');
             const audioContainer = nameCol.querySelector('.audio-player-container');
             if (audioContainer) audioContainer.remove();
-            const recordingIndicator = nameCol.querySelector('.recording-indicator');
-            if (recordingIndicator) recordingIndicator.remove();
+            const recordingIndicator = nameCol.querySelector('.mt-1');
+            if (recordingIndicator && recordingIndicator.querySelector('.ti-record')) {
+                recordingIndicator.remove();
+            }
             const hiddenInput = document.querySelector('input[name="voice_note"]');
             if (hiddenInput) hiddenInput.remove();
         }
@@ -238,7 +672,7 @@
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-phone"></i></span>
                             <input type="text" name="phones[]" class="form-control" placeholder="03XX-XXXXXXX">
-                        </div>
+                    </div>
                     </div>
                 `;
                 container.appendChild(newRow);
@@ -402,10 +836,10 @@
                 
                 // Add recording indicator
                 const recordingIndicator = document.createElement('div');
-                recordingIndicator.className = 'recording-indicator mt-1';
+                recordingIndicator.className = 'mt-1';
                 recordingIndicator.innerHTML = `
                     <small class="text-danger fw-bold">
-                        <i class="ti ti-record me-1" style="animation: pulse 1s infinite;"></i>Recording...
+                        <i class="ti ti-record me-1"></i>Recording...
                     </small>
                 `;
                 nameCol.appendChild(recordingIndicator);
@@ -419,8 +853,10 @@
                 mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
                 mediaRecorder.onstop = () => {
                     // Remove recording indicator
-                    const indicator = nameCol.querySelector('.recording-indicator');
-                    if (indicator) indicator.remove();
+                    const indicator = nameCol.querySelector('.mt-1');
+                    if (indicator && indicator.querySelector('.ti-record')) {
+                        indicator.remove();
+                    }
                     
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     const audioURL = URL.createObjectURL(audioBlob);
@@ -458,7 +894,6 @@
                 mediaRecorder.start();
                 recognition.start();
                 controlBtn.innerHTML = '<i class="ti ti-stop text-danger"></i>';
-                controlBtn.style.animation = 'pulse 1s infinite';
                 recognition.onresult = (event) => { 
                     transcript = event.results[0][0].transcript;
                     if (transcript.trim()) {
@@ -469,8 +904,10 @@
                     }
                 };
                 recognition.onerror = (event) => {
-                    const indicator = nameCol.querySelector('.recording-indicator');
-                    if (indicator) indicator.remove();
+                    const indicator = nameCol.querySelector('.mt-1');
+                    if (indicator && indicator.querySelector('.ti-record')) {
+                        indicator.remove();
+                    }
                     alert('Speech error: ' + event.error);
                     resetRecordingUI(inputField, controlBtn, nameCol);
                     if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
@@ -573,8 +1010,8 @@
                 
                 if (files && files.length > 0) {
                     // Add new files to selected images array
-                    Array.from(files).forEach((file) => {
-                        if (file.type.startsWith('image/')) {
+                        Array.from(files).forEach((file) => {
+                            if (file.type.startsWith('image/')) {
                             // Check if file already exists by name and size
                             const exists = selectedMultipleImages.find(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
                             if (!exists) {
@@ -600,29 +1037,29 @@
                 previewContainer.innerHTML = '';
                 
                 selectedMultipleImages.forEach((file, index) => {
-                    const reader = new FileReader();
-                    reader.onload = function(ev) {
-                        const div = document.createElement('div');
+                                const reader = new FileReader();
+                                reader.onload = function(ev) {
+                                    const div = document.createElement('div');
                         div.className = 'position-relative border rounded p-2 bg-white shadow-sm';
                         div.style.width = '130px';
-                        div.style.height = '150px';
+                                    div.style.height = '150px';
                         div.style.flexShrink = '0';
                         div.setAttribute('data-index', index);
-                        div.innerHTML = `
+                                    div.innerHTML = `
                             <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded mb-1" style="max-height: 110px; max-width: 100%; object-fit: cover; width: 100%; height: 110px; display: block;">
                             <small class="d-block text-muted text-truncate text-center" style="font-size: 0.7rem;" title="${file.name}">${file.name.length > 18 ? file.name.substring(0, 18) + '...' : file.name}</small>
                             <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove Image">
                                 <i class="ti ti-x" style="font-size: 16px; font-weight: bold;"></i>
                             </button>
-                        `;
-                        previewContainer.appendChild(div);
-                    };
-                    reader.readAsDataURL(file);
-                });
-            } else {
-                previewContainer.classList.add('d-none');
-                previewContainer.innerHTML = '';
-            }
+                                    `;
+                                    previewContainer.appendChild(div);
+                                };
+                                reader.readAsDataURL(file);
+                        });
+                } else {
+                        previewContainer.classList.add('d-none');
+                        previewContainer.innerHTML = '';
+                    }
             
             // Update file input
             updateMultipleImagesInput();
