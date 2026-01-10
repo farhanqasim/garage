@@ -250,19 +250,9 @@ label{
                 margin-bottom: 1rem;
             }
             
-            /* Modal full screen on small devices */
-            .modal-dialog {
-                margin: 0 !important;
-                max-width: 100% !important;
-                height: 100vh;
-            }
+           
             
-            .modal-content {
-                border-radius: 0 !important;
-                
-                display: flex;
-                flex-direction: column;
-            }
+          
             
             .modal-body {
                 flex: 1;
