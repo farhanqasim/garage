@@ -47,9 +47,6 @@
             margin: 0.5rem;
         }
         .modal-body {
-            padding: 1rem !important;
-        }
-        .modal-body {
             max-height: calc(100vh - 160px);
             padding: 1rem !important;
         }
@@ -57,24 +54,77 @@
             margin-bottom: 0.75rem;
         }
         .input-group {
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
+        }
+        .input-group-text {
+            min-width: 40px;
+            padding: 0.375rem 0.5rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group-text i {
+            font-size: 1rem !important;
         }
         .input-group .btn {
             flex-shrink: 0;
+            min-width: 44px;
+            padding: 0.375rem 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group .btn i {
+            font-size: 1rem;
         }
         .btn-group {
             flex-direction: row;
+        }
+        .btn-group .btn {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.875rem;
         }
         .form-label {
             font-size: 0.9rem;
             margin-bottom: 0.25rem;
         }
-        .input-group-text {
-            min-width: 38px;
-            padding: 0.375rem 0.5rem;
-            font-size: 0.875rem;
-        }
         .form-control, .form-select {
+            font-size: 0.875rem;
+            padding: 0.5rem 0.75rem;
+        }
+        .remove-row, .mic-btn {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            min-height: 44px;
+        }
+        .remove-row.d-none {
+            display: none !important;
+        }
+        #multiple_images_preview {
+            gap: 8px !important;
+        }
+        #multiple_images_preview > div {
+            width: 80px !important;
+            height: 100px !important;
+        }
+        #multiple_images_preview img {
+            height: 60px !important;
+        }
+        .profile-preview-container {
+            margin-top: 0.5rem;
+        }
+        .profile-preview-container .btn {
+            min-width: 36px;
+            min-height: 36px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        .form-control[type="file"] {
+            padding: 0.375rem 0.75rem;
             font-size: 0.875rem;
         }
     }
@@ -82,25 +132,46 @@
     @media (max-width: 576px) {
         .modal-lg {
             max-width: 100%;
-            margin: 0.5rem;
+            margin: 0.25rem;
         }
         .modal-header h5 {
             font-size: 1rem;
         }
         .modal-body {
-            max-height: calc(100vh - 140px);
+            max-height: calc(100vh - 120px);
             padding: 0.75rem !important;
         }
         .form-control, .form-select {
             font-size: 16px; /* Prevents zoom on iOS */
+            padding: 0.5rem 0.75rem;
         }
         .btn {
-            padding: 0.375rem 0.75rem;
+            padding: 0.5rem 0.75rem;
             font-size: 0.875rem;
+            min-height: 44px;
         }
         .input-group-text {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            min-width: 44px;
+        }
+        .input-group-text i {
+            font-size: 1.1rem !important;
+        }
+        .input-group .btn {
+            min-width: 44px;
+            min-height: 44px;
+            padding: 0.5rem;
+        }
+        .form-label {
+            font-size: 0.875rem;
+        }
+        #multiple_images_preview > div {
+            width: 70px !important;
+            height: 90px !important;
+        }
+        #multiple_images_preview img {
+            height: 55px !important;
         }
     }
     
@@ -351,7 +422,15 @@
             const rows = container.querySelectorAll('.name-phone-row');
             rows.forEach((row) => {
                 const removeBtn = row.querySelector('.remove-row');
-                if (removeBtn) removeBtn.style.display = rows.length > 1 ? 'block' : 'none';
+                if (removeBtn) {
+                    if (rows.length > 1) {
+                        removeBtn.style.display = 'flex';
+                        removeBtn.classList.remove('d-none');
+                    } else {
+                        removeBtn.style.display = 'none';
+                        removeBtn.classList.add('d-none');
+                    }
+                }
             });
         }
 
@@ -630,10 +709,9 @@
             if (e.target.id === 'profile_img') {
                 const file = e.target.files[0];
                 const preview = document.getElementById('profile_preview');
-                const placeholder = e.target.closest('.profile-upload-box').querySelector('.upload-placeholder');
+                const previewContainer = document.querySelector('.profile-preview-container');
                 const removeBtn = document.querySelector('.remove-profile-image');
                 const cropBtn = document.querySelector('.crop-profile-image');
-                const existing = document.querySelector('.existing-image');
                 
                 if (file && file.type.startsWith('image/')) {
                     profileImageFile = file;
@@ -641,23 +719,23 @@
                     reader.onload = function(ev) {
                         if (preview) {
                             preview.src = ev.target.result;
-                            preview.style.display = 'block';
                         }
-                        if (placeholder) placeholder.classList.add('d-none');
+                        if (previewContainer) {
+                            previewContainer.style.display = 'block';
+                        }
                         if (removeBtn) removeBtn.style.display = 'block';
                         if (cropBtn) cropBtn.style.display = 'block';
-                        if (existing) existing.style.display = 'none';
                     };
                     reader.readAsDataURL(file);
                 } else {
+                    if (previewContainer) {
+                        previewContainer.style.display = 'none';
+                    }
                     if (preview) {
                         preview.src = '';
-                        preview.style.display = 'none';
                     }
-                    if (placeholder) placeholder.classList.remove('d-none');
                     if (removeBtn) removeBtn.style.display = 'none';
                     if (cropBtn) cropBtn.style.display = 'none';
-                    if (existing) existing.style.display = 'block';
                     profileImageFile = null;
                 }
             }
@@ -695,8 +773,6 @@
             if (e.target.id === 'multiple_images') {
                 const files = e.target.files;
                 const previewContainer = document.getElementById('multiple_images_preview');
-                const placeholder = e.target.closest('.multiple-upload-box').querySelector('.upload-placeholder');
-                const existing = e.target.closest('.multiple-upload-box').querySelector('.existing-images');
                 
                 if (files.length > 0) {
                     // Add new files to selected images array
@@ -708,9 +784,6 @@
                     
                     // Update preview
                     updateMultipleImagesPreview();
-                    
-                    if (placeholder) placeholder.style.display = 'none';
-                    if (existing) existing.style.display = 'none';
                 }
             }
         });
@@ -718,7 +791,6 @@
         // Update multiple images preview
         function updateMultipleImagesPreview() {
             const previewContainer = document.getElementById('multiple_images_preview');
-            const placeholder = document.querySelector('.multiple-upload-box .upload-placeholder');
             
             if (!previewContainer) return;
             
@@ -730,28 +802,25 @@
                     const reader = new FileReader();
                     reader.onload = function(ev) {
                         const div = document.createElement('div');
-                        div.className = 'position-relative border rounded p-2 bg-white shadow-sm';
-                        div.style.width = '120px';
-                        div.style.height = '140px';
+                        div.className = 'position-relative border rounded p-2 bg-white';
+                        div.style.width = '100px';
+                        div.style.height = '120px';
                         div.style.flexShrink = '0';
                         div.setAttribute('data-index', index);
                         div.innerHTML = `
-                            <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded" style="max-height: 100px; max-width: 100%; object-fit: cover; width: 100%; height: 100px;">
-                            <small class="d-block text-muted mt-1 text-truncate" style="font-size: 0.7rem;" title="${file.name}">${file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}</small>
-                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 28px; height: 28px; padding: 0; z-index: 10;" title="Remove">
-                                <i class="ti ti-x" style="font-size: 14px;"></i>
+                            <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded" style="max-height: 80px; max-width: 100%; object-fit: cover; width: 100%; height: 80px;">
+                            <small class="d-block text-muted mt-1 text-truncate" style="font-size: 0.65rem;" title="${file.name}">${file.name.length > 12 ? file.name.substring(0, 12) + '...' : file.name}</small>
+                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-size: 12px; z-index: 10;" title="Remove">
+                                <i class="ti ti-x"></i>
                             </button>
                         `;
                         previewContainer.appendChild(div);
                     };
                     reader.readAsDataURL(file);
                 });
-                
-                if (placeholder) placeholder.style.display = 'none';
             } else {
                 previewContainer.classList.add('d-none');
                 previewContainer.innerHTML = '';
-                if (placeholder) placeholder.style.display = 'block';
             }
             
             // Update file input
@@ -816,17 +885,14 @@
                 e.stopPropagation();
                 const profileInput = document.getElementById('profile_img');
                 const preview = document.getElementById('profile_preview');
-                const placeholder = document.querySelector('.profile-upload-box .upload-placeholder');
+                const previewContainer = document.querySelector('.profile-preview-container');
                 const removeBtn = document.querySelector('.remove-profile-image');
                 const cropBtn = document.querySelector('.crop-profile-image');
                 const croppedInput = document.getElementById('profile_img_cropped');
                 
                 if (profileInput) profileInput.value = '';
-                if (preview) {
-                    preview.src = '';
-                    preview.style.display = 'none';
-                }
-                if (placeholder) placeholder.classList.remove('d-none');
+                if (preview) preview.src = '';
+                if (previewContainer) previewContainer.style.display = 'none';
                 if (removeBtn) removeBtn.style.display = 'none';
                 if (cropBtn) cropBtn.style.display = 'none';
                 if (croppedInput) croppedInput.value = '';
@@ -837,6 +903,16 @@
                     cropper.destroy();
                     cropper = null;
                 }
+            }
+            
+            // Remove visiting document
+            if (e.target.closest('.remove-visiting-doc')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const visitingInput = document.getElementById('visiting_doc');
+                const visitingPreview = document.getElementById('visiting_preview');
+                if (visitingInput) visitingInput.value = '';
+                if (visitingPreview) visitingPreview.style.display = 'none';
             }
             
             // Crop profile image
@@ -883,43 +959,6 @@
                 }
             }
             
-            // Crop profile image
-            if (e.target.closest('.crop-profile-image')) {
-                if (!profileImageFile) {
-                    alert('Please select an image first');
-                    return;
-                }
-                
-                const preview = document.getElementById('profile_preview');
-                const cropModal = new bootstrap.Modal(document.getElementById('imageCropModal'));
-                const cropImage = document.getElementById('cropImage');
-                
-                if (preview && cropImage) {
-                    cropImage.src = preview.src;
-                    cropModal.show();
-                    
-                    // Initialize cropper when modal is shown
-                    document.getElementById('imageCropModal').addEventListener('shown.bs.modal', function() {
-                        if (cropper) {
-                            cropper.destroy();
-                        }
-                        cropper = new Cropper(cropImage, {
-                            aspectRatio: 1,
-                            viewMode: 1,
-                            dragMode: 'move',
-                            autoCropArea: 0.8,
-                            restore: false,
-                            guides: true,
-                            center: true,
-                            highlight: false,
-                            cropBoxMovable: true,
-                            cropBoxResizable: true,
-                            toggleDragModeOnDblclick: false,
-                        });
-                    }, { once: true });
-                }
-            }
-            
             // Crop and save button
             if (e.target.id === 'cropImageBtn' || e.target.closest('#cropImageBtn')) {
                 e.preventDefault();
@@ -955,11 +994,13 @@
                         
                         // Update preview
                         const url = URL.createObjectURL(blob);
+                        const previewContainer = document.querySelector('.profile-preview-container');
                         if (preview) {
                             preview.src = url;
-                            preview.style.display = 'block';
                         }
-                        if (placeholder) placeholder.classList.add('d-none');
+                        if (previewContainer) {
+                            previewContainer.style.display = 'block';
+                        }
                         if (removeBtn) removeBtn.style.display = 'block';
                         if (cropBtn) cropBtn.style.display = 'block';
                         

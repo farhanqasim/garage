@@ -41,21 +41,17 @@
                 <label for="profile_img" class="form-label fw-bold mb-1">
                     <i class="ti ti-photo me-1"></i>Profile Picture
                 </label>
-                <div class="profile-upload-box text-center border border-dashed rounded p-2 bg-light position-relative" style="cursor: pointer; min-height: 120px;">
-                    <input type="file" name="profile_img" id="profile_img" accept="image/*" class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="z-index: 10;">
-                    <input type="hidden" name="profile_img_cropped" id="profile_img_cropped">
-                    <div class="preview-container position-relative">
-                        <img id="profile_preview" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 120px; max-width: 100%; display: none;">
-                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 remove-profile-image" style="display: none; z-index: 20;" title="Remove">
+                <input type="file" name="profile_img" id="profile_img" accept="image/*" class="form-control mb-2">
+                <input type="hidden" name="profile_img_cropped" id="profile_img_cropped">
+                <div class="profile-preview-container text-center border rounded p-2 bg-light" style="min-height: 120px; display: none;">
+                    <div class="position-relative d-inline-block">
+                        <img id="profile_preview" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 120px; max-width: 100%;">
+                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 remove-profile-image" title="Remove">
                             <i class="ti ti-x"></i>
                         </button>
-                        <button type="button" class="btn btn-warning btn-sm position-absolute bottom-0 start-50 translate-middle-x mb-1 crop-profile-image" style="display: none; z-index: 20;" title="Crop">
-                            <i class="ti ti-crop"></i>
+                        <button type="button" class="btn btn-warning btn-sm position-absolute bottom-0 start-50 translate-middle-x mb-1 crop-profile-image" title="Crop">
+                            <i class="ti ti-crop me-1"></i>Crop
                         </button>
-                    </div>
-                    <div class="upload-placeholder">
-                        <i class="ti ti-camera text-muted d-block mb-1" style="font-size: 32px;"></i>
-                        <small class="text-muted">Click to Upload</small>
                     </div>
                 </div>
             </div>
@@ -85,13 +81,17 @@
                 <label for="visiting_doc" class="form-label fw-bold mb-1">
                     <i class="ti ti-file me-1"></i>Document
                 </label>
-                <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control form-control-sm">
-                <div id="visiting_preview" style="display: none; margin-top: 5px;">
+                <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                <div id="visiting_preview" class="mt-2" style="display: none;">
                     <div id="visiting_img_container" style="display: none;">
-                        <img id="visiting_img" src="" alt="Preview" class="img-fluid rounded" style="max-height: 80px;">
+                        <img id="visiting_img" src="" alt="Preview" class="img-fluid rounded border" style="max-height: 100px; width: auto;">
                     </div>
-                    <div id="visiting_file_info" style="display: none; text-center p-1 bg-light rounded">
-                        <small class="text-muted" id="visiting_filename"></small>
+                    <div id="visiting_file_info" style="display: none; text-center p-2 bg-light rounded border">
+                        <i class="ti ti-file text-muted d-block mb-1" style="font-size: 24px;"></i>
+                        <small class="text-muted fw-bold" id="visiting_filename"></small>
+                        <button type="button" class="btn btn-sm btn-danger mt-1 remove-visiting-doc">
+                            <i class="ti ti-x me-1"></i>Remove
+                        </button>
                     </div>
                 </div>
             </div>
@@ -194,14 +194,8 @@
             <label for="multiple_images" class="form-label fw-bold mb-1">
                 <i class="ti ti-photo me-1"></i>Additional Images
             </label>
-            <div class="multiple-upload-box text-center border border-dashed rounded p-2 bg-light position-relative" style="cursor: pointer; min-height: 100px;">
-                <input type="file" name="multiple_images[]" id="multiple_images" accept="image/*" multiple class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="z-index: 10;">
-                <div class="preview-container d-none d-flex flex-wrap justify-content-center gap-2 p-2" id="multiple_images_preview"></div>
-                <div class="upload-placeholder">
-                    <i class="ti ti-photo text-muted d-block mb-1" style="font-size: 32px;"></i>
-                    <small class="text-muted">Click to Upload Multiple Images</small>
-                </div>
-            </div>
+            <input type="file" name="multiple_images[]" id="multiple_images" accept="image/*" multiple class="form-control mb-2">
+            <div class="multiple-images-preview d-none d-flex flex-wrap justify-content-start gap-2 p-2 border rounded bg-light" id="multiple_images_preview"></div>
         </div>
     </div>
 
