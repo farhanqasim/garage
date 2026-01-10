@@ -1124,6 +1124,27 @@
                             </div>
                             @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
+                            <!-- Percentage Markup Input -->
+                            <div class="mb-3">
+                                <label for="percentageMarkup" class="form-label small fw-bold text-uppercase text-muted mb-2">Markup Percentage (%):</label>
+                                <div class="d-flex gap-2">
+                                    <input type="number" id="percentageMarkup" name="markup_percentage" step="any" min="0" max="1000" placeholder="Enter percentage (e.g., 25 for 25%)" class="form-control @error('markup_percentage') is-invalid @enderror" oninput="calculateSalePriceFromPercentage()">
+                                    <select id="percentagePreset" class="form-select" style="width: 200px;" onchange="applyPercentagePreset()">
+                                        <option value="">Or Select Preset</option>
+                                        <option value="10">10%</option>
+                                        <option value="15">15%</option>
+                                        <option value="20">20%</option>
+                                        <option value="25">25%</option>
+                                        <option value="30">30%</option>
+                                        <option value="35">35%</option>
+                                        <option value="40">40%</option>
+                                        <option value="50">50%</option>
+                                    </select>
+                                </div>
+                                <small class="text-muted">Enter percentage to automatically calculate sale price from cost price</small>
+                                @error('markup_percentage') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+
                             <!-- Warning Message -->
                             <div id="priceWarning" class="alert alert-danger d-none mb-3" role="alert">
                                 <i class="ti ti-alert-circle me-2"></i>
@@ -1142,7 +1163,7 @@
                                                     <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
                                                     <div class="d-flex align-items-center">
                                                         <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                        <input type="number" id="costPrice" name="total_price" step="any" oninput="calculateFromUnit('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                                        <input type="number" id="costPrice" name="total_price" step="any" oninput="calculateFromUnit('cost'); calculateSalePriceFromPercentage();" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
                                                     </div>
                                                 </div>
                                             </div>
@@ -1153,7 +1174,7 @@
                                                     <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
                                                     <div class="d-flex align-items-center">
                                                         <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                        <input type="number" id="baseCostPrice" name="price_per_unit" step="any" oninput="calculateFromBase('cost')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
+                                                        <input type="number" id="baseCostPrice" name="price_per_unit" step="any" oninput="calculateFromBase('cost'); calculateSalePriceFromPercentage();" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
                                                     </div>
                                                 </div>
                                             </div>
@@ -2378,6 +2399,53 @@
             unitInput.value = baseVal.toFixed(2);
         }
         syncPrices();
+    }
+
+    function calculateSalePriceFromPercentage() {
+        const percentageInput = document.getElementById('percentageMarkup');
+        if (!percentageInput) return;
+        
+        const percentage = parseFloat(percentageInput.value) || 0;
+        
+        // Only calculate if percentage is set and greater than 0
+        if (percentage <= 0) return;
+        
+        const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
+        const baseCostPrice = parseFloat(document.getElementById('baseCostPrice').value) || 0;
+        
+        // Prioritize unit cost price if available
+        if (costPrice > 0) {
+            const salePrice = costPrice * (1 + percentage / 100);
+            const salePriceInput = document.getElementById('salePrice');
+            if (salePriceInput) {
+                salePriceInput.value = parseFloat(salePrice.toFixed(2));
+                // Update base sale price by triggering the unit calculation
+                calculateFromUnit('sale');
+            }
+        } 
+        // If unit cost is not available but base cost is, calculate from base cost
+        else if (baseCostPrice > 0) {
+            const baseSalePrice = baseCostPrice * (1 + percentage / 100);
+            const baseSalePriceInput = document.getElementById('baseSalePrice');
+            if (baseSalePriceInput) {
+                baseSalePriceInput.value = parseFloat(baseSalePrice.toFixed(2));
+                // Update unit sale price by triggering the base calculation
+                calculateFromBase('sale');
+            }
+        }
+        
+        syncPrices();
+    }
+
+    function applyPercentagePreset() {
+        const presetSelect = document.getElementById('percentagePreset');
+        const percentageInput = document.getElementById('percentageMarkup');
+        const selectedValue = presetSelect.value;
+        
+        if (selectedValue) {
+            percentageInput.value = selectedValue;
+            calculateSalePriceFromPercentage();
+        }
     }
 
     function handleUnitChange() {
