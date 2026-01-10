@@ -29,6 +29,9 @@
         border-right: none;
         min-width: 45px;
         justify-content: center;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
     }
     .form-control:focus {
         border-color: #86b7fe;
@@ -53,30 +56,49 @@
         .col-12, .col-md-6 {
             margin-bottom: 0.75rem;
         }
+        /* Ensure input-group stays in one row on mobile */
         .input-group {
-            flex-wrap: wrap;
+            display: flex;
+            flex-wrap: nowrap;
+            width: 100%;
+            align-items: stretch;
         }
         .input-group-text {
-            min-width: 40px;
-            padding: 0.375rem 0.5rem;
+            flex-shrink: 0;
+            min-width: 44px;
+            width: auto;
+            padding: 0.5rem 0.75rem;
             font-size: 0.9rem;
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
+            border-right: 1px solid #ced4da;
         }
         .input-group-text i {
             font-size: 1rem !important;
         }
+        .input-group .form-control,
+        .input-group .form-select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 1%;
+        }
         .input-group .btn {
             flex-shrink: 0;
             min-width: 44px;
-            padding: 0.375rem 0.5rem;
-            display: flex;
+            width: auto;
+            padding: 0.375rem 0.75rem;
+            display: flex !important;
             align-items: center;
             justify-content: center;
+            border-left: 1px solid #ced4da;
         }
         .input-group .btn i {
             font-size: 1rem;
+        }
+        /* Ensure remove-row button is visible when needed */
+        .input-group .remove-row:not(.d-none) {
+            display: flex !important;
         }
         .btn-group {
             flex-direction: row;
@@ -100,9 +122,26 @@
             justify-content: center;
             min-width: 44px;
             min-height: 44px;
+            flex-shrink: 0;
         }
-        .remove-row.d-none {
+        .remove-row.d-none,
+        .mic-btn.d-none {
             display: none !important;
+        }
+        /* Ensure remove-row button shows when needed on mobile */
+        .name-phone-row:not(:first-child) .remove-row:not(.d-none) {
+            display: flex !important;
+            flex-shrink: 0;
+            min-width: 44px;
+        }
+        /* Ensure input-group elements are properly aligned on mobile */
+        .input-group {
+            overflow: hidden;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         #multiple_images_preview {
             gap: 8px !important;
@@ -150,18 +189,43 @@
             font-size: 0.875rem;
             min-height: 44px;
         }
+        /* Ensure input-group stays in one row on very small screens */
+        .input-group {
+            display: flex;
+            flex-wrap: nowrap !important;
+            width: 100%;
+        }
         .input-group-text {
+            flex-shrink: 0;
             padding: 0.5rem 0.75rem;
             font-size: 0.9rem;
             min-width: 44px;
+            width: auto;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
         }
         .input-group-text i {
             font-size: 1.1rem !important;
         }
+        .input-group .form-control,
+        .input-group .form-select {
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 1%;
+        }
         .input-group .btn {
+            flex-shrink: 0;
             min-width: 44px;
             min-height: 44px;
-            padding: 0.5rem;
+            width: auto;
+            padding: 0.5rem 0.75rem;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+        }
+        .input-group .btn i {
+            font-size: 1rem;
         }
         .form-label {
             font-size: 0.875rem;
@@ -184,6 +248,55 @@
             min-width: 44px;
             min-height: 44px;
         }
+        /* Ensure input-group stays in one row on touch devices */
+        .input-group {
+            flex-wrap: nowrap !important;
+        }
+        .input-group-text {
+            flex-shrink: 0;
+            display: flex !important;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .input-group .btn {
+            flex-shrink: 0;
+            display: flex !important;
+        }
+    }
+    
+    /* General input-group fix - ensure all elements stay in one row */
+    .input-group {
+        display: flex;
+        flex-wrap: nowrap !important;
+        align-items: stretch;
+        width: 100%;
+    }
+    .input-group-text {
+        flex-shrink: 0;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    .input-group .form-control,
+    .input-group .form-select {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 1%;
+    }
+    .input-group .btn:not(.d-none) {
+        flex-shrink: 0;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    /* Ensure input-group elements don't wrap on any screen */
+    .input-group > * {
+        flex-wrap: nowrap;
     }
     
     /* Better spacing for sections */
@@ -477,6 +590,7 @@
                     if (rows.length > 1) {
                         removeBtn.style.display = 'flex';
                         removeBtn.classList.remove('d-none');
+                        removeBtn.style.flexShrink = '0';
                     } else {
                         removeBtn.style.display = 'none';
                         removeBtn.classList.add('d-none');
