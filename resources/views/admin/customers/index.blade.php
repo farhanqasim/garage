@@ -362,9 +362,8 @@
             inputField.style.removeProperty('color');
             inputField.style.removeProperty('textShadow');
             inputField.style.removeProperty('backgroundColor');
-            inputField.placeholder = 'Enter name or use mic';
-            inputField.value = '';
-            controlBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            inputField.placeholder = 'Enter customer full name';
+            controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
             controlBtn.classList.add('mic-btn');
             controlBtn.classList.remove('play-pause-btn');
             const audioContainer = nameCol.querySelector('.audio-player-container');
@@ -377,36 +376,55 @@
         document.addEventListener('click', function(e) {
             // Add Name & Phone
             if (e.target.closest('#addNamePhone')) {
+                e.preventDefault();
+                e.stopPropagation();
                 const btn = e.target.closest('#addNamePhone');
-                const container = btn.closest('.col-12').querySelector('#namePhoneContainer');
+                const container = document.getElementById('namePhoneContainer');
                 if (!container) return;
+                
                 const newRow = document.createElement('div');
-                newRow.className = 'row g-3 mb-3 align-items-end name-phone-row';
+                newRow.className = 'row g-2 g-md-3 mb-3 align-items-end name-phone-row';
                 newRow.innerHTML = `
-                    <div class="col-md-5">
-                        <label class="form-label">Name</label>
-                        <div class="input-group">
-                            <input type="text" name="names[]" class="form-control speech-input" placeholder="Enter name or use mic">
-                            <button type="button" class="btn btn-outline-secondary mic-btn d-none"><i class="fas fa-microphone"></i></button>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted mb-1">Full Name <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-white border-end-0"><i class="ti ti-user text-primary"></i></span>
+                            <input type="text" name="names[]" class="form-control speech-input border-start-0" placeholder="Enter customer full name" required>
+                            <button type="button" class="btn btn-outline-primary mic-btn border-start-0" title="Voice Input">
+                                <i class="ti ti-microphone"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger remove-row border-start-0" title="Remove">
+                                <i class="ti ti-trash"></i>
+                            </button>
                         </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="ti ti-info-circle"></i> Click mic icon to use voice input
+                        </small>
                     </div>
-                    <div class="col-md-2">
-                        <button type="button" class="btn btn-danger remove-row"><i class="fas fa-trash"></i></button>
-                    </div>
-                    <div class="col-md-5">
-                        <label class="form-label">Phone Number</label>
-                        <input type="text" name="phones[]" class="form-control" placeholder="Enter phone number">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted mb-1">WhatsApp Number</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-white border-end-0"><i class="ti ti-phone text-success"></i></span>
+                            <input type="text" name="phones[]" class="form-control border-start-0" placeholder="03XX-XXXXXXX">
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="ti ti-info-circle"></i> Enter with country code if needed
+                        </small>
                     </div>
                 `;
                 container.appendChild(newRow);
-                updateRemoveButtons(container.id);
+                updateRemoveButtons('namePhoneContainer');
             }
 
             // Remove Row
             if (e.target.closest('.remove-row')) {
-                e.target.closest('.name-phone-row').remove();
-                const container = e.target.closest('.col-12').querySelector('#namePhoneContainer');
-                if (container) updateRemoveButtons(container.id);
+                e.preventDefault();
+                e.stopPropagation();
+                const row = e.target.closest('.name-phone-row');
+                if (row) {
+                    row.remove();
+                    updateRemoveButtons('namePhoneContainer');
+                }
             }
 
             // Cancel Audio
@@ -429,58 +447,71 @@
                 toggleDelete(e.target, fieldName);
             }
 
-            // Remove Preview Image
-            if (e.target.closest('.remove-image-preview')) {
-                e.target.closest('div').remove();
-                const previewContainer = e.target.closest('#multiple_images_preview');
-                if (previewContainer && previewContainer.children.length === 0) {
-                    const uploadBox = e.target.closest('.multiple-upload-box');
-                    const placeholder = uploadBox.querySelector('.upload-placeholder');
-                    const uploadBtn = uploadBox.querySelector('.upload-btn');
-                    const existing = uploadBox.querySelector('.existing-images');
-                    if (placeholder) placeholder.style.display = 'block';
-                    if (uploadBtn) uploadBtn.style.display = 'block';
-                    if (previewContainer) previewContainer.classList.add('d-none');
-                    if (existing) existing.style.display = 'block';
-                }
-            }
 
             // Credit Limit Toggle
-            if (e.target.id === 'showCreditLimitOptions') {
+            if (e.target.id === 'showCreditLimitOptions' || e.target.closest('#showCreditLimitOptions')) {
                 e.preventDefault();
-                const defaultDiv = e.target.closest('#creditLimitDefault');
+                e.stopPropagation();
+                const btn = e.target.id === 'showCreditLimitOptions' ? e.target : e.target.closest('#showCreditLimitOptions');
+                const defaultDiv = document.getElementById('creditLimitDefault');
                 const optionsDiv = document.getElementById('creditLimitOptions');
-                const customRadio = document.getElementById('custom');
+                const customRadio = document.getElementById('custom_limit');
                 const inputDiv = document.getElementById('custom_limit_input');
+                
                 if (defaultDiv) defaultDiv.style.display = 'none';
-                if (optionsDiv) optionsDiv.style.display = 'block';
-                if (customRadio) customRadio.checked = true;
-                if (inputDiv) inputDiv.style.display = 'block';
+                if (optionsDiv) {
+                    optionsDiv.style.display = 'block';
+                }
             }
-            if (e.target.id === 'hideCreditLimitOptions') {
+            
+            if (e.target.id === 'hideCreditLimitOptions' || e.target.closest('#hideCreditLimitOptions')) {
                 e.preventDefault();
+                e.stopPropagation();
                 const optionsDiv = document.getElementById('creditLimitOptions');
                 const defaultDiv = document.getElementById('creditLimitDefault');
                 const inputDiv = document.getElementById('custom_limit_input');
+                const noLimitRadio = document.getElementById('no_limit');
+                
                 if (optionsDiv) optionsDiv.style.display = 'none';
                 if (defaultDiv) defaultDiv.style.display = 'block';
-                document.querySelectorAll('input[name="credit_limit_type"]').forEach(r => r.checked = false);
+                if (inputDiv) inputDiv.style.display = 'none';
+                if (noLimitRadio) noLimitRadio.checked = true;
                 const limitInput = document.querySelector('input[name="credit_limit"]');
                 if (limitInput) limitInput.value = '';
-                if (inputDiv) inputDiv.style.display = 'none';
+            }
+            
+            // Credit Limit Type Radio Change
+            if (e.target.name === 'credit_limit_type') {
+                const inputDiv = document.getElementById('custom_limit_input');
+                if (e.target.value === 'custom' && inputDiv) {
+                    inputDiv.style.display = 'block';
+                } else if (inputDiv) {
+                    inputDiv.style.display = 'none';
+                    const limitInput = document.querySelector('input[name="credit_limit"]');
+                    if (limitInput) limitInput.value = '';
+                }
             }
         });
 
         // Microphone Logic (delegated)
         document.addEventListener('click', async function(e) {
-            const micBtn = e.target.closest('.mic-btn');
+            // Check if clicked element or its parent is a mic button
+            const micBtn = e.target.closest('.mic-btn') || (e.target.classList.contains('ti-microphone') || e.target.closest('.ti-microphone') ? e.target.closest('button') : null);
             const playPauseBtn = e.target.closest('.play-pause-btn');
             const controlBtn = micBtn || playPauseBtn;
+            
             if (!controlBtn) return;
+            
+            // Prevent default behavior
+            e.preventDefault();
+            e.stopPropagation();
+            
             const inputGroup = controlBtn.closest('.input-group');
             if (!inputGroup) return;
-            const inputField = inputGroup.querySelector('input[type="text"]');
-            const nameCol = inputGroup.closest('.col-md-6, .col-md-5');
+            
+            const inputField = inputGroup.querySelector('input[type="text"].speech-input, input[type="text"][name*="names"]');
+            const nameCol = inputGroup.closest('.col-12, .col-md-6, .col-md-5');
+            
             if (!inputField || !nameCol) return;
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -503,10 +534,10 @@
                 if (audio) {
                     if (audio.paused) {
                         audio.play();
-                        controlBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                        controlBtn.innerHTML = '<i class="ti ti-pause"></i>';
                     } else {
                         audio.pause();
-                        controlBtn.innerHTML = '<i class="fas fa-play"></i>';
+                        controlBtn.innerHTML = '<i class="ti ti-play"></i>';
                     }
                 }
                 return;
@@ -552,22 +583,33 @@
                     inputField.style.backgroundColor = 'lightgreen';
                     inputField.placeholder = 'Voice transcribed (mic used)';
                     if (transcript.trim()) inputField.value = transcript.trim();
-                    controlBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
                     controlBtn.classList.remove('mic-btn');
                     controlBtn.classList.add('play-pause-btn');
                     stream.getTracks().forEach(track => track.stop());
                 };
                 mediaRecorder.start();
                 recognition.start();
-                controlBtn.innerHTML = '<i class="fas fa-stop text-danger"></i>';
-                recognition.onresult = (event) => { transcript = event.results[0][0].transcript; };
+                controlBtn.innerHTML = '<i class="ti ti-stop text-danger"></i>';
+                recognition.onresult = (event) => { 
+                    transcript = event.results[0][0].transcript;
+                    if (transcript.trim()) {
+                        inputField.value = transcript.trim();
+                        inputField.style.color = '';
+                        inputField.style.textShadow = '';
+                    }
+                };
                 recognition.onerror = (event) => {
                     alert('Speech error: ' + event.error);
                     resetRecordingUI(inputField, controlBtn, nameCol);
                     if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                    stream.getTracks().forEach(track => track.stop());
                 };
                 recognition.onend = () => {
-                    if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                    stream.getTracks().forEach(track => track.stop());
                 };
             } catch (err) {
                 alert('Microphone access denied: ' + err.message);
@@ -755,11 +797,86 @@
             
             // Remove multiple image
             if (e.target.closest('.remove-image-preview')) {
+                e.preventDefault();
+                e.stopPropagation();
                 const btn = e.target.closest('.remove-image-preview');
                 const index = parseInt(btn.getAttribute('data-index'));
-                if (!isNaN(index) && selectedMultipleImages[index]) {
+                if (!isNaN(index) && selectedMultipleImages[index] !== undefined) {
                     selectedMultipleImages.splice(index, 1);
                     updateMultipleImagesPreview();
+                }
+            }
+            
+            // Remove profile image
+            if (e.target.closest('.remove-profile-image')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const profileInput = document.getElementById('profile_img');
+                const preview = document.getElementById('profile_preview');
+                const placeholder = document.querySelector('.profile-upload-box .upload-placeholder');
+                const removeBtn = document.querySelector('.remove-profile-image');
+                const cropBtn = document.querySelector('.crop-profile-image');
+                const croppedInput = document.getElementById('profile_img_cropped');
+                
+                if (profileInput) profileInput.value = '';
+                if (preview) {
+                    preview.src = '';
+                    preview.style.display = 'none';
+                }
+                if (placeholder) placeholder.classList.remove('d-none');
+                if (removeBtn) removeBtn.style.display = 'none';
+                if (cropBtn) cropBtn.style.display = 'none';
+                if (croppedInput) croppedInput.value = '';
+                profileImageFile = null;
+                
+                // Destroy cropper if exists
+                if (cropper) {
+                    cropper.destroy();
+                    cropper = null;
+                }
+            }
+            
+            // Crop profile image
+            if (e.target.closest('.crop-profile-image')) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!profileImageFile) {
+                    alert('Please select an image first');
+                    return;
+                }
+                
+                const preview = document.getElementById('profile_preview');
+                const cropModalElement = document.getElementById('imageCropModal');
+                if (!cropModalElement) return;
+                
+                const cropModal = new bootstrap.Modal(cropModalElement);
+                const cropImage = document.getElementById('cropImage');
+                
+                if (preview && cropImage) {
+                    cropImage.src = preview.src;
+                    cropModal.show();
+                    
+                    // Initialize cropper when modal is shown
+                    const initCropper = function() {
+                        if (cropper) {
+                            cropper.destroy();
+                        }
+                        cropper = new Cropper(cropImage, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.8,
+                            restore: false,
+                            guides: true,
+                            center: true,
+                            highlight: false,
+                            cropBoxMovable: true,
+                            cropBoxResizable: true,
+                            toggleDragModeOnDblclick: false,
+                        });
+                        cropModalElement.removeEventListener('shown.bs.modal', initCropper);
+                    };
+                    cropModalElement.addEventListener('shown.bs.modal', initCropper, { once: true });
                 }
             }
             
@@ -801,7 +918,9 @@
             }
             
             // Crop and save button
-            if (e.target.id === 'cropImageBtn') {
+            if (e.target.id === 'cropImageBtn' || e.target.closest('#cropImageBtn')) {
+                e.preventDefault();
+                e.stopPropagation();
                 if (!cropper) {
                     alert('Cropper not initialized');
                     return;
@@ -819,12 +938,17 @@
                         const preview = document.getElementById('profile_preview');
                         const croppedInput = document.getElementById('profile_img_cropped');
                         const profileInput = document.getElementById('profile_img');
+                        const placeholder = document.querySelector('.profile-upload-box .upload-placeholder');
+                        const removeBtn = document.querySelector('.remove-profile-image');
+                        const cropBtn = document.querySelector('.crop-profile-image');
                         
                         // Create new file from blob
-                        const file = new File([blob], profileImageFile.name, { type: blob.type });
-                        const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(file);
-                        if (profileInput) profileInput.files = dataTransfer.files;
+                        if (profileImageFile) {
+                            const file = new File([blob], profileImageFile.name, { type: blob.type || 'image/jpeg' });
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            if (profileInput) profileInput.files = dataTransfer.files;
+                        }
                         
                         // Update preview
                         const url = URL.createObjectURL(blob);
@@ -832,19 +956,25 @@
                             preview.src = url;
                             preview.style.display = 'block';
                         }
+                        if (placeholder) placeholder.classList.add('d-none');
+                        if (removeBtn) removeBtn.style.display = 'block';
+                        if (cropBtn) cropBtn.style.display = 'block';
                         
                         // Store cropped image as base64
-                        canvas.toBlob(function(blob) {
+                        canvas.toBlob(function(blob2) {
                             const reader = new FileReader();
                             reader.onload = function() {
                                 if (croppedInput) croppedInput.value = reader.result;
                             };
-                            reader.readAsDataURL(blob);
+                            reader.readAsDataURL(blob2);
                         }, 'image/jpeg', 0.9);
                         
                         // Close modal
-                        const cropModal = bootstrap.Modal.getInstance(document.getElementById('imageCropModal'));
-                        if (cropModal) cropModal.hide();
+                        const cropModalElement = document.getElementById('imageCropModal');
+                        if (cropModalElement) {
+                            const cropModal = bootstrap.Modal.getInstance(cropModalElement);
+                            if (cropModal) cropModal.hide();
+                        }
                         
                         // Destroy cropper
                         if (cropper) {
@@ -853,15 +983,6 @@
                         }
                     }, 'image/jpeg', 0.9);
                 }
-            }
-        });
-        });
-
-        // Credit Limit Radio Toggle
-        document.addEventListener('change', function(e) {
-            if (e.target.name === 'credit_limit_type') {
-                const inputDiv = document.getElementById('custom_limit_input');
-                if (inputDiv) inputDiv.style.display = e.target.value === 'custom' ? 'block' : 'none';
             }
         });
 
