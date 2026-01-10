@@ -259,7 +259,7 @@ label{
             
             .modal-content {
                 border-radius: 0 !important;
-                height: 100vh;
+                
                 display: flex;
                 flex-direction: column;
             }
