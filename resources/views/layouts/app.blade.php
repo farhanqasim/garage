@@ -275,10 +275,7 @@ label{
                 font-size: 14px !important;
             }
             
-            /* Input groups - stack buttons */
-            .input-group {
-                flex-direction: column;
-            }
+           
             
             .input-group .form-control,
             .input-group .select2-container {
