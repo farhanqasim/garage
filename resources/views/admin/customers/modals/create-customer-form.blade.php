@@ -16,9 +16,6 @@
                             <button type="button" class="btn btn-outline-primary mic-btn" title="Voice Input">
                                 <i class="ti ti-microphone"></i>
                             </button>
-                            <button type="button" class="btn btn-danger remove-row" style="display:none;" title="Remove">
-                                <i class="ti ti-trash"></i>
-                            </button>
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
