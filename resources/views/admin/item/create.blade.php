@@ -2192,11 +2192,19 @@
     function openModal(mode) {
         const select = document.getElementById('unitSelect');
         resetForm();
-        if (mode === 'edit' && select.selectedIndex > 0) {
+        
+        if (mode === 'add') {
+            document.getElementById('Unit-modal-title').innerText = "Unit Settings";
+            document.getElementById('unit-delete-btn').classList.add('d-none');
+            document.getElementById('unit-edit-id').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
+            modal.show();
+        } else if (mode === 'edit' && select.selectedIndex > 0) {
             document.getElementById('Unit-modal-title').innerText = "Update Unit Settings";
             document.getElementById('unit-delete-btn').classList.remove('d-none');
             const opt = select.selectedOptions[0];
             const unitId = opt.getAttribute('data-id');
+            document.getElementById('unit-edit-id').value = unitId;
             
             // Fetch unit data from API
             fetch(`/units/${unitId}`, {
@@ -2249,12 +2257,12 @@
                 console.error('Error fetching unit:', error);
                 alert('Error loading unit data. Please try again.');
             });
-        } else {
-            document.getElementById('Unit-modal-title').innerText = "Unit Settings";
-            document.getElementById('unit-delete-btn').classList.add('d-none');
+            
+            const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
+            modal.show();
+        } else if (mode === 'edit') {
+            alert('Please select a unit first to edit.');
         }
-        const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
-        modal.show();
     }
 
     function closeModal() {
