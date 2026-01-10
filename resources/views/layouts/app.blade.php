@@ -334,9 +334,7 @@ label{
                 max-width: 95% !important;
             }
             
-            .modal-content {
-                max-height: 95vh;
-            }
+         
         }
         
         /* Touch device improvements */
