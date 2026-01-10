@@ -35,26 +35,8 @@
             </button>
         </div>
 
-        <!-- Profile Image & Company -->
+        <!-- Company & Email -->
         <div class="row g-2 mb-3">
-            <div class="col-12 col-md-6">
-                <label for="profile_img" class="form-label fw-bold mb-1">
-                    <i class="ti ti-photo me-1"></i>Profile Picture
-                </label>
-                <input type="file" name="profile_img" id="profile_img" accept="image/*" class="form-control mb-2">
-                <input type="hidden" name="profile_img_cropped" id="profile_img_cropped">
-                <div class="profile-preview-container text-center border rounded p-2 bg-light" style="min-height: 120px; display: none;">
-                    <div class="position-relative d-inline-block">
-                        <img id="profile_preview" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 120px; max-width: 100%;">
-                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1 remove-profile-image" title="Remove">
-                            <i class="ti ti-x"></i>
-                        </button>
-                        <button type="button" class="btn btn-warning btn-sm position-absolute bottom-0 start-50 translate-middle-x mb-1 crop-profile-image" title="Crop">
-                            <i class="ti ti-crop me-1"></i>Crop
-                        </button>
-                    </div>
-                </div>
-            </div>
             <div class="col-12 col-md-6">
                 <label for="company" class="form-label fw-bold mb-1">
                     <i class="ti ti-building me-1"></i>Company Name
@@ -64,10 +46,6 @@
                     <input type="text" name="company" value="{{ old('company') }}" class="form-control" placeholder="Optional">
                 </div>
             </div>
-        </div>
-
-        <!-- Email & Phone -->
-        <div class="row g-2 mb-3">
             <div class="col-12 col-md-6">
                 <label for="email" class="form-label fw-bold mb-1">
                     <i class="ti ti-mail me-1"></i>Email
@@ -75,24 +53,6 @@
                 <div class="input-group">
                     <span class="input-group-text"><i class="ti ti-mail"></i></span>
                     <input type="email" name="email" value="{{ old('email') }}" class="form-control" placeholder="Optional">
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <label for="visiting_doc" class="form-label fw-bold mb-1">
-                    <i class="ti ti-file me-1"></i>Document
-                </label>
-                <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
-                <div id="visiting_preview" class="mt-2" style="display: none;">
-                    <div id="visiting_img_container" style="display: none;">
-                        <img id="visiting_img" src="" alt="Preview" class="img-fluid rounded border" style="max-height: 100px; width: auto;">
-                    </div>
-                    <div id="visiting_file_info" style="display: none; text-center p-2 bg-light rounded border">
-                        <i class="ti ti-file text-muted d-block mb-1" style="font-size: 24px;"></i>
-                        <small class="text-muted fw-bold" id="visiting_filename"></small>
-                        <button type="button" class="btn btn-sm btn-danger mt-1 remove-visiting-doc">
-                            <i class="ti ti-x me-1"></i>Remove
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -189,13 +149,63 @@
             </div>
         </div>
 
-        <!-- Multiple Images -->
-        <div class="mb-2">
-            <label for="multiple_images" class="form-label fw-bold mb-1">
-                <i class="ti ti-photo me-1"></i>Additional Images
-            </label>
-            <input type="file" name="multiple_images[]" id="multiple_images" accept="image/*" multiple class="form-control mb-2">
-            <div class="multiple-images-preview d-none d-flex flex-wrap justify-content-start gap-2 p-2 border rounded bg-light" id="multiple_images_preview"></div>
+        <!-- Images Section (All at the end) -->
+        <div class="border-top pt-3 mt-3">
+            <h6 class="fw-bold mb-3 text-muted">
+                <i class="ti ti-photo me-1"></i>Images
+            </h6>
+            
+            <!-- Profile Picture -->
+            <div class="mb-3">
+                <label for="profile_img" class="form-label fw-bold mb-1">
+                    <i class="ti ti-user me-1"></i>Profile Picture
+                </label>
+                <input type="file" name="profile_img" id="profile_img" accept="image/*" class="form-control mb-2">
+                <input type="hidden" name="profile_img_cropped" id="profile_img_cropped">
+                <div class="profile-preview-container border rounded p-3 bg-light text-center" style="display: none; min-height: 150px;">
+                    <div class="position-relative d-inline-block">
+                        <img id="profile_preview" src="" alt="Profile Preview" class="img-fluid rounded shadow-sm" style="max-height: 180px; max-width: 100%; display: none;">
+                        <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-profile-image" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove Image">
+                            <i class="ti ti-x" style="font-size: 18px; font-weight: bold;"></i>
+                        </button>
+                        <button type="button" class="btn btn-warning btn-sm position-absolute bottom-0 start-50 translate-middle-x mb-2 crop-profile-image" style="box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Crop Image">
+                            <i class="ti ti-crop me-1"></i>Crop
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visiting Document -->
+            <div class="mb-3">
+                <label for="visiting_doc" class="form-label fw-bold mb-1">
+                    <i class="ti ti-file me-1"></i>Visiting Card/Document
+                </label>
+                <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control mb-2">
+                <div id="visiting_preview" class="mt-2" style="display: none;">
+                    <div id="visiting_img_container" class="position-relative d-inline-block text-center" style="display: none;">
+                        <img id="visiting_img" src="" alt="Preview" class="img-fluid rounded border shadow-sm" style="max-height: 150px; width: auto; display: block;">
+                        <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-visiting-doc" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove">
+                            <i class="ti ti-x" style="font-size: 18px; font-weight: bold;"></i>
+                        </button>
+                    </div>
+                    <div id="visiting_file_info" class="position-relative d-inline-block p-3 bg-light rounded border text-center" style="display: none;">
+                        <i class="ti ti-file text-muted d-block mb-2" style="font-size: 40px;"></i>
+                        <small class="text-muted fw-bold d-block mb-2" id="visiting_filename"></small>
+                        <button type="button" class="btn btn-danger btn-sm remove-visiting-doc" title="Remove">
+                            <i class="ti ti-x me-1"></i>Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multiple Images -->
+            <div class="mb-2">
+                <label for="multiple_images" class="form-label fw-bold mb-1">
+                    <i class="ti ti-photo me-1"></i>Additional Images
+                </label>
+                <input type="file" name="multiple_images[]" id="multiple_images" accept="image/*" multiple class="form-control mb-2">
+                <div class="multiple-images-preview d-none d-flex flex-wrap justify-content-start gap-2 p-3 border rounded bg-light mt-2" id="multiple_images_preview"></div>
+            </div>
         </div>
     </div>
 

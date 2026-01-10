@@ -253,6 +253,35 @@
     
     .remove-profile-image:hover, .crop-profile-image:hover {
         transform: scale(1.1);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.4) !important;
+    }
+    
+    /* Ensure preview buttons are visible when preview is shown */
+    .profile-preview-container[style*="block"] .remove-profile-image,
+    .profile-preview-container[style*="block"] .crop-profile-image {
+        display: flex !important;
+    }
+    
+    .profile-preview-container[style*="block"] #profile_preview {
+        display: block !important;
+    }
+    
+    /* Image preview styling */
+    #profile_preview, #visiting_img {
+        transition: opacity 0.3s ease;
+    }
+    
+    #multiple_images_preview {
+        min-height: 100px;
+    }
+    
+    /* Ensure remove buttons are always visible on previews */
+    #visiting_preview[style*="block"] .remove-visiting-doc {
+        display: flex !important;
+    }
+    
+    #multiple_images_preview:not(.d-none) .remove-image-preview {
+        display: flex !important;
     }
     
     /* Cropper Modal Styles */
@@ -719,12 +748,12 @@
                     reader.onload = function(ev) {
                         if (preview) {
                             preview.src = ev.target.result;
+                            preview.style.display = 'block';
                         }
                         if (previewContainer) {
                             previewContainer.style.display = 'block';
                         }
-                        if (removeBtn) removeBtn.style.display = 'block';
-                        if (cropBtn) cropBtn.style.display = 'block';
+                        // Buttons are always visible when preview is shown (via CSS)
                     };
                     reader.readAsDataURL(file);
                 } else {
@@ -733,9 +762,8 @@
                     }
                     if (preview) {
                         preview.src = '';
+                        preview.style.display = 'none';
                     }
-                    if (removeBtn) removeBtn.style.display = 'none';
-                    if (cropBtn) cropBtn.style.display = 'none';
                     profileImageFile = null;
                 }
             }
@@ -746,15 +774,20 @@
                 const imgContainer = document.getElementById('visiting_img_container');
                 const fileInfo = document.getElementById('visiting_file_info');
                 const filename = document.getElementById('visiting_filename');
-                const existing = document.querySelector('.existing-file');
+                const visitingImg = document.getElementById('visiting_img');
+                const removeBtns = document.querySelectorAll('.remove-visiting-doc');
+                
                 if (file) {
                     if (preview) preview.style.display = 'block';
                     if (filename) filename.textContent = file.name;
+                    
                     if (file.type.startsWith('image/')) {
                         const reader = new FileReader();
                         reader.onload = function(ev) {
-                            const img = document.getElementById('visiting_img');
-                            if (img) img.src = ev.target.result;
+                            if (visitingImg) {
+                                visitingImg.src = ev.target.result;
+                                visitingImg.style.display = 'block';
+                            }
                         };
                         reader.readAsDataURL(file);
                         if (imgContainer) imgContainer.style.display = 'block';
@@ -763,10 +796,14 @@
                         if (imgContainer) imgContainer.style.display = 'none';
                         if (fileInfo) fileInfo.style.display = 'block';
                     }
-                    if (existing) existing.style.display = 'none';
+                    // Show remove buttons
+                    removeBtns.forEach(btn => {
+                        btn.style.display = 'flex';
+                    });
                 } else {
                     if (preview) preview.style.display = 'none';
-                    if (existing) existing.style.display = 'block';
+                    if (imgContainer) imgContainer.style.display = 'none';
+                    if (fileInfo) fileInfo.style.display = 'none';
                 }
             }
 
@@ -774,15 +811,19 @@
                 const files = e.target.files;
                 const previewContainer = document.getElementById('multiple_images_preview');
                 
-                if (files.length > 0) {
+                if (files && files.length > 0) {
                     // Add new files to selected images array
                     Array.from(files).forEach((file) => {
-                        if (file.type.startsWith('image/') && !selectedMultipleImages.find(f => f.name === file.name && f.size === file.size)) {
-                            selectedMultipleImages.push(file);
+                        if (file.type.startsWith('image/')) {
+                            // Check if file already exists by name and size
+                            const exists = selectedMultipleImages.find(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified);
+                            if (!exists) {
+                                selectedMultipleImages.push(file);
+                            }
                         }
                     });
                     
-                    // Update preview
+                    // Update preview immediately
                     updateMultipleImagesPreview();
                 }
             }
@@ -802,16 +843,16 @@
                     const reader = new FileReader();
                     reader.onload = function(ev) {
                         const div = document.createElement('div');
-                        div.className = 'position-relative border rounded p-2 bg-white';
-                        div.style.width = '100px';
-                        div.style.height = '120px';
+                        div.className = 'position-relative border rounded p-2 bg-white shadow-sm';
+                        div.style.width = '130px';
+                        div.style.height = '150px';
                         div.style.flexShrink = '0';
                         div.setAttribute('data-index', index);
                         div.innerHTML = `
-                            <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded" style="max-height: 80px; max-width: 100%; object-fit: cover; width: 100%; height: 80px;">
-                            <small class="d-block text-muted mt-1 text-truncate" style="font-size: 0.65rem;" title="${file.name}">${file.name.length > 12 ? file.name.substring(0, 12) + '...' : file.name}</small>
-                            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-size: 12px; z-index: 10;" title="Remove">
-                                <i class="ti ti-x"></i>
+                            <img src="${ev.target.result}" alt="${file.name}" class="img-fluid rounded mb-1" style="max-height: 110px; max-width: 100%; object-fit: cover; width: 100%; height: 110px; display: block;">
+                            <small class="d-block text-muted text-truncate text-center" style="font-size: 0.7rem;" title="${file.name}">${file.name.length > 18 ? file.name.substring(0, 18) + '...' : file.name}</small>
+                            <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-image-preview" data-index="${index}" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove Image">
+                                <i class="ti ti-x" style="font-size: 16px; font-weight: bold;"></i>
                             </button>
                         `;
                         previewContainer.appendChild(div);
@@ -886,15 +927,11 @@
                 const profileInput = document.getElementById('profile_img');
                 const preview = document.getElementById('profile_preview');
                 const previewContainer = document.querySelector('.profile-preview-container');
-                const removeBtn = document.querySelector('.remove-profile-image');
-                const cropBtn = document.querySelector('.crop-profile-image');
                 const croppedInput = document.getElementById('profile_img_cropped');
                 
                 if (profileInput) profileInput.value = '';
                 if (preview) preview.src = '';
                 if (previewContainer) previewContainer.style.display = 'none';
-                if (removeBtn) removeBtn.style.display = 'none';
-                if (cropBtn) cropBtn.style.display = 'none';
                 if (croppedInput) croppedInput.value = '';
                 profileImageFile = null;
                 
@@ -919,42 +956,61 @@
             if (e.target.closest('.crop-profile-image')) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!profileImageFile) {
-                    alert('Please select an image first');
-                    return;
-                }
                 
                 const preview = document.getElementById('profile_preview');
                 const cropModalElement = document.getElementById('imageCropModal');
                 if (!cropModalElement) return;
                 
+                // Check if we have preview or file
+                if (!preview || !preview.src) {
+                    if (!profileImageFile) {
+                        alert('Please select an image first');
+                        return;
+                    }
+                }
+                
                 const cropModal = new bootstrap.Modal(cropModalElement);
                 const cropImage = document.getElementById('cropImage');
                 
-                if (preview && cropImage) {
-                    cropImage.src = preview.src;
+                if (cropImage) {
+                    // Use current preview if available, otherwise load from file
+                    if (preview && preview.src) {
+                        cropImage.src = preview.src;
+                    } else if (profileImageFile) {
+                        const reader = new FileReader();
+                        reader.onload = function(ev) {
+                            cropImage.src = ev.target.result;
+                        };
+                        reader.readAsDataURL(profileImageFile);
+                    }
+                    
                     cropModal.show();
                     
                     // Initialize cropper when modal is shown
                     const initCropper = function() {
                         if (cropper) {
                             cropper.destroy();
+                            cropper = null;
                         }
-                        cropper = new Cropper(cropImage, {
-                            aspectRatio: 1,
-                            viewMode: 1,
-                            dragMode: 'move',
-                            autoCropArea: 0.8,
-                            restore: false,
-                            guides: true,
-                            center: true,
-                            highlight: false,
-                            cropBoxMovable: true,
-                            cropBoxResizable: true,
-                            toggleDragModeOnDblclick: false,
-                        });
-                        cropModalElement.removeEventListener('shown.bs.modal', initCropper);
+                        
+                        // Wait a bit for image to load
+                        setTimeout(function() {
+                            cropper = new Cropper(cropImage, {
+                                aspectRatio: 1,
+                                viewMode: 1,
+                                dragMode: 'move',
+                                autoCropArea: 0.8,
+                                restore: false,
+                                guides: true,
+                                center: true,
+                                highlight: false,
+                                cropBoxMovable: true,
+                                cropBoxResizable: true,
+                                toggleDragModeOnDblclick: false,
+                            });
+                        }, 100);
                     };
+                    
                     cropModalElement.addEventListener('shown.bs.modal', initCropper, { once: true });
                 }
             }
@@ -976,42 +1032,43 @@
                 });
                 
                 if (canvas) {
+                    // Store cropped image as base64 first
                     canvas.toBlob(function(blob) {
                         const preview = document.getElementById('profile_preview');
                         const croppedInput = document.getElementById('profile_img_cropped');
                         const profileInput = document.getElementById('profile_img');
-                        const placeholder = document.querySelector('.profile-upload-box .upload-placeholder');
+                        const previewContainer = document.querySelector('.profile-preview-container');
                         const removeBtn = document.querySelector('.remove-profile-image');
                         const cropBtn = document.querySelector('.crop-profile-image');
                         
-                        // Create new file from blob
-                        if (profileImageFile) {
-                            const file = new File([blob], profileImageFile.name, { type: blob.type || 'image/jpeg' });
-                            const dataTransfer = new DataTransfer();
-                            dataTransfer.items.add(file);
-                            if (profileInput) profileInput.files = dataTransfer.files;
-                        }
-                        
-                        // Update preview
+                        // Create cropped image URL for preview
                         const url = URL.createObjectURL(blob);
-                        const previewContainer = document.querySelector('.profile-preview-container');
+                        
+                        // Update preview with cropped image immediately
                         if (preview) {
                             preview.src = url;
+                            preview.style.display = 'block';
                         }
                         if (previewContainer) {
                             previewContainer.style.display = 'block';
                         }
-                        if (removeBtn) removeBtn.style.display = 'block';
-                        if (cropBtn) cropBtn.style.display = 'block';
+                        // Buttons are always visible when preview is shown
                         
-                        // Store cropped image as base64
-                        canvas.toBlob(function(blob2) {
-                            const reader = new FileReader();
-                            reader.onload = function() {
-                                if (croppedInput) croppedInput.value = reader.result;
-                            };
-                            reader.readAsDataURL(blob2);
-                        }, 'image/jpeg', 0.9);
+                        // Create new file from blob and update file input
+                        const originalFileName = profileImageFile ? profileImageFile.name : 'cropped_image.jpg';
+                        const file = new File([blob], originalFileName, { type: blob.type || 'image/jpeg' });
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        if (profileInput) profileInput.files = dataTransfer.files;
+                        // Update the stored file reference with cropped version
+                        profileImageFile = file;
+                        
+                        // Store cropped image as base64 in hidden input
+                        const reader = new FileReader();
+                        reader.onload = function() {
+                            if (croppedInput) croppedInput.value = reader.result;
+                        };
+                        reader.readAsDataURL(blob);
                         
                         // Close modal
                         const cropModalElement = document.getElementById('imageCropModal');
@@ -1020,11 +1077,14 @@
                             if (cropModal) cropModal.hide();
                         }
                         
-                        // Destroy cropper
-                        if (cropper) {
-                            cropper.destroy();
-                            cropper = null;
-                        }
+                        // Destroy cropper after a short delay to allow modal to close
+                        setTimeout(function() {
+                            if (cropper) {
+                                cropper.destroy();
+                                cropper = null;
+                            }
+                        }, 300);
+                        
                     }, 'image/jpeg', 0.9);
                 }
             }
