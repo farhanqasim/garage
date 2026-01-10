@@ -49,51 +49,58 @@
         .modal-body {
             padding: 1rem !important;
         }
-        .col-12, .col-md-6 {
-            margin-bottom: 1rem;
-        }
-        .input-group-lg {
-            flex-wrap: wrap;
-        }
-        .input-group-lg .btn {
-            margin-top: 0.5rem;
-            width: 100%;
-        }
-        .btn-group {
-            flex-direction: column;
-        }
-        .btn-group .btn {
-            border-radius: 0.375rem !important;
-            margin-bottom: 0.5rem;
-        }
-        .card-body {
+        .modal-body {
+            max-height: calc(100vh - 160px);
             padding: 1rem !important;
         }
-        h6 {
-            font-size: 0.85rem;
+        .col-12, .col-md-6 {
+            margin-bottom: 0.75rem;
+        }
+        .input-group {
+            flex-wrap: nowrap;
+        }
+        .input-group .btn {
+            flex-shrink: 0;
+        }
+        .btn-group {
+            flex-direction: row;
         }
         .form-label {
             font-size: 0.9rem;
+            margin-bottom: 0.25rem;
         }
         .input-group-text {
-            min-width: 40px;
-            padding: 0.5rem 0.75rem;
+            min-width: 38px;
+            padding: 0.375rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .form-control, .form-select {
+            font-size: 0.875rem;
         }
     }
     
     @media (max-width: 576px) {
-        .modal-xl {
+        .modal-lg {
             max-width: 100%;
+            margin: 0.5rem;
         }
-        .modal-header h4 {
-            font-size: 1.1rem;
+        .modal-header h5 {
+            font-size: 1rem;
         }
-        .input-group-lg .form-control {
+        .modal-body {
+            max-height: calc(100vh - 140px);
+            padding: 0.75rem !important;
+        }
+        .form-control, .form-select {
             font-size: 16px; /* Prevents zoom on iOS */
         }
         .btn {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        .input-group-text {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
         }
     }
     
@@ -113,10 +120,14 @@
         margin-bottom: 2rem !important;
     }
     
-    /* Smooth scrolling */
-    .modal-dialog-scrollable .modal-body {
-        max-height: calc(100vh - 200px);
+    /* Modal without scroll - content fits */
+    .modal-body {
         overflow-y: auto;
+        max-height: calc(100vh - 180px);
+    }
+    
+    .modal-lg {
+        max-width: 900px;
     }
     
     /* Better focus states */
@@ -294,14 +305,12 @@
 
 {{-- Add Modal (Static) --}}
 <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white border-0 sticky-top" style="z-index: 1050;">
-                <h4 class="modal-title fw-bold d-flex align-items-center">
-                    <i class="ti ti-user-plus me-2"></i>
-                    <span class="d-none d-sm-inline">Add New Customer</span>
-                    <span class="d-sm-none">Add Customer</span>
-                </h4>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold d-flex align-items-center mb-0">
+                    <i class="ti ti-user-plus me-2"></i>Add New Customer
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @include('admin.customers.modals.create-customer-form')
@@ -383,33 +392,27 @@
                 if (!container) return;
                 
                 const newRow = document.createElement('div');
-                newRow.className = 'row g-2 g-md-3 mb-3 align-items-end name-phone-row';
+                newRow.className = 'row g-2 mb-2 align-items-end name-phone-row';
                 newRow.innerHTML = `
                     <div class="col-12 col-md-6">
-                        <label class="form-label small text-muted mb-1">Full Name <span class="text-danger">*</span></label>
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text bg-white border-end-0"><i class="ti ti-user text-primary"></i></span>
-                            <input type="text" name="names[]" class="form-control speech-input border-start-0" placeholder="Enter customer full name" required>
-                            <button type="button" class="btn btn-outline-primary mic-btn border-start-0" title="Voice Input">
+                        <label class="form-label small mb-1">Full Name <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-user"></i></span>
+                            <input type="text" name="names[]" class="form-control speech-input" placeholder="Enter name" required>
+                            <button type="button" class="btn btn-outline-primary mic-btn" title="Voice Input">
                                 <i class="ti ti-microphone"></i>
                             </button>
-                            <button type="button" class="btn btn-danger remove-row border-start-0" title="Remove">
+                            <button type="button" class="btn btn-danger remove-row" title="Remove">
                                 <i class="ti ti-trash"></i>
                             </button>
                         </div>
-                        <small class="text-muted d-block mt-1">
-                            <i class="ti ti-info-circle"></i> Click mic icon to use voice input
-                        </small>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label small text-muted mb-1">WhatsApp Number</label>
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text bg-white border-end-0"><i class="ti ti-phone text-success"></i></span>
-                            <input type="text" name="phones[]" class="form-control border-start-0" placeholder="03XX-XXXXXXX">
+                        <label class="form-label small mb-1">WhatsApp Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-phone"></i></span>
+                            <input type="text" name="phones[]" class="form-control" placeholder="03XX-XXXXXXX">
                         </div>
-                        <small class="text-muted d-block mt-1">
-                            <i class="ti ti-info-circle"></i> Enter with country code if needed
-                        </small>
                     </div>
                 `;
                 container.appendChild(newRow);
