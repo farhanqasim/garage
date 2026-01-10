@@ -1692,7 +1692,7 @@
                                     </select>
                                 </div>
                                 <div class="col-1 d-flex align-items-end">
-                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;">
+                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;" onclick="removeRow(this)">
                                         <i class="ti ti-x"></i>
                                     </button>
                                 </div>
@@ -2197,34 +2197,58 @@
             document.getElementById('unit-delete-btn').classList.remove('d-none');
             const opt = select.selectedOptions[0];
             const unitId = opt.getAttribute('data-id');
-            const units = JSON.parse(localStorage.getItem('myUnits') || '[]');
-            const unit = units.find(u => u.id == unitId);
-            if (unit) {
-                document.getElementById('unit-edit-id').value = unit.id;
-                document.getElementById('unit-name-input').value = unit.name;
-                document.getElementById('unit-short-input').value = unit.short;
-                document.getElementById('unit-allow-decimal').value = unit.decimal > 0 ? "1" : "0";
-                document.getElementById('unit-decimal-precision').value = unit.decimal || "2";
-                toggleDecimalPrecision();
-                if (unit.conversions && unit.conversions.length > 0) {
-                    document.getElementById('unit-has-base').checked = true;
-                    toggleBaseSettings();
-                    const rowsContainer = document.getElementById('unit-base-rows');
-                    unit.conversions.forEach((c, i) => {
-                        if (i > 0) addBaseRow();
-                        const row = rowsContainer.children[i];
-                        row.querySelector('.multiplier-input').value = c.multiplier;
-                        const baseSelect = row.querySelector('.base-unit-select');
-                        // Find unit by name
-                        @foreach($units as $u)
-                        if ('{{ $u->name }}' === c.base) {
-                            baseSelect.value = {{ $u->id }};
-                        }
-                        @endforeach
-                        if (i > 0) row.querySelector('.remove-base-row').style.display = 'block';
-                    });
+            
+            // Fetch unit data from API
+            fetch(`/units/${unitId}`, {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
                 }
-            }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.unit) {
+                    const unit = data.unit;
+                    document.getElementById('unit-edit-id').value = unit.id;
+                    document.getElementById('unit-name-input').value = unit.name || '';
+                    document.getElementById('unit-short-input').value = unit.short_name || '';
+                    document.getElementById('unit-allow-decimal').value = unit.allow_decimal == '1' || unit.allow_decimal == 1 ? "1" : "0";
+                    document.getElementById('unit-decimal-precision').value = unit.decimal_after_point_digit || "2";
+                    toggleDecimalPrecision();
+                    
+                    // Load base units if they exist
+                    if (unit.base_units && unit.base_units.length > 0) {
+                        document.getElementById('unit-has-base').checked = true;
+                        toggleBaseSettings();
+                        const rowsContainer = document.getElementById('unit-base-rows');
+                        // Clear existing rows except first one
+                        while (rowsContainer.children.length > 1) {
+                            rowsContainer.removeChild(rowsContainer.lastChild);
+                        }
+                        
+                        // Populate base units
+                        unit.base_units.forEach((baseUnit, i) => {
+                            if (i > 0) addBaseRow();
+                            const row = rowsContainer.children[i];
+                            row.querySelector('.multiplier-input').value = baseUnit.multiplier || '';
+                            const baseSelect = row.querySelector('.base-unit-select');
+                            baseSelect.value = baseUnit.id || '';
+                            if (i > 0) {
+                                const removeBtn = row.querySelector('.remove-base-row');
+                                if (removeBtn) removeBtn.style.display = 'block';
+                            }
+                        });
+                    } else {
+                        document.getElementById('unit-has-base').checked = false;
+                        toggleBaseSettings();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching unit:', error);
+                alert('Error loading unit data. Please try again.');
+            });
         } else {
             document.getElementById('Unit-modal-title').innerText = "Unit Settings";
             document.getElementById('unit-delete-btn').classList.add('d-none');
@@ -2254,11 +2278,15 @@
         const rows = document.getElementById('unit-base-rows');
         const newRow = rows.children[0].cloneNode(true);
         const index = rows.children.length;
-        newRow.querySelector('input').value = '';
-        newRow.querySelector('select').value = '';
-        newRow.querySelector('input').name = `base_units[${index}][multiplier]`;
-        newRow.querySelector('select').name = `base_units[${index}][base_unit_id]`;
-        newRow.querySelector('.remove-base-row').style.display = 'block';
+        newRow.querySelector('.multiplier-input').value = '';
+        newRow.querySelector('.base-unit-select').value = '';
+        newRow.querySelector('.multiplier-input').name = `base_units[${index}][multiplier]`;
+        newRow.querySelector('.base-unit-select').name = `base_units[${index}][base_unit_id]`;
+        const removeBtn = newRow.querySelector('.remove-base-row');
+        if (removeBtn) {
+            removeBtn.style.display = 'block';
+            removeBtn.onclick = function() { removeRow(this); };
+        }
         rows.appendChild(newRow);
         updateRemoveButtons();
     }
@@ -2306,28 +2334,77 @@
         formData.append('short_name', short);
         formData.append('allow_decimal', document.getElementById('unit-allow-decimal').value);
         formData.append('decimal_after_point_digit', document.getElementById('unit-decimal-precision').value || 2);
-        formData.append('is_base_unit', document.getElementById('unit-has-base').checked ? 1 : 0);
-        baseUnits.forEach((bu, index) => {
-            formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
-            formData.append(`base_units[${index}][base_unit_id]`, bu.base_unit_id);
-        });
+        // Only send base_units if checkbox is checked
+        if (document.getElementById('unit-has-base').checked) {
+            baseUnits.forEach((bu, index) => {
+                formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
+                formData.append(`base_units[${index}][base_unit_id]`, bu.base_unit_id);
+            });
+        }
         
-        const url = editId ? `/admin/units/${editId}` : '/admin/post/units';
+        const url = editId ? `/units/${editId}` : '/post/units';
         const method = editId ? 'PUT' : 'POST';
         
         fetch(url, {
             method: method,
             body: formData,
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
             }
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                loadFromStorage();
+            if (data.success && data.unit) {
+                // Update unitsData with the new/updated unit
+                let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
+                const unitIndex = storedUnits.findIndex(u => u.id == data.unit.id);
+                
+                // Format unit data to match localStorage structure
+                const formattedUnit = {
+                    id: data.unit.id,
+                    name: data.unit.name,
+                    short: data.unit.short_name,
+                    decimal: parseInt(data.unit.decimal_after_point_digit) || 0,
+                    conversions: (data.unit.base_units || []).map(bu => ({
+                        multiplier: parseFloat(bu.multiplier) || 1,
+                        base: bu.name,
+                        base_id: bu.id
+                    }))
+                };
+                
+                if (unitIndex >= 0) {
+                    // Update existing unit
+                    storedUnits[unitIndex] = { ...storedUnits[unitIndex], ...formattedUnit };
+                } else {
+                    // Add new unit
+                    storedUnits.push(formattedUnit);
+                }
+                
+                localStorage.setItem('myUnits', JSON.stringify(storedUnits));
+                
+                // Also update unitsData array for immediate use
+                if (typeof unitsData !== 'undefined') {
+                    const dbUnitIndex = unitsData.findIndex(u => u.id == data.unit.id);
+                    if (dbUnitIndex >= 0) {
+                        unitsData[dbUnitIndex] = formattedUnit;
+                    } else {
+                        unitsData.push(formattedUnit);
+                    }
+                }
+                
+                alert(data.message || 'Unit saved successfully!');
+                renderUnits();
+                loadFromStorage(); // Reload to sync
                 closeModal();
+                resetForm();
+            } else {
+                alert(data.message || 'Error saving unit. Please try again.');
             }
+        })
+        .catch(error => {
+            console.error('Error saving unit:', error);
+            alert('Error saving unit. Please try again.');
         });
     }
 
@@ -2591,30 +2668,51 @@
         document.getElementById('unit-edit-id').value = '';
         document.getElementById('unit-has-base').checked = false;
         document.getElementById('unit-allow-decimal').value = "0";
+        document.getElementById('unit-decimal-precision').value = "2";
         document.getElementById('unit-delete-btn').classList.add('d-none');
         toggleDecimalPrecision();
         toggleBaseSettings();
         const rows = document.getElementById('unit-base-rows');
-        while (rows.children.length > 1) rows.removeChild(rows.lastChild);
-        rows.children[0].querySelector('input').value = '';
-        rows.children[0].querySelector('select').value = '';
+        // Remove all rows except the first one
+        while (rows.children.length > 1) {
+            rows.removeChild(rows.lastChild);
+        }
+        // Clear the first row
+        if (rows.children[0]) {
+            rows.children[0].querySelector('.multiplier-input').value = '';
+            rows.children[0].querySelector('.base-unit-select').value = '';
+            const removeBtn = rows.children[0].querySelector('.remove-base-row');
+            if (removeBtn) removeBtn.style.display = 'none';
+        }
+        updateRemoveButtons();
     }
 
     function deleteUnit() {
         const id = document.getElementById('unit-edit-id').value;
         if (id && confirm("Delete this unit?")) {
-            fetch(`/admin/units/${id}`, {
+            fetch(`/units/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
                 }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    alert(data.message || 'Unit deleted successfully!');
                     loadFromStorage();
+                    renderUnits();
                     closeModal();
+                    resetForm();
+                } else {
+                    alert(data.message || 'Error deleting unit. Please try again.');
                 }
+            })
+            .catch(error => {
+                console.error('Error deleting unit:', error);
+                alert('Error deleting unit. Please try again.');
+            });
             });
         }
     }

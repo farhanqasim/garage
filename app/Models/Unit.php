@@ -9,13 +9,16 @@ class Unit extends Model
 {
     use HasFactory;
 
-      protected $fillable = [
+    protected $fillable = [
         'name',
         'short_name',
         'allow_decimal',
-        'is_base_unit',
         'decimal_after_point_digit',
         'status'
+    ];
+    
+    protected $casts = [
+        'decimal_after_point_digit' => 'integer',
     ];
 
     public function baseUnit()

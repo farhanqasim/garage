@@ -42,21 +42,28 @@ class UnitController extends Controller
 
     public function post_units(Request $request)
     {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'short_name' => 'required|string|max:255',
+            'allow_decimal' => 'required|string|in:0,1',
+            'decimal_after_point_digit' => 'nullable|integer|min:0|max:10',
+        ]);
+
         $unit = Unit::create([
-            'name' => $request->name,
-            'short_name' => $request->short_name,
-            'allow_decimal' => $request->allow_decimal,
-            'is_base_unit' => $request->is_base_unit ? 1 : 0,
-            'decimal_after_point_digit' => $request->decimal_after_point_digit ?? ($request->allow_decimal == 1 ? ($request->decimal_precision ?? 2) : 0),
+            'name' => strtoupper(trim($request->name)),
+            'short_name' => strtoupper(trim($request->short_name)),
+            'allow_decimal' => $request->allow_decimal ?? '0',
+            'decimal_after_point_digit' => $request->decimal_after_point_digit ?? ($request->allow_decimal == '1' ? ($request->decimal_after_point_digit ?? 2) : 0),
+            'status' => 'active',
         ]);
         
         // Save multiple base units if provided
-        if ($request->is_base_unit && $request->has('base_units')) {
+        if ($request->has('base_units') && is_array($request->base_units)) {
             $baseUnitsData = [];
             foreach ($request->base_units as $baseUnit) {
-                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier']) && is_numeric($baseUnit['multiplier'])) {
                     $baseUnitsData[$baseUnit['base_unit_id']] = [
-                        'multiplier' => $baseUnit['multiplier']
+                        'multiplier' => (float) $baseUnit['multiplier']
                     ];
                 }
             }
@@ -65,17 +72,17 @@ class UnitController extends Controller
             }
         }
 
-        // Load base units and conversions for response
-        $unit->load('baseUnits', 'baseUnit', 'conversions');
+        // Load base units for response
+        $unit->load('baseUnits');
         
         // Format unit data for frontend
         $unitData = [
             'id' => $unit->id,
             'name' => $unit->name,
             'short_name' => $unit->short_name,
-            'base_unit_name' => $unit->baseUnit->name ?? null,
-            'is_base_unit' => $unit->is_base_unit,
+            'allow_decimal' => $unit->allow_decimal,
             'decimal_after_point_digit' => $unit->decimal_after_point_digit,
+            'status' => $unit->status,
             'base_units' => $unit->baseUnits->map(function($bu) {
                 return [
                     'id' => $bu->id,
@@ -90,8 +97,8 @@ class UnitController extends Controller
             'success' => true,
             'id' => $unit->id,
             'unit' => $unitData,
-            'conversions_count' => $unit->conversions()->count(),
-            'message' => 'Unit created successfully with ' . $unit->conversions()->count() . ' conversion(s)'
+            'base_units_count' => $unit->baseUnits()->count(),
+            'message' => 'Unit created successfully with ' . $unit->baseUnits()->count() . ' base unit(s)'
         ]);
     }
 
@@ -99,46 +106,46 @@ class UnitController extends Controller
         {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'short_name' => 'required|string|max:50',
-                'allow_decimal' => 'required|boolean',
+                'short_name' => 'required|string|max:255',
+                'allow_decimal' => 'required|string|in:0,1',
+                'decimal_after_point_digit' => 'nullable|integer|min:0|max:10',
             ]);
+            
             $unit->update([
-                'name' => $request->name,
-                'short_name' => $request->short_name,
-                'allow_decimal' => $request->allow_decimal,
-                'define_base_unit' => $request->define_base_unit ? 1 : 0,
-                'base_unit_multiplier' => $request->base_unit_multiplier,
-                'base_unit_id' => $request->base_unit_id,
+                'name' => strtoupper(trim($request->name)),
+                'short_name' => strtoupper(trim($request->short_name)),
+                'allow_decimal' => $request->allow_decimal ?? '0',
+                'decimal_after_point_digit' => $request->decimal_after_point_digit ?? ($request->allow_decimal == '1' ? ($request->decimal_after_point_digit ?? 2) : 0),
             ]);
             
             // Update multiple base units if provided
-            if ($request->is_base_unit && $request->has('base_units')) {
+            if ($request->has('base_units') && is_array($request->base_units)) {
                 $baseUnitsData = [];
                 foreach ($request->base_units as $baseUnit) {
-                    if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                    if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier']) && is_numeric($baseUnit['multiplier'])) {
                         $baseUnitsData[$baseUnit['base_unit_id']] = [
-                            'multiplier' => $baseUnit['multiplier']
+                            'multiplier' => (float) $baseUnit['multiplier']
                         ];
                     }
                 }
                 // Sync will replace all existing relationships
                 $unit->baseUnits()->sync($baseUnitsData);
             } else {
-                // If checkbox is unchecked, remove all base unit relationships
+                // If no base units provided, remove all base unit relationships
                 $unit->baseUnits()->detach();
             }
             
-            // Load base units and conversions for response
-            $unit->load('baseUnits', 'baseUnit', 'conversions');
+            // Load base units for response
+            $unit->load('baseUnits');
             
             // Format unit data for frontend
             $unitData = [
                 'id' => $unit->id,
                 'name' => $unit->name,
                 'short_name' => $unit->short_name,
-                'base_unit_name' => $unit->baseUnit->name ?? null,
-                'is_base_unit' => $unit->is_base_unit,
+                'allow_decimal' => $unit->allow_decimal,
                 'decimal_after_point_digit' => $unit->decimal_after_point_digit,
+                'status' => $unit->status,
                 'base_units' => $unit->baseUnits->map(function($bu) {
                     return [
                         'id' => $bu->id,
@@ -151,15 +158,16 @@ class UnitController extends Controller
             
             return response()->json([
                 'success' => true,
+                'id' => $unit->id,
                 'unit' => $unitData,
-                'conversions_count' => $unit->conversions()->count(),
-                'message'=>"Unit updated successfully with " . $unit->conversions()->count() . " conversion(s)"
+                'base_units_count' => $unit->baseUnits()->count(),
+                'message' => 'Unit updated successfully with ' . $unit->baseUnits()->count() . ' base unit(s)'
             ]);
         }
 
     public function show_unit(Unit $unit)
     {
-        $unit->load('baseUnits', 'baseUnit', 'conversions.baseUnit');
+        $unit->load('baseUnits');
         
         // Format unit data for frontend
         $unitData = [
@@ -167,9 +175,8 @@ class UnitController extends Controller
             'name' => $unit->name,
             'short_name' => $unit->short_name,
             'allow_decimal' => $unit->allow_decimal,
-            'is_base_unit' => $unit->is_base_unit,
             'decimal_after_point_digit' => $unit->decimal_after_point_digit,
-            'base_unit_name' => $unit->baseUnit->name ?? null,
+            'status' => $unit->status,
             'base_units' => $unit->baseUnits->map(function($bu) {
                 return [
                     'id' => $bu->id,
@@ -183,8 +190,7 @@ class UnitController extends Controller
         return response()->json([
             'success' => true,
             'unit' => $unitData,
-            'conversions' => $unit->conversions()->with('baseUnit')->get(),
-            'conversions_count' => $unit->conversions()->count()
+            'base_units_count' => $unit->baseUnits()->count()
         ]);
     }
 
