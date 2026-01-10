@@ -303,6 +303,28 @@
         align-items: center;
         justify-content: center;
     }
+    
+    /* Recording Indicator Animation */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .recording-indicator {
+        animation: pulse 1s infinite;
+    }
+    
+    .recording-indicator i.ti-record {
+        color: #dc3545;
+        animation: pulse 1s infinite;
+        font-size: 1.1rem;
+    }
+    
+    /* Mic button - only show on first row */
+    .name-phone-row:not(:first-child) .mic-btn {
+        display: none !important;
+    }
 </style>
 <div class="content">
     <div class="page-header">
@@ -462,6 +484,25 @@
                 }
             });
         }
+        
+        function updateMicButtons(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const rows = container.querySelectorAll('.name-phone-row');
+            rows.forEach((row, index) => {
+                const micBtn = row.querySelector('.mic-btn');
+                if (micBtn) {
+                    // Only show mic button on first row (index 0)
+                    if (index === 0) {
+                        micBtn.style.display = 'flex';
+                        micBtn.classList.remove('d-none');
+                    } else {
+                        micBtn.style.display = 'none';
+                        micBtn.classList.add('d-none');
+                    }
+                }
+            });
+        }
 
         function toggleDelete(btn, fieldName) {
             const hiddenInput = btn.closest('.col-md-6').querySelector(`input[name="${fieldName}"]`);
@@ -481,10 +522,13 @@
             inputField.style.removeProperty('backgroundColor');
             inputField.placeholder = 'Enter customer full name';
             controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
+            controlBtn.style.removeProperty('animation');
             controlBtn.classList.add('mic-btn');
             controlBtn.classList.remove('play-pause-btn');
             const audioContainer = nameCol.querySelector('.audio-player-container');
             if (audioContainer) audioContainer.remove();
+            const recordingIndicator = nameCol.querySelector('.recording-indicator');
+            if (recordingIndicator) recordingIndicator.remove();
             const hiddenInput = document.querySelector('input[name="voice_note"]');
             if (hiddenInput) hiddenInput.remove();
         }
@@ -506,10 +550,7 @@
                         <label class="form-label small mb-1">Full Name <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-user"></i></span>
-                            <input type="text" name="names[]" class="form-control speech-input" placeholder="Enter name" required>
-                            <button type="button" class="btn btn-outline-primary mic-btn" title="Voice Input">
-                                <i class="ti ti-microphone"></i>
-                            </button>
+                            <input type="text" name="names[]" class="form-control" placeholder="Enter name" required>
                             <button type="button" class="btn btn-danger remove-row" title="Remove">
                                 <i class="ti ti-trash"></i>
                             </button>
@@ -525,6 +566,8 @@
                 `;
                 container.appendChild(newRow);
                 updateRemoveButtons('namePhoneContainer');
+                // Hide mic button on new rows (only first row should have it)
+                updateMicButtons('namePhoneContainer');
             }
 
             // Remove Row
@@ -535,6 +578,7 @@
                 if (row) {
                     row.remove();
                     updateRemoveButtons('namePhoneContainer');
+                    updateMicButtons('namePhoneContainer');
                 }
             }
 
@@ -566,12 +610,23 @@
                 const btn = e.target.id === 'showCreditLimitOptions' ? e.target : e.target.closest('#showCreditLimitOptions');
                 const defaultDiv = document.getElementById('creditLimitDefault');
                 const optionsDiv = document.getElementById('creditLimitOptions');
+                const noLimitRadio = document.getElementById('no_limit');
                 const customRadio = document.getElementById('custom_limit');
                 const inputDiv = document.getElementById('custom_limit_input');
                 
                 if (defaultDiv) defaultDiv.style.display = 'none';
                 if (optionsDiv) {
                     optionsDiv.style.display = 'block';
+                }
+                // Ensure No Limit is selected by default
+                if (noLimitRadio) {
+                    noLimitRadio.checked = true;
+                }
+                if (customRadio) {
+                    customRadio.checked = false;
+                }
+                if (inputDiv) {
+                    inputDiv.style.display = 'none';
                 }
             }
             
@@ -594,12 +649,19 @@
             // Credit Limit Type Radio Change
             if (e.target.name === 'credit_limit_type') {
                 const inputDiv = document.getElementById('custom_limit_input');
+                const noLimitRadio = document.getElementById('no_limit');
                 if (e.target.value === 'custom' && inputDiv) {
                     inputDiv.style.display = 'block';
-                } else if (inputDiv) {
-                    inputDiv.style.display = 'none';
+                } else {
+                    if (inputDiv) {
+                        inputDiv.style.display = 'none';
+                    }
                     const limitInput = document.querySelector('input[name="credit_limit"]');
                     if (limitInput) limitInput.value = '';
+                    // Ensure No Limit is checked if custom is unchecked
+                    if (e.target.value !== 'custom' && noLimitRadio) {
+                        noLimitRadio.checked = true;
+                    }
                 }
             }
         });
@@ -660,6 +722,17 @@
                 inputField.style.color = 'transparent';
                 inputField.style.textShadow = '0 0 8px rgba(0,0,0,0.5)';
                 inputField.placeholder = 'Listening... Speak now';
+                
+                // Add recording indicator
+                const recordingIndicator = document.createElement('div');
+                recordingIndicator.className = 'recording-indicator mt-1';
+                recordingIndicator.innerHTML = `
+                    <small class="text-danger fw-bold">
+                        <i class="ti ti-record me-1" style="animation: pulse 1s infinite;"></i>Recording...
+                    </small>
+                `;
+                nameCol.appendChild(recordingIndicator);
+                
                 const existingAudio = nameCol.querySelector('.audio-player-container');
                 if (existingAudio) existingAudio.remove();
                 const existingHiddenInput = document.querySelector('input[name="voice_note"]');
@@ -668,6 +741,10 @@
                 mediaRecorder = new MediaRecorder(stream);
                 mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
                 mediaRecorder.onstop = () => {
+                    // Remove recording indicator
+                    const indicator = nameCol.querySelector('.recording-indicator');
+                    if (indicator) indicator.remove();
+                    
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     const audioURL = URL.createObjectURL(audioBlob);
                     const audioContainer = document.createElement('div');
@@ -676,7 +753,9 @@
                         <audio controls class="w-100">
                             <source src="${audioURL}" type="audio/webm">
                         </audio>
-                        <button type="button" class="btn btn-sm btn-danger cancel-audio mt-1 float-end"><i class="fas fa-trash"></i></button>
+                        <button type="button" class="btn btn-sm btn-danger cancel-audio mt-1 float-end">
+                            <i class="ti ti-x me-1"></i>Remove
+                        </button>
                     `;
                     nameCol.appendChild(audioContainer);
                     const fileInput = document.createElement('input');
@@ -690,27 +769,31 @@
                     const form = document.getElementById('customerForm');
                     if (form) form.appendChild(fileInput);
                     inputField.style.removeProperty('textShadow');
-                    inputField.style.color = 'transparent';
+                    inputField.style.color = '';
                     inputField.style.backgroundColor = 'lightgreen';
-                    inputField.placeholder = 'Voice transcribed (mic used)';
+                    inputField.placeholder = 'Voice transcribed';
                     if (transcript.trim()) inputField.value = transcript.trim();
-                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
-                    controlBtn.classList.remove('mic-btn');
-                    controlBtn.classList.add('play-pause-btn');
+                    controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
+                    controlBtn.classList.add('mic-btn');
+                    controlBtn.classList.remove('play-pause-btn');
                     stream.getTracks().forEach(track => track.stop());
                 };
                 mediaRecorder.start();
                 recognition.start();
                 controlBtn.innerHTML = '<i class="ti ti-stop text-danger"></i>';
+                controlBtn.style.animation = 'pulse 1s infinite';
                 recognition.onresult = (event) => { 
                     transcript = event.results[0][0].transcript;
                     if (transcript.trim()) {
                         inputField.value = transcript.trim();
                         inputField.style.color = '';
                         inputField.style.textShadow = '';
+                        inputField.style.backgroundColor = '';
                     }
                 };
                 recognition.onerror = (event) => {
+                    const indicator = nameCol.querySelector('.recording-indicator');
+                    if (indicator) indicator.remove();
                     alert('Speech error: ' + event.error);
                     resetRecordingUI(inputField, controlBtn, nameCol);
                     if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
@@ -1127,21 +1210,42 @@
                     if (genBtn) genBtn.click();
                     const asOfDate = form.querySelector('#as_of_date');
                     if (asOfDate) asOfDate.value = new Date().toLocaleDateString('en-GB');
-                    // Reset fields (simplified – full reset as before)
-                    form.querySelector('#profile_img').value = '';
-                    form.querySelector('#multiple_images').value = '';
-                    form.querySelector('#visiting_doc').value = '';
+                    
+                    // Reset fields
+                    const profileInput = form.querySelector('#profile_img');
+                    const multipleInput = form.querySelector('#multiple_images');
+                    const visitingInput = form.querySelector('#visiting_doc');
+                    if (profileInput) profileInput.value = '';
+                    if (multipleInput) multipleInput.value = '';
+                    if (visitingInput) visitingInput.value = '';
+                    
                     const preview = form.querySelector('#profile_preview');
+                    const previewContainer = form.querySelector('.profile-preview-container');
                     if (preview) preview.style.display = 'none';
-                    // ... (add other resets as in previous script)
+                    if (previewContainer) previewContainer.style.display = 'none';
+                    
+                    // Reset name/phone rows
                     updateRemoveButtons('namePhoneContainer');
-                    // Reset credit limit
+                    updateMicButtons('namePhoneContainer');
+                    
+                    // Reset credit limit - ensure No Limit is selected by default
                     const optionsDiv = form.querySelector('#creditLimitOptions');
                     const defaultDiv = form.querySelector('#creditLimitDefault');
+                    const noLimitRadio = form.querySelector('#no_limit');
+                    const customLimitRadio = form.querySelector('#custom_limit');
+                    const customLimitInput = form.querySelector('#custom_limit_input');
+                    const limitInput = form.querySelector('input[name="credit_limit"]');
+                    
                     if (optionsDiv) optionsDiv.style.display = 'none';
                     if (defaultDiv) defaultDiv.style.display = 'block';
-                    form.querySelectorAll('input[name="credit_limit_type"]').forEach(r => r.checked = false);
-                    form.querySelector('input[name="credit_limit"]').value = '';
+                    if (noLimitRadio) noLimitRadio.checked = true;
+                    if (customLimitRadio) customLimitRadio.checked = false;
+                    if (customLimitInput) customLimitInput.style.display = 'none';
+                    if (limitInput) limitInput.value = '';
+                    
+                    // Reset multiple images
+                    selectedMultipleImages = [];
+                    updateMultipleImagesPreview();
                 }
             });
         });
@@ -1184,6 +1288,27 @@
                 const visitingPreview = document.getElementById('visiting_preview');
                 if (visitingInput) visitingInput.value = '';
                 if (visitingPreview) visitingPreview.style.display = 'none';
+                
+                // Reset mic buttons - ensure only first row has mic button
+                updateMicButtons('namePhoneContainer');
+                
+                // Reset credit limit - ensure No Limit is default
+                const noLimitRadio = document.getElementById('no_limit');
+                const customLimitRadio = document.getElementById('custom_limit');
+                const customLimitInput = document.getElementById('custom_limit_input');
+                const limitInput = document.querySelector('input[name="credit_limit"]');
+                if (noLimitRadio) noLimitRadio.checked = true;
+                if (customLimitRadio) customLimitRadio.checked = false;
+                if (customLimitInput) customLimitInput.style.display = 'none';
+                if (limitInput) limitInput.value = '';
+            });
+            
+            // Initialize mic buttons when modal opens
+            addCustomerModal.addEventListener('shown.bs.modal', function() {
+                updateMicButtons('namePhoneContainer');
+                // Ensure No Limit is selected by default
+                const noLimitRadio = document.getElementById('no_limit');
+                if (noLimitRadio) noLimitRadio.checked = true;
             });
         }
     })();
