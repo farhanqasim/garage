@@ -334,17 +334,27 @@
         const newRow = rows.children[0].cloneNode(true);
         const index = rows.children.length;
         
-        // Clear all values - ensure new row is always empty
+        // Get the first row's base unit value (if already selected)
+        const firstRow = rows.children[0];
+        const firstRowBaseUnit = firstRow ? firstRow.querySelector('.base-unit-select') : null;
+        const firstRowBaseUnitValue = firstRowBaseUnit ? firstRowBaseUnit.value : '';
+        
+        // Clear multiplier but keep base unit if first row has one selected
         const multiplierInput = newRow.querySelector('.multiplier-input');
         const baseUnitSelect = newRow.querySelector('.base-unit-select');
         
         if (multiplierInput) {
-            multiplierInput.value = '';
+            multiplierInput.value = ''; // Always empty for multiplier
             multiplierInput.name = `base_units[${index}][multiplier]`;
         }
         
         if (baseUnitSelect) {
-            baseUnitSelect.value = ''; // Always empty for new row
+            // If first row has a base unit selected, use the same in new row
+            if (firstRowBaseUnitValue && firstRowBaseUnitValue !== '') {
+                baseUnitSelect.value = firstRowBaseUnitValue;
+            } else {
+                baseUnitSelect.value = ''; // Empty if first row has no selection
+            }
             baseUnitSelect.name = `base_units[${index}][base_unit_id]`;
         }
         
@@ -507,17 +517,27 @@
         const newRow = rows.children[0].cloneNode(true);
         const index = rows.children.length;
         
-        // Clear all values - ensure new row is always empty
+        // Get the first row's base unit value (if already selected)
+        const firstRow = rows.children[0];
+        const firstRowBaseUnit = firstRow ? firstRow.querySelector('.base-unit-select') : null;
+        const firstRowBaseUnitValue = firstRowBaseUnit ? firstRowBaseUnit.value : '';
+        
+        // Clear multiplier but keep base unit if first row has one selected
         const multiplierInput = newRow.querySelector('.multiplier-input');
         const baseUnitSelect = newRow.querySelector('.base-unit-select');
         
         if (multiplierInput) {
-            multiplierInput.value = '';
+            multiplierInput.value = ''; // Always empty for multiplier
             multiplierInput.name = `base_units[${index}][multiplier]`;
         }
         
         if (baseUnitSelect) {
-            baseUnitSelect.value = ''; // Always empty for new row
+            // If first row has a base unit selected, use the same in new row
+            if (firstRowBaseUnitValue && firstRowBaseUnitValue !== '') {
+                baseUnitSelect.value = firstRowBaseUnitValue;
+            } else {
+                baseUnitSelect.value = ''; // Empty if first row has no selection
+            }
             baseUnitSelect.name = `base_units[${index}][base_unit_id]`;
         }
         
