@@ -87,6 +87,24 @@
         .row .col-md-6 {
             margin-bottom: 1rem;
         }
+        /* Mobile: Show select search boxes first (Part Number and Product Name) */
+        /* Use flexbox order to reorder columns on mobile */
+        .row.mt-4 {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        /* Part Number column - show first on mobile */
+        .part-number-col {
+            order: -2 !important;
+        }
+        /* Product Name column - show second on mobile */
+        .product-name-col {
+            order: -1 !important;
+        }
+        /* Barcode column - show after Part Number and Product Name */
+        .col-md-4:has(#itemBarCode) {
+            order: 0;
+        }
         /* Modal vehicle form - better mobile layout */
         #vehical-add-modal .modal-body {
             padding: 1rem !important;
@@ -266,7 +284,7 @@
 
                                     @error('bar_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                         <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
+                         <div class="col-md-4 mt-3 part-number-col" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
                             <label for="part_number_id">Part Number:</label>
                             <div class="input-group inputswidth">
                                 <select
@@ -305,7 +323,7 @@
                             @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                          <!-- Product Name -->
-                         <div class="col-md-4"
+                         <div class="col-md-4 product-name-col"
                                     x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
                                     <label for="itemname">Product Name:</label>
                                     <div class="input-group inputswidth">
