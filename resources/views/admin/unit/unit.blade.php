@@ -329,17 +329,32 @@
     function addAddBaseRowUnitPage() {
         const rows = document.getElementById('unit-add-base-rows-page');
         if (!rows || rows.children.length === 0) return;
+        
+        // Clone the first row (template)
         const newRow = rows.children[0].cloneNode(true);
         const index = rows.children.length;
-        newRow.querySelector('.multiplier-input').value = '';
-        newRow.querySelector('.base-unit-select').value = '';
-        newRow.querySelector('.multiplier-input').name = `base_units[${index}][multiplier]`;
-        newRow.querySelector('.base-unit-select').name = `base_units[${index}][base_unit_id]`;
+        
+        // Clear all values - ensure new row is always empty
+        const multiplierInput = newRow.querySelector('.multiplier-input');
+        const baseUnitSelect = newRow.querySelector('.base-unit-select');
+        
+        if (multiplierInput) {
+            multiplierInput.value = '';
+            multiplierInput.name = `base_units[${index}][multiplier]`;
+        }
+        
+        if (baseUnitSelect) {
+            baseUnitSelect.value = ''; // Always empty for new row
+            baseUnitSelect.name = `base_units[${index}][base_unit_id]`;
+        }
+        
+        // Setup remove button
         const removeBtn = newRow.querySelector('.remove-base-row');
         if (removeBtn) {
             removeBtn.style.display = 'block';
             removeBtn.onclick = function() { removeAddRowUnitPage(this); };
         }
+        
         rows.appendChild(newRow);
         updateAddRemoveButtonsUnitPage();
     }
@@ -487,17 +502,32 @@
     function addEditBaseRowUnitPage() {
         const rows = document.getElementById('unit-edit-base-rows-page');
         if (!rows || rows.children.length === 0) return;
+        
+        // Clone the first row (template)
         const newRow = rows.children[0].cloneNode(true);
         const index = rows.children.length;
-        newRow.querySelector('.multiplier-input').value = '';
-        newRow.querySelector('.base-unit-select').value = '';
-        newRow.querySelector('.multiplier-input').name = `base_units[${index}][multiplier]`;
-        newRow.querySelector('.base-unit-select').name = `base_units[${index}][base_unit_id]`;
+        
+        // Clear all values - ensure new row is always empty
+        const multiplierInput = newRow.querySelector('.multiplier-input');
+        const baseUnitSelect = newRow.querySelector('.base-unit-select');
+        
+        if (multiplierInput) {
+            multiplierInput.value = '';
+            multiplierInput.name = `base_units[${index}][multiplier]`;
+        }
+        
+        if (baseUnitSelect) {
+            baseUnitSelect.value = ''; // Always empty for new row
+            baseUnitSelect.name = `base_units[${index}][base_unit_id]`;
+        }
+        
+        // Setup remove button
         const removeBtn = newRow.querySelector('.remove-base-row');
         if (removeBtn) {
             removeBtn.style.display = 'block';
             removeBtn.onclick = function() { removeEditRowUnitPage(this); };
         }
+        
         rows.appendChild(newRow);
         updateEditRemoveButtonsUnitPage();
     }
