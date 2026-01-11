@@ -151,9 +151,9 @@
             <h6 class="fw-bold mb-3 text-muted">
                 <i class="ti ti-photo me-1"></i>Images
             </h6>
-            
-            <!-- Profile Picture -->
-            <div class="mb-3">
+            <div class="row">
+                <div class="col-12 col-md-6">
+                <div class="mb-3">
                 <label for="profile_img" class="form-label fw-bold mb-1">
                     <i class="ti ti-user me-1"></i>Profile Picture
                 </label>
@@ -171,8 +171,9 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Visiting Document -->
+                </div>
+                <div class="col-12 col-md-6">
+                       <!-- Visiting Document -->
             <div class="mb-3">
                 <label for="visiting_doc" class="form-label fw-bold mb-1">
                     <i class="ti ti-file me-1"></i>Visiting Card/Document
@@ -194,6 +195,12 @@
                     </div>
                 </div>
             </div>
+                </div>
+            </div>
+            <!-- Profile Picture -->
+          
+
+         
 
             <!-- Multiple Images -->
             <div class="mb-2">
