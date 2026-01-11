@@ -661,7 +661,7 @@
                 <h5 class="modal-title fw-bold d-flex align-items-center mb-0">
                     <i class="ti ti-user-plus me-2"></i>Add New Customer
                 </h5>
-                <button type="button" class="btn-close btn btn-danger" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" aria-label="Close"><i class="ti ti-x"></i></button>
             </div>
             @include('admin.customers.modals.create-customer-form')
         </div>
