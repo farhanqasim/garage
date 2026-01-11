@@ -266,7 +266,7 @@
         .input-group .btn {
             flex-shrink: 0;
             min-width: 44px;
-            min-height: 44px;
+            /* min-height: 44px; */
             width: auto;
             padding: 0.5rem 0.75rem;
             display: flex !important;
