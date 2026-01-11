@@ -189,9 +189,7 @@
                     <div id="visiting_file_info" class="position-relative d-inline-block p-3 bg-light rounded border text-center" style="display: none;">
                         <i class="ti ti-file text-muted d-block mb-2" style="font-size: 40px;"></i>
                         <small class="text-muted fw-bold d-block mb-2" id="visiting_filename"></small>
-                        <button type="button" class="btn btn-danger btn-sm remove-visiting-doc" title="Remove">
-                            <i class="ti ti-x me-1"></i>Remove
-                        </button>
+                      
                     </div>
                 </div>
             </div>
