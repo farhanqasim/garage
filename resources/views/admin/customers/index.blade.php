@@ -419,14 +419,42 @@
         100% { opacity: 1; }
     }
     
+    @keyframes pulse-glow {
+        0% { 
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+        50% { 
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            background-color: rgba(220, 53, 69, 0.3);
+        }
+        100% { 
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            background-color: rgba(220, 53, 69, 0.1);
+        }
+    }
+    
     .recording-indicator {
         animation: pulse 1s infinite;
+        display: block !important;
     }
     
     .recording-indicator i.ti-record {
         color: #dc3545;
         animation: pulse 1s infinite;
         font-size: 1.1rem;
+    }
+    
+    .mic-btn.recording {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        color: white !important;
+        animation: pulse-glow 1.5s infinite;
+    }
+    
+    .mic-btn.recording i {
+        color: white !important;
+        animation: pulse 1s infinite;
     }
     
     /* Mic button - only show on first row */
@@ -634,6 +662,8 @@
             controlBtn.style.removeProperty('animation');
             controlBtn.classList.add('mic-btn');
             controlBtn.classList.remove('play-pause-btn');
+            controlBtn.classList.remove('recording');
+            controlBtn.title = 'Voice Input';
             const audioContainer = nameCol.querySelector('.audio-player-container');
             if (audioContainer) audioContainer.remove();
             const recordingIndicator = nameCol.querySelector('.recording-indicator');
@@ -776,9 +806,13 @@
         });
 
         // Microphone Logic (delegated)
+        let activeRecognition = null;
+        let activeMediaRecorder = null;
+        let activeStream = null;
+        
         document.addEventListener('click', async function(e) {
             // Check if clicked element or its parent is a mic button
-            const micBtn = e.target.closest('.mic-btn') || (e.target.classList.contains('ti-microphone') || e.target.closest('.ti-microphone') ? e.target.closest('button') : null);
+            const micBtn = e.target.closest('.mic-btn') || (e.target.classList.contains('ti-microphone') || e.target.closest('.ti-microphone') || e.target.classList.contains('ti-record') || e.target.closest('.ti-record') ? e.target.closest('button') : null);
             const playPauseBtn = e.target.closest('.play-pause-btn');
             const controlBtn = micBtn || playPauseBtn;
             
@@ -795,6 +829,20 @@
             const nameCol = inputGroup.closest('.col-12, .col-md-6, .col-md-5');
             
             if (!inputField || !nameCol) return;
+            
+            // Check if already recording - stop recording if clicked again
+            if (controlBtn.classList.contains('recording')) {
+                if (activeRecognition) {
+                    activeRecognition.stop();
+                }
+                if (activeMediaRecorder && activeMediaRecorder.state === 'recording') {
+                    activeMediaRecorder.stop();
+                }
+                if (activeStream) {
+                    activeStream.getTracks().forEach(track => track.stop());
+                }
+                return;
+            }
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition || !navigator.mediaDevices) {
@@ -802,12 +850,12 @@
                 return;
             }
 
-            let recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
+            activeRecognition = new SpeechRecognition();
+            activeRecognition.continuous = false;
+            activeRecognition.interimResults = false;
+            activeRecognition.lang = 'en-US';
 
-            let mediaRecorder = null;
+            activeMediaRecorder = null;
             let audioChunks = [];
             let transcript = '';
 
@@ -826,33 +874,54 @@
             }
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const stream = activeStream;
                 inputField.value = '';
                 inputField.style.color = 'transparent';
                 inputField.style.textShadow = '0 0 8px rgba(0,0,0,0.5)';
                 inputField.placeholder = 'Listening... Speak now';
                 
-                // Add recording indicator
+                // Remove any existing recording indicator first
+                const existingIndicator = nameCol.querySelector('.recording-indicator');
+                if (existingIndicator) existingIndicator.remove();
+                
+                // Add recording indicator - make it more visible
                 const recordingIndicator = document.createElement('div');
-                recordingIndicator.className = 'recording-indicator mt-1';
+                recordingIndicator.className = 'recording-indicator mt-2 mb-1';
+                recordingIndicator.style.display = 'block';
                 recordingIndicator.innerHTML = `
-                    <small class="text-danger fw-bold">
-                        <i class="ti ti-record me-1"></i>Recording...
+                    <small class="text-danger fw-bold d-flex align-items-center">
+                        <i class="ti ti-record me-2" style="font-size: 1.2rem;"></i>Recording...
                     </small>
                 `;
                 nameCol.appendChild(recordingIndicator);
+                
+                // Update button to show recording state
+                controlBtn.classList.add('recording');
+                controlBtn.innerHTML = '<i class="ti ti-record"></i>';
+                controlBtn.title = 'Recording... Click to stop';
                 
                 const existingAudio = nameCol.querySelector('.audio-player-container');
                 if (existingAudio) existingAudio.remove();
                 const existingHiddenInput = document.querySelector('input[name="voice_note"]');
                 if (existingHiddenInput) existingHiddenInput.remove();
                 audioChunks = [];
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
-                mediaRecorder.onstop = () => {
+                activeMediaRecorder = new MediaRecorder(stream);
+                activeMediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+                activeMediaRecorder.onstop = () => {
                     // Remove recording indicator
                     const indicator = nameCol.querySelector('.recording-indicator');
                     if (indicator) indicator.remove();
+                    
+                    // Reset button to mic icon
+                    controlBtn.classList.remove('recording');
+                    controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
+                    controlBtn.title = 'Voice Input';
+                    
+                    // Clear active references
+                    activeRecognition = null;
+                    activeMediaRecorder = null;
+                    activeStream = null;
                     
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     const audioURL = URL.createObjectURL(audioBlob);
@@ -882,15 +951,13 @@
                     inputField.style.backgroundColor = 'lightgreen';
                     inputField.placeholder = 'Voice transcribed';
                     if (transcript.trim()) inputField.value = transcript.trim();
-                    controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
                     controlBtn.classList.add('mic-btn');
                     controlBtn.classList.remove('play-pause-btn');
                     stream.getTracks().forEach(track => track.stop());
                 };
-                mediaRecorder.start();
-                recognition.start();
-                controlBtn.innerHTML = '<i class="ti ti-stop text-danger"></i>';
-                recognition.onresult = (event) => { 
+                activeMediaRecorder.start();
+                activeRecognition.start();
+                activeRecognition.onresult = (event) => { 
                     transcript = event.results[0][0].transcript;
                     if (transcript.trim()) {
                         inputField.value = transcript.trim();
@@ -899,23 +966,38 @@
                         inputField.style.backgroundColor = '';
                     }
                 };
-                recognition.onerror = (event) => {
+                activeRecognition.onerror = (event) => {
                     const indicator = nameCol.querySelector('.recording-indicator');
                     if (indicator) indicator.remove();
+                    controlBtn.classList.remove('recording');
+                    controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
+                    controlBtn.title = 'Voice Input';
                     alert('Speech error: ' + event.error);
                     resetRecordingUI(inputField, controlBtn, nameCol);
-                    if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                recognition.onend = () => {
-                    if (mediaRecorder && mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
+                    if (activeMediaRecorder && activeMediaRecorder.state === 'recording') activeMediaRecorder.stop();
+                    if (activeStream) {
+                        activeStream.getTracks().forEach(track => track.stop());
                     }
-                    stream.getTracks().forEach(track => track.stop());
+                    // Clear active references
+                    activeRecognition = null;
+                    activeMediaRecorder = null;
+                    activeStream = null;
+                };
+                activeRecognition.onend = () => {
+                    if (activeMediaRecorder && activeMediaRecorder.state === 'recording') {
+                        activeMediaRecorder.stop();
+                    }
+                    if (activeStream) {
+                        activeStream.getTracks().forEach(track => track.stop());
+                    }
                 };
             } catch (err) {
                 alert('Microphone access denied: ' + err.message);
                 resetRecordingUI(inputField, controlBtn, nameCol);
+                // Clear active references
+                activeRecognition = null;
+                activeMediaRecorder = null;
+                activeStream = null;
             }
         });
 
