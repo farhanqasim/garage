@@ -274,9 +274,6 @@ label{
             .dropdown-menu {
                 font-size: 14px !important;
             }
-            
-           
-            
             .input-group .form-control,
             .input-group .select2-container {
                 width: 100% !important;

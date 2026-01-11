@@ -37,12 +37,7 @@
         border-color: #86b7fe;
         box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
     }
-    .input-group-lg .form-control,
-    .input-group-lg .form-select,
-    .input-group-lg .input-group-text {
-        padding: 0.75rem 1rem;
-        font-size: 1rem;
-    }
+
     
     /* Mobile Responsive */
     @media (max-width: 768px) {
@@ -542,11 +537,11 @@
 <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white border-0">
+            <div class="modal-header border-0">
                 <h5 class="modal-title fw-bold d-flex align-items-center mb-0">
                     <i class="ti ti-user-plus me-2"></i>Add New Customer
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-danger" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @include('admin.customers.modals.create-customer-form')
         </div>
