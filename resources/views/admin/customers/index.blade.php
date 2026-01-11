@@ -48,9 +48,22 @@
         align-items: center;
         justify-content: center;
         padding: 0.375rem 0.75rem;
+        height: auto;
+        border-left: 1px solid #ced4da;
+        margin: 0;
     }
     .input-group .btn i {
         font-size: 1rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+    }
+    .input-group .mic-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.5rem;
+        min-width: 45px;
     }
     .form-control:focus {
         border-color: #86b7fe;
@@ -139,15 +152,26 @@
             height: 38px;
             flex-shrink: 0;
             padding: 0.375rem 0.5rem;
+            border-left: 1px solid #ced4da;
         }
         .input-group-text {
             height: 38px;
             min-height: 38px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
         }
         .input-group .form-control,
         .input-group .form-select {
             height: 38px;
             min-height: 38px;
+        }
+        .input-group .btn {
+            height: 38px;
+            min-height: 38px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
         }
         .remove-row.d-none,
         .mic-btn.d-none {
@@ -305,12 +329,22 @@
         align-items: center;
         justify-content: center;
         white-space: nowrap;
+        padding: 0.5rem 0.75rem;
     }
     .input-group .form-control,
     .input-group .form-select {
         flex: 1 1 auto;
         min-width: 0;
         width: 1%;
+        padding: 0.5rem 0.75rem;
+    }
+    .input-group .btn {
+        flex-shrink: 0;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.75rem;
+        border-left: 1px solid #ced4da;
     }
     .input-group .btn:not(.d-none) {
         flex-shrink: 0;
