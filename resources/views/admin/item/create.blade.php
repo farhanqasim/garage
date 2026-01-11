@@ -2132,7 +2132,19 @@
     
     // Load units from database and merge with localStorage
     function loadFromStorage() {
+        // First, ensure unitsData is available
+        if (!unitsData || unitsData.length === 0) {
+            console.error('unitsData is empty or not defined');
+            return;
+        }
+        
         let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
+        
+        // If localStorage is empty, use unitsData directly
+        if (storedUnits.length === 0) {
+            localStorage.setItem('myUnits', JSON.stringify(unitsData));
+            storedUnits = unitsData;
+        }
         
         // Merge database units with stored units (prioritize stored for prices)
         unitsData.forEach(dbUnit => {
@@ -2143,7 +2155,7 @@
                 dbUnit.sampleSale = stored.sampleSale || null;
                 if (stored.conversions) {
                     dbUnit.conversions.forEach((conv, idx) => {
-                        if (stored.conversions[idx]) {
+                        if (stored.conversions && stored.conversions[idx]) {
                             conv.sampleCost = stored.conversions[idx].sampleCost || null;
                             conv.sampleSale = stored.conversions[idx].sampleSale || null;
                         }
@@ -2159,11 +2171,29 @@
     
     function renderUnits() {
         const select = document.getElementById('unitSelect');
+        if (!select) {
+            console.error('unitSelect element not found');
+            return;
+        }
+        
         const currentVal = select.value;
         select.innerHTML = '<option value="">-- PLEASE SELECT --</option>';
-        const units = JSON.parse(localStorage.getItem('myUnits') || '[]');
+        
+        // First try localStorage, if empty use unitsData directly
+        let units = JSON.parse(localStorage.getItem('myUnits') || '[]');
+        if (units.length === 0 && unitsData && unitsData.length > 0) {
+            units = unitsData;
+            localStorage.setItem('myUnits', JSON.stringify(unitsData));
+        }
+        
+        if (units.length === 0) {
+            console.warn('No units found to render');
+            return;
+        }
         
         units.forEach(u => {
+            if (!u || !u.name) return; // Skip invalid units
+            
             const group = document.createElement('optgroup');
             group.label = u.name;
             group.style.fontWeight = '900';
@@ -2172,9 +2202,14 @@
 
             if (u.conversions && u.conversions.length > 0) {
                 u.conversions.forEach((c, index) => {
-                    const opt = new Option(`1 ${u.name} = ${c.multiplier} ${c.base}`, `${u.id}-${c.base}`);
-                    setAttr(opt, u, u.conversions, index);
-                    group.appendChild(opt);
+                    if (c && c.base && c.multiplier !== undefined) {
+                        const baseName = c.base || '';
+                        const baseId = c.base_id || '';
+                        const multiplier = c.multiplier || 1;
+                        const opt = new Option(`1 ${u.name} = ${multiplier} ${baseName}`, `${u.id}-${baseId || baseName}`);
+                        setAttr(opt, u, u.conversions, index);
+                        group.appendChild(opt);
+                    }
                 });
             } else {
                 const opt = new Option(`1 ${u.name}`, u.id);
