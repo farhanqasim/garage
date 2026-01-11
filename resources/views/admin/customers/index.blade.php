@@ -1376,15 +1376,55 @@
                         // Create cropped image URL for preview
                         const url = URL.createObjectURL(blob);
                         
-                        // Update preview with cropped image immediately
-                        if (preview) {
-                            preview.src = url;
-                            preview.style.display = 'block';
-                        }
+                        // Ensure preview container is shown first
                         if (previewContainer) {
                             previewContainer.style.display = 'block';
+                            previewContainer.style.visibility = 'visible';
+                            previewContainer.style.opacity = '1';
                         }
-                        // Buttons are always visible when preview is shown
+                        
+                        // Update preview with cropped image immediately
+                        if (preview) {
+                            // Clear any existing error handlers
+                            preview.onerror = null;
+                            preview.onload = null;
+                            
+                            // Set the image source
+                            preview.src = url;
+                            
+                            // Force display styles
+                            preview.style.display = 'block';
+                            preview.style.visibility = 'visible';
+                            preview.style.opacity = '1';
+                            preview.style.maxHeight = '180px';
+                            preview.style.maxWidth = '100%';
+                            
+                            // Ensure image loads properly
+                            preview.onload = function() {
+                                this.style.display = 'block';
+                                this.style.visibility = 'visible';
+                                // Force a reflow to ensure visibility
+                                void this.offsetWidth;
+                            };
+                            
+                            preview.onerror = function() {
+                                console.error('Failed to load cropped image');
+                                alert('Failed to load cropped image. Please try again.');
+                            };
+                        }
+                        
+                        // Ensure buttons are visible
+                        if (removeBtn) {
+                            removeBtn.style.display = 'flex';
+                        }
+                        if (cropBtn) {
+                            cropBtn.style.display = 'block';
+                        }
+                        
+                        // Force a reflow to ensure everything is visible
+                        if (previewContainer) {
+                            void previewContainer.offsetWidth;
+                        }
                         
                         // Create new file from blob and update file input
                         const originalFileName = profileImageFile ? profileImageFile.name : 'cropped_image.jpg';
