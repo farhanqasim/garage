@@ -1640,7 +1640,22 @@
                     const genBtn = form.querySelector('#generatePassword');
                     if (genBtn) genBtn.click();
                     const asOfDate = form.querySelector('#as_of_date');
-                    if (asOfDate) asOfDate.value = new Date().toLocaleDateString('en-GB');
+                    if (asOfDate) {
+                        // Initialize datepicker if not already initialized
+                        if (typeof jQuery !== 'undefined' && typeof jQuery.fn.datepicker !== 'undefined') {
+                            if (!jQuery(asOfDate).data('datepicker')) {
+                                jQuery(asOfDate).datepicker({
+                                    format: 'dd/mm/yyyy',
+                                    autoclose: true,
+                                    todayHighlight: true,
+                                    orientation: 'bottom auto',
+                                    clearBtn: false
+                                });
+                            }
+                        }
+                        // Reset value
+                        asOfDate.value = '';
+                    }
                     
                     // Reset fields
                     const profileInput = form.querySelector('#profile_img');
@@ -1868,6 +1883,37 @@
             });
         });
 
+        // Initialize datepicker for As Of Date field
+        function initAsOfDatePicker() {
+            const asOfDateInputs = document.querySelectorAll('#as_of_date');
+            if (asOfDateInputs.length > 0 && typeof jQuery !== 'undefined' && typeof jQuery.fn.datepicker !== 'undefined') {
+                asOfDateInputs.forEach(function(input) {
+                    if (!jQuery(input).data('datepicker')) {
+                        jQuery(input).datepicker({
+                            format: 'dd/mm/yyyy',
+                            autoclose: true,
+                            todayHighlight: true,
+                            orientation: 'bottom auto',
+                            clearBtn: false
+                        });
+                    }
+                });
+            }
+        }
+
+        // Initialize on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAsOfDatePicker);
+        } else {
+            initAsOfDatePicker();
+        }
+
+        // Re-initialize when modal is shown (in case it's added dynamically)
+        document.addEventListener('shown.bs.modal', function(e) {
+            if (e.target.id === 'addCustomerModal' || e.target.closest('#addCustomerModal')) {
+                setTimeout(initAsOfDatePicker, 100);
+            }
+        });
     </script>
 
 @endpush
