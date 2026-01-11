@@ -1531,7 +1531,9 @@
             <thead class="thead-primary">
                 <tr>
                     <th>Product Image</th>
-                    <th>Item Details</t
+                    <th>Item Details</th>
+                    
+                   
                     <th>User Name</th>
                     <th>Actions</th>
                   
@@ -1632,126 +1634,48 @@
 </div>
 </div>
 <!-- Unit Manager Modal -->
-<!-- Add Unit Modal -->
-<div class="modal fade" id="Unit-add-modal" tabindex="-1" aria-labelledby="UnitAddModalLabel" aria-hidden="true">
+<div class="modal fade" id="Unit-add-modal" tabindex="-1" aria-labelledby="UnitModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-bottom">
-                <h5 class="modal-title fw-bold">Add New Unit</h5>
+                <h5 class="modal-title fw-bold" id="Unit-modal-title">Unit Settings</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="Unit-add-form" method="POST" action="{{ route('post.units') }}" onsubmit="event.preventDefault(); saveNewUnit(); return false;">
-                @csrf
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Unit Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unit-add-name-input" name="name" class="form-control form-control-sm text-uppercase" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Short Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unit-add-short-input" name="short_name" class="form-control form-control-sm text-uppercase" required>
-                        </div>
-                    </div>
-                    <div class="row g-3 mt-2 bg-light p-3 rounded">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Allow Decimal? <span class="text-danger">*</span></label>
-                            <select id="unit-add-allow-decimal" name="allow_decimal" class="form-control form-control-sm" required onchange="toggleAddDecimalPrecision()">
-                                <option value="0">NO</option>
-                                <option value="1">YES</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6" id="unit-add-precision-container" style="display: none;">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
-                            <input type="number" id="unit-add-decimal-precision" name="decimal_after_point_digit" class="form-control form-control-sm" min="0" max="10" value="2">
-                        </div>
-                    </div>
-                    <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" id="unit-add-has-base" name="is_base_unit" value="1" onchange="toggleAddBaseSettings()">
-                        <label class="form-check-label small fw-bold text-uppercase" for="unit-add-has-base">
-                            Multiple of other units
-                        </label>
-                    </div>
-                    <div id="unit-add-base-settings" class="mt-3 border-start border-4 border-warning ps-3" style="display: none;">
-                        <div id="unit-add-base-rows" class="space-y-3">
-                            <div class="row g-2 mb-2 base-unit-row">
-                                <div class="col-5">
-                                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
-                                    <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
-                                    <select name="base_units[0][base_unit_id]" class="form-control form-control-sm base-unit-select">
-                                        <option value="">Select Base Unit</option>
-                                        @foreach($units as $u)
-                                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-1 d-flex align-items-end">
-                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;" onclick="removeAddRow(this)">
-                                        <i class="ti ti-x"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-warning text-white w-100 mt-2" onclick="addAddBaseRow()">
-                            <i class="ti ti-plus"></i> ADD ANOTHER
-                        </button>
-                    </div>
-                </div>
-            </form>
-            <div class="modal-footer border-top bg-light">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" onclick="saveNewUnit(); return false;" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Unit Modal -->
-<div class="modal fade" id="Unit-edit-modal" tabindex="-1" aria-labelledby="UnitEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-bottom">
-                <h5 class="modal-title fw-bold">Edit Unit</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="Unit-edit-form" method="POST" onsubmit="event.preventDefault(); updateUnit(); return false;">
+            <form id="Unit-form" method="POST" onsubmit="event.preventDefault(); saveUnit(); return false;">
                 @csrf
                 <input type="hidden" id="unit-edit-id" name="unit_id" value="">
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-uppercase text-muted mb-1">Unit Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unit-edit-name-input" name="name" class="form-control form-control-sm text-uppercase" required>
+                            <input type="text" id="unit-name-input" name="name" class="form-control form-control-sm text-uppercase" >
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-uppercase text-muted mb-1">Short Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unit-edit-short-input" name="short_name" class="form-control form-control-sm text-uppercase" required>
+                            <input type="text" id="unit-short-input" name="short_name" class="form-control form-control-sm text-uppercase" required>
                         </div>
                     </div>
                     <div class="row g-3 mt-2 bg-light p-3 rounded">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-uppercase text-muted mb-1">Allow Decimal? <span class="text-danger">*</span></label>
-                            <select id="unit-edit-allow-decimal" name="allow_decimal" class="form-control form-control-sm" required onchange="toggleEditDecimalPrecision()">
+                            <select id="unit-allow-decimal" name="allow_decimal" class="form-control form-control-sm" required onchange="toggleDecimalPrecision()">
                                 <option value="0">NO</option>
                                 <option value="1">YES</option>
                             </select>
                         </div>
-                        <div class="col-md-6" id="unit-edit-precision-container" style="display: none;">
+                        <div class="col-md-6" id="unit-precision-container" style="display: none;">
                             <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
-                            <input type="number" id="unit-edit-decimal-precision" name="decimal_after_point_digit" class="form-control form-control-sm" min="0" max="10" value="2">
+                            <input type="number" id="unit-decimal-precision" name="decimal_after_point_digit" class="form-control form-control-sm" min="0" max="10" value="2">
                         </div>
                     </div>
                     <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" id="unit-edit-has-base" name="is_base_unit" value="1" onchange="toggleEditBaseSettings()">
-                        <label class="form-check-label small fw-bold text-uppercase" for="unit-edit-has-base">
+                        <input class="form-check-input" type="checkbox" id="unit-has-base" name="is_base_unit" value="1" onchange="toggleBaseSettings()">
+                        <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base">
                             Multiple of other units
                         </label>
                     </div>
-                    <div id="unit-edit-base-settings" class="mt-3 border-start border-4 border-warning ps-3" style="display: none;">
-                        <div id="unit-edit-base-rows" class="space-y-3">
+                    <div id="unit-base-settings" class="mt-3 border-start border-4 border-warning ps-3" style="display: none;">
+                        <div id="unit-base-rows" class="space-y-3">
                             <div class="row g-2 mb-2 base-unit-row">
                                 <div class="col-5">
                                     <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
@@ -1767,22 +1691,21 @@
                                     </select>
                                 </div>
                                 <div class="col-1 d-flex align-items-end">
-                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;" onclick="removeEditRow(this)">
+                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;" onclick="removeRow(this)">
                                         <i class="ti ti-x"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-warning text-white w-100 mt-2" onclick="addEditBaseRow()">
+                        <button type="button" class="btn btn-sm btn-warning text-white w-100 mt-2" onclick="addBaseRow()">
                             <i class="ti ti-plus"></i> ADD ANOTHER
                         </button>
                     </div>
                 </div>
-            </form>
+            </div>
             <div class="modal-footer border-top bg-light">
-                <button type="button" class="btn btn-danger" id="unit-edit-delete-btn" onclick="deleteUnit()">Delete</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" onclick="updateUnit(); return false;" class="btn btn-warning text-white fw-bold">UPDATE UNIT</button>
+                <button type="button" class="btn btn-danger d-none" id="unit-delete-btn" onclick="deleteUnit()">Delete</button>
+                <button type="button" onclick="saveUnit(); return false;" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
             </div>
         </div>
     </div>
@@ -2267,23 +2190,19 @@
 
     function openModal(mode) {
         const select = document.getElementById('unitSelect');
+        resetForm();
         
         if (mode === 'add') {
-            // Reset add form
-            resetAddForm();
+            document.getElementById('Unit-modal-title').innerText = "Unit Settings";
+            document.getElementById('unit-delete-btn').classList.add('d-none');
+            document.getElementById('unit-edit-id').value = '';
             const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
             modal.show();
         } else if (mode === 'edit' && select.selectedIndex > 0) {
+            document.getElementById('Unit-modal-title').innerText = "Update Unit Settings";
+            document.getElementById('unit-delete-btn').classList.remove('d-none');
             const opt = select.selectedOptions[0];
             const unitId = opt.getAttribute('data-id');
-            
-            if (!unitId) {
-                alert('Please select a unit first to edit.');
-                return;
-            }
-            
-            // Reset edit form
-            resetEditForm();
             document.getElementById('unit-edit-id').value = unitId;
             
             // Fetch unit data from API
@@ -2299,17 +2218,17 @@
                 if (data.success && data.unit) {
                     const unit = data.unit;
                     document.getElementById('unit-edit-id').value = unit.id;
-                    document.getElementById('unit-edit-name-input').value = unit.name || '';
-                    document.getElementById('unit-edit-short-input').value = unit.short_name || '';
-                    document.getElementById('unit-edit-allow-decimal').value = unit.allow_decimal == '1' || unit.allow_decimal == 1 ? "1" : "0";
-                    document.getElementById('unit-edit-decimal-precision').value = unit.decimal_after_point_digit || "2";
-                    toggleEditDecimalPrecision();
+                    document.getElementById('unit-name-input').value = unit.name || '';
+                    document.getElementById('unit-short-input').value = unit.short_name || '';
+                    document.getElementById('unit-allow-decimal').value = unit.allow_decimal == '1' || unit.allow_decimal == 1 ? "1" : "0";
+                    document.getElementById('unit-decimal-precision').value = unit.decimal_after_point_digit || "2";
+                    toggleDecimalPrecision();
                     
                     // Load base units if they exist
                     if (unit.base_units && unit.base_units.length > 0) {
-                        document.getElementById('unit-edit-has-base').checked = true;
-                        toggleEditBaseSettings();
-                        const rowsContainer = document.getElementById('unit-edit-base-rows');
+                        document.getElementById('unit-has-base').checked = true;
+                        toggleBaseSettings();
+                        const rowsContainer = document.getElementById('unit-base-rows');
                         // Clear existing rows except first one
                         while (rowsContainer.children.length > 1) {
                             rowsContainer.removeChild(rowsContainer.lastChild);
@@ -2317,7 +2236,7 @@
                         
                         // Populate base units
                         unit.base_units.forEach((baseUnit, i) => {
-                            if (i > 0) addEditBaseRow();
+                            if (i > 0) addBaseRow();
                             const row = rowsContainer.children[i];
                             row.querySelector('.multiplier-input').value = baseUnit.multiplier || '';
                             const baseSelect = row.querySelector('.base-unit-select');
@@ -2328,44 +2247,42 @@
                             }
                         });
                     } else {
-                        document.getElementById('unit-edit-has-base').checked = false;
-                        toggleEditBaseSettings();
+                        document.getElementById('unit-has-base').checked = false;
+                        toggleBaseSettings();
                     }
-                    
-                    // Show edit modal
-                    const modal = new bootstrap.Modal(document.getElementById('Unit-edit-modal'));
-                    modal.show();
                 }
             })
             .catch(error => {
                 console.error('Error fetching unit:', error);
                 alert('Error loading unit data. Please try again.');
             });
+            
+            const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
+            modal.show();
         } else if (mode === 'edit') {
             alert('Please select a unit first to edit.');
         }
     }
 
-    // ========== ADD MODAL FUNCTIONS ==========
-    function toggleAddDecimalPrecision() {
-        const container = document.getElementById('unit-add-precision-container');
-        const allowDecimal = document.getElementById('unit-add-allow-decimal').value;
-        if (container) {
-            container.style.display = allowDecimal == '1' ? 'block' : 'none';
-        }
+    function closeModal() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('Unit-add-modal'));
+        if (modal) modal.hide();
     }
 
-    function toggleAddBaseSettings() {
-        const container = document.getElementById('unit-add-base-settings');
-        const hasBase = document.getElementById('unit-add-has-base');
-        if (container && hasBase) {
-            container.style.display = hasBase.checked ? 'block' : 'none';
-        }
+    function toggleDecimalPrecision() {
+        const container = document.getElementById('unit-precision-container');
+        const allowDecimal = document.getElementById('unit-allow-decimal').value;
+        container.style.display = allowDecimal == '1' ? 'block' : 'none';
     }
 
-    function addAddBaseRow() {
-        const rows = document.getElementById('unit-add-base-rows');
-        if (!rows || rows.children.length === 0) return;
+    function toggleBaseSettings() {
+        const container = document.getElementById('unit-base-settings');
+        const hasBase = document.getElementById('unit-has-base').checked;
+        container.style.display = hasBase ? 'block' : 'none';
+    }
+
+    function addBaseRow() {
+        const rows = document.getElementById('unit-base-rows');
         const newRow = rows.children[0].cloneNode(true);
         const index = rows.children.length;
         newRow.querySelector('.multiplier-input').value = '';
@@ -2375,270 +2292,59 @@
         const removeBtn = newRow.querySelector('.remove-base-row');
         if (removeBtn) {
             removeBtn.style.display = 'block';
-            removeBtn.onclick = function() { removeAddRow(this); };
+            removeBtn.onclick = function() { removeRow(this); };
         }
         rows.appendChild(newRow);
-        updateAddRemoveButtons();
+        updateRemoveButtons();
     }
 
-    function removeAddRow(btn) {
+    function removeRow(btn) {
         btn.closest('.base-unit-row').remove();
-        updateAddRemoveButtons();
+        updateRemoveButtons();
     }
 
-    function updateAddRemoveButtons() {
-        const rows = document.querySelectorAll('#unit-add-base-rows .base-unit-row');
+    function updateRemoveButtons() {
+        const rows = document.querySelectorAll('#unit-base-rows .base-unit-row');
         rows.forEach((row, index) => {
             const removeBtn = row.querySelector('.remove-base-row');
-            if (removeBtn) {
-                if (rows.length > 1) {
-                    removeBtn.style.display = 'block';
-                } else {
-                    removeBtn.style.display = 'none';
-                }
+            if (rows.length > 1) {
+                removeBtn.style.display = 'block';
+            } else {
+                removeBtn.style.display = 'none';
             }
         });
     }
 
-    function resetAddForm() {
-        document.getElementById('unit-add-name-input').value = '';
-        document.getElementById('unit-add-short-input').value = '';
-        document.getElementById('unit-add-allow-decimal').value = "0";
-        document.getElementById('unit-add-decimal-precision').value = "2";
-        document.getElementById('unit-add-has-base').checked = false;
-        toggleAddDecimalPrecision();
-        toggleAddBaseSettings();
-        const rows = document.getElementById('unit-add-base-rows');
-        while (rows && rows.children.length > 1) {
-            rows.removeChild(rows.lastChild);
+    function saveUnit() {
+        // Prevent form submission if it exists
+        const form = document.getElementById('Unit-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { once: true });
         }
-        if (rows && rows.children[0]) {
-            rows.children[0].querySelector('.multiplier-input').value = '';
-            rows.children[0].querySelector('.base-unit-select').value = '';
-            const removeBtn = rows.children[0].querySelector('.remove-base-row');
-            if (removeBtn) removeBtn.style.display = 'none';
-        }
-        updateAddRemoveButtons();
-    }
-
-    // ========== EDIT MODAL FUNCTIONS ==========
-    function toggleEditDecimalPrecision() {
-        const container = document.getElementById('unit-edit-precision-container');
-        const allowDecimal = document.getElementById('unit-edit-allow-decimal').value;
-        if (container) {
-            container.style.display = allowDecimal == '1' ? 'block' : 'none';
-        }
-    }
-
-    function toggleEditBaseSettings() {
-        const container = document.getElementById('unit-edit-base-settings');
-        const hasBase = document.getElementById('unit-edit-has-base');
-        if (container && hasBase) {
-            container.style.display = hasBase.checked ? 'block' : 'none';
-        }
-    }
-
-    function addEditBaseRow() {
-        const rows = document.getElementById('unit-edit-base-rows');
-        if (!rows || rows.children.length === 0) return;
-        const newRow = rows.children[0].cloneNode(true);
-        const index = rows.children.length;
-        newRow.querySelector('.multiplier-input').value = '';
-        newRow.querySelector('.base-unit-select').value = '';
-        newRow.querySelector('.multiplier-input').name = `base_units[${index}][multiplier]`;
-        newRow.querySelector('.base-unit-select').name = `base_units[${index}][base_unit_id]`;
-        const removeBtn = newRow.querySelector('.remove-base-row');
-        if (removeBtn) {
-            removeBtn.style.display = 'block';
-            removeBtn.onclick = function() { removeEditRow(this); };
-        }
-        rows.appendChild(newRow);
-        updateEditRemoveButtons();
-    }
-
-    function removeEditRow(btn) {
-        btn.closest('.base-unit-row').remove();
-        updateEditRemoveButtons();
-    }
-
-    function updateEditRemoveButtons() {
-        const rows = document.querySelectorAll('#unit-edit-base-rows .base-unit-row');
-        rows.forEach((row, index) => {
-            const removeBtn = row.querySelector('.remove-base-row');
-            if (removeBtn) {
-                if (rows.length > 1) {
-                    removeBtn.style.display = 'block';
-                } else {
-                    removeBtn.style.display = 'none';
-                }
-            }
-        });
-    }
-
-    function resetEditForm() {
-        document.getElementById('unit-edit-id').value = '';
-        document.getElementById('unit-edit-name-input').value = '';
-        document.getElementById('unit-edit-short-input').value = '';
-        document.getElementById('unit-edit-allow-decimal').value = "0";
-        document.getElementById('unit-edit-decimal-precision').value = "2";
-        document.getElementById('unit-edit-has-base').checked = false;
-        toggleEditDecimalPrecision();
-        toggleEditBaseSettings();
-        const rows = document.getElementById('unit-edit-base-rows');
-        while (rows && rows.children.length > 1) {
-            rows.removeChild(rows.lastChild);
-        }
-        if (rows && rows.children[0]) {
-            rows.children[0].querySelector('.multiplier-input').value = '';
-            rows.children[0].querySelector('.base-unit-select').value = '';
-            const removeBtn = rows.children[0].querySelector('.remove-base-row');
-            if (removeBtn) removeBtn.style.display = 'none';
-        }
-        updateEditRemoveButtons();
-    }
-
-    // ========== SAVE NEW UNIT ==========
-    function saveNewUnit() {
-        const nameInput = document.getElementById('unit-add-name-input');
-        const shortInput = document.getElementById('unit-add-short-input');
+        
+        const nameInput = document.getElementById('unit-name-input');
+        const shortInput = document.getElementById('unit-short-input');
         const name = nameInput ? nameInput.value.trim() : '';
         const short = shortInput ? shortInput.value.trim() : '';
-        
-        if (!name || !short) {
-            alert("Please fill name and short name");
-            return;
-        }
-        
-        const nameUpper = name.toUpperCase();
-        const shortUpper = short.toUpperCase();
-        
-        // Collect base units data
-        let baseUnits = [];
-        const hasBaseCheckbox = document.getElementById('unit-add-has-base');
-        if (hasBaseCheckbox && hasBaseCheckbox.checked) {
-            document.querySelectorAll('#unit-add-base-rows .base-unit-row').forEach(row => {
-                const multiplierInput = row.querySelector('.multiplier-input');
-                const baseUnitSelect = row.querySelector('.base-unit-select');
-                if (multiplierInput && baseUnitSelect) {
-                    const m = multiplierInput.value.trim();
-                    const b = baseUnitSelect.value.trim();
-                    if (m && b && !isNaN(m) && parseFloat(m) > 0) {
-                        baseUnits.push({ 
-                            multiplier: parseFloat(m), 
-                            base_unit_id: parseInt(b) 
-                        });
-                    }
-                }
-            });
-        }
-        
-        const formData = new FormData();
-        formData.append('name', nameUpper);
-        formData.append('short_name', shortUpper);
-        const allowDecimalEl = document.getElementById('unit-add-allow-decimal');
-        const allowDecimal = allowDecimalEl ? (allowDecimalEl.value || '0') : '0';
-        formData.append('allow_decimal', allowDecimal);
-        const decimalPrecisionEl = document.getElementById('unit-add-decimal-precision');
-        const decimalPrecision = decimalPrecisionEl ? (decimalPrecisionEl.value || '2') : '2';
-        formData.append('decimal_after_point_digit', decimalPrecision);
-        
-        if (hasBaseCheckbox && hasBaseCheckbox.checked && baseUnits.length > 0) {
-            baseUnits.forEach((bu, index) => {
-                formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
-                formData.append(`base_units[${index}][base_unit_id]`, bu.base_unit_id);
-            });
-        }
-        
-        fetch('{{ route("post.units") }}', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => {
-                    throw { status: response.status, errors: err };
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success && data.unit) {
-                let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
-                const formattedUnit = {
-                    id: data.unit.id,
-                    name: data.unit.name,
-                    short: data.unit.short_name,
-                    decimal: parseInt(data.unit.decimal_after_point_digit) || 0,
-                    conversions: (data.unit.base_units || []).map(bu => ({
-                        multiplier: parseFloat(bu.multiplier) || 1,
-                        base: bu.name,
-                        base_id: bu.id
-                    }))
-                };
-                storedUnits.push(formattedUnit);
-                localStorage.setItem('myUnits', JSON.stringify(storedUnits));
-                
-                if (typeof unitsData !== 'undefined') {
-                    unitsData.push(formattedUnit);
-                }
-                
-                alert(data.message || 'Unit created successfully!');
-                renderUnits();
-                loadFromStorage();
-                const modal = bootstrap.Modal.getInstance(document.getElementById('Unit-add-modal'));
-                if (modal) modal.hide();
-                resetAddForm();
-            } else {
-                alert(data.message || 'Error creating unit. Please try again.');
-            }
-        })
-        .catch(error => {
-            console.error('Error creating unit:', error);
-            if (error.errors) {
-                let errorMessages = [];
-                if (error.errors.name) {
-                    errorMessages.push('Name: ' + error.errors.name.join(', '));
-                }
-                if (error.errors.short_name) {
-                    errorMessages.push('Short Name: ' + error.errors.short_name.join(', '));
-                }
-                alert('Validation Error:\n' + errorMessages.join('\n'));
-            } else {
-                alert('Error creating unit. Please try again.');
-            }
-        });
-    }
-
-    // ========== UPDATE UNIT ==========
-    function updateUnit() {
         const editId = document.getElementById('unit-edit-id').value;
-        if (!editId) {
-            alert('Unit ID is missing');
-            return;
-        }
-        
-        const nameInput = document.getElementById('unit-edit-name-input');
-        const shortInput = document.getElementById('unit-edit-short-input');
-        const name = nameInput ? nameInput.value.trim() : '';
-        const short = shortInput ? shortInput.value.trim() : '';
         
         if (!name || !short) {
             alert("Please fill name and short name");
             return;
         }
         
+        // Ensure values are uppercase
         const nameUpper = name.toUpperCase();
         const shortUpper = short.toUpperCase();
         
         // Collect base units data
         let baseUnits = [];
-        const hasBaseCheckbox = document.getElementById('unit-edit-has-base');
+        const hasBaseCheckbox = document.getElementById('unit-has-base');
         if (hasBaseCheckbox && hasBaseCheckbox.checked) {
-            document.querySelectorAll('#unit-edit-base-rows .base-unit-row').forEach(row => {
+            document.querySelectorAll('#unit-base-rows .base-unit-row').forEach(row => {
                 const multiplierInput = row.querySelector('.multiplier-input');
                 const baseUnitSelect = row.querySelector('.base-unit-select');
                 if (multiplierInput && baseUnitSelect) {
@@ -2654,17 +2360,42 @@
             });
         }
         
+        // Validate required fields before creating FormData
+        if (!nameUpper || nameUpper.length === 0) {
+            alert("Please enter a unit name");
+            const nameInput = document.getElementById('unit-name-input');
+            if (nameInput) nameInput.focus();
+            return;
+        }
+        
+        if (!shortUpper || shortUpper.length === 0) {
+            alert("Please enter a short name");
+            const shortInput = document.getElementById('unit-short-input');
+            if (shortInput) shortInput.focus();
+            return;
+        }
+        
+        // Debug: Log form values before submission
+        console.log('Submitting unit data:', {
+            name: nameUpper,
+            short_name: shortUpper,
+            allow_decimal: allowDecimal,
+            decimal_after_point_digit: decimalPrecision,
+            base_units: baseUnits,
+            editId: editId
+        });
+        
         const formData = new FormData();
-        formData.append('_method', 'PUT');
         formData.append('name', nameUpper);
         formData.append('short_name', shortUpper);
-        const allowDecimalEl = document.getElementById('unit-edit-allow-decimal');
+        const allowDecimalEl = document.getElementById('unit-allow-decimal');
         const allowDecimal = allowDecimalEl ? (allowDecimalEl.value || '0') : '0';
         formData.append('allow_decimal', allowDecimal);
-        const decimalPrecisionEl = document.getElementById('unit-edit-decimal-precision');
+        const decimalPrecisionEl = document.getElementById('unit-decimal-precision');
         const decimalPrecision = decimalPrecisionEl ? (decimalPrecisionEl.value || '2') : '2';
         formData.append('decimal_after_point_digit', decimalPrecision);
         
+        // Only send base_units if checkbox is checked and we have valid base units
         if (hasBaseCheckbox && hasBaseCheckbox.checked && baseUnits.length > 0) {
             baseUnits.forEach((bu, index) => {
                 formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
@@ -2672,8 +2403,16 @@
             });
         }
         
-        fetch(`/units/${editId}`, {
-            method: 'POST',
+        const url = editId ? `/units/${editId}` : '/post/units';
+        const method = editId ? 'PUT' : 'POST';
+        
+        // Add _method for PUT requests (Laravel requirement)
+        if (editId) {
+            formData.append('_method', 'PUT');
+        }
+        
+        fetch(url, {
+            method: 'POST', // Always use POST, Laravel will use _method to determine PUT
             body: formData,
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -2690,8 +2429,11 @@
         })
         .then(data => {
             if (data.success && data.unit) {
+                // Update unitsData with the new/updated unit
                 let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
                 const unitIndex = storedUnits.findIndex(u => u.id == data.unit.id);
+                
+                // Format unit data to match localStorage structure
                 const formattedUnit = {
                     id: data.unit.id,
                     name: data.unit.name,
@@ -2705,12 +2447,16 @@
                 };
                 
                 if (unitIndex >= 0) {
-                    storedUnits[unitIndex] = formattedUnit;
+                    // Update existing unit
+                    storedUnits[unitIndex] = { ...storedUnits[unitIndex], ...formattedUnit };
                 } else {
+                    // Add new unit
                     storedUnits.push(formattedUnit);
                 }
+                
                 localStorage.setItem('myUnits', JSON.stringify(storedUnits));
                 
+                // Also update unitsData array for immediate use
                 if (typeof unitsData !== 'undefined') {
                     const dbUnitIndex = unitsData.findIndex(u => u.id == data.unit.id);
                     if (dbUnitIndex >= 0) {
@@ -2720,19 +2466,19 @@
                     }
                 }
                 
-                alert(data.message || 'Unit updated successfully!');
+                alert(data.message || 'Unit saved successfully!');
                 renderUnits();
-                loadFromStorage();
-                const modal = bootstrap.Modal.getInstance(document.getElementById('Unit-edit-modal'));
-                if (modal) modal.hide();
-                resetEditForm();
+                loadFromStorage(); // Reload to sync
+                closeModal();
+                resetForm();
             } else {
-                alert(data.message || 'Error updating unit. Please try again.');
+                alert(data.message || 'Error saving unit. Please try again.');
             }
         })
         .catch(error => {
-            console.error('Error updating unit:', error);
+            console.error('Error saving unit:', error);
             if (error.errors) {
+                // Handle validation errors
                 let errorMessages = [];
                 if (error.errors.name) {
                     errorMessages.push('Name: ' + error.errors.name.join(', '));
@@ -2740,10 +2486,20 @@
                 if (error.errors.short_name) {
                     errorMessages.push('Short Name: ' + error.errors.short_name.join(', '));
                 }
+                if (error.errors.allow_decimal) {
+                    errorMessages.push('Allow Decimal: ' + error.errors.allow_decimal.join(', '));
+                }
+                if (error.errors.decimal_after_point_digit) {
+                    errorMessages.push('Decimal Precision: ' + error.errors.decimal_after_point_digit.join(', '));
+                }
                 alert('Validation Error:\n' + errorMessages.join('\n'));
             } else {
-                alert('Error updating unit. Please try again.');
+                alert('Error saving unit. Please try again.');
             }
+        })
+        .catch(error => {
+            console.error('Error saving unit:', error);
+            alert('Error saving unit. Please try again.');
         });
     }
 
@@ -3042,9 +2798,8 @@
                     alert(data.message || 'Unit deleted successfully!');
                     loadFromStorage();
                     renderUnits();
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('Unit-edit-modal'));
-                    if (modal) modal.hide();
-                    resetEditForm();
+                    closeModal();
+                    resetForm();
                 } else {
                     alert(data.message || 'Error deleting unit. Please try again.');
                 }
@@ -3052,6 +2807,7 @@
             .catch(error => {
                 console.error('Error deleting unit:', error);
                 alert('Error deleting unit. Please try again.');
+            });
             });
         }
     }
