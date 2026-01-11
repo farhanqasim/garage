@@ -1261,6 +1261,13 @@
                 };
                 
                 activeRecognition.onerror = (event) => {
+                    // Silently handle no-speech and aborted errors (no beep sound)
+                    if (event.error === 'no-speech' || event.error === 'aborted') {
+                        // Don't show alert or make any sound for these errors
+                        // Just continue recording silently
+                        return;
+                    }
+                    
                     if (recordingTimeout) {
                         clearTimeout(recordingTimeout);
                         recordingTimeout = null;
@@ -1274,9 +1281,10 @@
                     controlBtn.title = 'Voice Input';
                     controlBtn.style.position = '';
                     
-                    // Only show error for non-user-initiated stops
-                    if (event.error !== 'no-speech' && event.error !== 'aborted') {
-                        alert('Speech error: ' + event.error);
+                    // Only show error for serious errors (not no-speech)
+                    if (event.error !== 'no-speech' && event.error !== 'aborted' && event.error !== 'network') {
+                        console.log('Speech error: ' + event.error);
+                        // Don't show alert to avoid beep sound
                     }
                     
                     resetRecordingUI(inputField, controlBtn, nameCol);
@@ -1292,14 +1300,18 @@
                 };
                 
                 activeRecognition.onend = () => {
+                    // Silently handle recognition end without beep sound
                     // If recognition ended but we're still recording, restart it (for continuous mode)
                     // But only if we haven't reached 30 seconds and user hasn't spoken
                     if (activeMediaRecorder && activeMediaRecorder.state === 'recording' && !hasSpeech && recordingTimeout) {
                         try {
+                            // Restart recognition silently without beep
                             activeRecognition.start();
                         } catch (e) {
-                            // If can't restart, stop recording
-                            stopRecording();
+                            // If can't restart, stop recording silently
+                            if (e.name !== 'InvalidStateError') {
+                                stopRecording();
+                            }
                         }
                     } else {
                         // Stop recording if recognition ended and we have speech or timeout
