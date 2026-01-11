@@ -87,24 +87,6 @@
         .row .col-md-6 {
             margin-bottom: 1rem;
         }
-        /* Mobile: Show select search boxes first (Part Number and Product Name) */
-        /* Use flexbox order to reorder columns on mobile */
-        .row.mt-4 {
-            display: flex;
-            flex-wrap: wrap;
-        }
-        /* Part Number column - show first on mobile */
-        .part-number-col {
-            order: -2 !important;
-        }
-        /* Product Name column - show second on mobile */
-        .product-name-col {
-            order: -1 !important;
-        }
-        /* Barcode column - show after Part Number and Product Name */
-        .col-md-4:has(#itemBarCode) {
-            order: 0;
-        }
         /* Modal vehicle form - better mobile layout */
         #vehical-add-modal .modal-body {
             padding: 1rem !important;
@@ -284,7 +266,7 @@
 
                                     @error('bar_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                         <div class="col-md-4 mt-3 part-number-col" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
+                         <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
                             <label for="part_number_id">Part Number:</label>
                             <div class="input-group inputswidth">
                                 <select
@@ -298,12 +280,6 @@
                                     </option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Part Number" data-mode="add"
-                                        data-route="{{ route('post.partnumber') }}"
-                                        data-target-select=".part_number-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Part Number"
                                         data-fetch-route="{{ route('show.partnumber', ':id') }}"
@@ -311,6 +287,12 @@
                                         data-delete-route="{{ route('destory.partnumber', ':id') }}"
                                         data-target-select=".part_number-select">
                                         <i data-feather="edit"></i>
+                                    </button>
+                                <button type="button" class="btn btn-primary open-universal-modal"
+                                        data-title="Add Part Number" data-mode="add"
+                                        data-route="{{ route('post.partnumber') }}"
+                                        data-target-select=".part_number-select">
+                                        <i data-feather="plus" class="feather-plus"></i>
                                     </button>
                             </div>
                             <!-- Part Number Items Count -->
@@ -323,7 +305,7 @@
                             @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                          <!-- Product Name -->
-                         <div class="col-md-4 product-name-col"
+                         <div class="col-md-4"
                                     x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
                                     <label for="itemname">Product Name:</label>
                                     <div class="input-group inputswidth">
@@ -339,11 +321,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Product" data-mode="add"
-                                            data-route="{{ route('post.product') }}" data-target-select=".name-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Product"
                                             data-fetch-route="{{ route('show.product', ':id') }}"
@@ -351,6 +328,11 @@
                                             data-delete-route="{{ route('destory.product', ':id') }}"
                                             data-target-select=".name-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Product" data-mode="add"
+                                            data-route="{{ route('post.product') }}" data-target-select=".name-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -370,12 +352,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Category" data-mode="add"
-                                            data-route="{{ route('post.item.category') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Category"
                                             data-fetch-route="{{ route('show.category', ':id') }}"
@@ -383,6 +359,12 @@
                                             data-delete-route="{{ route('destory.category', ':id') }}"
                                             data-target-select=".category-select" data-has-image="1">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Category" data-mode="add"
+                                            data-route="{{ route('post.item.category') }}"
+                                            data-target-select=".category-select" data-has-image="1">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -412,12 +394,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add group"
-                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
@@ -425,6 +401,11 @@
                                             data-delete-route="{{ route('post.groups.destroy', ':id') }}"
                                             data-target-select=".group-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-mode="add" data-title="Add group"
+                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('group')
@@ -447,12 +428,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add Company"
-                                            data-route="{{ route('post.companies') }}"
-                                            data-target-select=".company-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Company"
                                             data-fetch-route="{{ route('show.company', ':id') }}"
@@ -460,6 +435,12 @@
                                             data-delete-route="{{ route('destory.company', ':id') }}"
                                             data-target-select=".company-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-mode="add" data-title="Add Company"
+                                            data-route="{{ route('post.companies') }}"
+                                            data-target-select=".company-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -483,13 +464,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
-                                            data-mode="add"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
                                             x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
@@ -498,6 +472,13 @@
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
                                             data-target-select=".technology-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
+                                            data-mode="add"
+                                            data-route="{{ route('post.technology') }}"
+                                            data-target-select=".technology-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
 
@@ -527,12 +508,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -540,6 +515,12 @@
                                             data-delete-route="{{ route('destory.quality', ':id') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -568,12 +549,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -581,6 +556,12 @@
                                             data-delete-route="{{ route('destory.quality', ':id') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -607,12 +588,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -620,6 +595,12 @@
                                             data-delete-route="{{ route('destory.quality', ':id') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
