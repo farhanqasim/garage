@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Unit;
+use App\Models\UnitConversion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UnitController extends Controller
 {
@@ -57,18 +59,31 @@ class UnitController extends Controller
             'status' => 'active',
         ]);
         
-        // Save multiple base units if provided
+        // Save multiple base units if provided - allow same base unit with different multipliers
         if ($request->has('base_units') && is_array($request->base_units)) {
-            $baseUnitsData = [];
+            // First, remove all existing base units for this unit
+            DB::table('unit_base_units')->where('unit_id', $unit->id)->delete();
+            
+            // Then, add all new base units (allowing same base unit with different multipliers)
             foreach ($request->base_units as $baseUnit) {
                 if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier']) && is_numeric($baseUnit['multiplier'])) {
-                    $baseUnitsData[$baseUnit['base_unit_id']] = [
-                        'multiplier' => (float) $baseUnit['multiplier']
-                    ];
+                    // Check if this exact combination already exists (shouldn't happen after delete, but safe check)
+                    $exists = DB::table('unit_base_units')
+                        ->where('unit_id', $unit->id)
+                        ->where('base_unit_id', $baseUnit['base_unit_id'])
+                        ->where('multiplier', (float) $baseUnit['multiplier'])
+                        ->exists();
+                    
+                    if (!$exists) {
+                        DB::table('unit_base_units')->insert([
+                            'unit_id' => $unit->id,
+                            'base_unit_id' => $baseUnit['base_unit_id'],
+                            'multiplier' => (float) $baseUnit['multiplier'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
-            }
-            if (!empty($baseUnitsData)) {
-                $unit->baseUnits()->sync($baseUnitsData);
             }
         }
 
@@ -118,21 +133,35 @@ class UnitController extends Controller
                 'decimal_after_point_digit' => $request->decimal_after_point_digit ?? ($request->allow_decimal == '1' ? ($request->decimal_after_point_digit ?? 2) : 0),
             ]);
             
-            // Update multiple base units if provided
+            // Update multiple base units if provided - allow same base unit with different multipliers
             if ($request->has('base_units') && is_array($request->base_units)) {
-                $baseUnitsData = [];
+                // First, remove all existing base units for this unit
+                DB::table('unit_base_units')->where('unit_id', $unit->id)->delete();
+                
+                // Then, add all new base units (allowing same base unit with different multipliers)
                 foreach ($request->base_units as $baseUnit) {
                     if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier']) && is_numeric($baseUnit['multiplier'])) {
-                        $baseUnitsData[$baseUnit['base_unit_id']] = [
-                            'multiplier' => (float) $baseUnit['multiplier']
-                        ];
+                        // Check if this exact combination already exists (shouldn't happen after delete, but safe check)
+                        $exists = DB::table('unit_base_units')
+                            ->where('unit_id', $unit->id)
+                            ->where('base_unit_id', $baseUnit['base_unit_id'])
+                            ->where('multiplier', (float) $baseUnit['multiplier'])
+                            ->exists();
+                        
+                        if (!$exists) {
+                            DB::table('unit_base_units')->insert([
+                                'unit_id' => $unit->id,
+                                'base_unit_id' => $baseUnit['base_unit_id'],
+                                'multiplier' => (float) $baseUnit['multiplier'],
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
                     }
                 }
-                // Sync will replace all existing relationships
-                $unit->baseUnits()->sync($baseUnitsData);
             } else {
                 // If no base units provided, remove all base unit relationships
-                $unit->baseUnits()->detach();
+                DB::table('unit_base_units')->where('unit_id', $unit->id)->delete();
             }
             
             // Load base units for response
