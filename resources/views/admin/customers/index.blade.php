@@ -450,11 +450,39 @@
         border-color: #dc3545 !important;
         color: white !important;
         animation: pulse-glow 1.5s infinite;
+        position: relative !important;
     }
     
     .mic-btn.recording i {
         color: white !important;
         animation: pulse 1s infinite;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .recording-dot {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 14px;
+        height: 14px;
+        background-color: #fff;
+        border-radius: 50%;
+        border: 2px solid #dc3545;
+        animation: pulse 1s infinite;
+        z-index: 10;
+        display: block !important;
+        box-shadow: 0 0 4px rgba(220, 53, 69, 0.8);
+    }
+    
+    .recording-dot-inline {
+        display: inline-block !important;
+        width: 14px;
+        height: 14px;
+        background-color: #dc3545;
+        border-radius: 50%;
+        animation: pulse 1s infinite;
+        box-shadow: 0 0 4px rgba(220, 53, 69, 0.8);
     }
     
     /* Mic button - only show on first row */
@@ -660,6 +688,7 @@
             inputField.placeholder = 'Enter customer full name';
             controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
             controlBtn.style.removeProperty('animation');
+            controlBtn.style.position = '';
             controlBtn.classList.add('mic-btn');
             controlBtn.classList.remove('play-pause-btn');
             controlBtn.classList.remove('recording');
@@ -885,21 +914,47 @@
                 const existingIndicator = nameCol.querySelector('.recording-indicator');
                 if (existingIndicator) existingIndicator.remove();
                 
-                // Add recording indicator - make it more visible
+                // Update button to show recording state FIRST - before starting recording
+                // Remove all existing classes that might interfere
+                controlBtn.className = controlBtn.className.replace(/mic-btn|play-pause-btn/g, '').trim();
+                controlBtn.classList.add('recording', 'btn', 'btn-outline-primary');
+                
+                // Use microphone icon with red dot overlay to show recording - make it very visible
+                controlBtn.innerHTML = '<i class="ti ti-microphone"></i><span class="recording-dot"></span>';
+                controlBtn.title = 'Recording... Click to stop';
+                controlBtn.style.display = 'flex';
+                controlBtn.style.alignItems = 'center';
+                controlBtn.style.justifyContent = 'center';
+                controlBtn.style.position = 'relative';
+                controlBtn.style.minWidth = '44px';
+                controlBtn.style.width = 'auto';
+                
+                // Force a reflow to ensure visual update happens immediately
+                controlBtn.offsetHeight; // Force reflow
+                window.getComputedStyle(controlBtn).getPropertyValue('background-color'); // Force style recalculation
+                
+                // Add recording indicator - make it very visible
                 const recordingIndicator = document.createElement('div');
                 recordingIndicator.className = 'recording-indicator mt-2 mb-1';
                 recordingIndicator.style.display = 'block';
+                recordingIndicator.style.visibility = 'visible';
+                recordingIndicator.style.opacity = '1';
                 recordingIndicator.innerHTML = `
-                    <small class="text-danger fw-bold d-flex align-items-center">
-                        <i class="ti ti-record me-2" style="font-size: 1.2rem;"></i>Recording...
+                    <small class="text-danger fw-bold d-flex align-items-center" style="font-size: 0.95rem;">
+                        <span class="recording-dot-inline me-2" style="display: inline-block !important;"></span>
+                        <strong>Recording...</strong>
                     </small>
                 `;
-                nameCol.appendChild(recordingIndicator);
                 
-                // Update button to show recording state
-                controlBtn.classList.add('recording');
-                controlBtn.innerHTML = '<i class="ti ti-record"></i>';
-                controlBtn.title = 'Recording... Click to stop';
+                // Insert after the input field's parent (input-group)
+                if (inputGroup && inputGroup.parentNode) {
+                    inputGroup.parentNode.insertBefore(recordingIndicator, inputGroup.nextSibling);
+                } else {
+                    nameCol.appendChild(recordingIndicator);
+                }
+                
+                // Force a reflow for recording indicator
+                recordingIndicator.offsetHeight;
                 
                 const existingAudio = nameCol.querySelector('.audio-player-container');
                 if (existingAudio) existingAudio.remove();
@@ -915,8 +970,10 @@
                     
                     // Reset button to mic icon
                     controlBtn.classList.remove('recording');
+                    controlBtn.classList.add('mic-btn');
                     controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
                     controlBtn.title = 'Voice Input';
+                    controlBtn.style.position = '';
                     
                     // Clear active references
                     activeRecognition = null;
@@ -970,8 +1027,10 @@
                     const indicator = nameCol.querySelector('.recording-indicator');
                     if (indicator) indicator.remove();
                     controlBtn.classList.remove('recording');
+                    controlBtn.classList.add('mic-btn');
                     controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
                     controlBtn.title = 'Voice Input';
+                    controlBtn.style.position = '';
                     alert('Speech error: ' + event.error);
                     resetRecordingUI(inputField, controlBtn, nameCol);
                     if (activeMediaRecorder && activeMediaRecorder.state === 'recording') activeMediaRecorder.stop();
