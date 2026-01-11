@@ -991,24 +991,60 @@
                 const existingIndicator = nameCol.querySelector('.recording-indicator');
                 if (existingIndicator) existingIndicator.remove();
                 
-                // Update button to show recording state FIRST - before starting recording
-                // Remove all existing classes that might interfere
+                // Remove existing control buttons if any
+                const existingStopBtn = inputGroup.querySelector('.stop-recording-btn');
+                const existingPlayBtn = inputGroup.querySelector('.play-recording-btn');
+                const existingPauseBtn = inputGroup.querySelector('.pause-recording-btn');
+                if (existingStopBtn) existingStopBtn.remove();
+                if (existingPlayBtn) existingPlayBtn.remove();
+                if (existingPauseBtn) existingPauseBtn.remove();
+                
+                // Hide mic button during recording
+                controlBtn.style.display = 'none';
+                
+                // Create Stop button
+                const stopBtn = document.createElement('button');
+                stopBtn.type = 'button';
+                stopBtn.className = 'btn btn-outline-danger stop-recording-btn d-flex align-items-center justify-content-center';
+                stopBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto;';
+                stopBtn.innerHTML = '<i class="ti ti-stop"></i>';
+                stopBtn.title = 'Stop Recording';
+                inputGroup.appendChild(stopBtn);
+                
+                // Create Play button (initially hidden, will show after recording)
+                const playBtn = document.createElement('button');
+                playBtn.type = 'button';
+                playBtn.className = 'btn btn-outline-success play-recording-btn d-flex align-items-center justify-content-center';
+                playBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; display: none;';
+                playBtn.innerHTML = '<i class="ti ti-play"></i>';
+                playBtn.title = 'Play Recording';
+                inputGroup.appendChild(playBtn);
+                
+                // Create Pause button (initially hidden, will show after recording)
+                const pauseBtn = document.createElement('button');
+                pauseBtn.type = 'button';
+                pauseBtn.className = 'btn btn-outline-warning pause-recording-btn d-flex align-items-center justify-content-center';
+                pauseBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; display: none;';
+                pauseBtn.innerHTML = '<i class="ti ti-pause"></i>';
+                pauseBtn.title = 'Pause Recording';
+                inputGroup.appendChild(pauseBtn);
+                
+                // Stop button click handler
+                stopBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    stopRecording();
+                });
+                
+                // Update mic button to show recording state (for visual feedback)
                 controlBtn.className = controlBtn.className.replace(/mic-btn|play-pause-btn/g, '').trim();
                 controlBtn.classList.add('recording', 'btn', 'btn-outline-primary');
-                
-                // Use microphone icon with red dot overlay to show recording - make it very visible
                 controlBtn.innerHTML = '<i class="ti ti-microphone"></i><span class="recording-dot"></span>';
-                controlBtn.title = 'Recording... Click to stop';
-                controlBtn.style.display = 'flex';
-                controlBtn.style.alignItems = 'center';
-                controlBtn.style.justifyContent = 'center';
-                controlBtn.style.position = 'relative';
-                controlBtn.style.minWidth = '44px';
-                controlBtn.style.width = 'auto';
+                controlBtn.title = 'Recording...';
                 
                 // Force a reflow to ensure visual update happens immediately
-                controlBtn.offsetHeight; // Force reflow
-                window.getComputedStyle(controlBtn).getPropertyValue('background-color'); // Force style recalculation
+                controlBtn.offsetHeight;
+                window.getComputedStyle(controlBtn).getPropertyValue('background-color');
                 
                 // Add recording indicator - make it very visible
                 const recordingIndicator = document.createElement('div');
@@ -1077,22 +1113,56 @@
                     `;
                     nameCol.appendChild(audioContainer);
                     
-                    // Update button to show play/pause icons - make it very visible
-                    controlBtn.className = 'btn btn-outline-primary play-pause-btn d-flex align-items-center justify-content-center';
-                    controlBtn.style.display = 'flex';
-                    controlBtn.style.alignItems = 'center';
-                    controlBtn.style.justifyContent = 'center';
-                    controlBtn.style.position = 'relative';
-                    controlBtn.style.minWidth = '44px';
-                    controlBtn.style.width = 'auto';
-                    controlBtn.style.flexShrink = '0';
-                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
-                    controlBtn.title = 'Play Recording';
+                    // Get audio element
+                    const audioElement = audioContainer.querySelector('audio');
                     
-                    // Store references for play/pause functionality
+                    // Hide stop button and show play/pause buttons
+                    const stopBtn = inputGroup.querySelector('.stop-recording-btn');
+                    const playBtn = inputGroup.querySelector('.play-recording-btn');
+                    const pauseBtn = inputGroup.querySelector('.pause-recording-btn');
+                    
+                    if (stopBtn) stopBtn.style.display = 'none';
+                    if (playBtn) {
+                        playBtn.style.display = 'flex';
+                        // Play button click handler
+                        playBtn.onclick = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (audioElement) {
+                                audioElement.play().then(() => {
+                                    playBtn.style.display = 'none';
+                                    if (pauseBtn) pauseBtn.style.display = 'flex';
+                                }).catch(err => {
+                                    console.error('Error playing audio:', err);
+                                });
+                            }
+                        };
+                    }
+                    if (pauseBtn) {
+                        pauseBtn.style.display = 'none';
+                        // Pause button click handler
+                        pauseBtn.onclick = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (audioElement) {
+                                audioElement.pause();
+                                pauseBtn.style.display = 'none';
+                                if (playBtn) playBtn.style.display = 'flex';
+                            }
+                        };
+                    }
+                    
+                    // Show mic button again
+                    controlBtn.style.display = 'flex';
+                    controlBtn.className = 'btn btn-outline-primary mic-btn d-flex align-items-center justify-content-center';
+                    controlBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; display: flex; align-items: center; justify-content: center;';
+                    controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
+                    controlBtn.title = 'Voice Input';
+                    
+                    // Store audio reference
                     controlBtn.dataset.audioUrl = audioURL;
                     
-                    // Force reflow to ensure button is visible
+                    // Force reflow
                     void controlBtn.offsetWidth;
                     void controlBtn.offsetHeight;
                     
@@ -1119,7 +1189,7 @@
                     activeStream = null;
                     hasSpeech = false;
                 };
-                // Function to stop recording and show play/stop buttons
+                // Function to stop recording
                 const stopRecording = function() {
                     if (recordingTimeout) {
                         clearTimeout(recordingTimeout);
@@ -1132,6 +1202,10 @@
                     if (activeMediaRecorder && activeMediaRecorder.state === 'recording') {
                         activeMediaRecorder.stop();
                     }
+                    
+                    // Hide stop button immediately
+                    const stopBtn = inputGroup.querySelector('.stop-recording-btn');
+                    if (stopBtn) stopBtn.style.display = 'none';
                 };
 
                 activeMediaRecorder.start();
