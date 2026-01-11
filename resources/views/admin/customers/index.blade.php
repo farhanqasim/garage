@@ -1364,100 +1364,118 @@
                 });
                 
                 if (canvas) {
-                    // Store cropped image as base64 first
+                    // Get all required elements
+                    const preview = document.getElementById('profile_preview');
+                    const croppedInput = document.getElementById('profile_img_cropped');
+                    const profileInput = document.getElementById('profile_img');
+                    const previewContainer = document.querySelector('.profile-preview-container');
+                    const removeBtn = document.querySelector('.remove-profile-image');
+                    const cropBtn = document.querySelector('.crop-profile-image');
+                    
+                    // Get base64 data URL directly from canvas (synchronous, reliable)
+                    const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    // Ensure preview container is shown first
+                    if (previewContainer) {
+                        previewContainer.style.display = 'block';
+                        previewContainer.style.visibility = 'visible';
+                        previewContainer.style.opacity = '1';
+                    }
+                    
+                    // Update preview with cropped image immediately using data URL
+                    if (preview) {
+                        // Set the image source directly from canvas data URL
+                        preview.src = dataURL;
+                        
+                        // Force display styles
+                        preview.style.display = 'block';
+                        preview.style.visibility = 'visible';
+                        preview.style.opacity = '1';
+                        preview.style.maxHeight = '180px';
+                        preview.style.maxWidth = '100%';
+                        
+                        // Clear any previous error handlers
+                        preview.onerror = null;
+                        
+                        // Add error handler as backup
+                        preview.onerror = function() {
+                            console.error('Failed to load cropped image from data URL');
+                            // Try alternative method if data URL fails
+                            canvas.toBlob(function(blob) {
+                                if (blob) {
+                                    const url = URL.createObjectURL(blob);
+                                    preview.src = url;
+                                }
+                            }, 'image/jpeg', 0.9);
+                        };
+                        
+                        // Ensure image is visible after load
+                        preview.onload = function() {
+                            this.style.display = 'block';
+                            this.style.visibility = 'visible';
+                        };
+                    }
+                    
+                    // Store base64 in hidden input immediately
+                    if (croppedInput) {
+                        croppedInput.value = dataURL;
+                    }
+                    
+                    // Convert canvas to blob for file input
+                    const originalFileName = profileImageFile ? profileImageFile.name : 'cropped_image.jpg';
+                    
                     canvas.toBlob(function(blob) {
-                        const preview = document.getElementById('profile_preview');
-                        const croppedInput = document.getElementById('profile_img_cropped');
-                        const profileInput = document.getElementById('profile_img');
-                        const previewContainer = document.querySelector('.profile-preview-container');
-                        const removeBtn = document.querySelector('.remove-profile-image');
-                        const cropBtn = document.querySelector('.crop-profile-image');
-                        
-                        // Create cropped image URL for preview
-                        const url = URL.createObjectURL(blob);
-                        
-                        // Ensure preview container is shown first
-                        if (previewContainer) {
-                            previewContainer.style.display = 'block';
-                            previewContainer.style.visibility = 'visible';
-                            previewContainer.style.opacity = '1';
-                        }
-                        
-                        // Update preview with cropped image immediately
-                        if (preview) {
-                            // Clear any existing error handlers
-                            preview.onerror = null;
-                            preview.onload = null;
-                            
-                            // Set the image source
-                            preview.src = url;
-                            
-                            // Force display styles
-                            preview.style.display = 'block';
-                            preview.style.visibility = 'visible';
-                            preview.style.opacity = '1';
-                            preview.style.maxHeight = '180px';
-                            preview.style.maxWidth = '100%';
-                            
-                            // Ensure image loads properly
-                            preview.onload = function() {
-                                this.style.display = 'block';
-                                this.style.visibility = 'visible';
-                                // Force a reflow to ensure visibility
-                                void this.offsetWidth;
-                            };
-                            
-                            preview.onerror = function() {
-                                console.error('Failed to load cropped image');
-                                alert('Failed to load cropped image. Please try again.');
-                            };
-                        }
-                        
-                        // Ensure buttons are visible
-                        if (removeBtn) {
-                            removeBtn.style.display = 'flex';
-                        }
-                        if (cropBtn) {
-                            cropBtn.style.display = 'block';
-                        }
-                        
-                        // Force a reflow to ensure everything is visible
-                        if (previewContainer) {
-                            void previewContainer.offsetWidth;
+                        if (!blob) {
+                            console.error('Failed to create blob from canvas');
+                            return;
                         }
                         
                         // Create new file from blob and update file input
-                        const originalFileName = profileImageFile ? profileImageFile.name : 'cropped_image.jpg';
-                        const file = new File([blob], originalFileName, { type: blob.type || 'image/jpeg' });
-                        const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(file);
-                        if (profileInput) profileInput.files = dataTransfer.files;
-                        // Update the stored file reference with cropped version
-                        profileImageFile = file;
+                        const file = new File([blob], originalFileName, { 
+                            type: blob.type || 'image/jpeg',
+                            lastModified: Date.now()
+                        });
                         
-                        // Store cropped image as base64 in hidden input
-                        const reader = new FileReader();
-                        reader.onload = function() {
-                            if (croppedInput) croppedInput.value = reader.result;
-                        };
-                        reader.readAsDataURL(blob);
-                        
-                        // Close modal
-                        const cropModalElement = document.getElementById('imageCropModal');
-                        if (cropModalElement) {
-                            const cropModal = bootstrap.Modal.getInstance(cropModalElement);
-                            if (cropModal) cropModal.hide();
+                        // Update file input
+                        if (profileInput) {
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            profileInput.files = dataTransfer.files;
                         }
                         
-                        // Destroy cropper after a short delay to allow modal to close
-                        setTimeout(function() {
-                            if (cropper) {
-                                cropper.destroy();
-                                cropper = null;
-                            }
-                        }, 300);
-                        
+                        // Update the stored file reference with cropped version
+                        profileImageFile = file;
                     }, 'image/jpeg', 0.9);
+                    
+                    // Ensure buttons are visible
+                    if (removeBtn) {
+                        removeBtn.style.display = 'flex';
+                    }
+                    if (cropBtn) {
+                        cropBtn.style.display = 'block';
+                    }
+                    
+                    // Force a reflow to ensure everything is visible
+                    if (previewContainer) {
+                        void previewContainer.offsetWidth;
+                    }
+                    
+                    // Close modal
+                    const cropModalElement = document.getElementById('imageCropModal');
+                    if (cropModalElement) {
+                        const cropModal = bootstrap.Modal.getInstance(cropModalElement);
+                        if (cropModal) cropModal.hide();
+                    }
+                    
+                    // Destroy cropper after a short delay to allow modal to close
+                    setTimeout(function() {
+                        if (cropper) {
+                            cropper.destroy();
+                            cropper = null;
+                        }
+                    }, 300);
+                } else {
+                    alert('Failed to get cropped canvas. Please try again.');
                 }
             }
         });
