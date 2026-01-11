@@ -2339,7 +2339,8 @@
         const formData = new FormData();
         formData.append('name', name);
         formData.append('short_name', short);
-        formData.append('allow_decimal', document.getElementById('unit-allow-decimal').value);
+        const allowDecimal = document.getElementById('unit-allow-decimal').value || '0';
+        formData.append('allow_decimal', allowDecimal);
         formData.append('decimal_after_point_digit', document.getElementById('unit-decimal-precision').value || 2);
         // Only send base_units if checkbox is checked
         if (document.getElementById('unit-has-base').checked) {
@@ -2352,15 +2353,27 @@
         const url = editId ? `/units/${editId}` : '/post/units';
         const method = editId ? 'PUT' : 'POST';
         
+        // Add _method for PUT requests (Laravel requirement)
+        if (editId) {
+            formData.append('_method', 'PUT');
+        }
+        
         fetch(url, {
-            method: method,
+            method: 'POST', // Always use POST, Laravel will use _method to determine PUT
             body: formData,
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw { status: response.status, errors: err };
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success && data.unit) {
                 // Update unitsData with the new/updated unit
@@ -2407,6 +2420,28 @@
                 resetForm();
             } else {
                 alert(data.message || 'Error saving unit. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving unit:', error);
+            if (error.errors) {
+                // Handle validation errors
+                let errorMessages = [];
+                if (error.errors.name) {
+                    errorMessages.push('Name: ' + error.errors.name.join(', '));
+                }
+                if (error.errors.short_name) {
+                    errorMessages.push('Short Name: ' + error.errors.short_name.join(', '));
+                }
+                if (error.errors.allow_decimal) {
+                    errorMessages.push('Allow Decimal: ' + error.errors.allow_decimal.join(', '));
+                }
+                if (error.errors.decimal_after_point_digit) {
+                    errorMessages.push('Decimal Precision: ' + error.errors.decimal_after_point_digit.join(', '));
+                }
+                alert('Validation Error:\n' + errorMessages.join('\n'));
+            } else {
+                alert('Error saving unit. Please try again.');
             }
         })
         .catch(error => {

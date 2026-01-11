@@ -114,7 +114,6 @@ class ItemController extends Controller
         // return $Vehicals;
         $items       = Item::all();
         $units = Unit::with(['baseUnit', 'baseUnits'])->where('status', 'active')->orderBy('name')->get();
-
         return $units;
         $carCompanies     = CarCompany::orderBy('name')->get();
         $carNames         = CarName::orderBy('name')->get();
