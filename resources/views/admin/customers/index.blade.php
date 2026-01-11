@@ -53,10 +53,22 @@
         margin: 0;
     }
     .input-group .btn i {
-        font-size: 1rem;
-        line-height: 1;
-        display: inline-flex;
+        font-size: 1rem !important;
+        line-height: 1 !important;
+        display: inline-block !important;
         align-items: center;
+        font-family: 'tabler-icons' !important;
+    }
+    .stop-recording-btn i,
+    .play-recording-btn i,
+    .pause-recording-btn i {
+        font-size: 1rem !important;
+        display: inline-block !important;
+        line-height: 1 !important;
+        width: auto !important;
+        height: auto !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     .input-group .mic-btn {
         display: flex !important;
@@ -1002,12 +1014,15 @@
                 // Hide mic button during recording
                 controlBtn.style.display = 'none';
                 
-                // Create Stop button
+                // Create Stop button with visible icon
                 const stopBtn = document.createElement('button');
                 stopBtn.type = 'button';
                 stopBtn.className = 'btn btn-outline-danger stop-recording-btn d-flex align-items-center justify-content-center';
-                stopBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto;';
-                stopBtn.innerHTML = '<i class="ti ti-stop"></i>';
+                stopBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; padding: 0.375rem 0.75rem;';
+                const stopIcon = document.createElement('i');
+                stopIcon.className = 'ti ti-stop';
+                stopIcon.style.cssText = 'font-size: 1rem !important; display: inline-block !important; line-height: 1 !important; visibility: visible !important; opacity: 1 !important;';
+                stopBtn.appendChild(stopIcon);
                 stopBtn.title = 'Stop Recording';
                 inputGroup.appendChild(stopBtn);
                 
@@ -1015,8 +1030,11 @@
                 const playBtn = document.createElement('button');
                 playBtn.type = 'button';
                 playBtn.className = 'btn btn-outline-success play-recording-btn d-flex align-items-center justify-content-center';
-                playBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; display: none;';
-                playBtn.innerHTML = '<i class="ti ti-play"></i>';
+                playBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; padding: 0.375rem 0.75rem; display: none;';
+                const playIcon = document.createElement('i');
+                playIcon.className = 'ti ti-play';
+                playIcon.style.cssText = 'font-size: 1rem !important; display: inline-block !important; line-height: 1 !important; visibility: visible !important; opacity: 1 !important;';
+                playBtn.appendChild(playIcon);
                 playBtn.title = 'Play Recording';
                 inputGroup.appendChild(playBtn);
                 
@@ -1024,8 +1042,11 @@
                 const pauseBtn = document.createElement('button');
                 pauseBtn.type = 'button';
                 pauseBtn.className = 'btn btn-outline-warning pause-recording-btn d-flex align-items-center justify-content-center';
-                pauseBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; display: none;';
-                pauseBtn.innerHTML = '<i class="ti ti-pause"></i>';
+                pauseBtn.style.cssText = 'flex-shrink: 0; min-width: 44px; width: auto; padding: 0.375rem 0.75rem; display: none;';
+                const pauseIcon = document.createElement('i');
+                pauseIcon.className = 'ti ti-pause';
+                pauseIcon.style.cssText = 'font-size: 1rem !important; display: inline-block !important; line-height: 1 !important; visibility: visible !important; opacity: 1 !important;';
+                pauseBtn.appendChild(pauseIcon);
                 pauseBtn.title = 'Pause Recording';
                 inputGroup.appendChild(pauseBtn);
                 
