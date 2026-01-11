@@ -944,13 +944,15 @@
             }
 
             activeRecognition = new SpeechRecognition();
-            activeRecognition.continuous = false;
-            activeRecognition.interimResults = false;
+            activeRecognition.continuous = true; // Continuous listening
+            activeRecognition.interimResults = true; // Get interim results
             activeRecognition.lang = 'en-US';
 
             activeMediaRecorder = null;
             let audioChunks = [];
             let transcript = '';
+            let recordingTimeout = null;
+            let hasSpeech = false; // Track if user has spoken
 
             if (playPauseBtn) {
                 const audio = inputGroup.querySelector('audio');
@@ -1028,24 +1030,46 @@
                 activeMediaRecorder = new MediaRecorder(stream);
                 activeMediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
                 activeMediaRecorder.onstop = () => {
+                    // Clear timeout if still active
+                    if (recordingTimeout) {
+                        clearTimeout(recordingTimeout);
+                        recordingTimeout = null;
+                    }
+                    
                     // Remove recording indicator
                     const indicator = nameCol.querySelector('.recording-indicator');
                     if (indicator) indicator.remove();
                     
-                    // Reset button to mic icon
-                    controlBtn.classList.remove('recording');
-                    controlBtn.classList.add('mic-btn');
-                    controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
-                    controlBtn.title = 'Voice Input';
-                    controlBtn.style.position = '';
+                    // Stop recognition if still running
+                    if (activeRecognition && activeRecognition.state === 'running') {
+                        activeRecognition.stop();
+                    }
                     
-                    // Clear active references
-                    activeRecognition = null;
-                    activeMediaRecorder = null;
-                    activeStream = null;
+                    // Stop stream
+                    if (activeStream) {
+                        activeStream.getTracks().forEach(track => track.stop());
+                    }
                     
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     const audioURL = URL.createObjectURL(audioBlob);
+                    
+                    // Create audio element
+                    const audio = document.createElement('audio');
+                    audio.src = audioURL;
+                    audio.className = 'w-100';
+                    audio.controls = true;
+                    
+                    // Update button to show play/stop icons
+                    controlBtn.classList.remove('recording', 'mic-btn');
+                    controlBtn.classList.add('play-pause-btn');
+                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
+                    controlBtn.title = 'Play/Pause Recording';
+                    controlBtn.style.position = '';
+                    
+                    // Store audio reference for play/pause functionality
+                    controlBtn.dataset.audioUrl = audioURL;
+                    
+                    // Create audio container
                     const audioContainer = document.createElement('div');
                     audioContainer.className = 'audio-player-container mt-2';
                     audioContainer.innerHTML = `
@@ -1057,6 +1081,27 @@
                         </button>
                     `;
                     nameCol.appendChild(audioContainer);
+                    
+                    // Store audio element for play/pause button
+                    const audioElement = audioContainer.querySelector('audio');
+                    controlBtn.dataset.audioElement = audioElement;
+                    
+                    // Add play/pause functionality
+                    controlBtn.addEventListener('click', function(e) {
+                        if (e.target.closest('.play-pause-btn')) {
+                            const audio = audioContainer.querySelector('audio');
+                            if (audio) {
+                                if (audio.paused) {
+                                    audio.play();
+                                    controlBtn.innerHTML = '<i class="ti ti-pause"></i>';
+                                } else {
+                                    audio.pause();
+                                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
+                                }
+                            }
+                        }
+                    });
+                    
                     const fileInput = document.createElement('input');
                     fileInput.type = 'file';
                     fileInput.name = 'voice_note';
@@ -1067,27 +1112,80 @@
                     fileInput.files = dataTransfer.files;
                     const form = document.getElementById('customerForm');
                     if (form) form.appendChild(fileInput);
+                    
                     inputField.style.removeProperty('textShadow');
                     inputField.style.color = '';
                     inputField.style.backgroundColor = 'lightgreen';
                     inputField.placeholder = 'Voice transcribed';
                     if (transcript.trim()) inputField.value = transcript.trim();
-                    controlBtn.classList.add('mic-btn');
-                    controlBtn.classList.remove('play-pause-btn');
-                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Clear active references
+                    activeRecognition = null;
+                    activeMediaRecorder = null;
+                    activeStream = null;
+                    hasSpeech = false;
                 };
+                // Function to stop recording and show play/stop buttons
+                const stopRecording = function() {
+                    if (recordingTimeout) {
+                        clearTimeout(recordingTimeout);
+                        recordingTimeout = null;
+                    }
+                    
+                    if (activeRecognition) {
+                        activeRecognition.stop();
+                    }
+                    if (activeMediaRecorder && activeMediaRecorder.state === 'recording') {
+                        activeMediaRecorder.stop();
+                    }
+                };
+
                 activeMediaRecorder.start();
                 activeRecognition.start();
-                activeRecognition.onresult = (event) => { 
-                    transcript = event.results[0][0].transcript;
+                
+                // Set 30 second timeout - recording will stop after 30 seconds regardless
+                recordingTimeout = setTimeout(function() {
+                    stopRecording();
+                }, 30000); // 30 seconds
+                
+                activeRecognition.onresult = (event) => {
+                    // Get the latest transcript
+                    let latestTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            latestTranscript += event.results[i][0].transcript;
+                            hasSpeech = true;
+                        } else {
+                            latestTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    
+                    transcript = latestTranscript;
+                    
                     if (transcript.trim()) {
                         inputField.value = transcript.trim();
                         inputField.style.color = '';
                         inputField.style.textShadow = '';
                         inputField.style.backgroundColor = '';
                     }
+                    
+                    // If user has spoken and we have final results, stop recording
+                    if (hasSpeech && event.results[event.results.length - 1].isFinal) {
+                        // Small delay to capture complete speech
+                        setTimeout(function() {
+                            if (activeRecognition && activeRecognition.state === 'running') {
+                                stopRecording();
+                            }
+                        }, 500);
+                    }
                 };
+                
                 activeRecognition.onerror = (event) => {
+                    if (recordingTimeout) {
+                        clearTimeout(recordingTimeout);
+                        recordingTimeout = null;
+                    }
+                    
                     const indicator = nameCol.querySelector('.recording-indicator');
                     if (indicator) indicator.remove();
                     controlBtn.classList.remove('recording');
@@ -1095,7 +1193,12 @@
                     controlBtn.innerHTML = '<i class="ti ti-microphone"></i>';
                     controlBtn.title = 'Voice Input';
                     controlBtn.style.position = '';
-                    alert('Speech error: ' + event.error);
+                    
+                    // Only show error for non-user-initiated stops
+                    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                        alert('Speech error: ' + event.error);
+                    }
+                    
                     resetRecordingUI(inputField, controlBtn, nameCol);
                     if (activeMediaRecorder && activeMediaRecorder.state === 'recording') activeMediaRecorder.stop();
                     if (activeStream) {
@@ -1105,13 +1208,24 @@
                     activeRecognition = null;
                     activeMediaRecorder = null;
                     activeStream = null;
+                    hasSpeech = false;
                 };
+                
                 activeRecognition.onend = () => {
-                    if (activeMediaRecorder && activeMediaRecorder.state === 'recording') {
-                        activeMediaRecorder.stop();
-                    }
-                    if (activeStream) {
-                        activeStream.getTracks().forEach(track => track.stop());
+                    // If recognition ended but we're still recording, restart it (for continuous mode)
+                    // But only if we haven't reached 30 seconds and user hasn't spoken
+                    if (activeMediaRecorder && activeMediaRecorder.state === 'recording' && !hasSpeech && recordingTimeout) {
+                        try {
+                            activeRecognition.start();
+                        } catch (e) {
+                            // If can't restart, stop recording
+                            stopRecording();
+                        }
+                    } else {
+                        // Stop recording if recognition ended and we have speech or timeout
+                        if (activeMediaRecorder && activeMediaRecorder.state === 'recording') {
+                            activeMediaRecorder.stop();
+                        }
                     }
                 };
             } catch (err) {
