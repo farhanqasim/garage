@@ -955,14 +955,25 @@
             let hasSpeech = false; // Track if user has spoken
 
             if (playPauseBtn) {
-                const audio = inputGroup.querySelector('audio');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Get audio container and element
+                const audioContainer = nameCol.querySelector('.audio-player-container');
+                const audio = audioContainer ? audioContainer.querySelector('audio') : null;
+                
                 if (audio) {
                     if (audio.paused) {
-                        audio.play();
-                        controlBtn.innerHTML = '<i class="ti ti-pause"></i>';
+                        audio.play().then(() => {
+                            controlBtn.innerHTML = '<i class="ti ti-pause"></i>';
+                            controlBtn.title = 'Pause Recording';
+                        }).catch(err => {
+                            console.error('Error playing audio:', err);
+                        });
                     } else {
                         audio.pause();
                         controlBtn.innerHTML = '<i class="ti ti-play"></i>';
+                        controlBtn.title = 'Play Recording';
                     }
                 }
                 return;
@@ -1053,23 +1064,7 @@
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     const audioURL = URL.createObjectURL(audioBlob);
                     
-                    // Create audio element
-                    const audio = document.createElement('audio');
-                    audio.src = audioURL;
-                    audio.className = 'w-100';
-                    audio.controls = true;
-                    
-                    // Update button to show play/stop icons
-                    controlBtn.classList.remove('recording', 'mic-btn');
-                    controlBtn.classList.add('play-pause-btn');
-                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
-                    controlBtn.title = 'Play/Pause Recording';
-                    controlBtn.style.position = '';
-                    
-                    // Store audio reference for play/pause functionality
-                    controlBtn.dataset.audioUrl = audioURL;
-                    
-                    // Create audio container
+                    // Create audio container with player
                     const audioContainer = document.createElement('div');
                     audioContainer.className = 'audio-player-container mt-2';
                     audioContainer.innerHTML = `
@@ -1082,25 +1077,24 @@
                     `;
                     nameCol.appendChild(audioContainer);
                     
-                    // Store audio element for play/pause button
-                    const audioElement = audioContainer.querySelector('audio');
-                    controlBtn.dataset.audioElement = audioElement;
+                    // Update button to show play/pause icons - make it very visible
+                    controlBtn.className = 'btn btn-outline-primary play-pause-btn d-flex align-items-center justify-content-center';
+                    controlBtn.style.display = 'flex';
+                    controlBtn.style.alignItems = 'center';
+                    controlBtn.style.justifyContent = 'center';
+                    controlBtn.style.position = 'relative';
+                    controlBtn.style.minWidth = '44px';
+                    controlBtn.style.width = 'auto';
+                    controlBtn.style.flexShrink = '0';
+                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
+                    controlBtn.title = 'Play Recording';
                     
-                    // Add play/pause functionality
-                    controlBtn.addEventListener('click', function(e) {
-                        if (e.target.closest('.play-pause-btn')) {
-                            const audio = audioContainer.querySelector('audio');
-                            if (audio) {
-                                if (audio.paused) {
-                                    audio.play();
-                                    controlBtn.innerHTML = '<i class="ti ti-pause"></i>';
-                                } else {
-                                    audio.pause();
-                                    controlBtn.innerHTML = '<i class="ti ti-play"></i>';
-                                }
-                            }
-                        }
-                    });
+                    // Store references for play/pause functionality
+                    controlBtn.dataset.audioUrl = audioURL;
+                    
+                    // Force reflow to ensure button is visible
+                    void controlBtn.offsetWidth;
+                    void controlBtn.offsetHeight;
                     
                     const fileInput = document.createElement('input');
                     fileInput.type = 'file';
