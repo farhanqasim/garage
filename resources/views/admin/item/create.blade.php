@@ -2103,14 +2103,21 @@
     // These functions are now defined in the Unit Manager section above
     // ========== UNIT MANAGER FUNCTIONS (EXACT FROM YOUR HTML) ==========
     @php
+        // Load all units with their base units (including multiple entries for same base unit)
         $unitsDataArray = $units->map(function($unit) {
-            $conversions = $unit->baseUnits->map(function($bu) {
-                return [
-                    'multiplier' => $bu->pivot->multiplier ?? 1,
-                    'base' => $bu->name,
-                    'base_id' => $bu->id
-                ];
-            })->toArray();
+            // Get all base units from unit_base_units table (allowing multiple entries with different multipliers)
+            $conversions = \Illuminate\Support\Facades\DB::table('unit_base_units')
+                ->where('unit_id', $unit->id)
+                ->join('units', 'unit_base_units.base_unit_id', '=', 'units.id')
+                ->select('unit_base_units.multiplier', 'units.name as base_name', 'units.id as base_id')
+                ->get()
+                ->map(function($bu) {
+                    return [
+                        'multiplier' => (float) $bu->multiplier,
+                        'base' => $bu->base_name,
+                        'base_id' => $bu->base_id
+                    ];
+                })->toArray();
             
             return [
                 'id' => $unit->id,
