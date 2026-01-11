@@ -432,10 +432,16 @@
         const hasBaseCheckbox = document.getElementById('unit-add-has-base-page');
         if (hasBaseCheckbox && hasBaseCheckbox.checked) {
             document.querySelectorAll('#unit-add-base-rows-page .base-unit-row').forEach(row => {
-                const m = row.querySelector('.multiplier-input').value;
-                const b = row.querySelector('.base-unit-select').value;
-                if (m && b && !isNaN(m) && parseFloat(m) > 0) {
-                    baseUnits.push({ multiplier: parseFloat(m), base_unit_id: parseInt(b) });
+                const multiplierInput = row.querySelector('.multiplier-input');
+                const baseUnitSelect = row.querySelector('.base-unit-select');
+                const m = multiplierInput ? multiplierInput.value.trim() : '';
+                const b = baseUnitSelect ? baseUnitSelect.value.trim() : '';
+                
+                // Save row if base unit is selected (multiplier can be empty or filled)
+                if (b && b !== '') {
+                    // If multiplier is provided and valid, use it; otherwise use 1 as default
+                    const multiplier = (m && !isNaN(m) && parseFloat(m) > 0) ? parseFloat(m) : 1;
+                    baseUnits.push({ multiplier: multiplier, base_unit_id: parseInt(b) });
                 }
             });
         }
@@ -623,10 +629,16 @@
         const hasBaseCheckbox = document.getElementById('unit-edit-has-base-page');
         if (hasBaseCheckbox && hasBaseCheckbox.checked) {
             document.querySelectorAll('#unit-edit-base-rows-page .base-unit-row').forEach(row => {
-                const m = row.querySelector('.multiplier-input').value;
-                const b = row.querySelector('.base-unit-select').value;
-                if (m && b && !isNaN(m) && parseFloat(m) > 0) {
-                    baseUnits.push({ multiplier: parseFloat(m), base_unit_id: parseInt(b) });
+                const multiplierInput = row.querySelector('.multiplier-input');
+                const baseUnitSelect = row.querySelector('.base-unit-select');
+                const m = multiplierInput ? multiplierInput.value.trim() : '';
+                const b = baseUnitSelect ? baseUnitSelect.value.trim() : '';
+                
+                // Save row if base unit is selected (multiplier can be empty or filled)
+                if (b && b !== '') {
+                    // If multiplier is provided and valid, use it; otherwise use 1 as default
+                    const multiplier = (m && !isNaN(m) && parseFloat(m) > 0) ? parseFloat(m) : 1;
+                    baseUnits.push({ multiplier: multiplier, base_unit_id: parseInt(b) });
                 }
             });
         }
