@@ -2106,37 +2106,55 @@
         // Load all units with their base units (including multiple entries for same base unit)
         $unitsDataArray = $units->map(function($unit) {
             // Get all base units from unit_base_units table (allowing multiple entries with different multipliers)
+            // This ensures we get ALL entries, even if same base unit has different multipliers
             $conversions = \Illuminate\Support\Facades\DB::table('unit_base_units')
                 ->where('unit_id', $unit->id)
                 ->join('units', 'unit_base_units.base_unit_id', '=', 'units.id')
-                ->select('unit_base_units.multiplier', 'units.name as base_name', 'units.id as base_id')
+                ->select(
+                    'unit_base_units.multiplier', 
+                    'units.name as base_name', 
+                    'units.id as base_id',
+                    'units.short_name as base_short_name'
+                )
+                ->orderBy('unit_base_units.multiplier', 'asc')
                 ->get()
                 ->map(function($bu) {
                     return [
                         'multiplier' => (float) $bu->multiplier,
                         'base' => $bu->base_name,
-                        'base_id' => $bu->base_id
+                        'base_id' => (int) $bu->base_id,
+                        'base_short' => $bu->base_short_name ?? ''
                     ];
                 })->toArray();
             
             return [
-                'id' => $unit->id,
-                'name' => $unit->name,
-                'short' => $unit->short_name,
-                'decimal' => $unit->decimal_after_point_digit ?? 0,
+                'id' => (int) $unit->id,
+                'name' => $unit->name ?? '',
+                'short' => $unit->short_name ?? '',
+                'decimal' => (int) ($unit->decimal_after_point_digit ?? 0),
                 'conversions' => $conversions
             ];
-        })->toArray();
+        })->filter(function($unit) {
+            // Filter out units without name
+            return !empty($unit['name']);
+        })->values()->toArray();
     @endphp
     let unitsData = @json($unitsDataArray);
+    
+    // Debug: Log units data structure
+    console.log('Units Data Structure:', unitsData);
+    console.log('Total Units:', unitsData ? unitsData.length : 0);
     
     // Load units from database and merge with localStorage
     function loadFromStorage() {
         // First, ensure unitsData is available
         if (!unitsData || unitsData.length === 0) {
             console.error('unitsData is empty or not defined');
+            console.log('unitsData value:', unitsData);
             return;
         }
+        
+        console.log('Loading units from storage. Total units:', unitsData.length);
         
         let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
         
@@ -2188,11 +2206,20 @@
         
         if (units.length === 0) {
             console.warn('No units found to render');
+            console.log('unitsData:', unitsData);
+            console.log('localStorage units:', units);
             return;
         }
         
-        units.forEach(u => {
-            if (!u || !u.name) return; // Skip invalid units
+        console.log('Rendering units. Total:', units.length);
+        
+        units.forEach((u, index) => {
+            if (!u || !u.name) {
+                console.warn('Skipping invalid unit at index:', index, u);
+                return; // Skip invalid units
+            }
+            
+            console.log('Rendering unit:', u.name, 'with', u.conversions ? u.conversions.length : 0, 'conversions');
             
             const group = document.createElement('optgroup');
             group.label = u.name;
@@ -2206,19 +2233,28 @@
                         const baseName = c.base || '';
                         const baseId = c.base_id || '';
                         const multiplier = c.multiplier || 1;
-                        const opt = new Option(`1 ${u.name} = ${multiplier} ${baseName}`, `${u.id}-${baseId || baseName}`);
+                        // Use base_id in value for proper identification
+                        const optValue = baseId ? `${u.id}-${baseId}` : `${u.id}-${baseName}`;
+                        const opt = new Option(`1 ${u.name} = ${multiplier} ${baseName}`, optValue);
                         setAttr(opt, u, u.conversions, index);
                         group.appendChild(opt);
                     }
                 });
             } else {
+                // Unit without conversions
                 const opt = new Option(`1 ${u.name}`, u.id);
                 setAttr(opt, u, [], -1);
                 group.appendChild(opt);
             }
             select.appendChild(group);
         });
-        select.value = currentVal;
+        
+        // Restore previous selection if it exists
+        if (currentVal) {
+            select.value = currentVal;
+        }
+        
+        console.log('Units rendered successfully. Total options:', select.options.length);
     }
 
     function setAttr(opt, u, convs, activeIdx) {
