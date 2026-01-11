@@ -32,46 +32,70 @@ class CustomerController extends Controller
 
     public function customer_store(Request $request)
     {
+        // Validate email if provided
+        if ($request->email) {
+            $request->validate([
+                'email' => 'email|unique:customers,email'
+            ], [
+                'email.email' => 'Please enter a valid email address.',
+                'email.unique' => 'This email is already registered. Please use another email address.'
+            ]);
+        }
+
         $plainPassword = $request->password ?? Str::random(12);
 
-        $customer = new Customer();
-        $customer->names            = $request->names ?? [];
-        $customer->phones           = array_filter($request->phones ?? []);
-        $customer->company          = $request->company;
-        $customer->email            = $request->email;
-        $customer->carnumber        = $request->carnumber;
-        $customer->group_id         = $request->group_id;
-        $customer->opening_balance  = $request->opening_balance ?? 0;
-        $customer->as_of_date       = $request->as_of_date;
-        $customer->balance_type     = $request->balance_type ?? 'receive';
-        $customer->password         = Hash::make($plainPassword);
-        $customer->credit_limit_type = $request->credit_limit_type ?? 'no_limit';
-        $customer->credit_limit     = $request->credit_limit_type === 'custom' ? $request->credit_limit : null;
+        try {
+            $customer = new Customer();
+            $customer->names            = $request->names ?? [];
+            $customer->phones           = array_filter($request->phones ?? []);
+            $customer->company          = $request->company;
+            $customer->email            = $request->email;
+            $customer->carnumber        = $request->carnumber;
+            $customer->group_id         = $request->group_id;
+            $customer->opening_balance  = $request->opening_balance ?? 0;
+            $customer->as_of_date       = $request->as_of_date;
+            $customer->balance_type     = $request->balance_type ?? 'receive';
+            $customer->password         = Hash::make($plainPassword);
+            $customer->credit_limit_type = $request->credit_limit_type ?? 'no_limit';
+            $customer->credit_limit     = $request->credit_limit_type === 'custom' ? $request->credit_limit : null;
 
-        if ($request->hasFile('profile_img')) {
-            $customer->profile_img = saveSingleFile($request->file('profile_img'), 'Customer_img');
+            if ($request->hasFile('profile_img')) {
+                $customer->profile_img = saveSingleFile($request->file('profile_img'), 'Customer_img');
+            }
+
+            if ($request->hasFile('visiting_doc')) {
+                $customer->visiting_doc = saveSingleFile($request->file('visiting_doc'), 'Customer_docs');
+            }
+
+            if ($request->hasFile('multiple_images')) {
+                $multipleImages = saveMultipleFiles($request->file('multiple_images'), 'Customer_images');
+                $customer->multiple_images = $multipleImages;
+            }
+
+            if ($request->hasFile('voice_note')) {
+                $customer->voice_note = saveSingleFile($request->file('voice_note'), 'Customer_audio');
+            }
+
+            $customer->save();
+
+            if ($customer->email) {
+                Mail::to($customer->email)->send(new WelcomeCustomerMail($customer->email, $plainPassword));
+            }
+
+            return redirect()->back()->with('success', 'Customer Added Successfully');
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() == 23000) {
+                // Duplicate entry error
+                if (strpos($e->getMessage(), 'customers_email_unique') !== false) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['email' => 'This email is already registered. Please use another email address.']);
+                }
+            }
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'An error occurred while saving the customer. Please try again.']);
         }
-
-        if ($request->hasFile('visiting_doc')) {
-            $customer->visiting_doc = saveSingleFile($request->file('visiting_doc'), 'Customer_docs');
-        }
-
-        if ($request->hasFile('multiple_images')) {
-            $multipleImages = saveMultipleFiles($request->file('multiple_images'), 'Customer_images');
-            $customer->multiple_images = $multipleImages;
-        }
-
-        if ($request->hasFile('voice_note')) {
-            $customer->voice_note = saveSingleFile($request->file('voice_note'), 'Customer_audio');
-        }
-
-        $customer->save();
-
-        if ($customer->email) {
-            Mail::to($customer->email)->send(new WelcomeCustomerMail($customer->email, $plainPassword));
-        }
-
-        return redirect()->back()->with('success', 'Customer Added Successfully');
     }
 
     public function customer_update(Request $request, Customer $customer)

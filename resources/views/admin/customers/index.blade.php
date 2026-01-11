@@ -1617,13 +1617,67 @@
             }
         });
 
-        // Form Submission Spinner (delegated for all forms)
+        // Form Submission Handler with Error Display
         document.addEventListener('submit', function(e) {
             if (e.target.id === 'customerForm') {
                 const submitBtn = e.target.querySelector('button[type="submit"]');
                 const spinner = submitBtn ? submitBtn.querySelector('.spinner-border') : null;
+                const form = e.target;
+                
+                // Clear previous errors
+                const emailInput = form.querySelector('#email');
+                const emailError = document.getElementById('email-error');
+                if (emailInput) {
+                    emailInput.classList.remove('is-invalid');
+                }
+                if (emailError) {
+                    emailError.style.display = 'none';
+                }
+                
+                // Show spinner
                 if (spinner) spinner.classList.remove('d-none');
                 if (submitBtn) submitBtn.disabled = true;
+                
+                // Note: Form will submit normally, errors will be shown via Laravel validation
+                // If form submission fails (network error, etc.), re-enable button
+                setTimeout(function() {
+                    // If form hasn't been redirected (error occurred), re-enable button
+                    if (submitBtn && submitBtn.disabled) {
+                        // Check if we're still on the page after 3 seconds
+                        setTimeout(function() {
+                            if (document.querySelector('#customerForm')) {
+                                submitBtn.disabled = false;
+                                if (spinner) spinner.classList.add('d-none');
+                            }
+                        }, 3000);
+                    }
+                }, 100);
+            }
+        });
+
+        // Display validation errors after page reload (if form submission had errors)
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('customerForm');
+            if (form) {
+                const emailInput = form.querySelector('#email');
+                const emailError = document.getElementById('email-error');
+                
+                // Check if there are server-side validation errors
+                @if($errors->has('email'))
+                    if (emailInput) {
+                        emailInput.classList.add('is-invalid');
+                    }
+                    if (emailError) {
+                        emailError.style.display = 'block';
+                        document.getElementById('email-error-text').textContent = '{{ $errors->first('email') }}';
+                    }
+                    // Reopen modal if it was closed
+                    const modal = document.getElementById('addCustomerModal');
+                    if (modal) {
+                        const bsModal = new bootstrap.Modal(modal);
+                        bsModal.show();
+                    }
+                @endif
             }
         });
 

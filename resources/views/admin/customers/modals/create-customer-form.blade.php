@@ -49,7 +49,15 @@
                 </label>
                 <div class="input-group flex-nowrap">
                     <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-mail"></i></span>
-                    <input type="email" name="email" value="{{ old('email') }}" class="form-control flex-grow-1" placeholder="Optional">
+                    <input type="email" name="email" id="email" value="{{ old('email') }}" class="form-control flex-grow-1 {{ $errors->has('email') ? 'is-invalid' : '' }}" placeholder="Optional">
+                </div>
+                @if($errors->has('email'))
+                    <div class="invalid-feedback d-block text-danger small mt-1">
+                        <i class="ti ti-alert-circle me-1"></i>{{ $errors->first('email') }}
+                    </div>
+                @endif
+                <div id="email-error" class="invalid-feedback d-block text-danger small mt-1" style="display: none;">
+                    <i class="ti ti-alert-circle me-1"></i><span id="email-error-text"></span>
                 </div>
             </div>
         </div>
