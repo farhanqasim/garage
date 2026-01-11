@@ -10,10 +10,10 @@
                 <div class="row g-2 mb-2 align-items-end name-phone-row">
                     <div class="col-12 col-md-6">
                         <label class="form-label small mb-1">Full Name <span class="text-danger">*</span></label>
-                        <div class="input-group " >
-                            <span class="input-group-text "><i class="ti ti-user"></i></span>
-                            <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input" placeholder="Enter name" required>
-                            <button type="button" class="btn btn-outline-primary mic-btn "  title="Voice Input">
+                        <div class="input-group flex-nowrap" style="flex-wrap: nowrap !important; width: 100%; overflow: hidden;">
+                            <span class="input-group-text d-flex align-items-center justify-content-center" style="flex-shrink: 0; min-width: 44px; width: auto;"><i class="ti ti-user"></i></span>
+                            <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input" style="flex: 1 1 auto; min-width: 0; width: 1%;" placeholder="Enter name" required>
+                            <button type="button" class="btn btn-outline-primary mic-btn d-flex align-items-center justify-content-center" style="flex-shrink: 0; min-width: 44px; width: auto;" title="Voice Input">
                                 <i class="ti ti-microphone"></i>
                             </button>
                         </div>

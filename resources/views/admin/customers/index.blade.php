@@ -28,10 +28,29 @@
     .input-group-text {
         border-right: none;
         min-width: 45px;
+        width: auto;
         justify-content: center;
         flex-shrink: 0;
         display: flex;
         align-items: center;
+        padding: 0.5rem 0.75rem;
+    }
+    .input-group .form-control,
+    .input-group .form-select {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .input-group .btn {
+        flex-shrink: 0;
+        min-width: 45px;
+        width: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.375rem 0.75rem;
+    }
+    .input-group .btn i {
+        font-size: 1rem;
     }
     .form-control:focus {
         border-color: #86b7fe;
@@ -116,8 +135,19 @@
             align-items: center;
             justify-content: center;
             min-width: 44px;
-            min-height: 44px;
+            min-height: 38px;
+            height: 38px;
             flex-shrink: 0;
+            padding: 0.375rem 0.5rem;
+        }
+        .input-group-text {
+            height: 38px;
+            min-height: 38px;
+        }
+        .input-group .form-control,
+        .input-group .form-select {
+            height: 38px;
+            min-height: 38px;
         }
         .remove-row.d-none,
         .mic-btn.d-none {
