@@ -1641,7 +1641,7 @@
                 <h5 class="modal-title fw-bold" id="Unit-modal-title">Unit Settings</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="Unit-form" method="POST">
+            <form id="Unit-form" method="POST" onsubmit="event.preventDefault(); saveUnit(); return false;">
                 @csrf
                 <input type="hidden" id="unit-edit-id" name="unit_id" value="">
                 <div class="modal-body p-4">
@@ -1705,7 +1705,7 @@
             </div>
             <div class="modal-footer border-top bg-light">
                 <button type="button" class="btn btn-danger d-none" id="unit-delete-btn" onclick="deleteUnit()">Delete</button>
-                <button type="button" onclick="saveUnit()" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
+                <button type="button" onclick="saveUnit(); return false;" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
             </div>
         </div>
     </div>
@@ -2316,8 +2316,19 @@
     }
 
     function saveUnit() {
-        const name = document.getElementById('unit-name-input').value.trim().toUpperCase();
-        const short = document.getElementById('unit-short-input').value.trim().toUpperCase();
+        // Prevent form submission if it exists
+        const form = document.getElementById('Unit-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { once: true });
+        }
+        
+        const nameInput = document.getElementById('unit-name-input');
+        const shortInput = document.getElementById('unit-short-input');
+        const name = nameInput ? nameInput.value.trim() : '';
+        const short = shortInput ? shortInput.value.trim() : '';
         const editId = document.getElementById('unit-edit-id').value;
         
         if (!name || !short) {
@@ -2325,25 +2336,67 @@
             return;
         }
         
+        // Ensure values are uppercase
+        const nameUpper = name.toUpperCase();
+        const shortUpper = short.toUpperCase();
+        
+        // Collect base units data
         let baseUnits = [];
-        if (document.getElementById('unit-has-base').checked) {
+        const hasBaseCheckbox = document.getElementById('unit-has-base');
+        if (hasBaseCheckbox && hasBaseCheckbox.checked) {
             document.querySelectorAll('#unit-base-rows .base-unit-row').forEach(row => {
-                const m = row.querySelector('.multiplier-input').value;
-                const b = row.querySelector('.base-unit-select').value;
-                if (m && b) {
-                    baseUnits.push({ multiplier: m, base_unit_id: b });
+                const multiplierInput = row.querySelector('.multiplier-input');
+                const baseUnitSelect = row.querySelector('.base-unit-select');
+                if (multiplierInput && baseUnitSelect) {
+                    const m = multiplierInput.value.trim();
+                    const b = baseUnitSelect.value.trim();
+                    if (m && b && !isNaN(m) && parseFloat(m) > 0) {
+                        baseUnits.push({ 
+                            multiplier: parseFloat(m), 
+                            base_unit_id: parseInt(b) 
+                        });
+                    }
                 }
             });
         }
         
+        // Validate required fields before creating FormData
+        if (!nameUpper || nameUpper.length === 0) {
+            alert("Please enter a unit name");
+            const nameInput = document.getElementById('unit-name-input');
+            if (nameInput) nameInput.focus();
+            return;
+        }
+        
+        if (!shortUpper || shortUpper.length === 0) {
+            alert("Please enter a short name");
+            const shortInput = document.getElementById('unit-short-input');
+            if (shortInput) shortInput.focus();
+            return;
+        }
+        
+        // Debug: Log form values before submission
+        console.log('Submitting unit data:', {
+            name: nameUpper,
+            short_name: shortUpper,
+            allow_decimal: allowDecimal,
+            decimal_after_point_digit: decimalPrecision,
+            base_units: baseUnits,
+            editId: editId
+        });
+        
         const formData = new FormData();
-        formData.append('name', name);
-        formData.append('short_name', short);
-        const allowDecimal = document.getElementById('unit-allow-decimal').value || '0';
+        formData.append('name', nameUpper);
+        formData.append('short_name', shortUpper);
+        const allowDecimalEl = document.getElementById('unit-allow-decimal');
+        const allowDecimal = allowDecimalEl ? (allowDecimalEl.value || '0') : '0';
         formData.append('allow_decimal', allowDecimal);
-        formData.append('decimal_after_point_digit', document.getElementById('unit-decimal-precision').value || 2);
-        // Only send base_units if checkbox is checked
-        if (document.getElementById('unit-has-base').checked) {
+        const decimalPrecisionEl = document.getElementById('unit-decimal-precision');
+        const decimalPrecision = decimalPrecisionEl ? (decimalPrecisionEl.value || '2') : '2';
+        formData.append('decimal_after_point_digit', decimalPrecision);
+        
+        // Only send base_units if checkbox is checked and we have valid base units
+        if (hasBaseCheckbox && hasBaseCheckbox.checked && baseUnits.length > 0) {
             baseUnits.forEach((bu, index) => {
                 formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
                 formData.append(`base_units[${index}][base_unit_id]`, bu.base_unit_id);
