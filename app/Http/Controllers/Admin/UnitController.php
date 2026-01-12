@@ -4,116 +4,77 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Unit;
-use App\Models\UnitConversion;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class UnitController extends Controller
 {
      public function all_units()
      {
-        $units = Unit::with(['baseUnit', 'baseUnits'])->get();
+        $units = Unit::with(['baseUnits'])->get();
         // return $units;
         return view('admin.unit.unit', compact('units'));
      }
 
-     public function unit_manager()
-     {
-        $units = Unit::with(['baseUnit', 'baseUnits'])->get();
-        // Format units for frontend
-        $formattedUnits = $units->map(function($unit) {
-            return [
-                'id' => $unit->id,
-                'name' => $unit->name,
-                'short_name' => $unit->short_name,
-                'allow_decimal' => $unit->allow_decimal,
-                'decimal_after_point_digit' => $unit->decimal_after_point_digit,
-                'is_base_unit' => $unit->is_base_unit,
-                'base_units' => $unit->baseUnits->map(function($bu) {
-                    return [
-                        'id' => $bu->id,
-                        'name' => $bu->name,
-                        'short_name' => $bu->short_name,
-                        'multiplier' => $bu->pivot->multiplier ?? 1
-                    ];
-                })->toArray()
-            ];
-        });
-        return view('admin.unit.unit-manager', compact('units', 'formattedUnits'));
-     }
-
     public function post_units(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'short_name' => 'required|string|max:255',
-            'allow_decimal' => 'required|string|in:0,1',
-            'decimal_after_point_digit' => 'nullable|integer|min:0|max:10',
-        ]);
-
+        // Format name: trim and capitalize first letter of each word
+        $name = trim($request->name);
+        $name = ucwords(strtolower($name));
+        
+        // Check for duplicate name (case-insensitive)
+        $existingUnit = Unit::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($name))])
+            ->first();
+        
+        if ($existingUnit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unit with this name already exists. Please use a different name.'
+            ], 422);
+        }
+        
+        // Format short_name: trim and uppercase
+        $shortName = strtoupper(trim($request->short_name));
+        
+        // Check for duplicate short_name (case-insensitive)
+        $existingShortName = Unit::whereRaw('UPPER(TRIM(short_name)) = ?', [$shortName])
+            ->first();
+        
+        if ($existingShortName) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unit with this short name already exists. Please use a different short name.'
+            ], 422);
+        }
+        
         $unit = Unit::create([
-            'name' => strtoupper(trim($request->name)),
-            'short_name' => strtoupper(trim($request->short_name)),
-            'allow_decimal' => $request->allow_decimal ?? '0',
-            'decimal_after_point_digit' => $request->decimal_after_point_digit ?? ($request->allow_decimal == '1' ? ($request->decimal_after_point_digit ?? 2) : 0),
-            'status' => 'active',
+            'name' => $name,
+            'short_name' => $shortName,
+            'allow_decimal' => $request->allow_decimal,
+            'decimal_places' => $request->decimal_places ?? ($request->allow_decimal ? 2 : 0),
         ]);
         
-        // Save multiple base units if provided - allow same base unit with different multipliers
+        // Save multiple base units if provided
+        // Use attach() to allow same base_unit_id with different multipliers
         if ($request->has('base_units') && is_array($request->base_units)) {
-            // First, remove all existing base units for this unit
-            DB::table('unit_base_units')->where('unit_id', $unit->id)->delete();
-            
-            // Then, add all new base units (allowing same base unit with different multipliers)
             foreach ($request->base_units as $baseUnit) {
-                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier']) && is_numeric($baseUnit['multiplier'])) {
-                    // Check if this exact combination already exists (shouldn't happen after delete, but safe check)
-                    $exists = DB::table('unit_base_units')
-                        ->where('unit_id', $unit->id)
-                        ->where('base_unit_id', $baseUnit['base_unit_id'])
-                        ->where('multiplier', (float) $baseUnit['multiplier'])
-                        ->exists();
-                    
-                    if (!$exists) {
-                        DB::table('unit_base_units')->insert([
-                            'unit_id' => $unit->id,
-                            'base_unit_id' => $baseUnit['base_unit_id'],
-                            'multiplier' => (float) $baseUnit['multiplier'],
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
+                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                    // Attach each base unit separately (allows same base_unit_id with different multipliers)
+                    $unit->baseUnits()->attach($baseUnit['base_unit_id'], [
+                        'multiplier' => $baseUnit['multiplier']
+                    ]);
                 }
             }
         }
 
-        // Load base units for response
+        // Reload unit with all base units for response
+        $unit->refresh();
         $unit->load('baseUnits');
-        
-        // Format unit data for frontend
-        $unitData = [
-            'id' => $unit->id,
-            'name' => $unit->name,
-            'short_name' => $unit->short_name,
-            'allow_decimal' => $unit->allow_decimal,
-            'decimal_after_point_digit' => $unit->decimal_after_point_digit,
-            'status' => $unit->status,
-            'base_units' => $unit->baseUnits->map(function($bu) {
-                return [
-                    'id' => $bu->id,
-                    'name' => $bu->name,
-                    'short_name' => $bu->short_name,
-                    'multiplier' => $bu->pivot->multiplier ?? 1
-                ];
-            })->toArray()
-        ];
 
         return response()->json([
             'success' => true,
             'id' => $unit->id,
-            'unit' => $unitData,
-            'base_units_count' => $unit->baseUnits()->count(),
-            'message' => 'Unit created successfully with ' . $unit->baseUnits()->count() . ' base unit(s)'
+            'unit' => $unit,
+            'message' => 'Unit saved successfully with ' . $unit->baseUnits->count() . ' base unit(s)'
         ]);
     }
 
@@ -121,105 +82,90 @@ class UnitController extends Controller
         {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'short_name' => 'required|string|max:255',
-                'allow_decimal' => 'required|string|in:0,1',
-                'decimal_after_point_digit' => 'nullable|integer|min:0|max:10',
+                'short_name' => 'required|string|max:50',
+                'allow_decimal' => 'required|boolean',
             ]);
+            
+            // Format name: trim and capitalize first letter of each word
+            $name = trim($request->name);
+            $name = ucwords(strtolower($name));
+            
+            // Check for duplicate name (case-insensitive, excluding current unit)
+            $existingUnit = Unit::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($name))])
+                ->where('id', '!=', $unit->id)
+                ->first();
+            
+            if ($existingUnit) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unit with this name already exists. Please use a different name.'
+                ], 422);
+            }
+            
+            // Format short_name: trim and uppercase
+            $shortName = strtoupper(trim($request->short_name));
+            
+            // Check for duplicate short_name (case-insensitive, excluding current unit)
+            $existingShortName = Unit::whereRaw('UPPER(TRIM(short_name)) = ?', [$shortName])
+                ->where('id', '!=', $unit->id)
+                ->first();
+            
+            if ($existingShortName) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unit with this short name already exists. Please use a different short name.'
+                ], 422);
+            }
             
             $unit->update([
-                'name' => strtoupper(trim($request->name)),
-                'short_name' => strtoupper(trim($request->short_name)),
-                'allow_decimal' => $request->allow_decimal ?? '0',
-                'decimal_after_point_digit' => $request->decimal_after_point_digit ?? ($request->allow_decimal == '1' ? ($request->decimal_after_point_digit ?? 2) : 0),
+                'name' => $name,
+                'short_name' => $shortName,
+                'allow_decimal' => $request->allow_decimal,
+                'decimal_places' => $request->decimal_places ?? ($request->allow_decimal ? 2 : 0),
             ]);
             
-            // Update multiple base units if provided - allow same base unit with different multipliers
+            // Update multiple base units if provided
             if ($request->has('base_units') && is_array($request->base_units)) {
-                // First, remove all existing base units for this unit
-                DB::table('unit_base_units')->where('unit_id', $unit->id)->delete();
+                // First, detach all existing base units
+                $unit->baseUnits()->detach();
                 
-                // Then, add all new base units (allowing same base unit with different multipliers)
+                // Then attach all new base units (allowing same base_unit_id with different multipliers)
                 foreach ($request->base_units as $baseUnit) {
-                    if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier']) && is_numeric($baseUnit['multiplier'])) {
-                        // Check if this exact combination already exists (shouldn't happen after delete, but safe check)
-                        $exists = DB::table('unit_base_units')
-                            ->where('unit_id', $unit->id)
+                    if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
+                        // Check if this combination already exists to avoid duplicates
+                        $exists = $unit->baseUnits()
                             ->where('base_unit_id', $baseUnit['base_unit_id'])
-                            ->where('multiplier', (float) $baseUnit['multiplier'])
+                            ->wherePivot('multiplier', $baseUnit['multiplier'])
                             ->exists();
                         
                         if (!$exists) {
-                            DB::table('unit_base_units')->insert([
-                                'unit_id' => $unit->id,
-                                'base_unit_id' => $baseUnit['base_unit_id'],
-                                'multiplier' => (float) $baseUnit['multiplier'],
-                                'created_at' => now(),
-                                'updated_at' => now(),
+                            $unit->baseUnits()->attach($baseUnit['base_unit_id'], [
+                                'multiplier' => $baseUnit['multiplier']
                             ]);
                         }
                     }
                 }
             } else {
                 // If no base units provided, remove all base unit relationships
-                DB::table('unit_base_units')->where('unit_id', $unit->id)->delete();
+                $unit->baseUnits()->detach();
             }
             
             // Load base units for response
             $unit->load('baseUnits');
             
-            // Format unit data for frontend
-            $unitData = [
-                'id' => $unit->id,
-                'name' => $unit->name,
-                'short_name' => $unit->short_name,
-                'allow_decimal' => $unit->allow_decimal,
-                'decimal_after_point_digit' => $unit->decimal_after_point_digit,
-                'status' => $unit->status,
-                'base_units' => $unit->baseUnits->map(function($bu) {
-                    return [
-                        'id' => $bu->id,
-                        'name' => $bu->name,
-                        'short_name' => $bu->short_name,
-                        'multiplier' => $bu->pivot->multiplier ?? 1
-                    ];
-                })->toArray()
-            ];
-            
             return response()->json([
                 'success' => true,
-                'id' => $unit->id,
-                'unit' => $unitData,
-                'base_units_count' => $unit->baseUnits()->count(),
-                'message' => 'Unit updated successfully with ' . $unit->baseUnits()->count() . ' base unit(s)'
+                'unit' => $unit,
+                'message'=>"Unit update Successfully"
             ]);
         }
 
     public function show_unit(Unit $unit)
     {
         $unit->load('baseUnits');
-        
-        // Format unit data for frontend
-        $unitData = [
-            'id' => $unit->id,
-            'name' => $unit->name,
-            'short_name' => $unit->short_name,
-            'allow_decimal' => $unit->allow_decimal,
-            'decimal_after_point_digit' => $unit->decimal_after_point_digit,
-            'status' => $unit->status,
-            'base_units' => $unit->baseUnits->map(function($bu) {
-                return [
-                    'id' => $bu->id,
-                    'name' => $bu->name,
-                    'short_name' => $bu->short_name,
-                    'multiplier' => $bu->pivot->multiplier ?? 1
-                ];
-            })->toArray()
-        ];
-        
         return response()->json([
             'success' => true,
-            'unit' => $unitData,
-            'base_units_count' => $unit->baseUnits()->count()
+            'unit' => $unit
         ]);
     }
 
@@ -238,13 +184,12 @@ class UnitController extends Controller
         $unit->name = $request->name;
         $unit->short_name = $request->short_name;
         $unit->allow_decimal = $request->allow_decimal;
-        $unit->is_base_unit = $request->is_base_unit ? 1 : 0;
-        $unit->decimal_after_point_digit = $request->decimal_after_point_digit ?? ($request->allow_decimal == 1 ? ($request->decimal_precision ?? 2) : 0);
+        $unit->decimal_places = $request->decimal_places ?? ($request->allow_decimal ? 2 : 0);
         
         $unit->save();
         
         // Save multiple base units if provided
-        if ($request->is_base_unit && $request->has('base_units')) {
+        if ($request->has('base_units') && is_array($request->base_units)) {
             $baseUnitsData = [];
             foreach ($request->base_units as $baseUnit) {
                 if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
@@ -258,8 +203,7 @@ class UnitController extends Controller
             }
         }
         
-        $conversionsCount = $unit->conversions()->count();
-        return redirect()->back()->with('success', "Unit Saved Successfully with {$conversionsCount} conversion(s)");
+        return redirect()->back()->with('success','Unit Saved Successfully');
     }
 
 
@@ -281,13 +225,12 @@ class UnitController extends Controller
         $unit->name = $request->name;
         $unit->short_name = $request->short_name;
         $unit->allow_decimal = $request->allow_decimal;
-        $unit->is_base_unit = $request->is_base_unit ? 1 : 0;
-        $unit->decimal_after_point_digit = $request->decimal_after_point_digit ?? ($request->allow_decimal == 1 ? ($request->decimal_precision ?? 2) : 0);
+        $unit->decimal_places = $request->decimal_places ?? ($request->allow_decimal ? 2 : 0);
         
         $unit->update();
         
         // Update multiple base units if provided
-        if ($request->is_base_unit && $request->has('base_units')) {
+        if ($request->has('base_units') && is_array($request->base_units)) {
             $baseUnitsData = [];
             foreach ($request->base_units as $baseUnit) {
                 if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
@@ -299,12 +242,11 @@ class UnitController extends Controller
             // Sync will replace all existing relationships
             $unit->baseUnits()->sync($baseUnitsData);
         } else {
-            // If checkbox is unchecked, remove all base unit relationships
+            // If no base units provided, remove all base unit relationships
             $unit->baseUnits()->detach();
         }
         
-        $conversionsCount = $unit->conversions()->count();
-        return redirect()->back()->with('success', "Unit updated successfully with {$conversionsCount} conversion(s).");
+        return redirect()->back()->with('success', 'Unit updated successfully.');
     }
 
 
@@ -315,4 +257,108 @@ class UnitController extends Controller
             return redirect()->back()->with('success', 'Unit deleted successfully.');
 
         }
+
+    // Pricing Engine Methods
+    public function pricing_engine()
+    {
+        $units = Unit::where('status', 'active')
+            ->with(['baseUnits'])
+            ->orderBy('name')
+            ->get();
+        return view('admin.unit.pricing_engine', compact('units'));
+    }
+
+    public function search_units(Request $request)
+    {
+        $search = $request->get('search', '');
+        $units = Unit::where('status', 'active')
+            ->where(function($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                      ->orWhere('short_name', 'like', "%{$search}%");
+            })
+            ->with(['baseUnits'])
+            ->orderBy('name')
+            ->limit(50)
+            ->get();
+
+        // Format for split search view - if unit has multiple base units, create separate entries
+        $formattedUnits = [];
+        foreach ($units as $unit) {
+            $baseUnits = $unit->baseUnits;
+            if ($baseUnits->count() > 0) {
+                // Create separate entry for each base unit conversion
+                foreach ($baseUnits as $baseUnit) {
+                    $formattedUnits[] = [
+                        'id' => $unit->id,
+                        'name' => $unit->name,
+                        'short_name' => $unit->short_name,
+                        'display_text' => $unit->name . ' (' . $unit->short_name . ') - ' . $baseUnit->pivot->multiplier . ' ' . $baseUnit->name,
+                        'base_unit_id' => $baseUnit->id,
+                        'base_unit_name' => $baseUnit->name,
+                        'base_unit_short_name' => $baseUnit->short_name,
+                        'multiplier' => $baseUnit->pivot->multiplier,
+                        'decimal_places' => $unit->decimal_places ?? 0,
+                        'allow_decimal' => $unit->allow_decimal
+                    ];
+                }
+            } else {
+                // Unit without base units
+                $formattedUnits[] = [
+                    'id' => $unit->id,
+                    'name' => $unit->name,
+                    'short_name' => $unit->short_name,
+                    'display_text' => $unit->name . ' (' . $unit->short_name . ')',
+                    'base_unit_id' => null,
+                    'base_unit_name' => null,
+                    'base_unit_short_name' => null,
+                    'multiplier' => null,
+                    'decimal_places' => $unit->decimal_places ?? 0,
+                    'allow_decimal' => $unit->allow_decimal
+                ];
+            }
+        }
+
+        return response()->json($formattedUnits);
+    }
+
+    public function calculate_price(Request $request, $unitId)
+    {
+        $salePrice = floatval($request->get('sale_price', 0));
+        $unit = Unit::with('baseUnits')->findOrFail($unitId);
+        
+        $results = [];
+        
+        if ($salePrice > 0) {
+            $baseUnits = $unit->baseUnits;
+            
+            if ($baseUnits->count() > 0) {
+                foreach ($baseUnits as $baseUnit) {
+                    $multiplier = floatval($baseUnit->pivot->multiplier);
+                    if ($multiplier > 0) {
+                        $basePrice = $salePrice / $multiplier;
+                        // Use base unit's decimal places setting (base unit is already loaded via relationship)
+                        $decimalPlaces = $baseUnit->decimal_places ?? ($baseUnit->allow_decimal ? 2 : 0);
+                        $results[] = [
+                            'base_unit_name' => $baseUnit->name,
+                            'base_unit_short_name' => $baseUnit->short_name,
+                            'multiplier' => $multiplier,
+                            'base_price' => round($basePrice, $decimalPlaces),
+                            'formatted_price' => 'Rs. ' . number_format($basePrice, $decimalPlaces, '.', ',') . ' / ' . $baseUnit->name
+                        ];
+                    }
+                }
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'unit' => [
+                'id' => $unit->id,
+                'name' => $unit->name,
+                'short_name' => $unit->short_name
+            ],
+            'sale_price' => $salePrice,
+            'base_prices' => $results
+        ]);
+    }
 }
