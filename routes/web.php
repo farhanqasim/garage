@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
 // Normal user dashboard
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
+Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
 // ==============================
 // 🧩 ADMIN ROUTES (No Middleware)
 // ==============================
@@ -165,7 +166,6 @@ Route::get('/delete-scales/{id}', [ScaleController::class, 'deletescales'])->nam
 
 // Units Routes
 Route::get('/all/units', [UnitController::class, 'all_units'])->name('all.units');
-Route::get('/unit-manager', [UnitController::class, 'unit_manager'])->name('unit.manager');
 Route::post('/post/units', [UnitController::class, 'post_units'])->name('post.units');
 Route::get('/units/{unit}', [UnitController::class, 'show_unit'])->name('show.unit');
 Route::put('/units/{unit}', [UnitController::class, 'update_units'])->name('update.unit');
@@ -176,6 +176,11 @@ Route::post('/post/units/detail', [UnitController::class, 'post_units_detail'])-
 Route::post('/update-units/{id}', [UnitController::class, 'updateunits'])->name('update.units');
 Route::post('/update-units-status/{id}', [UnitController::class, 'updateunitsStatus'])->name('update.units.status');
 Route::delete('/delete-units/{id}', [UnitController::class, 'deleteunits'])->name('delete.units');
+
+// Unit Pricing Engine Routes
+Route::get('/unit-pricing-engine', [UnitController::class, 'pricing_engine'])->name('unit.pricing.engine');
+Route::get('/api/units/search', [UnitController::class, 'search_units'])->name('api.units.search');
+Route::get('/api/units/{unit}/calculate-price', [UnitController::class, 'calculate_price'])->name('api.units.calculate.price');
 
 Route::get('/all/vehical', [VehicalTypeController::class, 'all_vehical'])->name('all.vehicals');
 Route::post('/post/vehical', [VehicalTypeController::class, 'post_vehical'])->name('post.vehical');
@@ -237,6 +242,8 @@ Route::post('/all/items/store', [ItemController::class, 'items_store'])->name('a
 Route::get('/item/edit/{id}', [ItemController::class, 'item_edit'])->name('item.edit');
 Route::put('/item/update/{id}', [ItemController::class, 'item_update'])->name('item.update');
 Route::get('/item/show/{id}', [ItemController::class, 'item_show'])->name('item.show');
+Route::get('/items/{id}/vehicle-details', [ItemController::class, 'getVehicleDetails'])->name('items.vehicle.details');
+Route::post('/items/{id}/service-history-ai', [ItemController::class, 'generateServiceHistoryAI'])->name('items.service.history.ai');
 Route::get('/items/by-type/{type}', [ItemController::class, 'getItemsByType'])->name('items.by.type');
 Route::get('/items/by-part-number/{partNumberId}', [ItemController::class, 'getItemsByPartNumber'])->name('items.by.part.number');
 Route::get('/items/count/by-part-number/{partNumberId}', [ItemController::class, 'getItemsCountByPartNumber'])->name('items.count.by.part.number');
@@ -419,6 +426,7 @@ Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions']
     ->name('sales.filter.options');
 Route::get('sales/items/{id}',[SalesController::class,'getItemDetails'])->name('sales.items.details');
 Route::get('sales/items/{id}/stock-status',[SalesController::class,'getItemStockStatus'])->name('sales.items.stock.status');
+Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemPurchaseHistory'])->name('sales.items.purchase.history');
 
 // purchases
 Route::get('all/purchases',[PurchaseController::class,'all_purchases'])->name('all_purchases');
