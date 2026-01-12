@@ -42,6 +42,7 @@ use App\Models\Services;
 use App\Models\Warrenty;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
+use GuzzleHttp\Client;
 
 
 class ItemController extends Controller
@@ -51,24 +52,60 @@ class ItemController extends Controller
 
     public function all_items(Request $request)
     {
-        $items = Item::with(['item_user', 'product_item', 'partnumber_item', 'updated_by_user', 'category'])->latest()->get();
+        $items = Item::with([
+            'item_user', 
+            'product_item', 
+            'partnumber_item', 
+            'updated_by_user', 
+            'category',
+            'company_item',
+            'unit_item',
+            'vehical_item'
+        ])->latest()->get();
         
         // If AJAX request, return JSON
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'items' => $items->map(function($item) {
+                    // Build item name for sales
+                    $itemName = $item->short_disc ?? $item->pro_dis ?? '';
+                    if (empty($itemName) && $item->product_item) {
+                        $itemName = $item->product_item->name ?? '';
+                    }
+                    if (empty($itemName) && $item->partnumber_item) {
+                        $itemName = $item->partnumber_item->name ?? '';
+                    }
+                    if (empty($itemName)) {
+                        $itemName = $item->bar_code ?? 'N/A';
+                    }
+                    
+                    // Add part number to name if available
+                    if ($item->partnumber_item && $item->partnumber_item->name) {
+                        $partNum = $item->partnumber_item->name;
+                        if ($itemName && !str_contains($itemName, $partNum)) {
+                            $itemName .= ' - ' . $partNum;
+                        }
+                    }
+                    
                     return [
                         'id' => $item->id,
+                        'name' => $itemName,
                         'image' => asset($item->image ?? 'assets/img/media/default.png'),
-                        'bar_code' => $item->bar_code,
+                        'bar_code' => $item->bar_code ?? '',
                         'barcode_image' => $item->barcode_image,
-                        'type' => $item->type,
-                        'is_active' => $item->is_active,
+                        'type' => $item->type ?? '',
+                        'is_active' => $item->is_active ?? true,
                         'user_name' => $item->item_user->name ?? '',
                         'product_name' => $item->product_item->name ?? '',
                         'part_number' => $item->partnumber_item->name ?? '',
                         'category_name' => $item->category ? $item->category->name : 'N/A',
+                        'company_name' => $item->company_item->name ?? '',
+                        'sale_price' => floatval($item->sale_price ?? 0),
+                        'on_hand' => floatval($item->on_hand ?? 0),
+                        'stock' => floatval($item->on_hand ?? 0),
+                        'price' => floatval($item->sale_price ?? $item->price_per_unit ?? 0),
+                        'unit' => $item->unit_item->name ?? ($item->unit ?? 'Unit'),
                         'updated_by_user' => $item->updated_by_user ? [
                             'name' => $item->updated_by_user->name,
                         ] : null,
@@ -78,6 +115,7 @@ class ItemController extends Controller
                         'edit_url' => route('item.edit', $item->id),
                         'delete_url' => route('item.delete', $item->id),
                         'duplicate_url' => route('item.duplicate', $item->id),
+                        'has_vehicle' => $item->vehical_item ? true : false,
                     ];
                 })
             ]);
@@ -107,13 +145,21 @@ class ItemController extends Controller
 
         $packings    = Packing::where('status', 'active')->get();
         $scales      = Scale::where('status', 'active')->get();
-        $Vehicals    = VehicalType::with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number'])->where('status', 'active')->get();
+        // Optimize: Limit vehicle query - only load if needed, use chunking for large datasets
+        $Vehicals    = VehicalType::select('id', 'v_part_number_id', 'car_manufacturer', 'car_model_name', 'engine_cc', 'car_manufactured_country', 'year_from', 'year_to')
+            ->where('status', 'active')
+            ->limit(1000) // Limit to prevent timeout
+            ->get();
 
         $milleages   = Mileage::where('status', 'active')->get();
         $item_types  = Producttype::where('status', 'active')->get();
         // return $Vehicals;
-        $items       = Item::all();
-        $units = Unit::with(['baseUnit', 'baseUnits'])->where('status', 'active')->orderBy('name')->get();
+        // Optimize: Don't load all items - empty collection to prevent timeout
+        // Items can be loaded via AJAX if needed for autocomplete/search
+        $items = collect([]);
+        $units = Unit::with('baseUnits')->orderBy('name')->get();
+
+        // return $units;
         $carCompanies     = CarCompany::orderBy('name')->get();
         $carNames         = CarName::orderBy('name')->get();
         $carModels        = CarModel::orderBy('name')->get();
@@ -129,27 +175,32 @@ class ItemController extends Controller
         $formulas      = Formula::where('status', 'active')->get();
         $product      = Product::where('status', 'active')->get();
         $qualities      = Quality::where('status', 'active')->get();
-        $partnumbers      = PartNumber::with('part_number_vehical')->where('status', 'active')->get();
+        // Optimize: Limit part numbers query to avoid timeout - only select needed columns
+        $partnumbers      = PartNumber::select('id', 'name', 'type')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
         // return $partnumbers;
         $engineccs      = EngineCc::where('status', 'active')->get();
+        // Optimize: Limit to prevent timeout - load only 5 latest items with relationships
+        // Don't use select() to avoid column name issues - just limit the query
         $latestItems = Item::with([
-            'item_user',
-            'product_item',
-            'category',
-            'partnumber_item',
-            'company_item',
-            'quality_item'
-        ])->latest()->take(5)->get();
+            'item_user:id,name',
+            'product_item:id,name',
+            'category:id,name',
+            'partnumber_item:id,name',
+            'company_item:id,name',
+            'quality_item:id,name'
+        ])
+            ->latest()
+            ->take(5)
+            ->get();
         // Get all vehicles and group by configuration (part, manufacturer, model, engine, country)
         // Multiple records exist per vehicle configuration with different year ranges
-        $Vehis = VehicalType::with([
-            'manutacturer_vehical',
-            'model_vehical',
-            'engine_vehical',
-            'country_vehical',
-            'vehical_part_number'
-        ])
-            ->where('status', 'active')
+        // Optimize: Remove eager loading to prevent timeout - select only needed columns and limit results
+        $Vehis = VehicalType::where('status', 'active')
+            ->select('id', 'v_part_number_id', 'car_manufacturer', 'car_model_name', 'engine_cc', 'car_manufactured_country', 'year_from', 'year_to')
+            ->limit(2000) // Limit to prevent timeout
             ->get()
             ->groupBy(function($vehicle) {
                 // Group by configuration fields
@@ -689,6 +740,7 @@ class ItemController extends Controller
                 }
             }
         }
+
         try {
             DB::beginTransaction();
 
@@ -803,6 +855,230 @@ class ItemController extends Controller
             abort(404, 'Item not found');
         }
         return view('admin.item.show', compact('item'));
+    }
+
+    /**
+     * Get vehicle details for an item
+     */
+    public function getVehicleDetails($id)
+    {
+        try {
+            $item = Item::with([
+                'vehical_item' => function($query) {
+                    $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
+                },
+                'product_item',
+                'partnumber_item'
+            ])->find($id);
+
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item not found'
+                ], 404);
+            }
+
+            if (!$item->vehical_item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No vehicle details found for this item'
+                ], 404);
+            }
+
+            $vehicle = $item->vehical_item;
+            $yearRanges = [];
+            if ($vehicle->year_from && $vehicle->year_to) {
+                if ($vehicle->year_from == $vehicle->year_to) {
+                    $yearRanges[] = $vehicle->year_from;
+                } else {
+                    $yearRanges[] = $vehicle->year_from . '-' . $vehicle->year_to;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'vehicle' => [
+                    'manufacturer' => $vehicle->manutacturer_vehical->name ?? null,
+                    'model' => $vehicle->model_vehical->name ?? null,
+                    'engine' => $vehicle->engine_vehical->name ?? null,
+                    'country' => $vehicle->country_vehical->name ?? null,
+                    'part_number' => $vehicle->vehical_part_number->name ?? ($item->partnumber_item->name ?? null),
+                    'year_ranges' => $yearRanges,
+                    'year_from' => $vehicle->year_from ?? null,
+                    'year_to' => $vehicle->year_to ?? null,
+                ],
+                'item' => [
+                    'id' => $item->id,
+                    'name' => $item->product_item->name ?? ($item->partnumber_item->name ?? 'N/A'),
+                    'type' => $item->type ?? null,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching vehicle details', [
+                'item_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching vehicle details: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate service history using Google AI (Gemini)
+     */
+    public function generateServiceHistoryAI(Request $request, $id)
+    {
+        try {
+            $item = Item::with([
+                'vehical_item' => function($query) {
+                    $query->with(['manutacturer_vehical', 'model_vehical', 'engine_vehical', 'country_vehical', 'vehical_part_number']);
+                },
+                'product_item',
+                'partnumber_item',
+                'company_item',
+                'quality_item'
+            ])->find($id);
+
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item not found'
+                ], 404);
+            }
+
+            if (!$item->vehical_item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No vehicle details found for this item'
+                ], 404);
+            }
+
+            $vehicle = $item->vehical_item;
+            
+            // Build vehicle information string for AI prompt
+            $vehicleInfo = [];
+            if ($vehicle->manutacturer_vehical) {
+                $vehicleInfo[] = "Manufacturer: " . $vehicle->manutacturer_vehical->name;
+            }
+            if ($vehicle->model_vehical) {
+                $vehicleInfo[] = "Model: " . $vehicle->model_vehical->name;
+            }
+            if ($vehicle->engine_vehical) {
+                $vehicleInfo[] = "Engine: " . $vehicle->engine_vehical->name . " CC";
+            }
+            if ($vehicle->country_vehical) {
+                $vehicleInfo[] = "Country: " . $vehicle->country_vehical->name;
+            }
+            if ($vehicle->year_from && $vehicle->year_to) {
+                $vehicleInfo[] = "Year Range: " . $vehicle->year_from . "-" . $vehicle->year_to;
+            }
+            if ($vehicle->vehical_part_number) {
+                $vehicleInfo[] = "Part Number: " . $vehicle->vehical_part_number->name;
+            }
+            
+            $itemInfo = [];
+            if ($item->product_item) {
+                $itemInfo[] = "Product: " . $item->product_item->name;
+            }
+            if ($item->partnumber_item) {
+                $itemInfo[] = "Part Number: " . $item->partnumber_item->name;
+            }
+            if ($item->company_item) {
+                $itemInfo[] = "Company: " . $item->company_item->name;
+            }
+            if ($item->quality_item) {
+                $itemInfo[] = "Quality: " . $item->quality_item->name;
+            }
+            if ($item->type) {
+                $itemInfo[] = "Type: " . ucfirst($item->type);
+            }
+
+            $vehicleInfoStr = implode(", ", $vehicleInfo);
+            $itemInfoStr = implode(", ", $itemInfo);
+
+            // Build AI prompt
+            $prompt = "As an automotive service history expert, provide a detailed service history tracker and maintenance recommendations for the following vehicle and part information:\n\n";
+            $prompt .= "Vehicle Details: " . $vehicleInfoStr . "\n";
+            $prompt .= "Part Details: " . $itemInfoStr . "\n\n";
+            $prompt .= "Please provide:\n";
+            $prompt .= "1. Recommended service intervals\n";
+            $prompt .= "2. Common maintenance tasks\n";
+            $prompt .= "3. Potential issues to watch for\n";
+            $prompt .= "4. Replacement recommendations\n";
+            $prompt .= "5. Service history checklist\n\n";
+            $prompt .= "Format the response in a clear, professional manner with sections and bullet points. Keep it concise but informative.";
+
+            // Call Google Gemini API
+            $geminiApiKey = env('GOOGLE_GEMINI_API_KEY');
+            if (!$geminiApiKey) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Google Gemini API key is not configured. Please add GOOGLE_GEMINI_API_KEY to your .env file.'
+                ], 500);
+            }
+
+            $client = new Client();
+            $response = $client->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" . $geminiApiKey, [
+                'json' => [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt]
+                            ]
+                        ]
+                    ]
+                ],
+                'headers' => [
+                    'Content-Type' => 'application/json'
+                ],
+                'timeout' => 30
+            ]);
+
+            $responseData = json_decode($response->getBody()->getContents(), true);
+            
+            if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
+                $serviceHistory = $responseData['candidates'][0]['content']['parts'][0]['text'];
+                
+                return response()->json([
+                    'success' => true,
+                    'service_history' => $serviceHistory
+                ]);
+            } else {
+                Log::error('Unexpected Gemini API response format', [
+                    'response' => $responseData
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unexpected response format from AI service'
+                ], 500);
+            }
+
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            Log::error('Error calling Gemini API', [
+                'item_id' => $id,
+                'error' => $e->getMessage(),
+                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calling AI service: ' . $e->getMessage()
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Error generating service history', [
+                'item_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error generating service history: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function getItemsByType($type, Request $request)
@@ -1161,11 +1437,31 @@ class ItemController extends Controller
 
     public function getItemsCountByPartNumber($partNumberId)
     {
-        $count = Item::where('part_number_id', $partNumberId)->count();
+        $items = Item::with('quality_item')
+            ->where('part_number_id', $partNumberId)
+            ->get();
+        $count = $items->count();
+        
+        // Group by quality/grade (React-style stats)
+        $grouped = [];
+        $items->each(function($item) use (&$grouped) {
+            $quality = $item->quality_item->name ?? ($item->grade ?? 'Standard');
+            if (!isset($grouped[$quality])) {
+                $grouped[$quality] = 0;
+            }
+            $grouped[$quality]++;
+        });
+        
+        $details = [];
+        foreach ($grouped as $quality => $qualityCount) {
+            $details[] = $qualityCount . ' ' . $quality;
+        }
         
         return response()->json([
             'success' => true,
-            'count' => $count
+            'count' => $count,
+            'total' => $count,
+            'details' => $details
         ]);
     }
 

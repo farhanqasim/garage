@@ -162,14 +162,22 @@
                                                 </a>
                                             </li>
                                             <hr>
-                                            <li>
-                                                <a class="dropdown-item text-primary" href="{{ route('item.duplicate', $item->id) }}">
-                                                    <i data-feather="copy" class="me-1"></i> Duplicate
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </td>
+                                    <li>
+                                        <a class="dropdown-item text-primary" href="{{ route('item.duplicate', $item->id) }}">
+                                            <i data-feather="copy" class="me-1"></i> Duplicate
+                                        </a>
+                                    </li>
+                                    @if($item->vehical_item)
+                                    <hr>
+                                    <li>
+                                        <a class="dropdown-item text-success" href="javascript:void(0)" onclick="openVehicleServiceHistory({{ $item->id }})">
+                                            <i data-feather="car" class="me-1"></i> Vehicle Service History
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
+                        </td>
                                 <td>
                                     @if($item->updated_by_user)
                                         <div class="small">
@@ -289,6 +297,59 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Vehicle Details - Service History Tracker Modal -->
+<div class="modal fade" id="vehicleServiceHistoryModal" tabindex="-1" aria-labelledby="vehicleServiceHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title" id="vehicleServiceHistoryModalLabel">
+                    <i class="ti ti-car me-2"></i>Vehicle Details - Service History Tracker
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Vehicle Details Section -->
+                <div id="vehicleDetailsSection" class="mb-4">
+                    <h6 class="text-primary mb-3">
+                        <i class="ti ti-info-circle me-2"></i>Vehicle Information
+                    </h6>
+                    <div class="row" id="vehicleDetailsContent">
+                        <div class="col-md-12 text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading vehicle details...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Service History Section -->
+                <div id="serviceHistorySection" class="border-top pt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-success mb-0">
+                            <i class="ti ti-brain me-2"></i>AI-Generated Service History
+                        </h6>
+                        <button type="button" id="refreshServiceHistoryBtn" class="btn btn-sm btn-outline-primary" onclick="generateServiceHistory()">
+                            <i class="ti ti-refresh me-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div id="serviceHistoryContent">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Generating service history with AI...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
 </div>
 <!-- Styles -->
 <style>
@@ -469,6 +530,14 @@
                                             <i data-feather="copy" class="me-1"></i> Duplicate
                                         </a>
                                     </li>
+                                    ${item.has_vehicle ? `
+                                    <hr>
+                                    <li>
+                                        <a class="dropdown-item text-success" href="javascript:void(0)" onclick="openVehicleServiceHistory(${item.id})">
+                                            <i data-feather="car" class="me-1"></i> Vehicle Service History
+                                        </a>
+                                    </li>
+                                    ` : ''}
                                 </ul>
                             </div>
                         </td>
@@ -788,6 +857,127 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 500);
 });
+
+// Global variable to store current item ID
+let currentVehicleItemId = null;
+
+// Function to open Vehicle Service History modal
+function openVehicleServiceHistory(itemId) {
+    currentVehicleItemId = itemId;
+    const modal = new bootstrap.Modal(document.getElementById('vehicleServiceHistoryModal'));
+    modal.show();
+    
+    // Load vehicle details and service history
+    loadVehicleDetails(itemId);
+    generateServiceHistory(itemId);
+}
+
+// Function to load vehicle details
+function loadVehicleDetails(itemId) {
+    const vehicleDetailsContent = document.getElementById('vehicleDetailsContent');
+    vehicleDetailsContent.innerHTML = '<div class="col-md-12 text-center py-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Loading vehicle details...</p></div>';
+    
+    fetch(`/items/${itemId}/vehicle-details`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.vehicle) {
+            const vehicle = data.vehicle;
+            let html = '';
+            
+            if (vehicle.manufacturer || vehicle.model || vehicle.engine || vehicle.country || vehicle.year_ranges) {
+                html = '<div class="row g-3">';
+                if (vehicle.manufacturer) {
+                    html += `<div class="col-md-6"><div class="card border-primary"><div class="card-body"><h6 class="text-primary mb-1"><i class="ti ti-building me-2"></i>Manufacturer</h6><p class="mb-0 fw-bold">${vehicle.manufacturer}</p></div></div></div>`;
+                }
+                if (vehicle.model) {
+                    html += `<div class="col-md-6"><div class="card border-info"><div class="card-body"><h6 class="text-info mb-1"><i class="ti ti-car me-2"></i>Model</h6><p class="mb-0 fw-bold">${vehicle.model}</p></div></div></div>`;
+                }
+                if (vehicle.engine) {
+                    html += `<div class="col-md-6"><div class="card border-warning"><div class="card-body"><h6 class="text-warning mb-1"><i class="ti ti-engine me-2"></i>Engine CC</h6><p class="mb-0 fw-bold">${vehicle.engine} CC</p></div></div></div>`;
+                }
+                if (vehicle.country) {
+                    html += `<div class="col-md-6"><div class="card border-success"><div class="card-body"><h6 class="text-success mb-1"><i class="ti ti-world me-2"></i>Country</h6><p class="mb-0 fw-bold">${vehicle.country}</p></div></div></div>`;
+                }
+                if (vehicle.year_ranges && vehicle.year_ranges.length > 0) {
+                    const yearRanges = vehicle.year_ranges.join(', ');
+                    html += `<div class="col-md-12"><div class="card border-secondary"><div class="card-body"><h6 class="text-secondary mb-1"><i class="ti ti-calendar me-2"></i>Year Ranges</h6><p class="mb-0 fw-bold">${yearRanges}</p></div></div></div>`;
+                }
+                if (vehicle.part_number) {
+                    html += `<div class="col-md-12"><div class="card border-dark"><div class="card-body"><h6 class="text-dark mb-1"><i class="ti ti-tag me-2"></i>Part Number</h6><p class="mb-0 fw-bold">${vehicle.part_number}</p></div></div></div>`;
+                }
+                html += '</div>';
+            } else {
+                html = '<div class="alert alert-warning"><i class="ti ti-alert-circle me-2"></i>No vehicle details available for this item.</div>';
+            }
+            
+            vehicleDetailsContent.innerHTML = html;
+        } else {
+            vehicleDetailsContent.innerHTML = '<div class="alert alert-warning"><i class="ti ti-alert-circle me-2"></i>No vehicle details found.</div>';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading vehicle details:', error);
+        vehicleDetailsContent.innerHTML = '<div class="alert alert-danger"><i class="ti ti-alert-circle me-2"></i>Error loading vehicle details. Please try again.</div>';
+    });
+}
+
+// Function to generate service history using Google AI (Gemini)
+function generateServiceHistory(itemId) {
+    if (!itemId) itemId = currentVehicleItemId;
+    if (!itemId) return;
+    
+    const serviceHistoryContent = document.getElementById('serviceHistoryContent');
+    serviceHistoryContent.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">Generating service history with Google AI...</p></div>';
+    
+    fetch(`/items/${itemId}/service-history-ai`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ item_id: itemId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.service_history) {
+            serviceHistoryContent.innerHTML = `
+                <div class="card border-success">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="ti ti-brain text-success me-2 fs-4"></i>
+                            <h6 class="mb-0 text-success">AI-Generated Service History</h6>
+                        </div>
+                        <div class="service-history-text" style="white-space: pre-wrap; line-height: 1.8; color: #333;">
+                            ${data.service_history}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            serviceHistoryContent.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="ti ti-alert-circle me-2"></i>
+                    ${data.message || 'Unable to generate service history. Please try again.'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error generating service history:', error);
+        serviceHistoryContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ti ti-alert-circle me-2"></i>
+                Error generating service history. Please check your Google AI API key configuration or try again later.
+            </div>
+        `;
+    });
+}
 </script>
 
 

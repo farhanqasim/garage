@@ -56,6 +56,78 @@
     .input-group .btn i {
         pointer-events: none;
     }
+    
+    /* Sabhi input-group dropdowns ko upar ki taraf show karne ke liye - High Priority */
+    body .input-group .select2-container--open .select2-dropdown,
+    body .input-group .select2-container--open.select2-container--below .select2-dropdown,
+    body .input-group .select2-container--above .select2-dropdown {
+        position: absolute !important;
+        bottom: 100% !important;
+        top: auto !important;
+        left: 0 !important;
+        right: auto !important;
+        margin-bottom: 5px !important;
+        margin-top: 0 !important;
+        transform: none !important;
+        border-top: 1px solid #aaa !important;
+        border-bottom: none !important;
+        border-radius: 4px 4px 0 0 !important;
+        box-shadow: 0 -4px 6px rgba(0,0,0,0.1) !important;
+    }
+    
+    body .input-group .select2-container--open {
+        z-index: 9999 !important;
+    }
+    
+    /* Force above positioning */
+    body .input-group .select2-container.select2-container--open {
+        position: relative !important;
+    }
+    
+    /* Override Select2's default below positioning */
+    body .input-group .select2-container--below.select2-container--open .select2-dropdown {
+        bottom: 100% !important;
+        top: auto !important;
+        margin-top: 0 !important;
+        margin-bottom: 5px !important;
+    }
+    
+    /* Part Number Select2 Dropdown - Position Above */
+    #part_number_id + .select2-container {
+        position: relative !important;
+    }
+    
+    /* Force dropdown to appear above - High specificity override */
+    body .select2-container--open.select2-container--below#part_number_id + .select2-container .select2-dropdown,
+    body #part_number_id + .select2-container.select2-container--open .select2-dropdown,
+    body #part_number_id + .select2-container.select2-container--open.select2-container--below .select2-dropdown {
+        position: absolute !important;
+        bottom: 100% !important;
+        top: auto !important;
+        margin-bottom: 5px !important;
+        margin-top: 0 !important;
+        transform: translateY(0) !important;
+        border-top: 1px solid #aaa !important;
+        border-bottom: none !important;
+        border-radius: 4px 4px 0 0 !important;
+    }
+    
+    /* Remove bottom border radius, add top border radius */
+    body #part_number_id + .select2-container.select2-container--open .select2-dropdown .select2-results {
+        border-radius: 4px 4px 0 0 !important;
+    }
+    
+    /* Ensure dropdown appears above the input group */
+    .input-group:has(#part_number_id) {
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Override Select2's positioning class */
+    #part_number_id + .select2-container.select2-container--open {
+        z-index: 9999 !important;
+    }
+    
     /* Responsive adjustments for create.blade.php */
     @media (max-width: 768px) {
         .type-box {
@@ -180,64 +252,50 @@
                     <!-- 4 Clickable Type Boxes -->
                     <div class="row mb-5 g-3">
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'parts' }"
-                                 data-type="parts"
-                                 onclick="selectItemType('parts'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
+                                @click="selectType('parts')">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'filters' }"
-                                 data-type="filters"
-                                 onclick="selectItemType('filters'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
+                                @click="selectType('filters')">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'breakpad' }"
-                                 data-type="breakpad"
-                                 onclick="selectItemType('breakpad'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
+                                @click="selectType('breakpad')">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'oil' }"
-                                 data-type="oil"
-                                 onclick="selectItemType('oil'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
+                                @click="selectType('oil')">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'battery' }"
-                                 data-type="battery"
-                                 onclick="selectItemType('battery'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
+                                @click="selectType('battery')">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'scrap' }"
-                                 data-type="scrap"
-                                 onclick="selectItemType('scrap'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
+                                @click="selectType('scrap')">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" 
-                                 :class="{ 'selected': selectedType === 'services' }"
-                                 data-type="services"
-                                 onclick="selectItemType('services'); return false;">
+                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
+                                @click="selectType('services')">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
                             </div>
@@ -267,19 +325,34 @@
                                     @error('bar_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                          <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
-                            <label for="part_number_id">Part Number:</label>
+                            <div class="mb-1">
+                                <div class="d-flex justify-content-between align-items-end px-1">
+                                    <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0">Part Number:</label>
+                                    <div id="partNumberStats" class="d-flex gap-1" style="display: none !important;">
+                                        <!-- Stats badges will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
                             <div class="input-group inputswidth">
                                 <select
                                     class="form-control part_number-select searchable-select @error('part_number_id') is-invalid @enderror"
-                                    name="part_number_id" id="part_number_id">
+                                    name="part_number_id" 
+                                    id="part_number_id">
                                     <option value="">Select Part Number</option>
                                     @foreach ($partnumbers as $partnumber)
                                     <option value="{{ $partnumber->id??'' }}" 
-                                        data-type="{{ $partnumber->type ?? '' }}">
+                                        data-type="{{ $partnumber->type ?? '' }}"
+                                        {{ old('part_number_id')==$partnumber->id ? 'selected' : '' }}>
                                         {{ $partnumber->name ?? '-' }}
                                     </option>
                                     @endforeach
                                 </select>
+                                <button type="button" class="btn btn-primary open-universal-modal"
+                                        data-title="Add Part Number" data-mode="add"
+                                        data-route="{{ route('post.partnumber') }}"
+                                        data-target-select=".part_number-select">
+                                        <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Part Number"
                                         data-fetch-route="{{ route('show.partnumber', ':id') }}"
@@ -288,19 +361,22 @@
                                         data-target-select=".part_number-select">
                                         <i data-feather="edit"></i>
                                     </button>
-                                <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Part Number" data-mode="add"
-                                        data-route="{{ route('post.partnumber') }}"
-                                        data-target-select=".part_number-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
                             </div>
-                            <!-- Part Number Items Count -->
-                            <div class="mt-2" id="partNumberCountContainer" style="display: none;">
-                                <small class="text-muted">
-                                    Items using this part number: 
-                                    <span id="partNumberCount" class="fw-bold text-primary" style="cursor: pointer; text-decoration: underline;" title="Double-click to view items">0</span>
-                                </small>
+                            <!-- Add New Part Number Button (shown when no results found) -->
+                            <div class="mt-2" id="addNewPartNumberContainer" style="display: none;">
+                                <div class="p-3 bg-orange-50 border border-orange-200 rounded-2xl">
+                                    <p class="text-[10px] text-gray-400 font-bold mb-3 text-center uppercase tracking-widest italic">Nahi Mila</p>
+                                    <button type="button" class="btn btn-success w-100 open-universal-modal" 
+                                            id="addNewPartNumberBtn"
+                                            data-title="Add Part Number" 
+                                            data-mode="add"
+                                            data-route="{{ route('post.partnumber') }}"
+                                            data-target-select=".part_number-select"
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
+                                        <i data-feather="plus" class="feather-plus me-1"></i>
+                                        Add "<span id="partNumberSearchTerm" class="fw-bold"></span>"
+                                    </button>
+                                </div>
                             </div>
                             @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
@@ -321,6 +397,11 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Product" data-mode="add"
+                                            data-route="{{ route('post.product') }}" data-target-select=".name-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Product"
                                             data-fetch-route="{{ route('show.product', ':id') }}"
@@ -328,11 +409,6 @@
                                             data-delete-route="{{ route('destory.product', ':id') }}"
                                             data-target-select=".name-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Product" data-mode="add"
-                                            data-route="{{ route('post.product') }}" data-target-select=".name-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -352,6 +428,12 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Category" data-mode="add"
+                                            data-route="{{ route('post.item.category') }}"
+                                            data-target-select=".category-select" data-has-image="1">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Category"
                                             data-fetch-route="{{ route('show.category', ':id') }}"
@@ -359,12 +441,6 @@
                                             data-delete-route="{{ route('destory.category', ':id') }}"
                                             data-target-select=".category-select" data-has-image="1">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Category" data-mode="add"
-                                            data-route="{{ route('post.item.category') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -394,6 +470,12 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-mode="add" data-title="Add group"
+                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
@@ -401,11 +483,6 @@
                                             data-delete-route="{{ route('post.groups.destroy', ':id') }}"
                                             data-target-select=".group-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add group"
-                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('group')
@@ -428,6 +505,12 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-mode="add" data-title="Add Company"
+                                            data-route="{{ route('post.companies') }}"
+                                            data-target-select=".company-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Company"
                                             data-fetch-route="{{ route('show.company', ':id') }}"
@@ -435,12 +518,6 @@
                                             data-delete-route="{{ route('destory.company', ':id') }}"
                                             data-target-select=".company-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add Company"
-                                            data-route="{{ route('post.companies') }}"
-                                            data-target-select=".company-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -464,6 +541,13 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
+                                            data-mode="add"
+                                            data-route="{{ route('post.technology') }}"
+                                            data-target-select=".technology-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
                                             x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
@@ -472,13 +556,6 @@
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
                                             data-target-select=".technology-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
-                                            data-mode="add"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
 
@@ -508,6 +585,12 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -515,12 +598,6 @@
                                             data-delete-route="{{ route('destory.quality', ':id') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -549,6 +626,12 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -556,12 +639,6 @@
                                             data-delete-route="{{ route('destory.quality', ':id') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -588,6 +665,12 @@
                                             </option>
                                             @endforeach
                                         </select>
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-title="Add Quality" data-mode="add"
+                                            data-route="{{ route('post.qualities') }}"
+                                            data-target-select=".quality-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -595,12 +678,6 @@
                                             data-delete-route="{{ route('destory.quality', ':id') }}"
                                             data-target-select=".quality-select">
                                             <i data-feather="edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
                                         </button>
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -1109,149 +1186,110 @@
                 <!-- COMMON MEDIA & DESCRIPTION -->
                 <div class="field-group" :class="{ 'active': selectedType }">
                     <div class="row mt-4">
-                        <div class="col-md-12"
+                        <!-- Unit Management & Price Calculation Section -->
+                        <div class="col-12 mt-4"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="unitSelect" class="form-label small fw-bold text-uppercase text-muted mb-2">Select Unit & Conversion:</label>
-                            <div class="d-flex gap-2 mb-3">
-                                <select id="unitSelect" onchange="handleUnitChange()" class="form-select flex-grow @error('unit') is-invalid @enderror" name="unit">
-                                    <option value="">-- PLEASE SELECT --</option>
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0 fw-bold">Unit Management & Price Calculation</h5>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Unit Selection -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold mb-2">Select Unit & Conversion:</label>
+                                        <div class="input-group">
+                                            <select class="form-control form-control-lg searchable-select @error('unit') is-invalid @enderror"
+                                                name="unit" id="unit_parts" style="width: 100%;">
+                                                <option value="">-- PLEASE SELECT --</option>
                                 </select>
-                                <button type="button" onclick="openModal('add')" class="btn btn-warning text-white fw-bold" style="width: 40px;" title="Add Unit">+</button>
-                                <button type="button" onclick="openModal('edit')" class="btn btn-secondary" style="width: 40px;" title="Edit Unit">
-                                    <i class="ti ti-pencil"></i>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-mode="add"
+                                    data-bs-target="#Unit-add-modal">
+                                                <i data-feather="plus" class="feather-plus"></i> Add
                                 </button>
-                            </div>
-                            @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
-
-                            <!-- Percentage Markup Input -->
-                            <div class="mb-3">
-                                <label for="percentageMarkup" class="form-label small fw-bold text-uppercase text-muted mb-2">Markup Percentage (%):</label>
-                                <div class="d-flex gap-2">
-                                    <input type="number" id="percentageMarkup" name="markup_percentage" step="any" min="0" max="1000" placeholder="Enter percentage (e.g., 25 for 25%)" class="form-control @error('markup_percentage') is-invalid @enderror" oninput="calculateSalePriceFromPercentage()">
-                                    <select id="percentagePreset" class="form-select" style="width: 200px;" onchange="applyPercentagePreset()">
-                                        <option value="">Or Select Preset</option>
-                                        <option value="10">10%</option>
-                                        <option value="15">15%</option>
-                                        <option value="20">20%</option>
-                                        <option value="25">25%</option>
-                                        <option value="30">30%</option>
-                                        <option value="35">35%</option>
-                                        <option value="40">40%</option>
-                                        <option value="50">50%</option>
-                                    </select>
-                                </div>
-                                <small class="text-muted">Enter percentage to automatically calculate sale price from cost price</small>
-                                @error('markup_percentage') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-
-                            <!-- Warning Message -->
-                            <div id="priceWarning" class="alert alert-danger d-none mb-3" role="alert">
-                                <i class="ti ti-alert-circle me-2"></i>
-                                <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
-                            </div>
-
-                            <!-- Cost and Sale Price Management (Same Row) -->
-                            <div class="row g-3 mb-4">
-                                <!-- Cost Section (Left Side) -->
-                                <div class="col-md-6">
-                                    <h6 class="text-uppercase fw-bold text-success mb-2 small">Cost Price Management</h6>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <div id="costUnitCard" class="card border-success bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="costUnitLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Unit Cost:</label>
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                        <input type="number" id="costPrice" name="total_price" step="any" oninput="calculateFromUnit('cost'); calculateSalePriceFromPercentage();" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div id="costBaseCard" class="card border-success bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="costBaseLabel" class="form-label small fw-bold text-uppercase text-success mb-1">Per Base Cost:</label>
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                        <input type="number" id="baseCostPrice" name="price_per_unit" step="any" oninput="calculateFromBase('cost'); calculateSalePriceFromPercentage();" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-success">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Sale Section (Right Side - Same Row) -->
-                                <div class="col-md-6">
-                                    <h6 class="text-uppercase fw-bold text-warning mb-2 small">Sale Price Management</h6>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <div id="saleUnitCard" class="card border-warning bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="saleUnitLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Unit Sale:</label>
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                        <input type="number" id="salePrice" name="total_sale_price" step="any" oninput="calculateFromUnit('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div id="saleBaseCard" class="card border-warning bg-light">
-                                                <div class="card-body p-2">
-                                                    <label id="saleBaseLabel" class="form-label small fw-bold text-uppercase text-warning mb-1">Per Base Sale:</label>
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="text-muted fw-bold me-1 small">Rs.</span>
-                                                        <input type="number" id="baseSalePrice" name="sale_price_per_base" step="any" oninput="calculateFromBase('sale')" placeholder="0" class="form-control border-0 bg-transparent fw-bold fs-5 text-warning">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Full Unit Analysis and Analysis per Piece (Same Row) -->
-                            <div class="row g-3 mb-4">
-                                <!-- Full Unit Analysis (Left Side) -->
-                                <div class="col-md-6" id="fullUnitAnalysisContainer">
-                                    <!-- Full Unit Analysis will be injected here -->
-                                </div>
-
-                                <!-- Analysis per Piece (Right Side - Same Row) -->
-                                <div class="col-md-6" id="analysisPerPieceContainer">
-                                    <!-- Analysis per Piece will be injected here -->
-                                </div>
-                            </div>
-
-                            <!-- Save Prices Button -->
-                            <div class="mb-4">
-                                <button type="button" onclick="saveCurrentPrices()" id="saveEntryBtn" class="btn btn-success w-100 py-2 fw-bold text-uppercase">
-                                    <i class="ti ti-check me-2"></i>Save Prices for this Base
+                                <button type="button" class="btn btn-secondary" id="editUnitBtn">
+                                                <i data-feather="edit"></i> Edit
                                 </button>
-                                <p id="saveStatus" class="text-center small mt-2 text-success fw-bold d-none">PRICES SAVED FOR THIS BASE UNIT!</p>
+                                        </div>
+                                        @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+
+                                    <!-- Warning Message -->
+                                    <div id="priceWarning" class="alert alert-danger mb-3" style="display: none;">
+                                        <i class="ti ti-alert-circle me-2"></i>
+                                        <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
+                            </div>
+
+                                    <!-- Cost Price Management -->
+                                    <div class="mb-4">
+                                        <h6 class="text-success fw-bold mb-3 text-uppercase">Cost Price Management</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="card border-success bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costUnitLabel">Unit Cost:</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-success text-white fw-bold">Rs.</span>
+                                                            <input type="number" step="0.01" id="costPrice" name="total_price"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromUnit('cost')">
                             </div>
                         </div>
-                        <div class="col-md-6 "
-                            x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="sale_price_parts">Sale Price:</label>
-                            <input type="number" class="form-control @error('sale_price') is-invalid @enderror"
-                                name="sale_price" id="sale_price_parts" value="{{ old('sale_price') }}" hidden />
-                            @error('sale_price') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            <div class="input-group align-items-center gap-2" id="sale-price-info"
-                                style="display:none; margin-top:10px;">
-                                <span id="sale-unit-name" class="fw-bold"></span>
-                                <span class="sale-equal-sign">=</span>
-                                <input type="text" id="total_sale_price" name="total_sale_price"
-                                    class="form-control form-control-sm" style="width:120px;" placeholder=" Sale Price">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card border-success bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costBaseLabel">Per Base Cost:</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-success text-white fw-bold">Rs.</span>
+                                                            <input type="number" step="0.01" id="baseCostPrice" name="price_per_unit"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromBase('cost')">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                {{-- <span class="sale-equal-sign">=</span> --}}
-                                <span id="sale-multiplier-text" class="fw-bold"></span>
-                                {{-- <span class="sale-multiply-sign">×</span> --}}
+                                    <!-- Sale Price Management -->
+                                    <div class="mb-4">
+                                        <h6 class="text-warning fw-bold mb-3 text-uppercase">Sale Price Management</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="card border-warning bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleUnitLabel">Unit Sale:</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-warning text-white fw-bold">Rs.</span>
+                                                            <input type="number" step="0.01" id="salePrice" name="sale_price"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromUnit('sale')">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card border-warning bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleBaseLabel">Per Base Sale:</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text bg-warning text-white fw-bold">Rs.</span>
+                                                            <input type="number" step="0.01" id="baseSalePrice" name="sale_price_per_base"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromBase('sale')">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                <input type="number" id="sale_base_price" name="sale_price_per_base"
-                                    class="form-control form-control-sm" placeholder="Sale per  Unit"
-                                    style="width:100px;">
+                                    <!-- Price Analysis -->
+                                    <div id="derivedPricesList" class="mt-4">
+                                        <!-- Analysis cards will be dynamically inserted here -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <!-- Thumbnail -->
@@ -1633,82 +1671,81 @@
 </div>
 </div>
 </div>
-<!-- Unit Manager Modal -->
-<div class="modal fade" id="Unit-add-modal" tabindex="-1" aria-labelledby="UnitModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade" id="Unit-add-modal">
+    <div class="modal-dialog modal-dialog-centered ">
         <div class="modal-content">
-            <div class="modal-header border-bottom">
-                <h5 class="modal-title fw-bold" id="Unit-modal-title">Unit Settings</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header">
+                <h4 id="Unit-modal-title">Add Unit</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="Unit-form" method="POST" onsubmit="event.preventDefault(); saveUnit(); return false;">
+            <form id="Unit-form" method="POST" enctype="multipart/form-data">
                 @csrf
-                <input type="hidden" id="unit-edit-id" name="unit_id" value="">
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Unit Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unit-name-input" name="name" class="form-control form-control-sm text-uppercase" >
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Short Name <span class="text-danger">*</span></label>
-                            <input type="text" id="unit-short-input" name="short_name" class="form-control form-control-sm text-uppercase" required>
-                        </div>
+                <div class="modal-body">
+                    <div class="form-group col-12 mt-2">
+                        <label>Name <span class="text-danger">*</span></label>
+                        <input class="form-control" type="text" name="name" required>
                     </div>
-                    <div class="row g-3 mt-2 bg-light p-3 rounded">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Allow Decimal? <span class="text-danger">*</span></label>
-                            <select id="unit-allow-decimal" name="allow_decimal" class="form-control form-control-sm" required onchange="toggleDecimalPrecision()">
-                                <option value="0">NO</option>
-                                <option value="1">YES</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6" id="unit-precision-container" style="display: none;">
-                            <label class="form-label small fw-bold text-uppercase text-muted mb-1">Decimals</label>
-                            <input type="number" id="unit-decimal-precision" name="decimal_after_point_digit" class="form-control form-control-sm" min="0" max="10" value="2">
-                        </div>
+                    <div class="form-group col-12 mt-3">
+                        <label>Short Name <span class="text-danger">*</span></label>
+                        <input class="form-control" type="text" name="short_name" required>
                     </div>
-                    <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" id="unit-has-base" name="is_base_unit" value="1" onchange="toggleBaseSettings()">
-                        <label class="form-check-label small fw-bold text-uppercase" for="unit-has-base">
-                            Multiple of other units
+                    <div class="form-group col-12 mt-4">
+                        <label>Allow Decimal <span class="text-danger">*</span></label>
+                        <select name="allow_decimal" class="form-control" required>
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-12 mt-3">
+                        <label>
+                            <input type="checkbox" name="define_base_unit" value="1" id="toggleBaseUnit">
+                            Add as multiple of another Unit
                         </label>
                     </div>
-                    <div id="unit-base-settings" class="mt-3 border-start border-4 border-warning ps-3" style="display: none;">
-                        <div id="unit-base-rows" class="space-y-3">
-                            <div class="row g-2 mb-2 base-unit-row">
-                                <div class="col-5">
-                                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">QTY</label>
-                                    <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm multiplier-input" placeholder="e.g., 1, 2, 3">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">BASE UNIT</label>
-                                    <select name="base_units[0][base_unit_id]" class="form-control form-control-sm base-unit-select">
-                                        <option value="">Select Base Unit</option>
-                                        @foreach($units as $u)
-                                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-1 d-flex align-items-end">
-                                    <button type="button" class="btn btn-danger btn-sm remove-base-row" style="display: none;" onclick="removeRow(this)">
-                                        <i class="ti ti-x"></i>
-                                    </button>
+                    <div class="col-12 mt-4" id="baseDetails" style="display:none;">
+                        <label class="fw-bold mb-2">Base Unit Options:</label>
+                        <div id="baseUnitsContainer">
+                            <div class="base-unit-item mb-3 p-3 border rounded">
+                                <div class="row g-2">
+                                    <div class="col-5">
+                                        <label class="small">Multiplier</label>
+                                        <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="small">Base Unit</label>
+                                        <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
+                                            <option value="">Select Base Unit</option>
+                                            @foreach($units as $u)
+                                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-1 d-flex align-items-end">
+                                        <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                                            <i class="ti ti-x"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-warning text-white w-100 mt-2" onclick="addBaseRow()">
-                            <i class="ti ti-plus"></i> ADD ANOTHER
+                        <button type="button" class="btn btn-sm btn-primary mt-2" id="addBaseUnitBtn">
+                            <i class="ti ti-plus"></i> Add Another Base Unit
                         </button>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer border-top bg-light">
-                <button type="button" class="btn btn-danger d-none" id="unit-delete-btn" onclick="deleteUnit()">Delete</button>
-                <button type="button" onclick="saveUnit(); return false;" class="btn btn-warning text-white fw-bold">SAVE UNIT</button>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger d-none" id="deleteUnitBtn">
+                        Delete
+                    </button>
+
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
         </div>
+
+        </form>
     </div>
+</div>
 </div>
 
 <div class="modal fade" id="vehical-add-modal">
@@ -1997,19 +2034,19 @@
                                     <input type="checkbox" name="type_checkbox[]" value="parts" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
                                     <span style="font-weight: 500; color: #495057;">PARTS</span>
                                 </label>
-                        </div>
+                            </div>
                             <div class="col-md-6 col-6">
                                 <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
                                     <input type="checkbox" name="type_checkbox[]" value="filters" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
                                     <span style="font-weight: 500; color: #495057;">FILTERS</span>
                                 </label>
-                    </div>
+                            </div>
                             <div class="col-md-6 col-6">
                                 <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
                                     <input type="checkbox" name="type_checkbox[]" value="breakpad" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
                                     <span style="font-weight: 500; color: #495057;">BREAK PAD</span>
                                 </label>
-                </div>
+                            </div>
                             <div class="col-md-6 col-6">
                                 <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
                                     <input type="checkbox" name="type_checkbox[]" value="oil" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
@@ -2088,8 +2125,265 @@
         /* =========================
            ADD / UPDATE UNIT
         ==========================*/
-        // Old Unit-form submit handler removed - now using saveUnit() function from Unit Manager
-        // Old editUnitBtn and deleteUnit handlers removed - now using openModal() and deleteUnit() from Unit Manager
+        $("#Unit-form").off("submit").on("submit", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Check if modal is actually visible
+            if (!$('#Unit-add-modal').hasClass('show')) {
+                console.log('Unit modal not visible, ignoring submit');
+                return false;
+            }
+            
+            let formData = new FormData(this);
+            let url = currentUnitId ?
+                `/units/${currentUnitId}` :
+                `{{ route('post.units') }}`;
+            if (currentUnitId) {
+                formData.append('_method', 'PUT');
+            }
+            $.ajax({
+                url: url,
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    if (res.success) {
+                        // Reload units dropdown
+                        loadUnitsForDropdown();
+                        
+                        // Select the newly created/updated unit
+                        setTimeout(function() {
+                            if (res.unit && res.unit.id) {
+                                // Find and select the unit option
+                                const unitId = res.unit.id;
+                                $('#unit_parts option').each(function() {
+                                    if ($(this).attr('data-unit-id') == unitId) {
+                                        $('#unit_parts').val($(this).val()).trigger('change');
+                                    }
+                                });
+                            }
+                        }, 500);
+                        
+                        $('#Unit-add-modal').modal('hide');
+                        $('#Unit-form')[0].reset();
+                        currentUnitId = null;
+                        
+                        // Only show success message if modal was actually open
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: 'Unit saved successfully'
+                        });
+                        // 🔊 Play save sound when unit is saved
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Unit save error', xhr);
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        toastr.error(xhr.responseJSON.message);
+                    } else {
+                        toastr.error('Failed to save unit. Please try again.');
+                    }
+                }
+            });
+        });
+        /* =========================
+           EDIT UNIT
+        ==========================*/
+        $('#editUnitBtn').on('click', function() {
+            let selected = $('#unit_parts option:selected');
+            if (!selected.val()) {
+                Swal.fire('Select Unit', 'Please select a unit first', 'warning');
+                return;
+            }
+            currentUnitId = selected.val();
+            $('#Unit-modal-title').text('Edit Unit');
+            $('#deleteUnitBtn').removeClass('d-none');
+            
+            // Fetch unit data including base units
+            $.get(`/all/units`, function(units) {
+                // Find the unit in the list (we need a better way - add a route to fetch single unit)
+                // For now, use the selected option data
+                const unitName = selected.data('name') || selected.text().split('(')[0].trim();
+                $('#Unit-form [name="name"]').val(unitName);
+            });
+            
+            // Fetch unit details via AJAX - we need to add a route for this
+            // For now, use a workaround - fetch from all units
+            $.ajax({
+                url: `/units/${currentUnitId}`,
+                type: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                success: function(res) {
+                    if (res && res.unit) {
+                        const unit = res.unit;
+                        $('#Unit-form [name="name"]').val(unit.name);
+                        $('#Unit-form [name="short_name"]').val(unit.short_name);
+                        $('#Unit-form [name="allow_decimal"]').val(unit.allow_decimal);
+                        $('#Unit-form [name="define_base_unit"]').prop('checked', unit.define_base_unit == 1);
+                        
+                        // Show/hide base details
+                        if (unit.define_base_unit == 1) {
+                            $('#baseDetails').show();
+                        } else {
+                            $('#baseDetails').hide();
+                        }
+                        
+                        // Clear existing base units
+                        $('#baseUnitsContainer').empty();
+                        baseUnitIndex = 0;
+                        
+                        // Load base units if available
+                        if (unit.base_units && unit.base_units.length > 0) {
+                            unit.base_units.forEach(function(baseUnit) {
+                                addBaseUnitRow(baseUnit.base_unit_id, baseUnit.pivot?.multiplier || baseUnit.multiplier);
+                            });
+                        } else if (unit.base_unit_id) {
+                            // Legacy single base unit
+                            addBaseUnitRow(unit.base_unit_id, unit.base_unit_multiplier || 1);
+                        } else {
+                            // Add one empty row
+                            addBaseUnitRow('', '');
+                        }
+                        
+                        updateUnitRemoveButtons();
+                        $('#Unit-add-modal').modal('show');
+                    }
+                },
+                error: function() {
+                    // Fallback to using option data
+                    $('#Unit-form [name="name"]').val(selected.data('name') || selected.text().split('(')[0].trim());
+                    $('#Unit-add-modal').modal('show');
+                }
+            });
+        });
+        
+        // Helper function to add base unit row
+        function addBaseUnitRow(baseUnitId, multiplier) {
+            const container = $('#baseUnitsContainer');
+            const newItem = $(`
+                <div class="base-unit-item mb-3 p-3 border rounded">
+                    <div class="row g-2">
+                        <div class="col-5">
+                            <label class="small">Multiplier</label>
+                            <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" value="${multiplier || ''}" placeholder="e.g., 1, 2, 3">
+                        </div>
+                        <div class="col-6">
+                            <label class="small">Base Unit</label>
+                            <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
+                                <option value="">Select Base Unit</option>
+                                @foreach($units as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-1 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            container.append(newItem);
+            
+            // Set selected value
+            if (baseUnitId) {
+                newItem.find('select[name="base_units[' + baseUnitIndex + '][base_unit_id]"]').val(baseUnitId);
+            }
+            
+            baseUnitIndex++;
+        }
+        /* =========================
+           DELETE UNIT
+        ==========================*/
+        $('#deleteUnitBtn').on('click', function() {
+            if (!currentUnitId) return;
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'This unit will be deleted',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/units/${currentUnitId}`,
+                        type: 'POST',
+                        data: {
+                            _method: 'DELETE',
+                            _token: $('input[name=_token]').val()
+                        },
+                        success: function(res) {
+                            if (res.success) {
+                                // 🔊 Play delete sound
+                                const audio = document.getElementById(
+                                'deleteSound');
+                                audio.currentTime = 0;
+                                audio.play();
+                                // Remove option
+                                $(`#unit_parts option[value="${currentUnitId}"]`)
+                                    .remove();
+                                $('#Unit-add-modal').modal('hide');
+                                $('#Unit-form')[0].reset();
+                                currentUnitId = null;
+                                Swal.fire('Deleted!', 'Unit deleted successfully',
+                                    'success');
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        /* =========================
+           RESET MODAL
+        ==========================*/
+        $('#Unit-add-modal').on('hidden.bs.modal', function() {
+            $('#Unit-form')[0].reset();
+            $('#deleteUnitBtn').addClass('d-none');
+            $('#Unit-modal-title').text('Add Unit');
+            currentUnitId = null;
+            
+            // Reset base units container
+            $('#baseUnitsContainer').empty();
+            baseUnitIndex = 1;
+            // Add one empty base unit row
+            const container = $('#baseUnitsContainer');
+            container.html(`
+                <div class="base-unit-item mb-3 p-3 border rounded">
+                    <div class="row g-2">
+                        <div class="col-5">
+                            <label class="small">Multiplier</label>
+                            <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                        </div>
+                        <div class="col-6">
+                            <label class="small">Base Unit</label>
+                            <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
+                                <option value="">Select Base Unit</option>
+                                @foreach($units as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-1 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit" style="display:none;">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `);
+            $('#baseDetails').hide();
+            $('#toggleBaseUnit').prop('checked', false);
+        });
     });
 </script>
 <script>
@@ -2100,764 +2394,290 @@
         imgPreview.src = imgURL;
         imgPreview.style.display = 'block';
     });
-    // These functions are now defined in the Unit Manager section above
-    // ========== UNIT MANAGER FUNCTIONS (EXACT FROM YOUR HTML) ==========
-    @php
-        // Load all units with their base units (including multiple entries for same base unit)
-        $unitsDataArray = $units->map(function($unit) {
-            // Get all base units from unit_base_units table (allowing multiple entries with different multipliers)
-            $conversions = \Illuminate\Support\Facades\DB::table('unit_base_units')
-                ->where('unit_id', $unit->id)
-                ->join('units', 'unit_base_units.base_unit_id', '=', 'units.id')
-                ->select('unit_base_units.multiplier', 'units.name as base_name', 'units.id as base_id')
-                ->get()
-                ->map(function($bu) {
-                    return [
-                        'multiplier' => (float) $bu->multiplier,
-                        'base' => $bu->base_name,
-                        'base_id' => $bu->base_id
-                    ];
-                })->toArray();
-            
-            return [
-                'id' => $unit->id,
-                'name' => $unit->name,
-                'short' => $unit->short_name,
-                'decimal' => $unit->decimal_after_point_digit ?? 0,
-                'conversions' => $conversions
-            ];
-        })->toArray();
-    @endphp
-    let unitsData = @json($unitsDataArray);
+    document.getElementById('toggleBaseUnit').addEventListener("change", function() {
+        document.getElementById('baseDetails').style.display = this.checked ? "block" : "none";
+    });
     
-    // Load units from database and merge with localStorage
-    function loadFromStorage() {
-        // First, ensure unitsData is available
-        if (!unitsData || unitsData.length === 0) {
-            console.error('unitsData is empty or not defined');
-            return;
-        }
+    // Add Base Unit functionality for Unit Modal
+    let baseUnitIndex = 1;
+    document.getElementById('addBaseUnitBtn')?.addEventListener('click', function() {
+        const container = document.getElementById('baseUnitsContainer');
+        if (!container) return;
         
-        let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
-        
-        // If localStorage is empty, use unitsData directly
-        if (storedUnits.length === 0) {
-            localStorage.setItem('myUnits', JSON.stringify(unitsData));
-            storedUnits = unitsData;
-        }
-        
-        // Merge database units with stored units (prioritize stored for prices)
-        unitsData.forEach(dbUnit => {
-            const stored = storedUnits.find(u => u.id == dbUnit.id);
-            if (stored) {
-                // Keep stored prices but update structure
-                dbUnit.sampleCost = stored.sampleCost || null;
-                dbUnit.sampleSale = stored.sampleSale || null;
-                if (stored.conversions) {
-                    dbUnit.conversions.forEach((conv, idx) => {
-                        if (stored.conversions && stored.conversions[idx]) {
-                            conv.sampleCost = stored.conversions[idx].sampleCost || null;
-                            conv.sampleSale = stored.conversions[idx].sampleSale || null;
-                        }
-                    });
-                }
-            }
-        });
-        
-        // Save merged data
-        localStorage.setItem('myUnits', JSON.stringify(unitsData));
-        renderUnits();
-    }
+        const newItem = document.createElement('div');
+        newItem.className = 'base-unit-item mb-3 p-3 border rounded';
+        newItem.innerHTML = `
+            <div class="row g-2">
+                <div class="col-5">
+                    <label class="small">Multiplier</label>
+                    <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                </div>
+                <div class="col-6">
+                    <label class="small">Base Unit</label>
+                    <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
+                        <option value="">Select Base Unit</option>
+                        @foreach($units as $u)
+                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-1 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newItem);
+        baseUnitIndex++;
+        updateUnitRemoveButtons();
+    });
     
-    function renderUnits() {
-        const select = document.getElementById('unitSelect');
-        if (!select) {
-            console.error('unitSelect element not found');
-            return;
-        }
+    // Remove Base Unit functionality for Unit Modal
+    function updateUnitRemoveButtons() {
+        const container = document.getElementById('baseUnitsContainer');
+        if (!container) return;
         
-        const currentVal = select.value;
-        select.innerHTML = '<option value="">-- PLEASE SELECT --</option>';
-        
-        // First try localStorage, if empty use unitsData directly
-        let units = JSON.parse(localStorage.getItem('myUnits') || '[]');
-        if (units.length === 0 && unitsData && unitsData.length > 0) {
-            units = unitsData;
-            localStorage.setItem('myUnits', JSON.stringify(unitsData));
-        }
-        
-        if (units.length === 0) {
-            console.warn('No units found to render');
-            return;
-        }
-        
-        units.forEach(u => {
-            if (!u || !u.name) return; // Skip invalid units
-            
-            const group = document.createElement('optgroup');
-            group.label = u.name;
-            group.style.fontWeight = '900';
-            group.style.color = '#ff9f43';
-            group.style.textTransform = 'uppercase';
-
-            if (u.conversions && u.conversions.length > 0) {
-                u.conversions.forEach((c, index) => {
-                    if (c && c.base && c.multiplier !== undefined) {
-                        const baseName = c.base || '';
-                        const baseId = c.base_id || '';
-                        const multiplier = c.multiplier || 1;
-                        const opt = new Option(`1 ${u.name} = ${multiplier} ${baseName}`, `${u.id}-${baseId || baseName}`);
-                        setAttr(opt, u, u.conversions, index);
-                        group.appendChild(opt);
-                    }
-                });
-            } else {
-                const opt = new Option(`1 ${u.name}`, u.id);
-                setAttr(opt, u, [], -1);
-                group.appendChild(opt);
-            }
-            select.appendChild(group);
-        });
-        select.value = currentVal;
-    }
-
-    function setAttr(opt, u, convs, activeIdx) {
-        opt.setAttribute('data-id', u.id);
-        opt.setAttribute('data-original-name', u.name);
-        opt.setAttribute('data-short', u.short);
-        opt.setAttribute('data-decimal', u.decimal);
-        opt.setAttribute('data-conversions', JSON.stringify(convs));
-        opt.setAttribute('data-active-conv-index', activeIdx);
-    }
-
-    function openModal(mode) {
-        const select = document.getElementById('unitSelect');
-        resetForm();
-        
-        if (mode === 'add') {
-            document.getElementById('Unit-modal-title').innerText = "Unit Settings";
-            document.getElementById('unit-delete-btn').classList.add('d-none');
-            document.getElementById('unit-edit-id').value = '';
-            const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
-            modal.show();
-        } else if (mode === 'edit' && select.selectedIndex > 0) {
-            document.getElementById('Unit-modal-title').innerText = "Update Unit Settings";
-            document.getElementById('unit-delete-btn').classList.remove('d-none');
-            const opt = select.selectedOptions[0];
-            const unitId = opt.getAttribute('data-id');
-            document.getElementById('unit-edit-id').value = unitId;
-            
-            // Fetch unit data from API
-            fetch(`/units/${unitId}`, {
-                method: 'GET',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.unit) {
-                    const unit = data.unit;
-                    document.getElementById('unit-edit-id').value = unit.id;
-                    document.getElementById('unit-name-input').value = unit.name || '';
-                    document.getElementById('unit-short-input').value = unit.short_name || '';
-                    document.getElementById('unit-allow-decimal').value = unit.allow_decimal == '1' || unit.allow_decimal == 1 ? "1" : "0";
-                    document.getElementById('unit-decimal-precision').value = unit.decimal_after_point_digit || "2";
-                    toggleDecimalPrecision();
-                    
-                    // Load base units if they exist
-                    if (unit.base_units && unit.base_units.length > 0) {
-                        document.getElementById('unit-has-base').checked = true;
-                        toggleBaseSettings();
-                        const rowsContainer = document.getElementById('unit-base-rows');
-                        // Clear existing rows except first one
-                        while (rowsContainer.children.length > 1) {
-                            rowsContainer.removeChild(rowsContainer.lastChild);
-                        }
-                        
-                        // Populate base units
-                        unit.base_units.forEach((baseUnit, i) => {
-                            if (i > 0) addBaseRow();
-                            const row = rowsContainer.children[i];
-                            row.querySelector('.multiplier-input').value = baseUnit.multiplier || '';
-                            const baseSelect = row.querySelector('.base-unit-select');
-                            baseSelect.value = baseUnit.id || '';
-                            if (i > 0) {
-                                const removeBtn = row.querySelector('.remove-base-row');
-                                if (removeBtn) removeBtn.style.display = 'block';
-                            }
-                        });
-                    } else {
-                        document.getElementById('unit-has-base').checked = false;
-                        toggleBaseSettings();
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching unit:', error);
-                alert('Error loading unit data. Please try again.');
-            });
-            
-            const modal = new bootstrap.Modal(document.getElementById('Unit-add-modal'));
-            modal.show();
-        } else if (mode === 'edit') {
-            alert('Please select a unit first to edit.');
-        }
-    }
-
-    function closeModal() {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('Unit-add-modal'));
-        if (modal) modal.hide();
-    }
-
-    function toggleDecimalPrecision() {
-        const container = document.getElementById('unit-precision-container');
-        const allowDecimal = document.getElementById('unit-allow-decimal').value;
-        container.style.display = allowDecimal == '1' ? 'block' : 'none';
-    }
-
-    function toggleBaseSettings() {
-        const container = document.getElementById('unit-base-settings');
-        const hasBase = document.getElementById('unit-has-base').checked;
-        container.style.display = hasBase ? 'block' : 'none';
-    }
-
-    function addBaseRow() {
-        const rows = document.getElementById('unit-base-rows');
-        const newRow = rows.children[0].cloneNode(true);
-        const index = rows.children.length;
-        newRow.querySelector('.multiplier-input').value = '';
-        newRow.querySelector('.base-unit-select').value = '';
-        newRow.querySelector('.multiplier-input').name = `base_units[${index}][multiplier]`;
-        newRow.querySelector('.base-unit-select').name = `base_units[${index}][base_unit_id]`;
-        const removeBtn = newRow.querySelector('.remove-base-row');
-        if (removeBtn) {
-            removeBtn.style.display = 'block';
-            removeBtn.onclick = function() { removeRow(this); };
-        }
-        rows.appendChild(newRow);
-        updateRemoveButtons();
-    }
-
-    function removeRow(btn) {
-        btn.closest('.base-unit-row').remove();
-        updateRemoveButtons();
-    }
-
-    function updateRemoveButtons() {
-        const rows = document.querySelectorAll('#unit-base-rows .base-unit-row');
-        rows.forEach((row, index) => {
-            const removeBtn = row.querySelector('.remove-base-row');
-            if (rows.length > 1) {
+        const allItems = container.querySelectorAll('.base-unit-item');
+        allItems.forEach(function(item) {
+            const removeBtn = item.querySelector('.removeBaseUnit');
+            if (allItems.length > 1) {
                 removeBtn.style.display = 'block';
             } else {
                 removeBtn.style.display = 'none';
             }
         });
     }
-
-    function saveUnit() {
-        // Prevent form submission if it exists
-        const form = document.getElementById('Unit-form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }, { once: true });
+    
+    // Event delegation for remove buttons in Unit Modal
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.removeBaseUnit') && e.target.closest('#baseUnitsContainer')) {
+            e.target.closest('.base-unit-item').remove();
+            updateUnitRemoveButtons();
         }
+    });
+    
+    // Initialize remove buttons on page load
+    updateUnitRemoveButtons();
+    
+    // Initialize unit dropdown
+    $(document).ready(function() {
+        // Load units from API
+        loadUnitsForDropdown();
         
-        const nameInput = document.getElementById('unit-name-input');
-        const shortInput = document.getElementById('unit-short-input');
-        const name = nameInput ? nameInput.value.trim() : '';
-        const short = shortInput ? shortInput.value.trim() : '';
-        const editId = document.getElementById('unit-edit-id').value;
+        // Handle unit change
+        $('#unit_parts').on('change', handleUnitChange);
         
-        if (!name || !short) {
-            alert("Please fill name and short name");
-            return;
-        }
-        
-        // Ensure values are uppercase
-        const nameUpper = name.toUpperCase();
-        const shortUpper = short.toUpperCase();
-        
-        // Collect base units data
-        let baseUnits = [];
-        const hasBaseCheckbox = document.getElementById('unit-has-base');
-        if (hasBaseCheckbox && hasBaseCheckbox.checked) {
-            document.querySelectorAll('#unit-base-rows .base-unit-row').forEach(row => {
-                const multiplierInput = row.querySelector('.multiplier-input');
-                const baseUnitSelect = row.querySelector('.base-unit-select');
-                if (multiplierInput && baseUnitSelect) {
-                    const m = multiplierInput.value.trim();
-                    const b = baseUnitSelect.value.trim();
-                    if (m && b && !isNaN(m) && parseFloat(m) > 0) {
-                        baseUnits.push({ 
-                            multiplier: parseFloat(m), 
-                            base_unit_id: parseInt(b) 
-                        });
-                    }
-                }
+        // Initialize searchable-select if the class exists
+        if ($.fn.select2 && $('#unit_parts').hasClass('searchable-select')) {
+            $('#unit_parts').select2({
+                placeholder: '-- PLEASE SELECT --',
+                allowClear: true,
+                width: '100%'
             });
         }
-        
-        // Validate required fields before creating FormData
-        if (!nameUpper || nameUpper.length === 0) {
-            alert("Please enter a unit name");
-            const nameInput = document.getElementById('unit-name-input');
-            if (nameInput) nameInput.focus();
-            return;
-        }
-        
-        if (!shortUpper || shortUpper.length === 0) {
-            alert("Please enter a short name");
-            const shortInput = document.getElementById('unit-short-input');
-            if (shortInput) shortInput.focus();
-            return;
-        }
-        
-        // Debug: Log form values before submission
-        console.log('Submitting unit data:', {
-            name: nameUpper,
-            short_name: shortUpper,
-            allow_decimal: allowDecimal,
-            decimal_after_point_digit: decimalPrecision,
-            base_units: baseUnits,
-            editId: editId
-        });
-        
-        const formData = new FormData();
-        formData.append('name', nameUpper);
-        formData.append('short_name', shortUpper);
-        const allowDecimalEl = document.getElementById('unit-allow-decimal');
-        const allowDecimal = allowDecimalEl ? (allowDecimalEl.value || '0') : '0';
-        formData.append('allow_decimal', allowDecimal);
-        const decimalPrecisionEl = document.getElementById('unit-decimal-precision');
-        const decimalPrecision = decimalPrecisionEl ? (decimalPrecisionEl.value || '2') : '2';
-        formData.append('decimal_after_point_digit', decimalPrecision);
-        
-        // Only send base_units if checkbox is checked and we have valid base units
-        if (hasBaseCheckbox && hasBaseCheckbox.checked && baseUnits.length > 0) {
-            baseUnits.forEach((bu, index) => {
-                formData.append(`base_units[${index}][multiplier]`, bu.multiplier);
-                formData.append(`base_units[${index}][base_unit_id]`, bu.base_unit_id);
-            });
-        }
-        
-        const url = editId ? `/units/${editId}` : '/post/units';
-        const method = editId ? 'PUT' : 'POST';
-        
-        // Add _method for PUT requests (Laravel requirement)
-        if (editId) {
-            formData.append('_method', 'PUT');
-        }
-        
-        fetch(url, {
-            method: 'POST', // Always use POST, Laravel will use _method to determine PUT
-            body: formData,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => {
-                    throw { status: response.status, errors: err };
+    });
+    
+    // Load units with conversions from API
+    function loadUnitsForDropdown() {
+        $.ajax({
+            url: '{{ route("api.units.search") }}',
+            data: { search: '' },
+            success: function(data) {
+                $('#unit_parts').empty().append('<option value="">-- PLEASE SELECT --</option>');
+                
+                data.forEach(function(item) {
+                    const optionId = item.id + '_' + (item.base_unit_id || 'main');
+                    const option = new Option(item.display_text, optionId, false, false);
+                    option.setAttribute('data-unit-id', item.id);
+                    option.setAttribute('data-unit-name', item.name);
+                    option.setAttribute('data-unit-short', item.short_name);
+                    option.setAttribute('data-base-unit-id', item.base_unit_id || '');
+                    option.setAttribute('data-base-unit-name', item.base_unit_name || '');
+                    option.setAttribute('data-multiplier', item.multiplier || '');
+                    option.setAttribute('data-decimal-places', item.decimal_places || 0);
+                    option.setAttribute('data-allow-decimal', item.allow_decimal || 0);
+                    $('#unit_parts').append(option);
                 });
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success && data.unit) {
-                // Update unitsData with the new/updated unit
-                let storedUnits = JSON.parse(localStorage.getItem('myUnits') || '[]');
-                const unitIndex = storedUnits.findIndex(u => u.id == data.unit.id);
-                
-                // Format unit data to match localStorage structure
-                const formattedUnit = {
-                    id: data.unit.id,
-                    name: data.unit.name,
-                    short: data.unit.short_name,
-                    decimal: parseInt(data.unit.decimal_after_point_digit) || 0,
-                    conversions: (data.unit.base_units || []).map(bu => ({
-                        multiplier: parseFloat(bu.multiplier) || 1,
-                        base: bu.name,
-                        base_id: bu.id
-                    }))
-                };
-                
-                if (unitIndex >= 0) {
-                    // Update existing unit
-                    storedUnits[unitIndex] = { ...storedUnits[unitIndex], ...formattedUnit };
-                } else {
-                    // Add new unit
-                    storedUnits.push(formattedUnit);
-                }
-                
-                localStorage.setItem('myUnits', JSON.stringify(storedUnits));
-                
-                // Also update unitsData array for immediate use
-                if (typeof unitsData !== 'undefined') {
-                    const dbUnitIndex = unitsData.findIndex(u => u.id == data.unit.id);
-                    if (dbUnitIndex >= 0) {
-                        unitsData[dbUnitIndex] = formattedUnit;
-                    } else {
-                        unitsData.push(formattedUnit);
-                    }
-                }
-                
-                alert(data.message || 'Unit saved successfully!');
-                renderUnits();
-                loadFromStorage(); // Reload to sync
-                closeModal();
-                resetForm();
-            } else {
-                alert(data.message || 'Error saving unit. Please try again.');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving unit:', error);
-            if (error.errors) {
-                // Handle validation errors
-                let errorMessages = [];
-                if (error.errors.name) {
-                    errorMessages.push('Name: ' + error.errors.name.join(', '));
-                }
-                if (error.errors.short_name) {
-                    errorMessages.push('Short Name: ' + error.errors.short_name.join(', '));
-                }
-                if (error.errors.allow_decimal) {
-                    errorMessages.push('Allow Decimal: ' + error.errors.allow_decimal.join(', '));
-                }
-                if (error.errors.decimal_after_point_digit) {
-                    errorMessages.push('Decimal Precision: ' + error.errors.decimal_after_point_digit.join(', '));
-                }
-                alert('Validation Error:\n' + errorMessages.join('\n'));
-            } else {
-                alert('Error saving unit. Please try again.');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving unit:', error);
-            alert('Error saving unit. Please try again.');
         });
     }
-
-    function saveCurrentPrices() {
-        const opt = document.getElementById('unitSelect').selectedOptions[0];
-        if (!opt || opt.value === "") {
-            alert("Please select a unit first");
+    
+    // Handle unit selection change
+    function handleUnitChange() {
+        const selectedOption = $('#unit_parts option:selected');
+        if (!selectedOption.val() || selectedOption.val() === '') {
+            resetPriceFields();
             return;
         }
         
-        const unitId = opt.getAttribute('data-id');
-        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
-        const cost = document.getElementById('costPrice').value;
-        const sale = document.getElementById('salePrice').value;
+        const unitName = selectedOption.attr('data-unit-name');
+        const baseUnitName = selectedOption.attr('data-base-unit-name');
+        const multiplier = parseFloat(selectedOption.attr('data-multiplier')) || 1;
+        const decimalPlaces = parseInt(selectedOption.attr('data-decimal-places')) || 2;
         
-        let units = JSON.parse(localStorage.getItem('myUnits') || '[]');
-        const uIndex = units.findIndex(u => u.id == unitId);
+        // Update labels
+        $('#costUnitLabel').text(`${unitName} COST:`);
+        $('#saleUnitLabel').text(`${unitName} SALE:`);
         
-        if (uIndex !== -1) {
-            if (activeIdx !== -1) {
-                if (!units[uIndex].conversions) units[uIndex].conversions = [];
-                if (!units[uIndex].conversions[activeIdx]) units[uIndex].conversions[activeIdx] = {};
-                units[uIndex].conversions[activeIdx].sampleCost = cost;
-                units[uIndex].conversions[activeIdx].sampleSale = sale;
-            } else {
-                units[uIndex].sampleCost = cost;
-                units[uIndex].sampleSale = sale;
-            }
-            localStorage.setItem('myUnits', JSON.stringify(units));
-            const status = document.getElementById('saveStatus');
-            status.classList.remove('d-none');
-            setTimeout(() => { status.classList.add('d-none'); }, 3000);
+        if (baseUnitName && multiplier) {
+            $('#costBaseLabel').text(`PER ${baseUnitName} COST:`);
+            $('#saleBaseLabel').text(`PER ${baseUnitName} SALE:`);
+            $('#baseCostPrice, #baseSalePrice').show();
+        } else {
+            $('#costBaseLabel').text(`PER ${unitName} COST:`);
+            $('#saleBaseLabel').text(`PER ${unitName} SALE:`);
+            $('#baseCostPrice, #baseSalePrice').hide();
         }
+        
+        // Reset prices
+        $('#costPrice, #baseCostPrice, #salePrice, #baseSalePrice').val('');
+        syncPrices();
     }
-
+    
+    // Calculate from unit price
     function calculateFromUnit(type) {
-        const opt = document.getElementById('unitSelect').selectedOptions[0];
-        if (!opt || opt.value === "") return;
-        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
-        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        const selectedOption = $('#unit_parts option:selected');
+        if (!selectedOption.val()) return;
         
-        const unitInput = document.getElementById(type === 'cost' ? 'costPrice' : 'salePrice');
-        const baseInput = document.getElementById(type === 'cost' ? 'baseCostPrice' : 'baseSalePrice');
-        const unitVal = parseFloat(unitInput.value) || 0;
-
-        if (convs.length > 0 && activeIdx !== -1) {
-            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
-            baseInput.value = (unitVal / multiplier).toFixed(2);
+        const multiplier = parseFloat(selectedOption.attr('data-multiplier')) || 1;
+        const baseUnitName = selectedOption.attr('data-base-unit-name');
+        const decimalPlaces = parseInt(selectedOption.attr('data-decimal-places')) || 2;
+        
+        const unitInput = type === 'cost' ? $('#costPrice') : $('#salePrice');
+        const baseInput = type === 'cost' ? $('#baseCostPrice') : $('#baseSalePrice');
+        const unitVal = parseFloat(unitInput.val()) || 0;
+        
+        if (baseUnitName && multiplier > 0) {
+            const baseVal = (unitVal / multiplier).toFixed(decimalPlaces);
+            baseInput.val(baseVal);
         } else {
-            baseInput.value = unitVal.toFixed(2);
+            baseInput.val(unitVal.toFixed(decimalPlaces));
         }
+        
         syncPrices();
     }
-
+    
+    // Calculate from base price
     function calculateFromBase(type) {
-        const opt = document.getElementById('unitSelect').selectedOptions[0];
-        if (!opt || opt.value === "") return;
-        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
-        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
+        const selectedOption = $('#unit_parts option:selected');
+        if (!selectedOption.val()) return;
         
-        const unitInput = document.getElementById(type === 'cost' ? 'costPrice' : 'salePrice');
-        const baseInput = document.getElementById(type === 'cost' ? 'baseCostPrice' : 'baseSalePrice');
-        const baseVal = parseFloat(baseInput.value) || 0;
-
-        if (convs.length > 0 && activeIdx !== -1) {
-            const multiplier = parseFloat(convs[activeIdx].multiplier) || 1;
-            unitInput.value = (baseVal * multiplier).toFixed(2);
+        const multiplier = parseFloat(selectedOption.attr('data-multiplier')) || 1;
+        const baseUnitName = selectedOption.attr('data-base-unit-name');
+        const decimalPlaces = parseInt(selectedOption.attr('data-decimal-places')) || 2;
+        
+        const unitInput = type === 'cost' ? $('#costPrice') : $('#salePrice');
+        const baseInput = type === 'cost' ? $('#baseCostPrice') : $('#baseSalePrice');
+        const baseVal = parseFloat(baseInput.val()) || 0;
+        
+        if (baseUnitName && multiplier > 0) {
+            const unitVal = (baseVal * multiplier).toFixed(decimalPlaces);
+            unitInput.val(unitVal);
         } else {
-            unitInput.value = baseVal.toFixed(2);
-        }
-        syncPrices();
-    }
-
-    function calculateSalePriceFromPercentage() {
-        const percentageInput = document.getElementById('percentageMarkup');
-        if (!percentageInput) return;
-        
-        const percentage = parseFloat(percentageInput.value) || 0;
-        
-        // Only calculate if percentage is set and greater than 0
-        if (percentage <= 0) return;
-        
-        const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
-        const baseCostPrice = parseFloat(document.getElementById('baseCostPrice').value) || 0;
-        
-        // Prioritize unit cost price if available
-        if (costPrice > 0) {
-            const salePrice = costPrice * (1 + percentage / 100);
-            const salePriceInput = document.getElementById('salePrice');
-            if (salePriceInput) {
-                salePriceInput.value = parseFloat(salePrice.toFixed(2));
-                // Update base sale price by triggering the unit calculation
-                calculateFromUnit('sale');
-            }
-        } 
-        // If unit cost is not available but base cost is, calculate from base cost
-        else if (baseCostPrice > 0) {
-            const baseSalePrice = baseCostPrice * (1 + percentage / 100);
-            const baseSalePriceInput = document.getElementById('baseSalePrice');
-            if (baseSalePriceInput) {
-                baseSalePriceInput.value = parseFloat(baseSalePrice.toFixed(2));
-                // Update unit sale price by triggering the base calculation
-                calculateFromBase('sale');
-            }
+            unitInput.val(baseVal.toFixed(decimalPlaces));
         }
         
         syncPrices();
     }
-
-    function applyPercentagePreset() {
-        const presetSelect = document.getElementById('percentagePreset');
-        const percentageInput = document.getElementById('percentageMarkup');
-        const selectedValue = presetSelect.value;
-        
-        if (selectedValue) {
-            percentageInput.value = selectedValue;
-            calculateSalePriceFromPercentage();
-        }
-    }
-
-    function handleUnitChange() {
-        const opt = document.getElementById('unitSelect').selectedOptions[0];
-        if (opt && opt.value) {
-            const name = opt.getAttribute('data-original-name');
-            const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
-            const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
-            const baseName = (convs.length > 0 && activeIdx !== -1) ? convs[activeIdx].base : name;
-            
-            document.getElementById('costUnitLabel').innerText = `${name} COST:`;
-            document.getElementById('costBaseLabel').innerText = `PER ${baseName} COST:`;
-            document.getElementById('saleUnitLabel').innerText = `${name} SALE:`;
-            document.getElementById('saleBaseLabel').innerText = `PER ${baseName} SALE:`;
-            
-            const units = JSON.parse(localStorage.getItem('myUnits') || '[]');
-            const unitData = units.find(u => u.id == opt.getAttribute('data-id'));
-            
-            let costToLoad = '';
-            let saleToLoad = '';
-
-            if (unitData) {
-                if (activeIdx !== -1 && unitData.conversions && unitData.conversions[activeIdx]) {
-                    costToLoad = unitData.conversions[activeIdx].sampleCost || '';
-                    saleToLoad = unitData.conversions[activeIdx].sampleSale || '';
-                } else {
-                    costToLoad = unitData.sampleCost || '';
-                    saleToLoad = unitData.sampleSale || '';
-                }
-            }
-
-            document.getElementById('costPrice').value = costToLoad;
-            document.getElementById('salePrice').value = saleToLoad;
-            calculateFromUnit('cost');
-            calculateFromUnit('sale');
-        }
-        syncPrices();
-    }
-
+    
+    // Sync prices and show analysis
     function syncPrices() {
-        const opt = document.getElementById('unitSelect').selectedOptions[0];
-        const salePrice = parseFloat(document.getElementById('salePrice').value) || 0;
-        const costPrice = parseFloat(document.getElementById('costPrice').value) || 0;
-        const fullUnitContainer = document.getElementById('fullUnitAnalysisContainer');
-        const analysisPerPieceContainer = document.getElementById('analysisPerPieceContainer');
-        const warning = document.getElementById('priceWarning');
-        const cards = ['saleUnitCard', 'saleBaseCard', 'costUnitCard', 'costBaseCard'];
+        const selectedOption = $('#unit_parts option:selected');
+        const salePrice = parseFloat($('#salePrice').val()) || 0;
+        const costPrice = parseFloat($('#costPrice').val()) || 0;
+        const list = $('#derivedPricesList');
+        const warning = $('#priceWarning');
         
-        // Clear containers
-        if (fullUnitContainer) fullUnitContainer.innerHTML = '';
-        if (analysisPerPieceContainer) analysisPerPieceContainer.innerHTML = '';
+        list.empty();
         
+        // Show warning if sale < cost
         if (salePrice > 0 && costPrice > 0 && salePrice < costPrice) {
-            warning.classList.remove('d-none');
-            cards.forEach(id => {
-                const card = document.getElementById(id);
-                if (card) card.classList.add('border-danger', 'bg-danger-subtle');
-            });
+            warning.show();
+            $('#costPrice, #salePrice, #baseCostPrice, #baseSalePrice').closest('.card').addClass('border-danger');
         } else {
-            warning.classList.add('d-none');
-            cards.forEach(id => {
-                const card = document.getElementById(id);
-                if (card) {
-                    card.classList.remove('border-danger', 'bg-danger-subtle');
-                }
-            });
+            warning.hide();
+            $('#costPrice, #salePrice, #baseCostPrice, #baseSalePrice').closest('.card').removeClass('border-danger');
         }
         
-        if (!opt || opt.value === "" || (salePrice === 0 && costPrice === 0)) return;
+        if (!selectedOption.val() || (salePrice === 0 && costPrice === 0)) return;
         
-        const unitName = opt.getAttribute('data-original-name');
-        const convs = JSON.parse(opt.getAttribute('data-conversions') || '[]');
-        const activeIdx = parseInt(opt.getAttribute('data-active-conv-index'));
-        const decimal = 2;
+        const unitName = selectedOption.attr('data-unit-name');
+        const baseUnitName = selectedOption.attr('data-base-unit-name');
+        const multiplier = parseFloat(selectedOption.attr('data-multiplier')) || 1;
+        const decimalPlaces = parseInt(selectedOption.attr('data-decimal-places')) || 2;
+        
         const totalProfit = salePrice - costPrice;
-        const totalMargin = salePrice > 0 ? (totalProfit / salePrice * 100).toFixed(1) : 0;
+        const totalMargin = salePrice > 0 ? ((totalProfit / salePrice) * 100).toFixed(1) : 0;
         const isTotalLoss = totalProfit < 0;
-
-        // Full Unit Analysis (First - after Cost Price Management)
-        if (fullUnitContainer) {
-            fullUnitContainer.innerHTML = `
-                <div class="card border-primary mb-3">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
-                        <span class="small fw-bold text-uppercase">FULL UNIT ANALYSIS: ${unitName}</span>
-                        <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
-                    </div>
-                    <div class="card-body p-2">
-                        <div class="row text-center">
-                            <div class="col-4">
-                                <p class="small text-muted mb-1">TOTAL COST</p>
-                                <p class="fw-bold text-success mb-0">Rs.${costPrice.toFixed(decimal)}</p>
-                            </div>
-                            <div class="col-4">
-                                <p class="small text-muted mb-1">TOTAL SALE</p>
-                                <p class="fw-bold text-warning mb-0">Rs.${salePrice.toFixed(decimal)}</p>
-                            </div>
-                            <div class="col-4">
-                                <p class="small text-muted mb-1">TOTAL PROFIT</p>
-                                <p class="fw-bold ${totalProfit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${totalProfit.toFixed(decimal)}</p>
-                            </div>
+        
+        // Full Unit Analysis Card
+        list.append(`
+            <div class="card border-primary mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">FULL UNIT ANALYSIS: ${unitName}</span>
+                    <span class="badge ${isTotalLoss ? 'bg-danger' : 'bg-success'}">${isTotalLoss ? 'LOSS' : 'Margin'}: ${totalMargin}%</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL COST</p>
+                            <p class="fw-bold text-success h5">Rs. ${costPrice.toFixed(decimalPlaces)}</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL SALE</p>
+                            <p class="fw-bold text-warning h5">Rs. ${salePrice.toFixed(decimalPlaces)}</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="small text-muted mb-1">TOTAL PROFIT</p>
+                            <p class="fw-bold h5 ${totalProfit >= 0 ? 'text-primary' : 'text-danger'}">Rs. ${totalProfit.toFixed(decimalPlaces)}</p>
                         </div>
                     </div>
-                </div>`;
-        }
-
-        // Analysis per Piece (After Sale Price Management)
-        if (activeIdx !== -1 && convs[activeIdx] && analysisPerPieceContainer) {
-            const c = convs[activeIdx];
-            const baseSale = (salePrice / c.multiplier);
-            const baseCost = (costPrice / c.multiplier);
+                </div>
+            </div>
+        `);
+        
+        // Base Unit Analysis Card (if base unit exists)
+        if (baseUnitName && multiplier > 0) {
+            const baseSale = (salePrice / multiplier);
+            const baseCost = (costPrice / multiplier);
             const profit = baseSale - baseCost;
-            const margin = baseSale > 0 ? (profit / baseSale * 100).toFixed(1) : 0;
+            const margin = baseSale > 0 ? ((profit / baseSale) * 100).toFixed(1) : 0;
             const isLoss = profit < 0;
-            analysisPerPieceContainer.innerHTML = `
+            
+            list.append(`
                 <div class="card border-secondary mb-3 ${isLoss ? 'border-danger' : ''}">
-                    <div class="card-header ${isLoss ? 'bg-danger text-white' : 'bg-secondary text-white'} d-flex justify-content-between align-items-center py-2">
-                        <span class="small fw-bold text-uppercase">Analysis per ${c.base}</span>
-                        <span class="badge ${isLoss ? 'bg-dark' : 'bg-success'}">${isLoss ? 'LOSS' : 'Margin'}: ${margin}%</span>
+                    <div class="card-header ${isLoss ? 'bg-danger text-white' : 'bg-secondary text-white'} d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Analysis per ${baseUnitName}</span>
+                        <span class="badge ${isLoss ? 'bg-danger' : 'bg-warning text-dark'}">${isLoss ? 'LOSS' : 'Margin'}: ${margin}%</span>
                     </div>
-                    <div class="card-body p-2">
+                    <div class="card-body">
                         <div class="row text-center">
                             <div class="col-4">
-                                <p class="small text-muted mb-1">COST/${c.base}</p>
-                                <p class="fw-bold text-success mb-0">Rs.${baseCost.toFixed(decimal)}</p>
+                                <p class="small text-muted mb-1">COST/${baseUnitName}</p>
+                                <p class="fw-bold text-success h5">Rs. ${baseCost.toFixed(decimalPlaces)}</p>
                             </div>
                             <div class="col-4">
-                                <p class="small text-muted mb-1">SALE/${c.base}</p>
-                                <p class="fw-bold text-warning mb-0">Rs.${baseSale.toFixed(decimal)}</p>
+                                <p class="small text-muted mb-1">SALE/${baseUnitName}</p>
+                                <p class="fw-bold text-warning h5">Rs. ${baseSale.toFixed(decimalPlaces)}</p>
                             </div>
                             <div class="col-4">
-                                <p class="small text-muted mb-1">PROFIT/${c.base}</p>
-                                <p class="fw-bold ${profit >= 0 ? 'text-primary' : 'text-danger'} mb-0">Rs.${profit.toFixed(decimal)}</p>
+                                <p class="small text-muted mb-1">PROFIT/${baseUnitName}</p>
+                                <p class="fw-bold h5 ${profit >= 0 ? 'text-primary' : 'text-danger'}">Rs. ${profit.toFixed(decimalPlaces)}</p>
                             </div>
                         </div>
                     </div>
-                </div>`;
-        }
-    }
-
-    function resetForm() {
-        document.getElementById('unit-name-input').value = '';
-        document.getElementById('unit-short-input').value = '';
-        document.getElementById('unit-edit-id').value = '';
-        document.getElementById('unit-has-base').checked = false;
-        document.getElementById('unit-allow-decimal').value = "0";
-        document.getElementById('unit-decimal-precision').value = "2";
-        document.getElementById('unit-delete-btn').classList.add('d-none');
-        toggleDecimalPrecision();
-        toggleBaseSettings();
-        const rows = document.getElementById('unit-base-rows');
-        // Remove all rows except the first one
-        while (rows.children.length > 1) {
-            rows.removeChild(rows.lastChild);
-        }
-        // Clear the first row
-        if (rows.children[0]) {
-            rows.children[0].querySelector('.multiplier-input').value = '';
-            rows.children[0].querySelector('.base-unit-select').value = '';
-            const removeBtn = rows.children[0].querySelector('.remove-base-row');
-            if (removeBtn) removeBtn.style.display = 'none';
-        }
-        updateRemoveButtons();
-    }
-
-    function deleteUnit() {
-        const id = document.getElementById('unit-edit-id').value;
-        if (id && confirm("Delete this unit?")) {
-            fetch(`/units/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message || 'Unit deleted successfully!');
-                    loadFromStorage();
-                    renderUnits();
-                    closeModal();
-                    resetForm();
-                } else {
-                    alert(data.message || 'Error deleting unit. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting unit:', error);
-                alert('Error deleting unit. Please try again.');
-            });
-            });
+                </div>
+            `);
         }
     }
     
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        loadFromStorage();
-    });
+    // Reset price fields
+    function resetPriceFields() {
+        $('#costPrice, #baseCostPrice, #salePrice, #baseSalePrice').val('');
+        $('#derivedPricesList').empty();
+        $('#priceWarning').hide();
+    }
 </script>
 <script>
     $(document).ready(function() {
@@ -2865,31 +2685,20 @@
     });
 </script>
 <script>
-    $("#part_number_id").on("change", function() {
-        let selectedPart = $(this).val();
-        $("#vehicleTable tbody tr").each(function() {
-            let rowPart = $(this).data("part");
-            if (selectedPart === "") {
-                $(this).show();
-            } else if (rowPart == selectedPart) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
-    });
+    // Part number is now a simple text input - no filtering needed
 </script>
 <script>
     // Prevent modal from opening if part number is not selected
     $(document).on('click', '[data-bs-target="#vehical-add-modal"]', function(e) {
         let outsidePart = $('#part_number_id').val();
-        if (!outsidePart || outsidePart === '' || outsidePart === null) {
+        if (!outsidePart || outsidePart.trim() === '') {
             e.preventDefault();
             e.stopImmediatePropagation();
             e.stopPropagation();
 
             // Highlight the part number field
             $('#part_number_id').addClass('is-invalid');
+            toastr.warning('Please enter part number first.');
             // Add visual feedback
             $('#part_number_id').focus();
             // Scroll to the part number field if needed
@@ -2900,13 +2709,13 @@
         }
     });
 
-    // When modal opens, pre-fill Part Number from the outside select field
-    // Also validate that part number is selected before allowing modal to show
+    // When modal opens, pre-fill Part Number from the input field
+    // Also validate that part number is entered before allowing modal to show
     $('#vehical-add-modal').on('show.bs.modal', function(e) {
         let outsidePart = $('#part_number_id').val();
-        if (!outsidePart || outsidePart === '' || outsidePart === null) {
+        if (!outsidePart || outsidePart.trim() === '') {
             e.preventDefault();
-            toastr.error('Please select part number first.');
+            toastr.error('Please enter part number first.');
             $('#part_number_id').addClass('is-invalid').focus();
             $('html, body').animate({
                 scrollTop: $('#part_number_id').offset().top - 100
@@ -2917,20 +2726,20 @@
 
     $('#vehical-add-modal').on('shown.bs.modal', function() {
         let outsidePart = $('#part_number_id').val();
-        if (outsidePart) {
-            $('#part_number').val(outsidePart).trigger('change');
+        if (outsidePart && outsidePart.trim() !== '') {
+            $('#part_number').val(outsidePart.trim()).trigger('change');
             $('#part_number').removeClass('is-invalid');
         } else {
             // If somehow modal opened without part number, close it
             $('#vehical-add-modal').modal('hide');
-            toastr.error('Please select part number first.');
+            toastr.error('Please enter part number first.');
             $('#part_number_id').addClass('is-invalid').focus();
         }
     });
 
-    // Remove error styling when part number is selected (both fields)
-    $(document).on('change', '#part_number, #part_number_id', function() {
-        if ($(this).val()) {
+    // Remove error styling when part number is entered (both fields)
+    $(document).on('input change', '#part_number, #part_number_id', function() {
+        if ($(this).val() && $(this).val().trim() !== '') {
             $(this).removeClass('is-invalid');
             // Also remove error from the other field
             $('#part_number, #part_number_id').removeClass('is-invalid');
@@ -2961,9 +2770,9 @@
         let outsidePartNumber = $('#part_number_id').val();
 
         // Check both fields (modal field and outside field)
-        if ((!partNumber || partNumber === '' || partNumber === null) &&
-            (!outsidePartNumber || outsidePartNumber === '' || outsidePartNumber === null)) {
-            toastr.error('Please select part number first.');
+        if ((!partNumber || partNumber.trim() === '') &&
+            (!outsidePartNumber || outsidePartNumber.trim() === '')) {
+            toastr.error('Please enter part number first.');
             // Add error styling to part number fields
             $('#part_number').addClass('is-invalid');
             $('#part_number_id').addClass('is-invalid');
@@ -2977,12 +2786,12 @@
         }
 
         // Use outside part number if modal part number is not set
-        if (!partNumber || partNumber === '') {
-            partNumber = outsidePartNumber;
+        if (!partNumber || partNumber.trim() === '') {
+            partNumber = outsidePartNumber.trim();
             $('#part_number').val(partNumber).trigger('change');
         }
 
-        // Remove error styling if part number is selected
+        // Remove error styling if part number is entered
         $('#part_number').removeClass('is-invalid');
         $('#part_number_id').removeClass('is-invalid');
 
@@ -3400,147 +3209,29 @@
 </script>
 <script>
 
-    // Global function for type selection (works from inline onclick)
-    window.selectItemType = function(type) {
-        console.log('🎯 selectItemType called with:', type);
-        
-        // Update visual selection immediately
-        $('.type-box').removeClass('selected');
-        $(`.type-box[data-type="${type}"]`).addClass('selected');
-        
-        // Update localStorage
-        localStorage.setItem('selectedType', type);
-        
-        // Try to update Alpine.js component if available
-        setTimeout(() => {
-            try {
-                if (typeof Alpine !== 'undefined' && Alpine.$data) {
-                    const alpineElement = document.querySelector('[x-data*="productForm"]');
-                    if (alpineElement) {
-                        const alpineComponent = Alpine.$data(alpineElement);
-                        if (alpineComponent) {
-                            alpineComponent.selectedType = type;
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log('Alpine.js update failed:', e);
-            }
-        }, 50);
-        
-        // Filter dropdowns
-        if (typeof filterDropdownsByType === 'function') {
-            setTimeout(() => {
-                try {
-                    filterDropdownsByType(type);
-                } catch (e) {
-                    console.error('Error filtering dropdowns:', e);
-                }
-            }, 300);
-        }
-        
-        // Load items by type
-        if (typeof loadItemsByType === 'function') {
-            try {
-                loadItemsByType(type);
-            } catch (e) {
-                console.error('Error loading items:', e);
-            }
-        }
-    };
-
-    // Initialize Alpine.js component
     document.addEventListener('alpine:init', () => {
-        console.log('🚀 Alpine.js initialized, setting up productForm');
-        
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-            isInternalUpdate: false,
             init() {
-                console.log('📦 productForm init, selectedType:', this.selectedType);
-                
-                // Update visual selection based on stored type
-                const initialType = this.selectedType;
-                if (initialType) {
-                    $('.type-box').removeClass('selected');
-                    $(`.type-box[data-type="${initialType}"]`).addClass('selected');
-                    
-                    // Wait for Select2 to initialize first
-                    setTimeout(() => {
-                        if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(initialType);
-                        }
-                    }, 1500);
-                }
-                
                 // Watch for selectedType changes and filter dropdown options
-                // Only watch if change is from external source (not from our own updates)
-                this.$watch('selectedType', (newType, oldType) => {
-                    // Skip if this is an internal update (to prevent loops)
-                    if (this.isInternalUpdate) {
-                        this.isInternalUpdate = false;
-                        return;
-                    }
-                    
-                    // Skip if value didn't actually change
-                    if (newType === oldType) {
-                        return;
-                    }
-                    
-                    console.log('👀 selectedType changed to:', newType);
-                    // Filter all dropdowns based on selected type with delay
-                    setTimeout(() => {
-                        if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(newType);
-                        }
-                    }, 300);
+                this.$watch('selectedType', (newType) => {
+                    // Filter all dropdowns based on selected type
+                    filterDropdownsByType(newType);
                 });
             },
             selectType(type) {
-                console.log('🎯 Alpine selectType called with:', type);
-                
-                // Prevent infinite loop - if already set, don't update
-                if (this.selectedType === type) {
-                    return;
-                }
-                
-                // Mark as internal update to prevent watcher from triggering
-                this.isInternalUpdate = true;
                 this.selectedType = type;
-                
-                // Update localStorage and visual
                 localStorage.setItem('selectedType', type);
-                $('.type-box').removeClass('selected');
-                $(`.type-box[data-type="${type}"]`).addClass('selected');
-                
-                // Filter dropdowns directly (don't call window.selectItemType to avoid loop)
-                setTimeout(() => {
-                    if (typeof filterDropdownsByType === 'function') {
-                        filterDropdownsByType(type);
-                    }
-                }, 100);
-                
-                // Load items
-                if (typeof loadItemsByType === 'function') {
-                    try {
-                        loadItemsByType(type);
-                    } catch (e) {
-                        console.error('Error loading items:', e);
-                    }
+                // Filter dropdowns by selected type
+                filterDropdownsByType(type);
+                // Load items by type when type changes
+                if (type) {
+                    loadItemsByType(type);
+                } else {
+                    loadAllItems();
                 }
             }
         }));
-        
-        console.log('✅ productForm component registered');
-    });
-    
-    // Fallback: If Alpine.js doesn't load, still make type selection work
-    $(document).ready(function() {
-        setTimeout(() => {
-            if (typeof Alpine === 'undefined') {
-                console.warn('⚠️ Alpine.js not loaded, using jQuery fallback only');
-            }
-        }, 2000);
     });
 
     // Function to load items by type (with limit option)
@@ -3606,155 +3297,6 @@
         }
     }
 
-    // Global function for type selection (works from inline onclick)
-    window.selectItemType = function(type) {
-        console.log('🎯 selectItemType called with:', type);
-        
-        // Prevent if type is already selected (prevent automatic changes)
-        const currentType = localStorage.getItem('selectedType');
-        if (currentType === type) {
-            console.log('⚠️ Type already selected, skipping update');
-            return;
-        }
-        
-        // Update visual selection immediately
-        $('.type-box').removeClass('selected');
-        $(`.type-box[data-type="${type}"]`).addClass('selected');
-        
-        // Update localStorage
-        localStorage.setItem('selectedType', type);
-        
-        // Try to update Alpine.js component if available (but prevent loop)
-        setTimeout(() => {
-            try {
-                if (typeof Alpine !== 'undefined' && Alpine.$data) {
-                    const alpineElement = document.querySelector('[x-data*="productForm"]');
-                    if (alpineElement) {
-                        const alpineComponent = Alpine.$data(alpineElement);
-                        if (alpineComponent) {
-                            // Only update if different (prevent loop)
-                            if (alpineComponent.selectedType !== type) {
-                                // Mark as internal update to prevent watcher
-                                if (alpineComponent.isInternalUpdate !== undefined) {
-                                    alpineComponent.isInternalUpdate = true;
-                                }
-                                alpineComponent.selectedType = type;
-                            }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log('Alpine.js update failed:', e);
-            }
-        }, 50);
-        
-        // Filter dropdowns
-        if (typeof filterDropdownsByType === 'function') {
-            setTimeout(() => {
-                try {
-                    filterDropdownsByType(type);
-                } catch (e) {
-                    console.error('Error filtering dropdowns:', e);
-                }
-            }, 100);
-        }
-        
-        // Load items by type
-        if (typeof loadItemsByType === 'function') {
-            try {
-                loadItemsByType(type);
-            } catch (e) {
-                console.error('Error loading items:', e);
-            }
-        }
-    };
-
-    // Primary jQuery click handler for type boxes (works immediately, doesn't wait for Alpine.js)
-    $(document).ready(function() {
-        // Remove any existing handlers to avoid duplicates
-        $(document).off('click', '.type-box');
-        
-        // Add click handler
-        $(document).on('click', '.type-box', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const $box = $(this);
-            const type = $box.data('type') || $box.attr('data-type') || $box.closest('[data-type]').data('type');
-            
-            if (!type) {
-                console.error('No type found for clicked box');
-                return;
-            }
-            
-            console.log('🖱️ Type box clicked:', type);
-            
-            // Prevent if type is already selected (prevent automatic changes)
-            const currentType = localStorage.getItem('selectedType');
-            if (currentType === type) {
-                console.log('⚠️ Type already selected, skipping update');
-                return;
-            }
-            
-            // Update visual selection immediately
-            $('.type-box').removeClass('selected');
-            $box.addClass('selected');
-            
-            // Update localStorage
-            localStorage.setItem('selectedType', type);
-            
-            // Try to update Alpine.js component if available
-            try {
-                // Wait a bit for Alpine.js to be ready
-                setTimeout(() => {
-                    try {
-                        const alpineElement = document.querySelector('[x-data*="productForm"]');
-                        if (alpineElement && window.Alpine) {
-                            const alpineComponent = Alpine.$data(alpineElement);
-                            if (alpineComponent) {
-                                // Only update if different (prevent loop)
-                                if (alpineComponent.selectedType !== type) {
-                                    alpineComponent.isInternalUpdate = true;
-                                    alpineComponent.selectedType = type;
-                                    console.log('✅ Updated Alpine.js component');
-                                }
-                            }
-                        }
-                    } catch (alpineError) {
-                        console.log('Alpine.js not available or not ready:', alpineError);
-                    }
-                }, 100);
-            } catch (e) {
-                console.log('Alpine.js check failed:', e);
-            }
-            
-            // Filter dropdowns
-            if (typeof filterDropdownsByType === 'function') {
-                setTimeout(() => {
-                    try {
-                        filterDropdownsByType(type);
-                        console.log('✅ Filtered dropdowns for type:', type);
-                    } catch (filterError) {
-                        console.error('Error filtering dropdowns:', filterError);
-                    }
-                }, 300);
-            } else {
-                console.warn('filterDropdownsByType function not found');
-            }
-            
-            // Load items by type
-            if (typeof loadItemsByType === 'function') {
-                try {
-                    loadItemsByType(type);
-                } catch (loadError) {
-                    console.error('Error loading items:', loadError);
-                }
-            }
-        });
-        
-        console.log('✅ Type box click handlers initialized');
-    });
-
     // Function to load all items (initial load)
     function loadAllItems() {
         $('#itemsTableTitle').text('Last 5 Created Items');
@@ -3767,15 +3309,9 @@
         loadAllItemsByType();
     });
 
-    // Store current selected type globally for matcher function
-    let currentFilterType = '';
-
-    // Function to filter dropdowns by selected type (optimized - no blinking)
+    // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
-        console.log('🔍 Filtering dropdowns by type:', selectedType);
-        
-        // Store globally for matcher function
-        currentFilterType = selectedType || '';
+        console.log('Filtering dropdowns by type:', selectedType);
         
         // List of all dropdowns that need filtering
         const dropdowns = [
@@ -3783,8 +3319,8 @@
             '.technology-select',
             '.quality-select',
             '.name-select',
-            '.part_number-select',
-            '.category-select'
+            '.category-select',
+            '.part_number-select'
         ];
 
         dropdowns.forEach(selector => {
@@ -3793,102 +3329,71 @@
                 const currentValue = $select.val();
                 const isSelect2 = $select.hasClass('select2-hidden-accessible');
                 
-                // Show/hide options based on type (for DOM)
+                // Store current value before filtering
+                let selectedValue = currentValue;
+                
+                // Show/hide options based on type
+                let visibleCount = 0;
                 $select.find('option').each(function() {
                     const $option = $(this);
                     const optionType = $option.data('type') || '';
-                    const optionValue = $option.val();
                     
                     // Show option if:
                     // 1. It's the empty/default option
                     // 2. No type is selected (show all)
                     // 3. Option type matches selected type
                     // 4. Option has no type (backward compatibility)
-                    const shouldShow = optionValue === '' || !selectedType || optionType === selectedType || optionType === '';
-                    
-                    if (shouldShow) {
+                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
                         $option.show().prop('disabled', false);
+                        if ($option.val() !== '') visibleCount++;
                     } else {
                         $option.hide().prop('disabled', true);
                     }
                 });
+                console.log(`Filtered ${selector}: ${visibleCount} options visible for type "${selectedType}"`);
 
                 // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
                 if ($selectedOption.length && ($selectedOption.is(':hidden') || $selectedOption.prop('disabled'))) {
+                    selectedValue = '';
                     $select.val('').trigger('change');
                 }
 
-                // For Select2, update matcher without destroying (prevents blinking)
+                // For Select2, we need to destroy and reinitialize to properly reflect changes
                 if (isSelect2) {
                     try {
-                        // Get current Select2 instance
-                        const select2Data = $select.data('select2');
-                        if (select2Data) {
-                            // Update the matcher function dynamically
-                            select2Data.options.matcher = function(params, data) {
-                                // If no search term, show all matching type options
-                                if (!params.term) {
-                                    const $option = $select.find(`option[value="${data.id}"]`);
-                                    const optionType = $option.data('type') || '';
-                                    
-                                    // Show if matches type or has no type
-                                    if (!currentFilterType || optionType === currentFilterType || optionType === '') {
-                                        return data;
-                                    }
-                                    return null;
-                                }
-                                
-                                // If search term exists, check type first
-                                const $option = $select.find(`option[value="${data.id}"]`);
-                                const optionType = $option.data('type') || '';
-                                
-                                // Check type match first
-                                if (currentFilterType && optionType && optionType !== currentFilterType) {
-                                    return null;
-                                }
-                                
-                                // Then check text match (default Select2 behavior)
-                                if (data.text && data.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0) {
-                                    return data;
-                                }
-                                
-                                return null;
-                            };
-                            
-                            // Trigger refresh without destroying
-                            $select.trigger('change.select2');
-                        } else {
-                            // If Select2 not initialized, initialize it with matcher
-                            if ($.fn.select2) {
+                        // Destroy Select2
+                        $select.select2('destroy');
+                        $select.removeClass('select2-hidden-accessible');
+                        $select.next('.select2-container').remove();
+                        
+                        // Reinitialize Select2 with same options
+                        setTimeout(() => {
+                            // Special handling for part_number_id - position dropdown above
+                            if ($select.attr('id') === 'part_number_id') {
                                 $select.select2({
                                     placeholder: 'Please Select',
                                     allowClear: true,
                                     width: '100%',
-                                    matcher: function(params, data) {
-                                        if (!params.term) {
-                                            const $option = $select.find(`option[value="${data.id}"]`);
-                                            const optionType = $option.data('type') || '';
-                                            if (!currentFilterType || optionType === currentFilterType || optionType === '') {
-                                                return data;
-                                            }
-                                            return null;
-                                        }
-                                        const $option = $select.find(`option[value="${data.id}"]`);
-                                        const optionType = $option.data('type') || '';
-                                        if (currentFilterType && optionType && optionType !== currentFilterType) {
-                                            return null;
-                                        }
-                                        if (data.text && data.text.toUpperCase().indexOf(params.term.toUpperCase()) >= 0) {
-                                            return data;
-                                        }
-                                        return null;
-                                    }
+                                    dropdownParent: $select.closest('.col-md-4')
+                                });
+                            } else {
+                                $select.select2({
+                                    placeholder: 'Please Select',
+                                    allowClear: true,
+                                    width: '100%'
                                 });
                             }
-                        }
+                            
+                            // Restore selection if it's still valid
+                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
+                                $select.val(selectedValue).trigger('change');
+                            }
+                        }, 50);
                     } catch(e) {
-                        console.error('❌ Error updating Select2 for ' + selector + ':', e);
+                        console.log('Error refreshing Select2 for ' + selector + ':', e);
+                        // Fallback: just trigger change
+                        $select.trigger('change');
                     }
                 } else {
                     // For regular selects, just trigger change
@@ -3896,8 +3401,6 @@
                 }
             });
         });
-        
-        console.log('✅ Filtering complete for type:', selectedType);
     }
 
     // Function to update the items table
@@ -4112,77 +3615,183 @@
         let currentTargetSelect = null;
         let currentEditId = null;
         let deleteRoute = null;
-        let lastSearchTerm = {}; // Store last search term for each select
         
         // =========================
         // Universal "Add New" Modal Behavior for Searchable Dropdowns
         // NEW APPROACH: Direct and Simple
+        
+        // =========================
+        // PART NUMBER SEARCH & ADD FUNCTIONALITY (React-style)
         // =========================
         
-        // Global tracker for active select and its search term
-        let activeSelectSearch = {
-            select: null,
-            searchTerm: '',
-            selectId: null
-        };
-        
-        // Simple search term capture for universal modal
-        $(document).on('input', '.select2-search__field', function(e) {
-            const searchValue = $(this).val().trim();
-            if (searchValue) {
-                const $select2Container = $(this).closest('.select2-container');
-                const $select = $select2Container.prev('select.searchable-select');
-                
-                if ($select.length) {
-                    const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                    activeSelectSearch = {
-                        select: $select,
-                        searchTerm: searchValue,
-                        selectId: selectId
-                    };
-                    lastSearchTerm[selectId] = searchValue;
-                }
-            }
-        });
-        
-        // Capture when Select2 opens
-        $(document).on('select2:open', '.searchable-select', function() {
-            const $select = $(this);
-            const selectId = $select.attr('id') || $select.attr('name') || 'default';
-            
-            setTimeout(function() {
-                const $container = $select.next('.select2-container');
-                const $searchInput = $container.find('.select2-search__field');
-                if ($searchInput.length) {
-                    activeSelectSearch.select = $select;
-                    activeSelectSearch.selectId = selectId;
-                    
-                    const currentVal = $searchInput.val().trim();
-                    if (currentVal) {
-                        activeSelectSearch.searchTerm = currentVal;
-                        lastSearchTerm[selectId] = currentVal;
-                    }
-                }
-            }, 50);
-        });
-        
-        // Helper function: Get search term when "No results found" is visible
-        function getSearchTermFromNoResults($select) {
+        // Function to check and show "Add New Part Number" button
+        function checkAndShowAddPartNumberButton() {
             const $openSelect2 = $('.select2-container--open');
             if ($openSelect2.length) {
+                // Verify this is the part number dropdown
+                const $partNumberSelect = $('#part_number_id');
+                const $partNumberContainer = $partNumberSelect.next('.select2-container');
+                if (!$partNumberContainer.is($openSelect2)) {
+                    return; // Not the part number dropdown
+                }
+                
                 const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                if ($noResultsMsg.length && $noResultsMsg.is(':visible')) {
-                    const msgText = $noResultsMsg.text().toUpperCase();
-                    if (msgText.includes('NO RESULTS') || msgText.includes('NOT FOUND')) {
-                        const $searchInput = $openSelect2.find('.select2-search__field');
-                        if ($searchInput.length && $searchInput.val()) {
-                            return $searchInput.val().trim();
-                        }
+                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                const $searchInput = $openSelect2.find('.select2-search__field');
+                
+                if ($searchInput.length && $searchInput.val()) {
+                    const searchVal = $searchInput.val().trim();
+                    // Show button if no results message is visible OR no selectable options found
+                    const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                        ($results.length === 0 && searchVal.length > 0);
+                    
+                    if (hasNoResults && searchVal.length > 0) {
+                        $('#partNumberSearchTerm').text(searchVal);
+                        $('#addNewPartNumberContainer').slideDown(200);
+                    } else if ($results.length > 0) {
+                        // Hide button if results are found
+                        $('#addNewPartNumberContainer').slideUp(200);
                     }
+                } else {
+                    // Hide button if search is empty
+                    $('#addNewPartNumberContainer').slideUp(200);
                 }
             }
-            return null;
         }
+        
+        // When part number dropdown opens
+        $(document).on('select2:open', '#part_number_id', function(e) {
+            setTimeout(function() {
+                const $partNumberContainer = $('#part_number_id').next('.select2-container');
+                const $dropdown = $partNumberContainer.find('.select2-dropdown');
+                
+                // Remove Select2's default "below" class and force "above"
+                $partNumberContainer.removeClass('select2-container--below').addClass('select2-container--above');
+                
+                // Position dropdown above the input - aggressive override
+                if ($dropdown.length) {
+                    $partNumberContainer.addClass('select2-dropdown-above');
+                    
+                    // Force dropdown to appear above with multiple attempts
+                    function forcePositionAbove() {
+                        $dropdown.css({
+                            'position': 'absolute !important',
+                            'bottom': '100% !important',
+                            'top': 'auto !important',
+                            'margin-bottom': '5px !important',
+                            'margin-top': '0 !important',
+                            'transform': 'translateY(0) !important',
+                            'border-top': '1px solid #aaa !important',
+                            'border-bottom': 'none !important',
+                            'border-radius': '4px 4px 0 0 !important'
+                        });
+                        
+                        // Also update the container
+                        $partNumberContainer.css({
+                            'z-index': '9999 !important'
+                        });
+                        
+                        // Update results container
+                        $partNumberContainer.find('.select2-results').css({
+                            'max-height': '200px',
+                            'overflow-y': 'auto',
+                            'border-radius': '4px 4px 0 0 !important'
+                        });
+                    }
+                    
+                    // Apply immediately and keep applying
+                    forcePositionAbove();
+                    setTimeout(forcePositionAbove, 10);
+                    setTimeout(forcePositionAbove, 50);
+                    setTimeout(forcePositionAbove, 100);
+                    
+                    // Monitor and continuously reposition
+                    const positionInterval = setInterval(function() {
+                        if ($partNumberContainer.hasClass('select2-container--open')) {
+                            forcePositionAbove();
+                        } else {
+                            clearInterval(positionInterval);
+                        }
+                    }, 100);
+                    
+                    // Clear interval when dropdown closes
+                    $(document).one('select2:close', '#part_number_id', function() {
+                        clearInterval(positionInterval);
+                    });
+                }
+                
+                const $searchInput = $('.select2-container--open .select2-search__field');
+                if ($searchInput.length) {
+                    $searchInput.focus();
+                    
+                    // Real-time check for no results
+                    $searchInput.off('input.partNumberSearch').on('input.partNumberSearch', function() {
+                        setTimeout(function() {
+                            checkAndShowAddPartNumberButton();
+                        }, 300);
+                    });
+                    
+                    // Monitor Select2 results for "No results found" - check every 200ms
+                    let checkNoResultsInterval = setInterval(function() {
+                const $openSelect2 = $('.select2-container--open');
+                if ($openSelect2.length) {
+                            checkAndShowAddPartNumberButton();
+                        } else {
+                            clearInterval(checkNoResultsInterval);
+                        }
+                    }, 200);
+                    
+                    // Clear interval when dropdown closes
+                    $(document).one('select2:close', '#part_number_id', function() {
+                        clearInterval(checkNoResultsInterval);
+                        $('#addNewPartNumberContainer').slideUp(200);
+                        $partNumberContainer.removeClass('select2-dropdown-above');
+                    });
+                    }
+                }, 50);
+        
+            // Also listen to Select2 results update event
+            $(document).off('select2:results:message', '#part_number_id').on('select2:results:message', '#part_number_id', function(e) {
+            setTimeout(function() {
+                    checkAndShowAddPartNumberButton();
+                }, 100);
+            });
+        });
+        
+        // Load stats when part number is selected (React-style stats)
+        $(document).on('change', '#part_number_id', function() {
+            const partNumberId = $(this).val();
+            const $statsContainer = $('#partNumberStats');
+            
+            if (partNumberId && partNumberId !== '') {
+                // Fetch stats
+                $.ajax({
+                    url: '{{ route("items.count.by.part.number", ":id") }}'.replace(':id', partNumberId),
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success && response.details && response.details.length > 0) {
+                            let statsHtml = '';
+                            response.details.slice(0, 2).forEach(function(detail) {
+                                statsHtml += `<span class="text-[8px] font-black text-teal-600 uppercase bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100 me-1">${detail}</span>`;
+                            });
+                            $statsContainer.html(statsHtml).css('display', 'flex !important').show();
+                        } else {
+                            $statsContainer.hide();
+                        }
+                    },
+                    error: function() {
+                        $statsContainer.hide();
+                    }
+                });
+            } else {
+                $statsContainer.hide();
+            }
+        });
+        
+        // Hide "Add New Part Number" button when dropdown closes
+        $(document).on('select2:close', '#part_number_id', function() {
+            $('#addNewPartNumberContainer').slideUp(200);
+        });
         
         // =========================
         // INTERCEPT PLUS BUTTON CLICK EARLY
@@ -4319,33 +3928,26 @@
                 if ($select && $select.length) {
                     const selectId = $select.attr('id') || $select.attr('name') || 'default';
                     
-                    // Get search term from open Select2 dropdown
-                    const $openSelect2 = $('.select2-container--open');
-                    if ($openSelect2.length) {
-                        const $searchInput = $openSelect2.find('.select2-search__field');
-                        if ($searchInput.length && $searchInput.val()) {
-                            searchTerm = $searchInput.val().trim();
+                    // For part number: Get from "Add New Part Number" button text if visible
+                    if (selectId === 'part_number_id') {
+                        const $addNewBtn = $('#addNewPartNumberBtn');
+                        if ($addNewBtn.length && $addNewBtn.is(':visible')) {
+                            const btnText = $('#partNumberSearchTerm').text().trim();
+                            if (btnText) {
+                                searchTerm = btnText;
+                            }
                         }
                     }
                     
-                    // Fallback: Check if "No results found" is visible
+                    // Fallback: Get from currently open Select2 dropdown
                     if (!searchTerm) {
-                        const noResultsTerm = getSearchTermFromNoResults($select);
-                        if (noResultsTerm) {
-                            searchTerm = noResultsTerm;
+                        const $openSelect2 = $('.select2-container--open');
+                        if ($openSelect2.length) {
+                            const $searchInput = $openSelect2.find('.select2-search__field');
+                            if ($searchInput.length && $searchInput.val()) {
+                                searchTerm = $searchInput.val().trim();
+                            }
                         }
-                    }
-                    
-                    // Fallback: Get from activeSelectSearch
-                    if (!searchTerm) {
-                        if (activeSelectSearch.select && activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
-                            searchTerm = activeSelectSearch.searchTerm;
-                        }
-                    }
-                    
-                    // Fallback: Get from stored search terms
-                    if (!searchTerm && lastSearchTerm[selectId]) {
-                        searchTerm = lastSearchTerm[selectId].trim();
                     }
                 }
             }
@@ -4411,50 +4013,6 @@
                 // Pre-fill the modal input with the captured search term
                 if (searchTerm) {
                     $('#universal-name').val(searchTerm);
-                    // Clear the stored term after using it
-                    let $select = null;
-                    if (currentTargetSelect) {
-                        $select = $(currentTargetSelect);
-                    } else {
-                        const $button = $(this);
-                        $select = $button.closest('.input-group').find('select.searchable-select').first();
-                    }
-                    if ($select && $select.length) {
-                        const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                        delete lastSearchTerm[selectId];
-                    }
-                } else {
-                    // Last resort: Try one more time after a short delay
-                    setTimeout(function() {
-                        let finalSearchTerm = '';
-                        let $select = null;
-                        if (currentTargetSelect) {
-                            $select = $(currentTargetSelect);
-                        } else {
-                            const $button = $(this);
-                            $select = $button.closest('.input-group').find('select.searchable-select').first();
-                        }
-                        
-                        if ($select && $select.length) {
-                            const selectId = $select.attr('id') || $select.attr('name') || 'default';
-                            
-                            // Check activeSelectSearch one more time
-                            if (activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
-                                finalSearchTerm = activeSelectSearch.searchTerm;
-                            }
-                            
-                            // Check stored terms
-                            if (!finalSearchTerm && lastSearchTerm[selectId]) {
-                                finalSearchTerm = lastSearchTerm[selectId].trim();
-                            }
-                            
-                            // Set if found
-                            if (finalSearchTerm) {
-                                $('#universal-name').val(finalSearchTerm);
-                                delete lastSearchTerm[selectId];
-                            }
-                        }
-                    }.bind(this), 100);
                 }
                 
                 // Open modal and focus input
@@ -4644,75 +4202,9 @@
                     $select.val(oldVal);
                 }
             }, 500);
-                        }, 150);
+        }, 100);
 
         // =========================
-        // PART NUMBER COUNT & ITEMS VIEW
-        // =========================
-        
-        // Handle part number selection change - fetch count
-        $('#part_number_id').on('change', function() {
-            const partNumberId = $(this).val();
-            const countContainer = $('#partNumberCountContainer');
-            const countSpan = $('#partNumberCount');
-            
-            if (partNumberId && partNumberId !== '') {
-                // Fetch count
-                $.ajax({
-                    url: '{{ route("items.count.by.part.number", ":id") }}'.replace(':id', partNumberId),
-                    type: 'GET',
-                    success: function(response) {
-                        if (response.success) {
-                            countSpan.text(response.count);
-                            countContainer.show();
-                        }
-                    },
-                    error: function() {
-                        countContainer.hide();
-                    }
-                });
-            } else {
-                countContainer.hide();
-            }
-        });
-
-        // Double-click handler to show items in modal
-        $(document).on('dblclick', '#partNumberCount', function() {
-            const partNumberId = $('#part_number_id').val();
-            if (!partNumberId || partNumberId === '') {
-                toastr.warning('Please select a part number first');
-                return;
-            }
-
-            // Show loading
-            Swal.fire({
-                title: 'Loading...',
-                text: 'Fetching items...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            // Fetch items
-            $.ajax({
-                url: '{{ route("items.by.part.number", ":id") }}'.replace(':id', partNumberId),
-                type: 'GET',
-                success: function(response) {
-                    Swal.close();
-                    if (response.success && response.items && response.items.length > 0) {
-                        showPartNumberItemsModal(response.items, partNumberId);
-                    } else {
-                        toastr.info('No items found for this part number');
-                    }
-                },
-                error: function() {
-                    Swal.close();
-                    toastr.error('Error loading items');
-                }
-            });
-        });
-
         // Function to show items in SweetAlert modal
         function showPartNumberItemsModal(items, partNumberId) {
             const csrfToken = $('input[name="_token"]').val();
@@ -4809,6 +4301,16 @@
         // This ensures they are sent even if fields are hidden by Alpine.js
         // =========================
         $('#mainItemForm').on('submit', function(e) {
+            // Extract unit ID from composite value (unit_id_base_unit_id format)
+            const unitSelectVal = $('#unit_parts').val();
+            if (unitSelectVal && unitSelectVal.includes('_')) {
+                const unitId = unitSelectVal.split('_')[0];
+                // Remove existing unit hidden input
+                $(this).find('input[type="hidden"][name="unit"]').remove();
+                // Set the actual unit ID
+                $('#unit_parts').val(unitId);
+            }
+            
             // Get quality_id from any visible quality field
             const qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
             
@@ -4833,13 +4335,78 @@
         });
     });
 </script>
+<script>
+    // Sabhi dropdowns ko upar ki taraf show karne ke liye - Aggressive Approach
+    $(document).ready(function() {
+        // Function to force dropdown above
+        function forceDropdownAbove($select) {
+            const $container = $select.next('.select2-container');
+            const $dropdown = $container.find('.select2-dropdown');
+            
+            if ($dropdown.length && $container.hasClass('select2-container--open')) {
+                // Remove below class and add above class
+                $container.removeClass('select2-container--below').addClass('select2-container--above');
+                
+                // Get container width
+                const containerWidth = $container.outerWidth();
+                
+                // Force position above with !important via inline style
+                $dropdown.attr('style', 
+                    'position: absolute !important; ' +
+                    'bottom: 100% !important; ' +
+                    'top: auto !important; ' +
+                    'left: 0 !important; ' +
+                    'right: auto !important; ' +
+                    'width: ' + containerWidth + 'px !important; ' +
+                    'margin-bottom: 5px !important; ' +
+                    'margin-top: 0 !important; ' +
+                    'transform: none !important; ' +
+                    'border-top: 1px solid #aaa !important; ' +
+                    'border-bottom: none !important; ' +
+                    'border-radius: 4px 4px 0 0 !important; ' +
+                    'box-shadow: 0 -4px 6px rgba(0,0,0,0.1) !important;'
+                );
+            }
+        }
+        
+        // Jab bhi koi searchable-select dropdown open ho (input-group ke andar)
+        $(document).on('select2:open', '.input-group .searchable-select', function(e) {
+            const $select = $(this);
+            
+            // Multiple attempts to ensure it works
+            forceDropdownAbove($select);
+            setTimeout(function() { forceDropdownAbove($select); }, 0);
+            setTimeout(function() { forceDropdownAbove($select); }, 10);
+            setTimeout(function() { forceDropdownAbove($select); }, 50);
+            setTimeout(function() { forceDropdownAbove($select); }, 100);
+            setTimeout(function() { forceDropdownAbove($select); }, 200);
+            
+            // Continuous monitoring - dropdown open rehne tak
+            const positionInterval = setInterval(function() {
+                const $container = $select.next('.select2-container');
+                if ($container.hasClass('select2-container--open')) {
+                    forceDropdownAbove($select);
+                } else {
+                    clearInterval(positionInterval);
+                }
+            }, 30);
+            
+            // Dropdown close hone par interval clear karo
+            $(document).one('select2:close', $select, function() {
+                clearInterval(positionInterval);
+            });
+        });
+        
+        // Also handle when Select2 tries to reposition
+        $(document).on('select2:selecting select2:opening', '.input-group .searchable-select', function() {
+            const $select = $(this);
+            setTimeout(function() { forceDropdownAbove($select); }, 0);
+        });
+    });
+</script>
 <style>
     .swal-wide {
         max-width: 1400px !important;
-    }
-    #partNumberCount:hover {
-        color: #0056b3 !important;
-        text-decoration: underline !important;
     }
 </style>
 @endpush
