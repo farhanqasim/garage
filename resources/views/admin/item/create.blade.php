@@ -3,6 +3,93 @@
 @section('content')
 @push('styles')
 <style>
+    /* Page background - All white */
+    body {
+        background-color: #ffffff !important;
+    }
+    .main-wrapper {
+        background-color: #ffffff !important;
+        min-height: 100vh;
+    }
+    .page-wrapper {
+        background-color: #ffffff !important;
+        min-height: calc(100vh - 60px);
+    }
+    .content {
+        background-color: #ffffff !important;
+    }
+    .card {
+        background-color: #ffffff !important;
+    }
+    .card-body {
+        background-color: #ffffff !important;
+    }
+    
+    /* Universal Modal Styling */
+    #universal-add-modal .modal-content {
+        background-color: #ffffff !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+        border: none !important;
+    }
+    #universal-add-modal .modal-body {
+        background-color: #ffffff !important;
+    }
+    #universal-add-modal .modal-footer {
+        background-color: #ffffff !important;
+    }
+    
+    /* Unit Modal Styling */
+    #Unit-add-modal .modal-content {
+        border-radius: 12px !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+        border: none !important;
+    }
+    #Unit-add-modal .modal-header {
+        background-color: #ffffff !important;
+        border-bottom: 1px solid #e9ecef !important;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 20px 25px !important;
+    }
+    #Unit-add-modal .modal-body {
+        background-color: #ffffff !important;
+        padding: 25px !important;
+    }
+    #Unit-add-modal .modal-footer {
+        background-color: #ffffff !important;
+        border-top: 1px solid #e9ecef !important;
+        border-radius: 0 0 12px 12px !important;
+        padding: 15px 25px !important;
+    }
+    #Unit-add-modal .form-group {
+        margin-bottom: 15px !important;
+    }
+    #Unit-add-modal label {
+        font-weight: 600 !important;
+        color: #495057 !important;
+        margin-bottom: 8px !important;
+        display: block !important;
+    }
+    #Unit-add-modal .form-control {
+        border: 1px solid #ced4da !important;
+        border-radius: 6px !important;
+        padding: 10px 15px !important;
+        transition: all 0.3s ease !important;
+    }
+    #Unit-add-modal .form-control:focus {
+        border-color: #fe9f43 !important;
+        box-shadow: 0 0 0 0.2rem rgba(254, 159, 67, 0.25) !important;
+    }
+    #Unit-add-modal .form-control.is-invalid {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+    }
+    #Unit-add-modal .base-unit-item {
+        background-color: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 8px !important;
+    }
+    
     input[type="text"],
     input[type="password"],
     input[type="email"],
@@ -90,6 +177,34 @@
         top: auto !important;
         margin-top: 0 !important;
         margin-bottom: 5px !important;
+    }
+    
+    /* Part Number dropdown - Force above positioning with maximum priority */
+    body #part_number_id + .select2-container.select2-container--open .select2-dropdown,
+    body #part_number_id + .select2-container.select2-container--below.select2-container--open .select2-dropdown {
+        position: absolute !important;
+        bottom: 100% !important;
+        top: auto !important;
+        left: 0 !important;
+        right: auto !important;
+        margin-bottom: 5px !important;
+        margin-top: 0 !important;
+        transform: none !important;
+        border-top: 1px solid #aaa !important;
+        border-bottom: none !important;
+        border-radius: 4px 4px 0 0 !important;
+        box-shadow: 0 -4px 6px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Force Part Number container to use above positioning */
+    body #part_number_id + .select2-container.select2-container--open {
+        position: relative !important;
+        z-index: 9999 !important;
+    }
+    
+    body #part_number_id + .select2-container.select2-container--below.select2-container--open {
+        position: relative !important;
+        z-index: 9999 !important;
     }
     
     /* Part Number Select2 Dropdown - Position Above */
@@ -216,6 +331,45 @@
             display: none;
         }
     }
+    
+    /* Alignment improvements */
+    .row .col-md-4,
+    .row .col-md-6,
+    .row .col-md-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .row .col-md-4.mb-3,
+    .row .col-md-6.mb-3,
+    .row .col-md-3.mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Remove inconsistent margin-top from form fields */
+    .row .col-md-4.mt-3,
+    .row .col-md-6.mt-3,
+    .row .col-md-3.mt-3 {
+        margin-top: 0 !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    /* Ensure labels align properly */
+    .form-label,
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    /* Input group alignment */
+    .input-group {
+        width: 100%;
+    }
+    
+    /* Consistent field spacing */
+    .field-group .row > div {
+        margin-bottom: 1rem;
+    }
 </style>
 @endpush
 
@@ -311,7 +465,7 @@
                             <h4 class="mt-3">Item Info:</h4>
                             <div class="row mt-4">
                                 <!-- Barcode -->
-                                <div class="col-md-4">
+                                <div class="col-md-4 mb-3">
                                     <label for="itemBarCode">Product Bar Code:</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control @error('bar_code') is-invalid @enderror"
@@ -321,14 +475,14 @@
                                             <i data-feather="refresh-cw"></i>
                                         </button>
                                     </div>
-
                                     @error('bar_code') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                         <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
+                                <!-- Part Number -->
+                                <div class="col-md-4 mb-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
                             <div class="mb-1">
-                                <div class="d-flex justify-content-between align-items-end px-1">
-                                    <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0">Part Number:</label>
-                                    <div id="partNumberStats" class="d-flex gap-1" style="display: none !important;">
+                                        <div class="d-flex justify-content-center align-items-center px-1">
+                                            <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Part Number:</label>
+                                            <div id="partNumberStats" class="d-flex gap-1 ms-2" style="display: none !important;">
                                         <!-- Stats badges will be inserted here -->
                                     </div>
                                 </div>
@@ -347,12 +501,6 @@
                                     </option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Part Number" data-mode="add"
-                                        data-route="{{ route('post.partnumber') }}"
-                                        data-target-select=".part_number-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Part Number"
                                         data-fetch-route="{{ route('show.partnumber', ':id') }}"
@@ -362,28 +510,16 @@
                                         <i data-feather="edit"></i>
                                     </button>
                             </div>
-                            <!-- Add New Part Number Button (shown when no results found) -->
-                            <div class="mt-2" id="addNewPartNumberContainer" style="display: none;">
-                                <div class="p-3 bg-orange-50 border border-orange-200 rounded-2xl">
-                                    <p class="text-[10px] text-gray-400 font-bold mb-3 text-center uppercase tracking-widest italic">Nahi Mila</p>
-                                    <button type="button" class="btn btn-success w-100 open-universal-modal" 
-                                            id="addNewPartNumberBtn"
-                                            data-title="Add Part Number" 
-                                            data-mode="add"
-                                            data-route="{{ route('post.partnumber') }}"
-                                            data-target-select=".part_number-select"
-                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
-                                        <i data-feather="plus" class="feather-plus me-1"></i>
-                                        Add "<span id="partNumberSearchTerm" class="fw-bold"></span>"
-                                    </button>
-                                </div>
-                            </div>
                             @error('part_number_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                          <!-- Product Name -->
-                         <div class="col-md-4"
-                                    x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap'">
-                                    <label for="itemname">Product Name:</label>
+                                <div class="col-md-4 mb-3"
+                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    <div class="mb-1">
+                                        <div class="d-flex justify-content-center align-items-center px-1">
+                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name:</label>
+                                        </div>
+                                    </div>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control name-select searchable-select @error('p_id') is-invalid @enderror"
@@ -397,11 +533,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Product" data-mode="add"
-                                            data-route="{{ route('post.product') }}" data-target-select=".name-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Product"
                                             data-fetch-route="{{ route('show.product', ':id') }}"
@@ -413,8 +544,13 @@
                                     </div>
                                     @error('p_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <div class="col-md-4 " x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad' ">
-                                    <label for="category">Category:</label>
+                                <!-- Category -->
+                                <div class="col-md-4 mb-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad' ">
+                                    <div class="mb-1">
+                                        <div class="d-flex justify-content-center align-items-center px-1">
+                                            <label for="category" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Category:</label>
+                                        </div>
+                                    </div>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
@@ -428,12 +564,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Category" data-mode="add"
-                                            data-route="{{ route('post.item.category') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Category"
                                             data-fetch-route="{{ route('show.category', ':id') }}"
@@ -456,7 +586,7 @@
                                     @error('business_location') <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <div class="col-md-4" x-show="selectedType === 'battery'">
+                                <div class="col-md-4 mb-3" x-show="selectedType === 'battery'">
                                     <label for="group_select">Group Name:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -489,9 +619,13 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
-                                <div class="col-md-4"
+                                <div class="col-md-4 mb-3"
                                     x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="company_parts">Company:</label>
+                                    <div class="mb-1">
+                                        <div class="d-flex justify-content-center align-items-center px-1">
+                                            <label for="company_parts" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Company:</label>
+                                        </div>
+                                    </div>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control company-select searchable-select @error('company_id') is-invalid @enderror"
@@ -505,12 +639,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add Company"
-                                            data-route="{{ route('post.companies') }}"
-                                            data-target-select=".company-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Company"
                                             data-fetch-route="{{ route('show.company', ':id') }}"
@@ -523,7 +651,7 @@
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Series/Technology -->
-                                <div class="col-md-4 mt-3"  x-show=" selectedType === 'battery' || selectedType === 'oil'">
+                                <div class="col-md-4 mb-3"  x-show=" selectedType === 'battery' || selectedType === 'oil'">
                                     <label for="technology_select">
                                         <b x-show="selectedType === 'oil'">Technology:</b>
                                         <b x-show="selectedType == 'battery'">Series:</b>
@@ -571,7 +699,11 @@
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
-                                    <label for="quality">Quality:</label>
+                                    <div class="mb-1">
+                                        <div class="d-flex justify-content-center align-items-center px-1">
+                                            <label for="quality" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Quality:</label>
+                                        </div>
+                                    </div>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
@@ -585,12 +717,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -626,12 +752,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -665,12 +785,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Quality" data-mode="add"
-                                            data-route="{{ route('post.qualities') }}"
-                                            data-target-select=".quality-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Quality"
                                             data-fetch-route="{{ route('show.quality', ':id') }}"
@@ -1202,10 +1316,6 @@
                                                 name="unit" id="unit_parts" style="width: 100%;">
                                                 <option value="">-- PLEASE SELECT --</option>
                                 </select>
-                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-mode="add"
-                                    data-bs-target="#Unit-add-modal">
-                                                <i data-feather="plus" class="feather-plus"></i> Add
-                                </button>
                                 <button type="button" class="btn btn-secondary" id="editUnitBtn">
                                                 <i data-feather="edit"></i> Edit
                                 </button>
@@ -1348,7 +1458,7 @@
 
                         <div class="col-md-4 mt-3"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="low_stock_parts">Low Stock:</label>
+                            <label for="low_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">LOW STOCK:</label>
                             <select class="form-control searchable-select @error('l_stock') is-invalid @enderror"
                                 name="l_stock" id="low_stock_parts">
                                 <option value="">Select Low Stock</option>
@@ -1360,7 +1470,7 @@
                         </div>
                         <div class="col-md-4 mt-3"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="maintain_stock_parts">Maintain Stock:</label>
+                            <label for="maintain_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">MAINTAIN STOCK:</label>
                             <select class="form-control searchable-select @error('m_stock') is-invalid @enderror"
                                 name="m_stock" id="maintain_stock_parts">
                                 <option value="">Select Maintain Stock</option>
@@ -1374,7 +1484,7 @@
 
                         <div class="col-md-4 mt-3"
                             x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil'|| selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <label for="on_hand">Opening Stock:</label>
+                            <label for="on_hand" class="text-center fw-bold d-block" style="font-weight: 900 !important;">OPENING STOCK:</label>
                             <select class="form-control searchable-select @error('on_hand') is-invalid @enderror"
                                 name="on_hand" id="on_hand">
                                 <option value="">Select Opening Stock</option>
@@ -1386,7 +1496,7 @@
                         </div>
                         <!-- Brochure -->
                         <div class="col-md-4 mt-3">
-                            <label for="p_brochure">Product Brochure (URL):</label>
+                            <label for="p_brochure" class="text-center fw-bold d-block" style="font-weight: 900 !important;">PRODUCT BROCHURE (URL):</label>
                             <input type="url" class="form-control @error('p_brochure') is-invalid @enderror"
                                 id="p_brochure" name="p_brochure" value="{{ old('p_brochure') }}" />
                             @error('p_brochure') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -1693,7 +1803,7 @@
                         <label>Allow Decimal <span class="text-danger">*</span></label>
                         <select name="allow_decimal" class="form-control" required>
                             <option value="1">Yes</option>
-                            <option value="0">No</option>
+                            <option value="0" selected>No</option>
                         </select>
                     </div>
                     <div class="form-group col-12 mt-3">
@@ -1707,11 +1817,11 @@
                         <div id="baseUnitsContainer">
                             <div class="base-unit-item mb-3 p-3 border rounded">
                                 <div class="row g-2">
-                                    <div class="col-5">
-                                        <label class="small">Multiplier</label>
-                                        <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                                    <div class="col-4">
+                                        <label class="small">MULTIPLIER</label>
+                                        <input type="number" step="0.01" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="">
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-7">
                                         <label class="small">Base Unit</label>
                                         <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
                                             <option value="">Select Base Unit</option>
@@ -1992,7 +2102,7 @@
 <!-- Universal Modal -->
 <div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+        <div class="modal-content" style="background-color: #ffffff !important; border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 20px 25px; border-bottom: none;">
                 <div class="d-flex align-items-center w-100">
                     <div class="me-3" style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
@@ -2008,7 +2118,7 @@
             <form id="universal-form" method="POST" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="type" id="universal-type" value="">
-                <div class="modal-body" style="padding: 30px;">
+                <div class="modal-body" style="background-color: #ffffff !important; padding: 30px;">
                     <div class="form-group mb-4">
                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
                             <i class="ti ti-tag me-2 text-primary"></i>Name <span class="text-danger">*</span>
@@ -2023,55 +2133,6 @@
                                onfocus="this.style.borderColor='#ff6b35'; this.style.boxShadow='0 0 0 0.2rem rgba(255, 107, 53, 0.25)'"
                                onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none'">
                         <div class="invalid-feedback" id="universal-name-error"></div>
-                    </div>
-                    <div class="form-group mb-4" id="universal-type-selection" style="display: none;">
-                        <label class="form-label fw-semibold mb-3" style="color: #495057; font-size: 14px;">
-                            <i class="ti ti-category me-2 text-primary"></i>Select Categories
-                        </label>
-                        <div class="row g-2" style="max-height: 200px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="parts" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">PARTS</span>
-                                </label>
-                            </div>
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="filters" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">FILTERS</span>
-                                </label>
-                            </div>
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="breakpad" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">BREAK PAD</span>
-                                </label>
-                            </div>
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="oil" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">OIL</span>
-                                </label>
-                            </div>
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="battery" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">BATTERY</span>
-                                </label>
-                            </div>
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="scrap" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">SCRAP</span>
-                                </label>
-                            </div>
-                            <div class="col-md-6 col-6">
-                                <label class="type-checkbox-label" style="display: flex; align-items: center; padding: 10px; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 8px; transition: all 0.3s; border: 2px solid #e9ecef;" onmouseover="this.style.borderColor='#ff6b35'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
-                                    <input type="checkbox" name="type_checkbox[]" value="services" class="universal-type-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
-                                    <span style="font-weight: 500; color: #495057;">SERVICES</span>
-                                </label>
-                            </div>
-                        </div>
                     </div>
                     <div class="form-group mt-4" id="image-field" style="display: none;">
                         <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
@@ -2101,10 +2162,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="padding: 20px 30px; background: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
-                    <button type="button" class="btn btn-light btn-lg" data-bs-dismiss="modal" style="border-radius: 8px; padding: 10px 20px; font-weight: 500;">
-                        <i class="ti ti-x me-2"></i>Cancel
-                    </button>
+                <div class="modal-footer" style="background-color: #ffffff !important; padding: 20px 30px; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
                     <button type="button" class="btn btn-danger btn-lg d-none me-2" id="universal-delete-btn" style="border-radius: 8px; padding: 10px 20px; font-weight: 500;">
                         <i class="ti ti-trash me-2"></i>Delete
                     </button>
@@ -2131,8 +2189,78 @@
             
             // Check if modal is actually visible
             if (!$('#Unit-add-modal').hasClass('show')) {
-                console.log('Unit modal not visible, ignoring submit');
                 return false;
+            }
+            
+            // Validation: Check required fields
+            const name = $('#Unit-form [name="name"]').val().trim();
+            const shortName = $('#Unit-form [name="short_name"]').val().trim();
+            
+            if (!name || name === '') {
+                toastr.error('Please enter Unit Name');
+                $('#Unit-form [name="name"]').focus();
+                $('#Unit-form [name="name"]').addClass('is-invalid');
+                return false;
+            } else {
+                $('#Unit-form [name="name"]').removeClass('is-invalid');
+            }
+            
+            if (!shortName || shortName === '') {
+                toastr.error('Please enter Short Name');
+                $('#Unit-form [name="short_name"]').focus();
+                $('#Unit-form [name="short_name"]').addClass('is-invalid');
+                return false;
+            } else {
+                $('#Unit-form [name="short_name"]').removeClass('is-invalid');
+            }
+            
+            // Auto-sequence multipliers before form submission
+            const multiplierInputs = $('#baseUnitsContainer').find('input[name*="[multiplier]"]');
+            const baseUnitItems = [];
+            
+            multiplierInputs.each(function() {
+                const $input = $(this);
+                const $item = $input.closest('.base-unit-item');
+                const baseUnitId = $item.find('select[name*="[base_unit_id]"]').val();
+                
+                // Include all items that have a base unit selected (even if multiplier is empty)
+                if (baseUnitId && baseUnitId !== '') {
+                    const multiplier = parseFloat($input.val()) || 0;
+                    baseUnitItems.push({
+                        item: $item,
+                        multiplier: multiplier,
+                        baseUnitId: baseUnitId
+                    });
+                }
+            });
+            
+            // Remove items without selected base unit
+            $('#baseUnitsContainer .base-unit-item').each(function() {
+                const $item = $(this);
+                const baseUnitId = $item.find('select[name*="[base_unit_id]"]').val();
+                if (!baseUnitId || baseUnitId === '') {
+                    $item.remove();
+                }
+            });
+            
+            // Sort by multiplier value (ascending order), items with 0 multiplier go to end
+            baseUnitItems.sort((a, b) => {
+                if (a.multiplier === 0 && b.multiplier === 0) return 0;
+                if (a.multiplier === 0) return 1;
+                if (b.multiplier === 0) return -1;
+                return a.multiplier - b.multiplier;
+            });
+            
+            // Reorder DOM elements and update multipliers to sequence (1, 2, 3, ...)
+            if (baseUnitItems.length > 0) {
+                const $container = $('#baseUnitsContainer');
+                baseUnitItems.forEach((item, index) => {
+                    // Move item to correct position
+                    $container.append(item.item);
+                    // Update multiplier to sequence number
+                    const newMultiplier = index + 1;
+                    item.item.find('input[name*="[multiplier]"]').val(newMultiplier);
+                });
             }
             
             let formData = new FormData(this);
@@ -2150,21 +2278,63 @@
                 contentType: false,
                 success: function(res) {
                     if (res.success) {
-                        // Reload units dropdown
+                        // Reload units dropdown (this will show all base unit variations)
                         loadUnitsForDropdown();
                         
-                        // Select the newly created/updated unit
+                        // Select the newly created/updated unit after dropdown reloads
                         setTimeout(function() {
                             if (res.unit && res.unit.id) {
-                                // Find and select the unit option
                                 const unitId = res.unit.id;
+                                
+                                // Wait for dropdown to fully load
+                                setTimeout(function() {
+                                    // Find and select the first base unit variation (lowest multiplier)
+                                    let found = false;
+                                    let firstOption = null;
+                                    let lowestMultiplier = Infinity;
+                                    
+                                    $('#unit_parts option').each(function() {
+                                        const optionUnitId = $(this).attr('data-unit-id');
+                                        if (optionUnitId == unitId) {
+                                            const multiplier = parseFloat($(this).attr('data-multiplier')) || 0;
+                                            if (multiplier < lowestMultiplier) {
+                                                lowestMultiplier = multiplier;
+                                                firstOption = $(this);
+                                            }
+                                            found = true;
+                                        }
+                                    });
+                                    
+                                    // Select the first variation (lowest multiplier)
+                                    if (firstOption) {
+                                        $('#unit_parts').val(firstOption.val()).trigger('change');
+                                    } else if (found) {
+                                        // Fallback: select any variation
                                 $('#unit_parts option').each(function() {
                                     if ($(this).attr('data-unit-id') == unitId) {
                                         $('#unit_parts').val($(this).val()).trigger('change');
+                                                return false; // break
                                     }
                                 });
                             }
+                                    
+                                    // If still not found, reload dropdown again
+                                    if (!found) {
+                                        setTimeout(function() {
+                                            loadUnitsForDropdown();
+                                            setTimeout(function() {
+                                                $('#unit_parts option').each(function() {
+                                                    if ($(this).attr('data-unit-id') == unitId) {
+                                                        $('#unit_parts').val($(this).val()).trigger('change');
+                                                        return false;
+                                                    }
+                                                });
                         }, 500);
+                                        }, 1000);
+                                    }
+                                }, 500);
+                            }
+                        }, 1000);
                         
                         $('#Unit-add-modal').modal('hide');
                         $('#Unit-form')[0].reset();
@@ -2186,6 +2356,13 @@
                     console.error('Unit save error', xhr);
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         toastr.error(xhr.responseJSON.message);
+                        // Remove invalid class from fields if duplicate error
+                        if (xhr.responseJSON.message.includes('name already exists')) {
+                            $('#Unit-form [name="name"]').addClass('is-invalid');
+                        }
+                        if (xhr.responseJSON.message.includes('short name already exists')) {
+                            $('#Unit-form [name="short_name"]').addClass('is-invalid');
+                        }
                     } else {
                         toastr.error('Failed to save unit. Please try again.');
                     }
@@ -2201,20 +2378,16 @@
                 Swal.fire('Select Unit', 'Please select a unit first', 'warning');
                 return;
             }
-            currentUnitId = selected.val();
+            
+            // Extract unit ID from option value (format: unitId_baseUnitId or unitId_main)
+            const selectedValue = selected.val();
+            const unitIdFromOption = selected.attr('data-unit-id') || selectedValue.split('_')[0];
+            currentUnitId = unitIdFromOption;
+            
             $('#Unit-modal-title').text('Edit Unit');
             $('#deleteUnitBtn').removeClass('d-none');
             
-            // Fetch unit data including base units
-            $.get(`/all/units`, function(units) {
-                // Find the unit in the list (we need a better way - add a route to fetch single unit)
-                // For now, use the selected option data
-                const unitName = selected.data('name') || selected.text().split('(')[0].trim();
-                $('#Unit-form [name="name"]').val(unitName);
-            });
-            
-            // Fetch unit details via AJAX - we need to add a route for this
-            // For now, use a workaround - fetch from all units
+            // Fetch unit details via AJAX
             $.ajax({
                 url: `/units/${currentUnitId}`,
                 type: 'GET',
@@ -2227,40 +2400,112 @@
                         const unit = res.unit;
                         $('#Unit-form [name="name"]').val(unit.name);
                         $('#Unit-form [name="short_name"]').val(unit.short_name);
-                        $('#Unit-form [name="allow_decimal"]').val(unit.allow_decimal);
-                        $('#Unit-form [name="define_base_unit"]').prop('checked', unit.define_base_unit == 1);
                         
-                        // Show/hide base details
-                        if (unit.define_base_unit == 1) {
-                            $('#baseDetails').show();
+                        // Set allow_decimal value (1 for Yes, 0 for No)
+                        // Handle both boolean and numeric values
+                        let allowDecimalValue;
+                        if (unit.allow_decimal === true || unit.allow_decimal === 1 || unit.allow_decimal === '1') {
+                            allowDecimalValue = '1';
                         } else {
-                            $('#baseDetails').hide();
+                            allowDecimalValue = '0';
                         }
+                        
+                        const $allowDecimalSelect = $('#Unit-form [name="allow_decimal"]');
+                        
+                        // First, deselect all options
+                        $allowDecimalSelect.find('option').prop('selected', false);
+                        
+                        // Then select the correct option
+                        $allowDecimalSelect.find('option[value="' + allowDecimalValue + '"]').prop('selected', true);
+                        $allowDecimalSelect.val(allowDecimalValue);
+                        
+                        // Force update the native select element
+                        const nativeSelect = $allowDecimalSelect[0];
+                        if (nativeSelect) {
+                            nativeSelect.value = allowDecimalValue;
+                            // Trigger change event to ensure UI updates
+                            nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        
+                        // Log for debugging
+                        console.log('Setting allow_decimal to:', allowDecimalValue, 'from unit.allow_decimal:', unit.allow_decimal);
                         
                         // Clear existing base units
                         $('#baseUnitsContainer').empty();
                         baseUnitIndex = 0;
                         
-                        // Load base units if available
-                        if (unit.base_units && unit.base_units.length > 0) {
+                        // Check if unit has base units
+                        const hasBaseUnits = unit.base_units && unit.base_units.length > 0;
+                        
+                        // Auto-check define_base_unit checkbox ONLY if base units exist
+                        if (hasBaseUnits) {
+                            $('#Unit-form [name="define_base_unit"]').prop('checked', true);
+                            $('#baseDetails').show();
+                            
+                            // Load base units
                             unit.base_units.forEach(function(baseUnit) {
-                                addBaseUnitRow(baseUnit.base_unit_id, baseUnit.pivot?.multiplier || baseUnit.multiplier);
+                                const multiplier = baseUnit.pivot?.multiplier || baseUnit.multiplier || 1;
+                                // baseUnit.id is the actual unit ID from the baseUnits relationship
+                                addBaseUnitRow(baseUnit.id, multiplier);
                             });
-                        } else if (unit.base_unit_id) {
-                            // Legacy single base unit
-                            addBaseUnitRow(unit.base_unit_id, unit.base_unit_multiplier || 1);
+                            // Update labels for all loaded base units
+                            setTimeout(function() {
+                                $('#baseUnitsContainer select[name*="[base_unit_id]"]').each(function() {
+                                    if ($(this).val()) {
+                                        updateMultiplierLabel(this);
+                                    }
+                                });
+                            }, 150);
                         } else {
-                            // Add one empty row
-                            addBaseUnitRow('', '');
+                            // No base units - uncheck checkbox and hide base details
+                            $('#Unit-form [name="define_base_unit"]').prop('checked', false);
+                            $('#baseDetails').hide();
                         }
                         
                         updateUnitRemoveButtons();
+                        
+                        // Show modal first
                         $('#Unit-add-modal').modal('show');
+                        
+                        // After modal is shown, re-verify allow_decimal value and update multiplier inputs
+                        setTimeout(function() {
+                            // Re-set allow_decimal value after modal is shown to ensure it persists
+                            const $allowDecimalSelect = $('#Unit-form [name="allow_decimal"]');
+                            $allowDecimalSelect.find('option[value="' + allowDecimalValue + '"]').prop('selected', true);
+                            $allowDecimalSelect.val(allowDecimalValue);
+                            if ($allowDecimalSelect[0]) {
+                                $allowDecimalSelect[0].value = allowDecimalValue;
+                            }
+                            
+                            // Trigger change event to ensure all related functions run
+                            $allowDecimalSelect.trigger('change');
+                            updateMultiplierInputs();
+                        }, 300);
                     }
                 },
-                error: function() {
+                error: function(xhr) {
+                    console.error('Error fetching unit:', xhr);
                     // Fallback to using option data
-                    $('#Unit-form [name="name"]').val(selected.data('name') || selected.text().split('(')[0].trim());
+                    const unitName = selected.attr('data-unit-name') || selected.text().split('(')[0].trim();
+                    const shortName = selected.attr('data-unit-short') || '';
+                    $('#Unit-form [name="name"]').val(unitName);
+                    $('#Unit-form [name="short_name"]').val(shortName);
+                    $('#Unit-form [name="allow_decimal"]').val(selected.attr('data-allow-decimal') || '0');
+                    
+                    // Check if there's a base unit from the selected option
+                    const baseUnitId = selected.attr('data-base-unit-id');
+                    if (baseUnitId) {
+                        $('#Unit-form [name="define_base_unit"]').prop('checked', true);
+                        $('#baseDetails').show();
+                        $('#baseUnitsContainer').empty();
+                        baseUnitIndex = 0;
+                        const multiplier = selected.attr('data-multiplier') || 1;
+                        addBaseUnitRow(baseUnitId, multiplier);
+                    } else {
+                        $('#Unit-form [name="define_base_unit"]').prop('checked', false);
+                        $('#baseDetails').hide();
+                    }
+                    
                     $('#Unit-add-modal').modal('show');
                 }
             });
@@ -2272,11 +2517,11 @@
             const newItem = $(`
                 <div class="base-unit-item mb-3 p-3 border rounded">
                     <div class="row g-2">
-                        <div class="col-5">
-                            <label class="small">Multiplier</label>
-                            <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" value="${multiplier || ''}" placeholder="e.g., 1, 2, 3">
+                        <div class="col-4">
+                            <label class="small">MULTIPLIER</label>
+                            <input type="number" step="0.01" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" value="${multiplier || ''}" placeholder="">
                         </div>
-                        <div class="col-6">
+                        <div class="col-7">
                             <label class="small">Base Unit</label>
                             <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
                                 <option value="">Select Base Unit</option>
@@ -2298,6 +2543,10 @@
             // Set selected value
             if (baseUnitId) {
                 newItem.find('select[name="base_units[' + baseUnitIndex + '][base_unit_id]"]').val(baseUnitId);
+                // Update label after setting value
+                setTimeout(function() {
+                    updateMultiplierLabel(newItem.find('select[name="base_units[' + baseUnitIndex + '][base_unit_id]"]')[0]);
+                }, 50);
             }
             
             baseUnitIndex++;
@@ -2329,9 +2578,24 @@
                                 'deleteSound');
                                 audio.currentTime = 0;
                                 audio.play();
-                                // Remove option
-                                $(`#unit_parts option[value="${currentUnitId}"]`)
-                                    .remove();
+                                
+                                // Remove all options related to this unit (including base unit variations)
+                                $('#unit_parts option').each(function() {
+                                    const optionUnitId = $(this).attr('data-unit-id');
+                                    if (optionUnitId == currentUnitId) {
+                                        $(this).remove();
+                                    }
+                                });
+                                
+                                // Reset selected value if deleted unit was selected
+                                const currentSelected = $('#unit_parts option:selected');
+                                if (!currentSelected.val() || currentSelected.attr('data-unit-id') == currentUnitId) {
+                                    $('#unit_parts').val('').trigger('change');
+                                }
+                                
+                                // Fully refresh the dropdown to ensure consistency
+                                loadUnitsForDropdown();
+                                
                                 $('#Unit-add-modal').modal('hide');
                                 $('#Unit-form')[0].reset();
                                 currentUnitId = null;
@@ -2348,29 +2612,52 @@
         ==========================*/
         $('#Unit-add-modal').on('hidden.bs.modal', function() {
             $('#Unit-form')[0].reset();
+            // Set allow_decimal to "No" by default
+            $('#Unit-form [name="allow_decimal"]').val('0');
             $('#deleteUnitBtn').addClass('d-none');
             $('#Unit-modal-title').text('Add Unit');
             currentUnitId = null;
             
             // Reset base units container
             $('#baseUnitsContainer').empty();
-            baseUnitIndex = 1;
-            // Add one empty base unit row
+            baseUnitIndex = 0;
+            // Load units and add one empty base unit row
+            $.ajax({
+                url: '{{ route("api.units.search") }}',
+                data: { search: '' },
+                success: function(data) {
+                    // Get unique units
+                    const uniqueUnits = {};
+                    data.forEach(function(item) {
+                        if (!uniqueUnits[item.id]) {
+                            uniqueUnits[item.id] = {
+                                id: item.id,
+                                name: item.name,
+                                short_name: item.short_name,
+                                display_text: item.name + ' (' + item.short_name + ')'
+                            };
+                        }
+                    });
+                    const unitsArray = Object.values(uniqueUnits);
+                    
+                    // Build options HTML
+                    let optionsHtml = '<option value="">Select Base Unit</option>';
+                    unitsArray.forEach(function(unit) {
+                        optionsHtml += '<option value="' + unit.id + '">' + unit.display_text + '</option>';
+                    });
+                    
             const container = $('#baseUnitsContainer');
             container.html(`
                 <div class="base-unit-item mb-3 p-3 border rounded">
                     <div class="row g-2">
-                        <div class="col-5">
+                                <div class="col-4">
                             <label class="small">Multiplier</label>
-                            <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                                    <input type="number" step="0.01" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="">
                         </div>
-                        <div class="col-6">
+                                <div class="col-7">
                             <label class="small">Base Unit</label>
                             <select name="base_units[0][base_unit_id]" class="form-control form-control-sm">
-                                <option value="">Select Base Unit</option>
-                                @foreach($units as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                                @endforeach
+                                        ${optionsHtml}
                             </select>
                         </div>
                         <div class="col-1 d-flex align-items-end">
@@ -2381,6 +2668,20 @@
                     </div>
                 </div>
             `);
+                }
+            });
+            
+            // Add validation to the initial multiplier input
+            const initialInput = container.find('input[name*="[multiplier]"]')[0];
+            if (initialInput) {
+                addMultiplierValidation(initialInput);
+            }
+            
+            // Update multiplier inputs based on allow_decimal setting
+            setTimeout(function() {
+                updateMultiplierInputs();
+            }, 100);
+            
             $('#baseDetails').hide();
             $('#toggleBaseUnit').prop('checked', false);
         });
@@ -2398,27 +2699,150 @@
         document.getElementById('baseDetails').style.display = this.checked ? "block" : "none";
     });
     
+    // Function to update multiplier inputs based on allow_decimal setting
+    function updateMultiplierInputs() {
+        const allowDecimal = $('#Unit-form [name="allow_decimal"]').val();
+        const container = document.getElementById('baseUnitsContainer');
+        if (!container) return;
+        
+        const multiplierInputs = container.querySelectorAll('input[name*="[multiplier]"]');
+        multiplierInputs.forEach(function(input) {
+            if (allowDecimal === '0' || allowDecimal === 0) {
+                // No decimal allowed - set step to 1 and remove any decimal values
+                input.setAttribute('step', '1');
+                input.setAttribute('min', '1');
+                // Remove decimal part if exists
+                if (input.value && input.value.includes('.')) {
+                    input.value = Math.floor(parseFloat(input.value));
+                }
+            } else {
+                // Decimal allowed - set step to 0.01
+                input.setAttribute('step', '0.01');
+                input.removeAttribute('min');
+            }
+        });
+    }
+    
+    // Listen for allow_decimal changes
+    $(document).on('change', '#Unit-form [name="allow_decimal"]', function() {
+        updateMultiplierInputs();
+    });
+    
     // Add Base Unit functionality for Unit Modal
     let baseUnitIndex = 1;
     document.getElementById('addBaseUnitBtn')?.addEventListener('click', function() {
         const container = document.getElementById('baseUnitsContainer');
         if (!container) return;
         
+        // Get the last base unit item to clone selected value from (only base unit, not multiplier)
+        const lastItem = container.querySelector('.base-unit-item:last-child');
+        let clonedBaseUnitId = '';
+        
+        if (lastItem) {
+            const lastBaseUnitSelect = lastItem.querySelector('select[name*="[base_unit_id]"]');
+            if (lastBaseUnitSelect && lastBaseUnitSelect.value) {
+                clonedBaseUnitId = lastBaseUnitSelect.value;
+            }
+        }
+        
+        // Load units dynamically via AJAX
+        $.ajax({
+            url: '{{ route("api.units.search") }}',
+            data: { search: '' },
+            success: function(data) {
+                // Get unique units
+                const uniqueUnits = {};
+                data.forEach(function(item) {
+                    if (!uniqueUnits[item.id]) {
+                        uniqueUnits[item.id] = {
+                            id: item.id,
+                            name: item.name,
+                            short_name: item.short_name,
+                            display_text: item.name + ' (' + item.short_name + ')'
+                        };
+                    }
+                });
+                const unitsArray = Object.values(uniqueUnits);
+                
+                // Build options HTML
+                let optionsHtml = '<option value="">Select Base Unit</option>';
+                unitsArray.forEach(function(unit) {
+                    optionsHtml += '<option value="' + unit.id + '">' + unit.display_text + '</option>';
+                });
+        
         const newItem = document.createElement('div');
         newItem.className = 'base-unit-item mb-3 p-3 border rounded';
+                newItem.style.opacity = '0'; // Start hidden for fade-in
         newItem.innerHTML = `
             <div class="row g-2">
-                <div class="col-5">
+                        <div class="col-4">
+                            <label class="small">MULTIPLIER</label>
+                            <input type="number" step="0.01" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" value="" placeholder="">
+                        </div>
+                        <div class="col-7">
+                            <label class="small">Base Unit</label>
+                            <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                        <div class="col-1 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger btn-sm removeBaseUnit">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(newItem);
+                
+                // Set the cloned base unit value if available
+                if (clonedBaseUnitId) {
+                    const newSelect = newItem.querySelector('select[name*="[base_unit_id]"]');
+                    if (newSelect) {
+                        newSelect.value = clonedBaseUnitId;
+                        // Update label after setting value
+                        setTimeout(function() {
+                            updateMultiplierLabel(newSelect);
+                        }, 50);
+                    }
+                }
+                
+                // Fade in the new item
+                setTimeout(() => {
+                    newItem.style.transition = 'opacity 0.3s ease-in-out';
+                    newItem.style.opacity = '1';
+                }, 10);
+                
+                // Add unique multiplier validation to the new input
+                const newMultiplierInput = newItem.querySelector('input[name*="[multiplier]"]');
+                if (newMultiplierInput) {
+                    addMultiplierValidation(newMultiplierInput);
+                    // Update step based on allow_decimal setting
+                    updateMultiplierInputs();
+                }
+                
+                baseUnitIndex++;
+                updateUnitRemoveButtons();
+                
+                // Smooth scroll to the newly added item
+                setTimeout(function() {
+                    newItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }, 100);
+            },
+            error: function() {
+                // Fallback to empty options if API fails
+                const newItem = document.createElement('div');
+                newItem.className = 'base-unit-item mb-3 p-3 border rounded';
+                newItem.style.opacity = '0';
+                newItem.innerHTML = `
+                    <div class="row g-2">
+                        <div class="col-4">
                     <label class="small">Multiplier</label>
-                    <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                            <input type="number" step="0.01" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" value="" placeholder="">
                 </div>
-                <div class="col-6">
+                        <div class="col-7">
                     <label class="small">Base Unit</label>
                     <select name="base_units[${baseUnitIndex}][base_unit_id]" class="form-control form-control-sm">
                         <option value="">Select Base Unit</option>
-                        @foreach($units as $u)
-                        <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>
-                        @endforeach
                     </select>
                 </div>
                 <div class="col-1 d-flex align-items-end">
@@ -2429,9 +2853,141 @@
             </div>
         `;
         container.appendChild(newItem);
+                
+                if (clonedBaseUnitId) {
+                    const newSelect = newItem.querySelector('select[name*="[base_unit_id]"]');
+                    if (newSelect) {
+                        newSelect.value = clonedBaseUnitId;
+                    }
+                }
+                
+                setTimeout(() => {
+                    newItem.style.transition = 'opacity 0.3s ease-in-out';
+                    newItem.style.opacity = '1';
+                }, 10);
+                
+                const newMultiplierInput = newItem.querySelector('input[name*="[multiplier]"]');
+                if (newMultiplierInput) {
+                    addMultiplierValidation(newMultiplierInput);
+                    updateMultiplierInputs();
+                }
+                
         baseUnitIndex++;
         updateUnitRemoveButtons();
+                
+                setTimeout(function() {
+                    newItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }, 100);
+            }
+        });
     });
+    
+    // Function to update multiplier label based on selected base unit
+    function updateMultiplierLabel(selectElement) {
+        const $select = $(selectElement);
+        const $item = $select.closest('.base-unit-item');
+        const $label = $item.find('label.small').first(); // Get the multiplier label
+        const selectedOption = $select.find('option:selected');
+        
+        if (selectedOption.val() && selectedOption.val() !== '') {
+            const baseUnitName = selectedOption.text().trim();
+            // Update label to show "PER [Base Unit Name]" (without MULTIPLIER)
+            $label.text('PER ' + baseUnitName.toUpperCase());
+        } else {
+            // Reset to default if no base unit selected
+            $label.text('MULTIPLIER');
+        }
+    }
+    
+    // Function to add unique multiplier validation to an input
+    function addMultiplierValidation(inputElement) {
+        // Limit to 2 decimal places
+        inputElement.addEventListener('input', function() {
+            const value = this.value;
+            if (value.includes('.')) {
+                const parts = value.split('.');
+                if (parts[1] && parts[1].length > 2) {
+                    this.value = parseFloat(value).toFixed(2);
+                }
+            }
+            validateMultiplierUniqueness(this);
+        });
+        
+        inputElement.addEventListener('blur', function() {
+            const value = this.value;
+            if (value && value.includes('.')) {
+                const parts = value.split('.');
+                if (parts[1] && parts[1].length > 2) {
+                    this.value = parseFloat(value).toFixed(2);
+                }
+            }
+            validateMultiplierUniqueness(this);
+        });
+        
+        // Handle Enter key press - trigger "Add Another Base Unit" button
+        inputElement.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Trigger the "Add Another Base Unit" button
+                const addBtn = document.getElementById('addBaseUnitBtn');
+                if (addBtn) {
+                    addBtn.click();
+                }
+                
+                return false;
+            }
+        });
+    }
+    
+    // Event delegation for base unit select changes - update multiplier label
+    $(document).on('change', '#baseUnitsContainer select[name*="[base_unit_id]"]', function() {
+        updateMultiplierLabel(this);
+    });
+    
+    // Function to validate multiplier uniqueness
+    function validateMultiplierUniqueness(inputElement) {
+        const container = document.getElementById('baseUnitsContainer');
+        if (!container) return;
+        
+        const currentValue = inputElement.value.trim();
+        if (!currentValue) {
+            // Clear error if value is empty
+            inputElement.classList.remove('is-invalid');
+            const errorMsg = inputElement.parentElement.querySelector('.multiplier-error');
+            if (errorMsg) {
+                errorMsg.remove();
+            }
+            return;
+        }
+        
+        const allItems = container.querySelectorAll('.base-unit-item');
+        let isDuplicate = false;
+        
+        allItems.forEach(function(item) {
+            const multiplierInput = item.querySelector('input[name*="[multiplier]"]');
+            if (multiplierInput && multiplierInput !== inputElement && multiplierInput.value.trim() === currentValue) {
+                isDuplicate = true;
+            }
+        });
+        
+        // Remove previous error message
+        const existingError = inputElement.parentElement.querySelector('.multiplier-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        if (isDuplicate) {
+            inputElement.classList.add('is-invalid');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'multiplier-error text-danger small mt-1';
+            errorDiv.textContent = 'This multiplier value already exists. Please enter a unique value.';
+            inputElement.parentElement.appendChild(errorDiv);
+        } else {
+            inputElement.classList.remove('is-invalid');
+        }
+    }
     
     // Remove Base Unit functionality for Unit Modal
     function updateUnitRemoveButtons() {
@@ -2452,13 +3008,175 @@
     // Event delegation for remove buttons in Unit Modal
     document.addEventListener('click', function(e) {
         if (e.target.closest('.removeBaseUnit') && e.target.closest('#baseUnitsContainer')) {
-            e.target.closest('.base-unit-item').remove();
+            const removedItem = e.target.closest('.base-unit-item');
+            const removedMultiplierInput = removedItem.querySelector('input[name*="[multiplier]"]');
+            const removedMultiplierValue = removedMultiplierInput ? removedMultiplierInput.value.trim() : '';
+            
+            // Remove the item
+            removedItem.remove();
             updateUnitRemoveButtons();
+            
+            // Re-validate all remaining multiplier inputs after removal
+            const container = document.getElementById('baseUnitsContainer');
+            if (container) {
+                const allInputs = container.querySelectorAll('input[name*="[multiplier]"]');
+                
+                // First, clear any duplicate values that match the removed value
+                allInputs.forEach(function(input) {
+                    if (input.value.trim() === removedMultiplierValue && removedMultiplierValue !== '') {
+                        input.value = '';
+                        input.classList.remove('is-invalid');
+                        // Remove error message if exists
+                        const errorMsg = input.parentElement.querySelector('.multiplier-error');
+                        if (errorMsg) {
+                            errorMsg.remove();
+                        }
+                    }
+                });
+                
+                // Then validate all remaining inputs for uniqueness
+                allInputs.forEach(function(input) {
+                    validateMultiplierUniqueness(input);
+                });
+            }
         }
     });
     
     // Initialize remove buttons on page load
     updateUnitRemoveButtons();
+    
+    // Add validation to existing multiplier inputs on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('baseUnitsContainer');
+        if (container) {
+            const existingInputs = container.querySelectorAll('input[name*="[multiplier]"]');
+            existingInputs.forEach(function(input) {
+                addMultiplierValidation(input);
+            });
+        }
+    });
+    
+    // Also add validation when modal is shown (in case inputs are added dynamically before)
+    // Auto-generate short name from name input
+    $(document).on('input', '#Unit-form [name="name"]', function() {
+        const nameValue = $(this).val();
+        const shortNameInput = $('#Unit-form [name="short_name"]');
+        
+        // Only auto-fill if short name is empty or matches previous name's short form
+        if (!shortNameInput.data('manually-edited')) {
+            // Generate short name: take first 3-4 characters or first letter of each word
+            let shortName = '';
+            if (nameValue) {
+                const trimmedName = nameValue.trim().toLowerCase();
+                // Check for specific unit names
+                if (trimmedName === 'can' || trimmedName.startsWith('can ')) {
+                    shortName = 'CN';
+                } else if (trimmedName === 'piece' || trimmedName.startsWith('piece ')) {
+                    shortName = 'PCS';
+                } else if (trimmedName === 'liter' || trimmedName.startsWith('liter ')) {
+                    shortName = 'LTR';
+                } else {
+                    const words = nameValue.trim().split(/\s+/);
+                    if (words.length > 1) {
+                        // If multiple words, take first letter of each word
+                        shortName = words.map(word => word.charAt(0).toUpperCase()).join('');
+                    } else {
+                        // If single word, take first 3-4 characters
+                        shortName = nameValue.trim().substring(0, 4).toUpperCase();
+                    }
+                }
+            }
+            shortNameInput.val(shortName);
+        }
+    });
+    
+    // Track manual edits to short name
+    $(document).on('input', '#Unit-form [name="short_name"]', function() {
+        $(this).data('manually-edited', true);
+        // Remove invalid class if field has value
+        if ($(this).val().trim() !== '') {
+            $(this).removeClass('is-invalid');
+        }
+    });
+    
+    // Remove invalid class when name field is filled
+    $(document).on('input', '#Unit-form [name="name"]', function() {
+        if ($(this).val().trim() !== '') {
+            $(this).removeClass('is-invalid');
+        }
+    });
+    
+    // Format name on blur: capitalize first letter of each word
+    $(document).on('blur', '#Unit-form [name="name"]', function() {
+        let nameValue = $(this).val().trim();
+        if (nameValue) {
+            // Capitalize first letter of each word
+            nameValue = nameValue.split(' ').map(word => {
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }).join(' ');
+            $(this).val(nameValue);
+        }
+    });
+    
+    // Reset manual edit flag when modal opens in add mode
+    $('#Unit-add-modal').on('shown.bs.modal', function() {
+        // Set allow_decimal to "No" by default if in add mode (not edit mode)
+        const modalTitle = $('#Unit-modal-title').text();
+        const isEditMode = modalTitle === 'Edit Unit' && currentUnitId;
+        
+        // Only reset in add mode, NEVER in edit mode
+        if (!isEditMode) {
+            const $allowDecimalSelect = $('#Unit-form [name="allow_decimal"]');
+            const currentValue = $allowDecimalSelect.val();
+            
+            // Only reset if value is empty or not set (to avoid overwriting edit mode values)
+            if (!currentValue || currentValue === '' || currentValue === null) {
+                $allowDecimalSelect.val('0');
+                if ($allowDecimalSelect[0]) {
+                    $allowDecimalSelect[0].value = '0';
+                }
+                // Ensure the option is visually selected
+                $allowDecimalSelect.find('option[value="0"]').prop('selected', true);
+            }
+            $('#Unit-form [name="short_name"]').data('manually-edited', false);
+        }
+        
+        // Update Base Unit dropdowns when modal opens
+        $.ajax({
+            url: '{{ route("api.units.search") }}',
+            data: { search: '' },
+            success: function(data) {
+                const uniqueUnits = {};
+                data.forEach(function(item) {
+                    if (!uniqueUnits[item.id]) {
+                        uniqueUnits[item.id] = {
+                            id: item.id,
+                            name: item.name,
+                            short_name: item.short_name,
+                            display_text: item.name + ' (' + item.short_name + ')'
+                        };
+                    }
+                });
+                updateBaseUnitDropdowns(uniqueUnits);
+            }
+        });
+        
+        // Update multiplier inputs based on allow_decimal setting
+        setTimeout(function() {
+            updateMultiplierInputs();
+        }, 100);
+        
+        const container = document.getElementById('baseUnitsContainer');
+        if (container) {
+            const existingInputs = container.querySelectorAll('input[name*="[multiplier]"]');
+            existingInputs.forEach(function(input) {
+                // Remove existing listeners to avoid duplicates
+                const newInput = input.cloneNode(true);
+                input.parentNode.replaceChild(newInput, input);
+                addMultiplierValidation(newInput);
+            });
+        }
+    });
     
     // Initialize unit dropdown
     $(document).ready(function() {
@@ -2484,7 +3202,14 @@
             url: '{{ route("api.units.search") }}',
             data: { search: '' },
             success: function(data) {
+                // Store current value before clearing
+                const currentValue = $('#unit_parts').val();
+                
+                // Clear and rebuild options
                 $('#unit_parts').empty().append('<option value="">-- PLEASE SELECT --</option>');
+                
+                // Keep track of unique unit IDs to avoid duplicates
+                const uniqueUnits = {};
                 
                 data.forEach(function(item) {
                     const optionId = item.id + '_' + (item.base_unit_id || 'main');
@@ -2498,7 +3223,51 @@
                     option.setAttribute('data-decimal-places', item.decimal_places || 0);
                     option.setAttribute('data-allow-decimal', item.allow_decimal || 0);
                     $('#unit_parts').append(option);
+                    
+                    // Store unique units for Base Unit dropdown
+                    if (!uniqueUnits[item.id]) {
+                        uniqueUnits[item.id] = {
+                            id: item.id,
+                            name: item.name,
+                            short_name: item.short_name,
+                            display_text: item.name + ' (' + item.short_name + ')'
+                        };
+                    }
                 });
+                
+                // Update Base Unit dropdowns with unique units
+                updateBaseUnitDropdowns(uniqueUnits);
+                
+                // Trigger Select2 update to refresh the dropdown
+                if ($.fn.select2 && $('#unit_parts').hasClass('select2-hidden-accessible')) {
+                    $('#unit_parts').trigger('change.select2');
+                }
+            }
+        });
+    }
+    
+    // Function to update all Base Unit dropdowns in the Unit modal
+    function updateBaseUnitDropdowns(unitsMap) {
+        // Convert unitsMap object to array
+        const unitsArray = Object.values(unitsMap);
+        
+        // Update all Base Unit dropdowns in the modal
+        $('#baseUnitsContainer select[name*="[base_unit_id]"]').each(function() {
+            const $select = $(this);
+            const currentValue = $select.val(); // Store current selection
+            
+            // Clear existing options except the first one
+            $select.find('option:not(:first)').remove();
+            
+            // Add all units
+            unitsArray.forEach(function(unit) {
+                const option = new Option(unit.display_text, unit.id, false, false);
+                $select.append(option);
+            });
+            
+            // Restore previous selection if it still exists
+            if (currentValue) {
+                $select.val(currentValue);
             }
         });
     }
@@ -2702,9 +3471,12 @@
             // Add visual feedback
             $('#part_number_id').focus();
             // Scroll to the part number field if needed
+            const $partNumberField = $('#part_number_id');
+            if ($partNumberField.length && $partNumberField.offset()) {
             $('html, body').animate({
-                scrollTop: $('#part_number_id').offset().top - 100
+                    scrollTop: $partNumberField.offset().top - 100
             }, 300);
+            }
             return false;
         }
     });
@@ -2717,9 +3489,12 @@
             e.preventDefault();
             toastr.error('Please enter part number first.');
             $('#part_number_id').addClass('is-invalid').focus();
+            const $partNumberField = $('#part_number_id');
+            if ($partNumberField.length && $partNumberField.offset()) {
             $('html, body').animate({
-                scrollTop: $('#part_number_id').offset().top - 100
+                    scrollTop: $partNumberField.offset().top - 100
             }, 300);
+            }
             return false;
         }
     });
@@ -2759,7 +3534,6 @@
         
         // Check if modal is actually visible
         if (!$('#vehical-add-modal').hasClass('show')) {
-            console.log('Vehicle modal not visible, ignoring submit');
             return false;
         }
         
@@ -2779,9 +3553,12 @@
             // Focus on modal part number field
             $('#part_number').focus();
             // Scroll to the field if needed
+            const $modalContent = $('#part_number').closest('.modal-content');
+            if ($modalContent.length && $modalContent.offset()) {
             $('html, body').animate({
-                scrollTop: $('#part_number').closest('.modal-content').offset().top - 50
+                    scrollTop: $modalContent.offset().top - 50
             }, 300);
+            }
             return false;
         }
 
@@ -3311,7 +4088,6 @@
 
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
-        console.log('Filtering dropdowns by type:', selectedType);
         
         // List of all dropdowns that need filtering
         const dropdowns = [
@@ -3350,7 +4126,6 @@
                         $option.hide().prop('disabled', true);
                     }
                 });
-                console.log(`Filtered ${selector}: ${visibleCount} options visible for type "${selectedType}"`);
 
                 // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
@@ -3369,13 +4144,13 @@
                         
                         // Reinitialize Select2 with same options
                         setTimeout(() => {
-                            // Special handling for part_number_id - position dropdown above
+                            // Special handling for part_number_id - force dropdown above
                             if ($select.attr('id') === 'part_number_id') {
                                 $select.select2({
                                     placeholder: 'Please Select',
                                     allowClear: true,
                                     width: '100%',
-                                    dropdownParent: $select.closest('.col-md-4')
+                                    dropdownPosition: 'above'
                                 });
                             } else {
                                 $select.select2({
@@ -3391,7 +4166,6 @@
                             }
                         }, 50);
                     } catch(e) {
-                        console.log('Error refreshing Select2 for ' + selector + ':', e);
                         // Fallback: just trigger change
                         $select.trigger('change');
                     }
@@ -3638,6 +4412,7 @@
                 const $noResultsMsg = $openSelect2.find('.select2-results__message');
                 const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
                 const $searchInput = $openSelect2.find('.select2-search__field');
+                const $resultsContainer = $openSelect2.find('.select2-results');
                 
                 if ($searchInput.length && $searchInput.val()) {
                     const searchVal = $searchInput.val().trim();
@@ -3646,83 +4421,126 @@
                                         ($results.length === 0 && searchVal.length > 0);
                     
                     if (hasNoResults && searchVal.length > 0) {
-                        $('#partNumberSearchTerm').text(searchVal);
-                        $('#addNewPartNumberContainer').slideDown(200);
+                        // Hide the default "No results found" message
+                        if ($noResultsMsg.length) {
+                            $noResultsMsg.hide();
+                        }
+                        
+                        // Check if Add New button already exists in results container
+                        let $addNewBtnInDropdown = $resultsContainer.find('.add-new-part-number-btn');
+                        
+                        if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
+                            // Create and add the button inside Select2 results container
+                            const buttonHtml = `
+                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
+                                    <button type="button" class="btn btn-success btn-sm w-100 add-new-part-number-btn open-universal-modal" 
+                                            data-title="Add Part Number" 
+                                            data-mode="add"
+                                            data-route="{{ route('post.partnumber') }}"
+                                            data-target-select=".part_number-select"
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
+                                        <i data-feather="plus" class="feather-plus me-1"></i>
+                                        Add "<span class="part-number-search-term fw-bold">${searchVal}</span>"
+                                    </button>
+                                </div>
+                            `;
+                            $resultsContainer.append(buttonHtml);
+                            
+                            // Initialize feather icons for the new button
+                            if (typeof feather !== 'undefined') {
+                                feather.replace();
+                            }
+                            
+                            // Update search term in button
+                            $resultsContainer.find('.part-number-search-term').text(searchVal);
+                        } else if ($addNewBtnInDropdown.length) {
+                            // Update search term if button already exists
+                            $resultsContainer.find('.part-number-search-term').text(searchVal);
+                        }
                     } else if ($results.length > 0) {
                         // Hide button if results are found
-                        $('#addNewPartNumberContainer').slideUp(200);
+                        $resultsContainer.find('.add-new-part-number-btn').closest('.select2-results__option--add-new').remove();
+                        
+                        // Show default message if it was hidden
+                        if ($noResultsMsg.length) {
+                            $noResultsMsg.show();
+                        }
                     }
                 } else {
                     // Hide button if search is empty
-                    $('#addNewPartNumberContainer').slideUp(200);
+                    $openSelect2.find('.select2-results').find('.add-new-part-number-btn').closest('.select2-results__option--add-new').remove();
+                    
+                    // Show default message if it was hidden
+                    if ($noResultsMsg.length) {
+                        $noResultsMsg.show();
+                    }
                 }
             }
         }
         
-        // When part number dropdown opens
-        $(document).on('select2:open', '#part_number_id', function(e) {
-            setTimeout(function() {
-                const $partNumberContainer = $('#part_number_id').next('.select2-container');
-                const $dropdown = $partNumberContainer.find('.select2-dropdown');
-                
-                // Remove Select2's default "below" class and force "above"
-                $partNumberContainer.removeClass('select2-container--below').addClass('select2-container--above');
-                
-                // Position dropdown above the input - aggressive override
-                if ($dropdown.length) {
-                    $partNumberContainer.addClass('select2-dropdown-above');
-                    
-                    // Force dropdown to appear above with multiple attempts
-                    function forcePositionAbove() {
-                        $dropdown.css({
-                            'position': 'absolute !important',
-                            'bottom': '100% !important',
-                            'top': 'auto !important',
-                            'margin-bottom': '5px !important',
-                            'margin-top': '0 !important',
-                            'transform': 'translateY(0) !important',
-                            'border-top': '1px solid #aaa !important',
-                            'border-bottom': 'none !important',
-                            'border-radius': '4px 4px 0 0 !important'
-                        });
-                        
-                        // Also update the container
-                        $partNumberContainer.css({
-                            'z-index': '9999 !important'
-                        });
-                        
-                        // Update results container
-                        $partNumberContainer.find('.select2-results').css({
-                            'max-height': '200px',
-                            'overflow-y': 'auto',
-                            'border-radius': '4px 4px 0 0 !important'
-                        });
+        // When part number dropdown opens - positioning handled by general code, only handle "Add New" button
+        $(document).on('select2:opening', '#part_number_id', function(e) {
+            // Focus search input as soon as dropdown starts opening
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    const $searchInput = $('#part_number_id').next('.select2-container').find('.select2-search__field');
+                    if ($searchInput.length) {
+                        $searchInput[0].focus();
+                        $searchInput[0].select();
                     }
-                    
-                    // Apply immediately and keep applying
-                    forcePositionAbove();
-                    setTimeout(forcePositionAbove, 10);
-                    setTimeout(forcePositionAbove, 50);
-                    setTimeout(forcePositionAbove, 100);
-                    
-                    // Monitor and continuously reposition
-                    const positionInterval = setInterval(function() {
-                        if ($partNumberContainer.hasClass('select2-container--open')) {
-                            forcePositionAbove();
-                        } else {
-                            clearInterval(positionInterval);
+                });
+            });
+        });
+        
+        $(document).on('select2:open', '#part_number_id', function(e) {
+            // General code (line 4395) will handle positioning automatically
+            // We only need to handle "Add New Part Number" button functionality here
+            
+            // Immediately focus search input - multiple attempts to ensure it works
+            function focusSearchInput() {
+                const $partNumberContainer = $('#part_number_id').next('.select2-container');
+                if ($partNumberContainer.length) {
+                    const $searchInput = $partNumberContainer.find('.select2-search__field');
+                    if ($searchInput.length && $searchInput.length > 0) {
+                        const searchInput = $searchInput[0];
+                        if (searchInput) {
+                            // Focus and select to ensure it's ready for typing
+                            searchInput.focus();
+                            searchInput.select();
+                            return true;
                         }
-                    }, 100);
-                    
-                    // Clear interval when dropdown closes
-                    $(document).one('select2:close', '#part_number_id', function() {
-                        clearInterval(positionInterval);
-                    });
+                    }
                 }
-                
+                return false;
+            }
+            
+            // Try immediately with requestAnimationFrame for better timing
+            requestAnimationFrame(function() {
+                focusSearchInput();
+            });
+            
+            // Try multiple times with different delays to ensure it works
+            setTimeout(function() {
+                focusSearchInput();
+            }, 0);
+            
+            setTimeout(function() {
+                focusSearchInput();
+            }, 10);
+            
+            setTimeout(function() {
+                focusSearchInput();
+            }, 30);
+            
+            setTimeout(function() {
+                focusSearchInput();
+            }, 50);
+            
+            setTimeout(function() {
                 const $searchInput = $('.select2-container--open .select2-search__field');
                 if ($searchInput.length) {
-                    $searchInput.focus();
+                    $searchInput[0].focus();
+                    $searchInput[0].select();
                     
                     // Real-time check for no results
                     $searchInput.off('input.partNumberSearch').on('input.partNumberSearch', function() {
@@ -3731,10 +4549,27 @@
                         }, 300);
                     });
                     
+                    // Handle Enter key press for Part Number - trigger Add New button
+                    $searchInput.off('keydown.partNumberEnter').on('keydown.partNumberEnter', function(e) {
+                        if (e.key === 'Enter' || e.keyCode === 13) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            // Check if Add New button exists
+                            const $addNewBtn = $('.select2-container--open .add-new-part-number-btn');
+                            if ($addNewBtn.length) {
+                                // Trigger the button click
+                                $addNewBtn.trigger('mousedown');
+                                $addNewBtn.trigger('click');
+                                return false;
+                            }
+                        }
+                    });
+                    
                     // Monitor Select2 results for "No results found" - check every 200ms
                     let checkNoResultsInterval = setInterval(function() {
-                const $openSelect2 = $('.select2-container--open');
-                if ($openSelect2.length) {
+                        const $openSelect2 = $('.select2-container--open');
+                        if ($openSelect2.length) {
                             checkAndShowAddPartNumberButton();
                         } else {
                             clearInterval(checkNoResultsInterval);
@@ -3744,18 +4579,372 @@
                     // Clear interval when dropdown closes
                     $(document).one('select2:close', '#part_number_id', function() {
                         clearInterval(checkNoResultsInterval);
-                        $('#addNewPartNumberContainer').slideUp(200);
-                        $partNumberContainer.removeClass('select2-dropdown-above');
                     });
-                    }
-                }, 50);
+                }
+            }, 100);
         
             // Also listen to Select2 results update event
             $(document).off('select2:results:message', '#part_number_id').on('select2:results:message', '#part_number_id', function(e) {
-            setTimeout(function() {
+                setTimeout(function() {
                     checkAndShowAddPartNumberButton();
                 }, 100);
             });
+        });
+        
+        // When product name dropdown opens - auto focus search input
+        $(document).on('select2:opening', '#product_name_item', function(e) {
+            // Focus search input as soon as dropdown starts opening
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    const $searchInput = $('#product_name_item').next('.select2-container').find('.select2-search__field');
+                    if ($searchInput.length) {
+                        $searchInput[0].focus();
+                        $searchInput[0].select();
+                    }
+                });
+            });
+        });
+        
+        $(document).on('select2:open', '#product_name_item', function(e) {
+            // Immediately focus search input - multiple attempts to ensure it works
+            function focusSearchInput() {
+                const $productNameContainer = $('#product_name_item').next('.select2-container');
+                if ($productNameContainer.length) {
+                    const $searchInput = $productNameContainer.find('.select2-search__field');
+                    if ($searchInput.length && $searchInput.length > 0) {
+                        const searchInput = $searchInput[0];
+                        if (searchInput) {
+                            // Focus and select to ensure it's ready for typing
+                            searchInput.focus();
+                            searchInput.select();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+                    }
+                    
+            // Try immediately with requestAnimationFrame for better timing
+            requestAnimationFrame(function() {
+                focusSearchInput();
+            });
+            
+            // Try multiple times with different delays to ensure it works
+            setTimeout(function() {
+                focusSearchInput();
+            }, 0);
+            
+            setTimeout(function() {
+                focusSearchInput();
+            }, 10);
+            
+            setTimeout(function() {
+                focusSearchInput();
+            }, 30);
+            
+            setTimeout(function() {
+                focusSearchInput();
+            }, 50);
+            
+            setTimeout(function() {
+                const $searchInput = $('.select2-container--open .select2-search__field');
+                if ($searchInput.length) {
+                    $searchInput[0].focus();
+                    $searchInput[0].select();
+                        }
+                    }, 100);
+        });
+        
+        // =========================
+        // GENERIC "ADD NEW" FUNCTIONALITY FOR ALL DROPDOWNS
+        // =========================
+        
+        // Generic function to check and show "Add New" button for any dropdown
+        function checkAndShowAddNewButtonForDropdown(selectId, buttonConfig) {
+            const $openSelect2 = $('.select2-container--open');
+            if ($openSelect2.length) {
+                // Verify this is the correct dropdown
+                const $select = $('#' + selectId);
+                if (!$select.length) return;
+                
+                const $selectContainer = $select.next('.select2-container');
+                if (!$selectContainer.is($openSelect2)) {
+                    return; // Not the correct dropdown
+                }
+                
+                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                const $searchInput = $openSelect2.find('.select2-search__field');
+                const $resultsContainer = $openSelect2.find('.select2-results');
+                
+                if ($searchInput.length && $searchInput.val() && buttonConfig) {
+                    const searchVal = $searchInput.val().trim();
+                    const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                        ($results.length === 0 && searchVal.length > 0);
+                    
+                    if (hasNoResults && searchVal.length > 0) {
+                        // Hide the default "No results found" message
+                        if ($noResultsMsg.length) {
+                            $noResultsMsg.hide();
+                        }
+                        
+                        // Check if Add New button already exists
+                        let $addNewBtnInDropdown = $resultsContainer.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]');
+                        
+                        if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
+                            // Create and add the button
+                            const buttonHtml = `
+                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
+                                    <button type="button" class="btn btn-success btn-sm w-100 add-new-dropdown-btn open-universal-modal" 
+                                            data-select-id="${selectId}"
+                                            data-title="${buttonConfig.title}" 
+                                            data-mode="add"
+                                            data-route="${buttonConfig.route}"
+                                            data-target-select="${buttonConfig.targetSelect}"
+                                            ${buttonConfig.hasImage ? 'data-has-image="1"' : ''}
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
+                                        <i data-feather="plus" class="feather-plus me-1"></i>
+                                        Add "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
+                                    </button>
+                                </div>
+                            `;
+                            $resultsContainer.append(buttonHtml);
+                            
+                            // Initialize feather icons
+                            if (typeof feather !== 'undefined') {
+                                feather.replace();
+                            }
+                            
+                            // Update search term
+                            $resultsContainer.find('.dropdown-search-term').text(searchVal);
+                        } else if ($addNewBtnInDropdown.length) {
+                            // Update search term if button already exists
+                            $resultsContainer.find('.dropdown-search-term').text(searchVal);
+                        }
+                    } else if ($results.length > 0) {
+                        // Hide button if results are found
+                        $resultsContainer.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]').closest('.select2-results__option--add-new').remove();
+                        
+                        // Show default message
+                        if ($noResultsMsg.length) {
+                            $noResultsMsg.show();
+                        }
+                    }
+                } else {
+                    // Hide button if search is empty
+                    $openSelect2.find('.select2-results').find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]').closest('.select2-results__option--add-new').remove();
+                    
+                    // Show default message
+                    if ($noResultsMsg.length) {
+                        $noResultsMsg.show();
+                    }
+                }
+            }
+        }
+        
+        // Auto focus search input for Category, Company, Quality, and Unit dropdowns
+        $(document).on('select2:opening', '#category, #company_parts, #quality, #unit_parts', function(e) {
+            const selectId = $(this).attr('id');
+            // Focus search input as soon as dropdown starts opening
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    const $searchInput = $('#' + selectId).next('.select2-container').find('.select2-search__field');
+                    if ($searchInput.length) {
+                        $searchInput[0].focus();
+                        $searchInput[0].select();
+                    }
+                });
+            });
+        });
+        
+        // Generic handler for all dropdowns (Product Name, Category, Company, Quality, Unit, etc.)
+        $(document).on('select2:open', '.input-group .searchable-select:not(#part_number_id), #unit_parts', function(e) {
+            const $select = $(this);
+            const selectId = $select.attr('id');
+            
+            if (!selectId) return;
+            
+            // Auto focus search input for Category, Company, Quality, and Unit
+            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'unit_parts') {
+                function focusSearchInput() {
+                    const $container = $select.next('.select2-container');
+                    if ($container.length) {
+                        const $searchInput = $container.find('.select2-search__field');
+                        if ($searchInput.length && $searchInput.length > 0) {
+                            const searchInput = $searchInput[0];
+                            if (searchInput) {
+                                searchInput.focus();
+                                searchInput.select();
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+                
+                requestAnimationFrame(function() {
+                    focusSearchInput();
+                });
+                
+                setTimeout(function() {
+                    focusSearchInput();
+                }, 0);
+                
+                setTimeout(function() {
+                    focusSearchInput();
+                }, 10);
+                
+                setTimeout(function() {
+                    focusSearchInput();
+                }, 30);
+                
+                setTimeout(function() {
+                    focusSearchInput();
+                }, 50);
+                
+                setTimeout(function() {
+                const $searchInput = $('.select2-container--open .select2-search__field');
+                if ($searchInput.length) {
+                        $searchInput[0].focus();
+                        $searchInput[0].select();
+                    }
+                }, 100);
+            }
+            
+            // Get button configuration from the existing Edit button's sibling Add button (if exists) or from data attributes
+            let buttonConfig = null;
+            
+            // Try to find Add button in the same input-group
+            const $addButton = $select.closest('.input-group').find('.open-universal-modal[data-mode="add"]');
+            if ($addButton.length) {
+                buttonConfig = {
+                    title: $addButton.data('title') || 'Add New',
+                    route: $addButton.data('route') || '',
+                    targetSelect: $addButton.data('target-select') || '',
+                    hasImage: $addButton.data('has-image') == 1
+                };
+            } else {
+                // Fallback: Create config based on select ID
+                const configMap = {
+                    'product_name_item': {
+                        title: 'Add Product',
+                        route: '{{ route("post.product") }}',
+                        targetSelect: '.name-select'
+                    },
+                    'category': {
+                        title: 'Add Category',
+                        route: '{{ route("post.item.category") }}',
+                        targetSelect: '.category-select',
+                        hasImage: true
+                    },
+                    'company_parts': {
+                        title: 'Add Company',
+                        route: '{{ route("post.companies") }}',
+                        targetSelect: '.company-select'
+                    },
+                    'quality': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
+                    'unit_parts': {
+                        title: 'Add Unit',
+                        route: '{{ route("post.units") }}',
+                        targetSelect: '#unit_parts'
+                    }
+                };
+                
+                if (configMap[selectId]) {
+                    buttonConfig = configMap[selectId];
+                }
+            }
+            
+            if (!buttonConfig) return;
+            
+            // Monitor for no results and show Add New button
+            setTimeout(function() {
+                const $searchInput = $('.select2-container--open .select2-search__field');
+                if ($searchInput.length) {
+                    // Real-time check for no results
+                    $searchInput.off('input.dropdownSearch').on('input.dropdownSearch', function() {
+                        setTimeout(function() {
+                            checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                        }, 300);
+                    });
+                    
+                    // Handle Enter key press for unit_parts - trigger Add New button
+                    if (selectId === 'unit_parts') {
+                        $searchInput.off('keydown.unitEnter').on('keydown.unitEnter', function(e) {
+                            if (e.key === 'Enter' || e.keyCode === 13) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                // Check if Add New button exists
+                                const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="unit_parts"]');
+                                if ($addNewBtn.length) {
+                                    // Trigger the button click
+                                    $addNewBtn.trigger('mousedown');
+                                    $addNewBtn.trigger('click');
+                                    return false;
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Monitor Select2 results for "No results found" - check every 200ms
+                    let checkNoResultsInterval = setInterval(function() {
+                const $openSelect2 = $('.select2-container--open');
+                if ($openSelect2.length) {
+                            checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                        } else {
+                            clearInterval(checkNoResultsInterval);
+                        }
+                    }, 200);
+                    
+                    // Clear interval when dropdown closes
+                    $(document).one('select2:close', '#' + selectId, function() {
+                        clearInterval(checkNoResultsInterval);
+                        // Remove Enter key handler when dropdown closes for unit_parts
+                        if (selectId === 'unit_parts') {
+                            $searchInput.off('keydown.unitEnter');
+                        }
+                        // Remove button from inside Select2 dropdown
+                        const $selectContainer = $('#' + selectId).next('.select2-container');
+                        if ($selectContainer.length) {
+                            $selectContainer.find('.select2-results').find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]').closest('.select2-results__option--add-new').remove();
+                            
+                            // Show default message if it was hidden
+                            const $noResultsMsg = $selectContainer.find('.select2-results__message');
+                            if ($noResultsMsg.length) {
+                                $noResultsMsg.show();
+                            }
+                        }
+                    });
+                }
+                }, 100);
+            });
+        
+        // Handle click on generic Add New buttons inside dropdowns
+        $(document).on('mousedown touchstart', '.add-new-dropdown-btn', function(e) {
+            const $button = $(this);
+            const $searchTermSpan = $button.find('.dropdown-search-term');
+            const selectId = $button.data('select-id');
+            
+            if ($searchTermSpan.length && selectId) {
+                const searchText = $searchTermSpan.text().trim();
+                if (searchText) {
+                    if (!window.lastSearchTerm) {
+                        window.lastSearchTerm = {};
+                    }
+                    window.lastSearchTerm[selectId] = searchText;
+                    
+                    window.activeSelectSearch = {
+                        selectId: selectId,
+                        searchTerm: searchText,
+                        hasNoResults: true
+                    };
+                }
+            }
         });
         
         // Load stats when part number is selected (React-style stats)
@@ -3790,14 +4979,113 @@
         
         // Hide "Add New Part Number" button when dropdown closes
         $(document).on('select2:close', '#part_number_id', function() {
-            $('#addNewPartNumberContainer').slideUp(200);
+            // Remove button from inside Select2 dropdown
+            const $partNumberContainer = $('#part_number_id').next('.select2-container');
+            if ($partNumberContainer.length) {
+                $partNumberContainer.find('.select2-results').find('.add-new-part-number-btn').closest('.select2-results__option--add-new').remove();
+                
+                // Show default message if it was hidden
+                const $noResultsMsg = $partNumberContainer.find('.select2-results__message');
+                if ($noResultsMsg.length) {
+                    $noResultsMsg.show();
+                }
+            }
         });
         
         // =========================
         // INTERCEPT PLUS BUTTON CLICK EARLY
         // Capture search term at the exact moment of click
+        // Also handle Add New button inside Select2 dropdown
         // =========================
-        $(document).on('mousedown touchstart', '.open-universal-modal, .add-btn', function(e) {
+        $(document).on('mousedown touchstart', '.open-universal-modal, .add-btn, .add-new-part-number-btn, .add-new-dropdown-btn', function(e) {
+            // Special handling for Add New button inside Select2 dropdown
+            const $button = $(this);
+            
+            // Handle Part Number button
+            if ($button.hasClass('add-new-part-number-btn')) {
+                // Close Select2 dropdown immediately
+                $('#part_number_id').select2('close');
+                
+                const $searchTermSpan = $button.find('.part-number-search-term');
+                if ($searchTermSpan.length) {
+                    const searchText = $searchTermSpan.text().trim();
+                    if (searchText) {
+                        const selectId = 'part_number_id';
+                        if (!window.lastSearchTerm) {
+                            window.lastSearchTerm = {};
+                        }
+                        window.lastSearchTerm[selectId] = searchText;
+                        window.activeSelectSearch = {
+                            selectId: selectId,
+                            searchTerm: searchText,
+                            hasNoResults: true
+                        };
+                        
+                        // Set subtitle to "PART NUMBER:" for Part Number section
+                        window.partNumberSubtitle = 'PART NUMBER:';
+                    }
+                }
+            }
+            
+            // Handle generic dropdown buttons - close Select2 dropdown
+            if ($button.hasClass('add-new-dropdown-btn')) {
+                const selectId = $button.data('select-id');
+                if (selectId && selectId !== 'unit_parts') {
+                    $('#' + selectId).select2('close');
+                }
+            }
+            
+            // Handle generic dropdown buttons (Product Name, Category, Company, etc.)
+            if ($button.hasClass('add-new-dropdown-btn')) {
+                const $searchTermSpan = $button.find('.dropdown-search-term');
+                const selectId = $button.data('select-id');
+                
+                // Special handling for unit_parts - open Unit modal instead of universal modal
+                if (selectId === 'unit_parts') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const searchText = $searchTermSpan.length ? $searchTermSpan.text().trim() : '';
+                    
+                    // Close Select2 dropdown
+                    $('#unit_parts').select2('close');
+                    
+                    // Open Unit modal
+                    $('#Unit-add-modal').modal('show');
+                    
+                    // Pre-fill name field if search text exists
+                    if (searchText) {
+                        setTimeout(function() {
+                            $('#Unit-form [name="name"]').val(searchText).focus();
+                            $('#Unit-form [name="short_name"]').data('manually-edited', false);
+                            // Trigger input to auto-generate short name
+                            $('#Unit-form [name="name"]').trigger('input');
+                        }, 300);
+                    }
+                    
+                    return false;
+                }
+                
+                if ($searchTermSpan.length && selectId) {
+                    const searchText = $searchTermSpan.text().trim();
+                    if (searchText) {
+                        if (!window.lastSearchTerm) {
+                            window.lastSearchTerm = {};
+                        }
+                        window.lastSearchTerm[selectId] = searchText;
+                        window.activeSelectSearch = {
+                            selectId: selectId,
+                            searchTerm: searchText,
+                            hasNoResults: true
+                        };
+                        
+                        // Set subtitle for Product Name
+                        if (selectId === 'product_name_item') {
+                            window.productNameSubtitle = 'PRODUCT NAME:';
+                        }
+                    }
+                }
+            }
             // Capture search term BEFORE the click event fires
             const $openSelect2 = $('.select2-container--open');
             if ($openSelect2.length) {
@@ -3853,11 +5141,78 @@
         // OPEN ADD / EDIT MODAL
         // Universal support for both .open-universal-modal and .add-btn
         // =========================
-        $(document).on('click', '.open-universal-modal, .add-btn', function() {
-            const mode = $(this).data('mode'); // add | edit
-            const title = $(this).data('title');
-            const hasImage = $(this).data('has-image') == 1;
-            currentTargetSelect = $(this).data('target-select');
+        $(document).on('click', '.open-universal-modal, .add-btn', function(e) {
+            const $button = $(this);
+            const selectId = $button.data('select-id');
+            
+            // Special handling for unit_parts - open Unit modal instead of universal modal
+            if (selectId === 'unit_parts' && $button.hasClass('add-new-dropdown-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const $searchTermSpan = $button.find('.dropdown-search-term');
+                const searchText = $searchTermSpan.length ? $searchTermSpan.text().trim() : '';
+                
+                // Close Select2 dropdown
+                $('#unit_parts').select2('close');
+                
+                // Open Unit modal
+                $('#Unit-add-modal').modal('show');
+                
+                // Pre-fill name field if search text exists
+                if (searchText) {
+                    setTimeout(function() {
+                        $('#Unit-form [name="name"]').val(searchText).focus();
+                        $('#Unit-form [name="short_name"]').data('manually-edited', false);
+                        // Trigger input to auto-generate short name
+                        $('#Unit-form [name="name"]').trigger('input');
+                    }, 300);
+                }
+                
+                return false;
+            }
+            
+            const mode = $button.data('mode'); // add | edit
+            const title = $button.data('title');
+            const hasImage = $button.data('has-image') == 1;
+            currentTargetSelect = $button.data('target-select');
+            
+            // Special handling for Add New button inside Select2 dropdown
+            // Capture search term from button text immediately on click
+            if ($button.hasClass('add-new-part-number-btn')) {
+                const $button = $(this);
+                const $searchTermSpan = $button.find('.part-number-search-term');
+                if ($searchTermSpan.length) {
+                    const searchText = $searchTermSpan.text().trim();
+                    if (searchText) {
+                        // Store search term for later use in the modal
+                        if (typeof lastSearchTerm === 'undefined') {
+                            window.lastSearchTerm = {};
+                        }
+                        const selectId = 'part_number_id';
+                        lastSearchTerm[selectId] = searchText;
+                        
+                        // Also store in activeSelectSearch
+                        if (typeof activeSelectSearch === 'undefined') {
+                            window.activeSelectSearch = {};
+                        }
+                        activeSelectSearch.selectId = selectId;
+                        activeSelectSearch.searchTerm = searchText;
+                        activeSelectSearch.hasNoResults = true;
+                        
+                        // Set subtitle to "PART NUMBER:" for Part Number section
+                        window.partNumberSubtitle = 'PART NUMBER:';
+                    }
+                }
+            }
+            
+            // Handle Product Name button
+            if ($button.hasClass('add-new-dropdown-btn')) {
+                const selectId = $button.data('select-id');
+                if (selectId === 'product_name_item') {
+                    window.productNameSubtitle = 'PRODUCT NAME:';
+                }
+            }
             
             // =========================
             // CAPTURE SELECTED TYPE FROM ALPINE.JS
@@ -3876,7 +5231,6 @@
                     }
                 }
             } catch (e) {
-                console.log('Could not get selectedType from Alpine:', e);
                 // Fallback: try to get from hidden input
                 const typeInput = document.querySelector('input[name="type"]');
                 if (typeInput) {
@@ -3905,8 +5259,9 @@
                     $('#universal-type').val('');
                 }
             } else {
-                $('#universal-type-selection').hide();
-                $('#universal-type').val('');
+                // Show type selection in edit mode as well
+                $('#universal-type-selection').show();
+                // Don't clear the type value in edit mode - it will be set from fetched data
             }
             
             // =========================
@@ -3928,24 +5283,63 @@
                 if ($select && $select.length) {
                     const selectId = $select.attr('id') || $select.attr('name') || 'default';
                     
-                    // For part number: Get from "Add New Part Number" button text if visible
-                    if (selectId === 'part_number_id') {
-                        const $addNewBtn = $('#addNewPartNumberBtn');
-                        if ($addNewBtn.length && $addNewBtn.is(':visible')) {
-                            const btnText = $('#partNumberSearchTerm').text().trim();
+                    // Get currently open Select2 dropdown first
+                    const $openSelect2 = $('.select2-container--open');
+                    
+                    // For part number: Get from "Add New Part Number" button text inside dropdown if visible
+                    if (selectId === 'part_number_id' && $openSelect2.length) {
+                        const $addNewBtnInDropdown = $openSelect2.find('.add-new-part-number-btn');
+                        if ($addNewBtnInDropdown.length) {
+                            const $searchTerm = $addNewBtnInDropdown.find('.part-number-search-term');
+                            if ($searchTerm.length) {
+                                const btnText = $searchTerm.text().trim();
                             if (btnText) {
                                 searchTerm = btnText;
                             }
                         }
+                        }
                     }
                     
-                    // Fallback: Get from currently open Select2 dropdown
-                    if (!searchTerm) {
-                        const $openSelect2 = $('.select2-container--open');
-                        if ($openSelect2.length) {
+                    // Fallback: Get from currently open Select2 dropdown search input
+                    if (!searchTerm && $openSelect2.length) {
                             const $searchInput = $openSelect2.find('.select2-search__field');
                             if ($searchInput.length && $searchInput.val()) {
                                 searchTerm = $searchInput.val().trim();
+                        }
+                    }
+                    
+                    // For other dropdowns: Get from generic "Add New" button text inside dropdown if visible
+                    if (!searchTerm && $openSelect2.length) {
+                        const $addNewBtnInDropdown = $openSelect2.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]');
+                        if ($addNewBtnInDropdown.length) {
+                            const $searchTerm = $addNewBtnInDropdown.find('.dropdown-search-term');
+                            if ($searchTerm.length) {
+                                const btnText = $searchTerm.text().trim();
+                                if (btnText) {
+                                    searchTerm = btnText;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Another fallback: Get from button's own text (if clicked button is inside dropdown)
+                    if (!searchTerm) {
+                        const $clickedButton = $(this);
+                        if ($clickedButton.hasClass('add-new-part-number-btn')) {
+                            const $searchTerm = $clickedButton.find('.part-number-search-term');
+                            if ($searchTerm.length) {
+                                const btnText = $searchTerm.text().trim();
+                                if (btnText) {
+                                    searchTerm = btnText;
+                                }
+                            }
+                        } else if ($clickedButton.hasClass('add-new-dropdown-btn')) {
+                            const $searchTerm = $clickedButton.find('.dropdown-search-term');
+                            if ($searchTerm.length) {
+                                const btnText = $searchTerm.text().trim();
+                                if (btnText) {
+                                    searchTerm = btnText;
+                                }
                             }
                         }
                     }
@@ -3954,7 +5348,20 @@
             
             // Reset form
             $('#universal-modal-title').text(mode === 'add' ? 'ADD NEW ENTRY' : title);
-            $('#universal-modal-subtitle').text(mode === 'add' ? 'SMART ASSET REGISTRY' : 'Update the details below');
+            // Set subtitle based on section
+            let subtitle = 'SMART ASSET REGISTRY';
+            if (mode === 'add' && window.partNumberSubtitle) {
+                subtitle = window.partNumberSubtitle;
+                // Clear the flag after using it
+                window.partNumberSubtitle = null;
+            } else if (mode === 'add' && window.productNameSubtitle) {
+                subtitle = window.productNameSubtitle;
+                // Clear the flag after using it
+                window.productNameSubtitle = null;
+            } else if (mode !== 'add') {
+                subtitle = 'Update the details below';
+            }
+            $('#universal-modal-subtitle').text(subtitle);
             $('#universal-name').val('').removeClass('is-invalid');
             $('#universal-name-error').text('');
             $('#universal-image').val('');
@@ -4011,14 +5418,62 @@
                 $('#universal-save-btn').html('<i class="ti ti-check me-2"></i><span>SAVE ENTRY</span>');
                 
                 // Pre-fill the modal input with the captured search term
-                if (searchTerm) {
-                    $('#universal-name').val(searchTerm);
+                // Try multiple sources for search term
+                let finalSearchTerm = searchTerm;
+                
+                // If search term not found, try to get from button's text (for Add New button inside dropdown)
+                if (!finalSearchTerm) {
+                    const $clickedButton = $(this);
+                    if ($clickedButton.hasClass('add-new-part-number-btn')) {
+                        const $searchTermSpan = $clickedButton.find('.part-number-search-term');
+                        if ($searchTermSpan.length) {
+                            finalSearchTerm = $searchTermSpan.text().trim();
+                        }
+                    } else if ($clickedButton.hasClass('add-new-dropdown-btn')) {
+                        const $searchTermSpan = $clickedButton.find('.dropdown-search-term');
+                        if ($searchTermSpan.length) {
+                            finalSearchTerm = $searchTermSpan.text().trim();
+                        }
+                    }
+                }
+                
+                // Check lastSearchTerm storage
+                if (!finalSearchTerm) {
+                    const selectId = $select ? ($select.attr('id') || $select.attr('name')) : '';
+                    if (selectId && typeof lastSearchTerm !== 'undefined' && lastSearchTerm[selectId]) {
+                        finalSearchTerm = lastSearchTerm[selectId];
+                        delete lastSearchTerm[selectId];
+                    }
+                }
+                
+                // Check activeSelectSearch
+                if (!finalSearchTerm && typeof activeSelectSearch !== 'undefined' && activeSelectSearch.searchTerm) {
+                    finalSearchTerm = activeSelectSearch.searchTerm;
+                }
+                
+                // Set the search term in the name field
+                if (finalSearchTerm) {
+                    $('#universal-name').val(finalSearchTerm);
+                }
+                
+                // Close Select2 dropdowns before opening modal
+                if ($button.hasClass('add-new-part-number-btn')) {
+                    $('#part_number_id').select2('close');
+                } else if ($button.hasClass('add-new-dropdown-btn')) {
+                    const selectId = $button.data('select-id');
+                    if (selectId) {
+                        $('#' + selectId).select2('close');
+                    }
                 }
                 
                 // Open modal and focus input
                 $('#universal-add-modal').modal('show');
                 setTimeout(function() {
                     $('#universal-name').focus();
+                    // Select all text for easy editing
+                    if (finalSearchTerm) {
+                        $('#universal-name').select();
+                    }
                 }, 300);
             }
             // =========================
@@ -4043,6 +5498,18 @@
                 // Fetch existing data
                 $.get(fetchRoute, function(res) {
                     $('#universal-name').val(res.name);
+                    
+                    // Set type in hidden field for edit mode
+                    // Special handling for Part Number - always set to "parts"
+                    const isPartNumber = updateRoute && updateRoute.includes('part/number');
+                    if (isPartNumber) {
+                        $('#universal-type').val('parts');
+                    } else if (res.type) {
+                        $('#universal-type').val(res.type);
+                    } else {
+                        $('#universal-type').val('');
+                    }
+                    
                     // Image preview (edit mode)
                     if (hasImage && res.image) {
                         $('#image-field').removeClass('d-none').show();
@@ -4061,6 +5528,71 @@
                 });
             }
         });
+        // =========================
+        // KEYBOARD HANDLERS FOR UNIVERSAL MODAL
+        // =========================
+        // Handle keyboard events in universal modal
+        $(document).on('keydown', '#universal-add-modal', function(e) {
+            // Only handle if universal modal is open and visible
+            if ($('#universal-add-modal').hasClass('show') && $('#universal-add-modal').is(':visible')) {
+                const $target = $(e.target);
+                const isTextInput = $target.is('input[type="text"], input[type="number"], textarea');
+                const isNameField = $target.attr('id') === 'universal-name';
+                const isTypeCheckbox = $target.hasClass('universal-type-checkbox');
+                
+                // Handle Enter key - submit form
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    // If Enter is pressed in name field, outside input fields, or on type checkbox, submit form
+                    if (isNameField || isTypeCheckbox || !isTextInput) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Trigger save button click
+                        const $saveBtn = $('#universal-save-btn');
+                        if ($saveBtn.length && $saveBtn.is(':visible') && !$saveBtn.prop('disabled')) {
+                            $saveBtn.trigger('click');
+                        }
+                        return false;
+                    }
+                }
+                
+                // Handle Delete key - trigger delete button (only in edit mode)
+                if (e.key === 'Delete' || e.keyCode === 46) {
+                    // Don't trigger if user is typing in an input field
+                    if (!isTextInput) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Trigger delete button click (only if visible - means edit mode)
+                        const $deleteBtn = $('#universal-delete-btn');
+                        if ($deleteBtn.length && $deleteBtn.is(':visible') && !$deleteBtn.hasClass('d-none')) {
+                            $deleteBtn.trigger('click');
+                        }
+                        return false;
+                    }
+                }
+                
+                // Handle ESC key - close modal
+                if (e.key === 'Escape' || e.keyCode === 27) {
+                    // Don't trigger if user is typing in an input field
+                    if (!isTextInput) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Trigger close button click
+                        const $closeBtn = $('#universal-add-modal').find('.btn-close');
+                        if ($closeBtn.length) {
+                            $closeBtn.trigger('click');
+                        } else {
+                            // Fallback: close modal directly
+                            $('#universal-add-modal').modal('hide');
+                        }
+                        return false;
+                    }
+                }
+            }
+        });
+        
         // =========================
         // IMAGE LIVE PREVIEW
         // =========================
@@ -4082,7 +5614,6 @@
             
             // Check if modal is actually visible
             if (!$('#universal-add-modal').hasClass('show')) {
-                console.log('Universal modal not visible, ignoring submit');
                 return false;
             }
             
@@ -4343,8 +5874,41 @@
             const $container = $select.next('.select2-container');
             const $dropdown = $container.find('.select2-dropdown');
             
-            if ($dropdown.length && $container.hasClass('select2-container--open')) {
-                // Remove below class and add above class
+            // Special aggressive handling for Part Number dropdown
+            if ($select.attr('id') === 'part_number_id') {
+                // Always force above class, even if dropdown not fully open yet
+                $container.removeClass('select2-container--below').addClass('select2-container--above');
+                
+                if ($dropdown.length) {
+                    // Get container width
+                    const containerWidth = $container.outerWidth() || $select.outerWidth();
+                    
+                    // Force position above with !important via inline style
+                    $dropdown.attr('style', 
+                        'position: absolute !important; ' +
+                        'bottom: 100% !important; ' +
+                        'top: auto !important; ' +
+                        'left: 0 !important; ' +
+                        'right: auto !important; ' +
+                        'width: ' + containerWidth + 'px !important; ' +
+                        'margin-bottom: 5px !important; ' +
+                        'margin-top: 0 !important; ' +
+                        'transform: none !important; ' +
+                        'border-top: 1px solid #aaa !important; ' +
+                        'border-bottom: none !important; ' +
+                        'border-radius: 4px 4px 0 0 !important; ' +
+                        'box-shadow: 0 -4px 6px rgba(0,0,0,0.1) !important; ' +
+                        'display: block !important;'
+                    );
+                }
+                
+                // Also force container positioning
+                $container.css({
+                    'position': 'relative',
+                    'z-index': '9999'
+                });
+            } else if ($dropdown.length && $container.hasClass('select2-container--open')) {
+                // For other dropdowns, normal handling
                 $container.removeClass('select2-container--below').addClass('select2-container--above');
                 
                 // Get container width
@@ -4373,8 +5937,60 @@
         $(document).on('select2:open', '.input-group .searchable-select', function(e) {
             const $select = $(this);
             
-            // Multiple attempts to ensure it works
+            // Special priority for Part Number dropdown
+            if ($select.attr('id') === 'part_number_id') {
+                // Force immediately with higher priority
             forceDropdownAbove($select);
+            setTimeout(function() { forceDropdownAbove($select); }, 0);
+                setTimeout(function() { forceDropdownAbove($select); }, 5);
+                setTimeout(function() { forceDropdownAbove($select); }, 10);
+                setTimeout(function() { forceDropdownAbove($select); }, 20);
+                setTimeout(function() { forceDropdownAbove($select); }, 50);
+                setTimeout(function() { forceDropdownAbove($select); }, 100);
+                setTimeout(function() { forceDropdownAbove($select); }, 200);
+                
+                // Continuous monitoring with faster interval for Part Number
+                const positionInterval = setInterval(function() {
+                    const $container = $select.next('.select2-container');
+                    if ($container.hasClass('select2-container--open')) {
+                        // Force remove below class and add above class FIRST
+                        $container.removeClass('select2-container--below').addClass('select2-container--above');
+                        // Then force positioning
+                        forceDropdownAbove($select);
+                        
+                        // Also directly manipulate dropdown if it exists
+                        const $dropdown = $container.find('.select2-dropdown');
+                        if ($dropdown.length) {
+                            const containerWidth = $container.outerWidth() || $select.outerWidth();
+                            $dropdown.css({
+                                'position': 'absolute',
+                                'bottom': '100%',
+                                'top': 'auto',
+                                'left': '0',
+                                'right': 'auto',
+                                'width': containerWidth + 'px',
+                                'margin-bottom': '5px',
+                                'margin-top': '0',
+                                'transform': 'none',
+                                'border-top': '1px solid #aaa',
+                                'border-bottom': 'none',
+                                'border-radius': '4px 4px 0 0',
+                                'box-shadow': '0 -4px 6px rgba(0,0,0,0.1)',
+                                'display': 'block'
+                            });
+                        }
+                    } else {
+                        clearInterval(positionInterval);
+                    }
+                }, 10);
+                
+                // Dropdown close hone par interval clear karo
+                $(document).one('select2:close', $select, function() {
+                    clearInterval(positionInterval);
+                });
+            } else {
+                // For other dropdowns, use normal timing
+                forceDropdownAbove($select);
             setTimeout(function() { forceDropdownAbove($select); }, 0);
             setTimeout(function() { forceDropdownAbove($select); }, 10);
             setTimeout(function() { forceDropdownAbove($select); }, 50);
@@ -4395,13 +6011,82 @@
             $(document).one('select2:close', $select, function() {
                 clearInterval(positionInterval);
             });
+            }
         });
         
         // Also handle when Select2 tries to reposition
         $(document).on('select2:selecting select2:opening', '.input-group .searchable-select', function() {
             const $select = $(this);
+            
+            // Special handling for Part Number dropdown
+            if ($select.attr('id') === 'part_number_id') {
+                // Force immediately before Select2 positions it
+                const $container = $select.next('.select2-container');
+                if ($container.length) {
+                    $container.removeClass('select2-container--below').addClass('select2-container--above');
+                }
             setTimeout(function() { forceDropdownAbove($select); }, 0);
+                setTimeout(function() { forceDropdownAbove($select); }, 5);
+                setTimeout(function() { forceDropdownAbove($select); }, 10);
+            } else {
+                setTimeout(function() { forceDropdownAbove($select); }, 0);
+            }
         });
+        
+        // MutationObserver for Part Number dropdown - Watch for DOM changes and force positioning
+        const partNumberSelect = document.getElementById('part_number_id');
+        if (partNumberSelect) {
+            const observer = new MutationObserver(function(mutations) {
+                const $select = $('#part_number_id');
+                const $container = $select.next('.select2-container');
+                
+                if ($container.hasClass('select2-container--open')) {
+                    // Force remove below class and add above class
+                    $container.removeClass('select2-container--below').addClass('select2-container--above');
+                    
+                    // Force positioning
+                    forceDropdownAbove($select);
+                    
+                    // Also directly manipulate dropdown
+                    const $dropdown = $container.find('.select2-dropdown');
+                    if ($dropdown.length) {
+                        const containerWidth = $container.outerWidth() || $select.outerWidth();
+                        $dropdown.css({
+                            'position': 'absolute',
+                            'bottom': '100%',
+                            'top': 'auto',
+                            'left': '0',
+                            'right': 'auto',
+                            'width': containerWidth + 'px',
+                            'margin-bottom': '5px',
+                            'margin-top': '0',
+                            'transform': 'none',
+                            'border-top': '1px solid #aaa',
+                            'border-bottom': 'none',
+                            'border-radius': '4px 4px 0 0',
+                            'box-shadow': '0 -4px 6px rgba(0,0,0,0.1)',
+                            'display': 'block'
+                        });
+                    }
+                }
+            });
+            
+            // Observe the select element and its container
+            $(document).ready(function() {
+                setTimeout(function() {
+                    const $select = $('#part_number_id');
+                    const $container = $select.next('.select2-container');
+                    if ($container.length) {
+                        observer.observe($container[0], {
+                            attributes: true,
+                            attributeFilter: ['class', 'style'],
+                            childList: true,
+                            subtree: true
+                        });
+                    }
+                }, 500);
+            });
+        }
     });
 </script>
 <style>
