@@ -6044,15 +6044,18 @@
                     
                     // Get the type from response or form
                     const itemType = res.type || $('#universal-type').val() || getCurrentSelectedType() || '';
+                    const currentSelectedType = getCurrentSelectedType();
                     
-                    // Create option with type attribute
+                    // Create option with type attribute for current select (will be selected)
                     const option = new Option(res.name, res.id, true, true);
                     const $option = $(option);
                     $option.attr('data-type', itemType);
                     
-                    const $select = $(currentTargetSelect);
+                    // Remove existing option if any from current select
                     $select.find(`option[value="${res.id}"]`).remove();
-                    $select.append(option).val(res.id).trigger('change');
+                    
+                    // Add and select the new option in current select
+                    $select.append(option).val(res.id);
                     
                     // Find all selects with the same class and add/update the option with type
                     const selectClass = $select.attr('class').split(' ').find(cls => cls.includes('-select') && cls !== 'searchable-select' && cls !== 'form-control');
@@ -6060,32 +6063,60 @@
                     if (selectClass) {
                         $(`.${selectClass}`).each(function() {
                             const $otherSelect = $(this);
+                            
+                            // Skip if this is the current select (already handled)
+                            if ($otherSelect.is($select)) {
+                                return;
+                            }
+                            
                             const $existingOption = $otherSelect.find(`option[value="${res.id}"]`);
                             
                             if ($existingOption.length) {
                                 // Update existing option's type
                                 $existingOption.attr('data-type', itemType);
+                                
+                                // Hide if type doesn't match current selected type
+                                if (currentSelectedType && itemType && itemType !== currentSelectedType) {
+                                    $existingOption.hide().prop('disabled', true);
+                                } else if (!currentSelectedType || itemType === currentSelectedType || !itemType) {
+                                    $existingOption.show().prop('disabled', false);
+                                }
                             } else {
-                                // Add option to other selects of the same class
-                                const newOption = new Option(res.name, res.id, false, false);
-                                const $newOption = $(newOption);
-                                $newOption.attr('data-type', itemType);
-                                $otherSelect.append($newOption);
+                                // Only add to other selects if type matches current selected type
+                                // This ensures it only appears in dropdowns of the type it was saved for
+                                if (!currentSelectedType || itemType === currentSelectedType || !itemType) {
+                                    const newOption = new Option(res.name, res.id, false, false);
+                                    const $newOption = $(newOption);
+                                    $newOption.attr('data-type', itemType);
+                                    $otherSelect.append($newOption);
+                                }
                             }
                         });
                     }
                     
                     // Apply type filtering to all dropdowns to ensure new item only shows in matching type dropdowns
-                    const currentSelectedType = getCurrentSelectedType();
                     if (currentSelectedType) {
                         // Re-apply type filtering to all dropdowns
-                        filterDropdownsByType(currentSelectedType);
+                        setTimeout(function() {
+                            filterDropdownsByType(currentSelectedType);
+                            // Ensure the newly added item remains selected
+                            $select.val(res.id).trigger('change');
+                        }, 150);
+                    } else {
+                        // If no type selected, just trigger change
+                        $select.trigger('change');
                     }
                     
-                    // If Select2 is initialized, refresh it to reflect the changes
+                    // If Select2 is initialized, refresh it to reflect the changes and show selected value
                     if ($select.hasClass('select2-hidden-accessible')) {
-                        // Trigger change to refresh Select2
-                        $select.trigger('change.select2');
+                        // Close Select2 if open
+                        if ($select.next('.select2-container').hasClass('select2-container--open')) {
+                            $select.select2('close');
+                        }
+                        // Refresh Select2 to show the selected value
+                        setTimeout(function() {
+                            $select.val(res.id).trigger('change.select2');
+                        }, 200);
                     }
                     
                     $('#universal-add-modal').modal('hide');
