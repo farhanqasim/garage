@@ -4882,7 +4882,33 @@
                                     if ($addButton.length) {
                                         $addButton.trigger('click');
                                     } else {
-                                        // Fallback: manually open modal with config
+                                        // Fallback: manually configure and open modal for part number
+                                        const currentTargetSelect = '#part_number_id';
+                                        const $select = $(currentTargetSelect);
+                                        
+                                        // Set modal configuration
+                                        $('#universal-add-modal').attr('data-select-id', currentTargetSelect);
+                                        $('#universal-modal-title').text('Add Part Number');
+                                        $('#universal-subtitle').text('PART NUMBER:');
+                                        
+                                        // Set form action
+                                        const $form = $('#universal-form');
+                                        $form.attr('data-route', '{{ route("post.partnumber") }}');
+                                        $form.attr('data-target-select', '.part_number-select');
+                                        
+                                        // Pre-fill the name field with search text
+                                        $('#universal-name').val(searchText);
+                                        
+                                        // Set the type if available
+                                        const currentSelectedType = getCurrentSelectedType();
+                                        if (currentSelectedType) {
+                                            $('#universal-type').val(currentSelectedType);
+                                        }
+                                        
+                                        // Store current target select for form submission
+                                        window.currentTargetSelect = currentTargetSelect;
+                                        
+                                        // Open modal
                                         $('#universal-add-modal').modal('show');
                                     }
                                     return false;
@@ -5159,6 +5185,11 @@
                         title: 'Add Product',
                         route: '{{ route("post.product") }}',
                         targetSelect: '.name-select'
+                    },
+                    'part_number_id': {
+                        title: 'Add Part Number',
+                        route: '{{ route("post.partnumber") }}',
+                        targetSelect: '.part_number-select'
                     },
                     'category': {
                         title: 'Add Category',
