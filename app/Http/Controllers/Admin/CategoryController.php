@@ -35,6 +35,7 @@ class CategoryController extends Controller
             $category = Category::create([
                 'name' => $request->name,
                 'image' => $imagePath,
+                'type' => $request->type ?? null, // Save the type field
             ]);
 
         return response()->json([
@@ -42,6 +43,7 @@ class CategoryController extends Controller
         'id' => $category->id,
         'name' => $category->name,
         'image' => $category->image,
+        'type' => $category->type, // Include type in response
     ]);
     }
 
@@ -64,6 +66,7 @@ class CategoryController extends Controller
         $category->update([
             'name'  => $request->name,
             'image' => $imagePath,
+            'type'  => $request->type ?? $category->type, // Update type if provided
         ]);
 
         return response()->json([
@@ -71,6 +74,7 @@ class CategoryController extends Controller
             'id'      => $category->id,
             'name'    => $category->name,
             'image'   => $category->image,
+            'type'    => $category->type, // Include type in response
             'message' => 'Category updated successfully'
         ]);
     }
