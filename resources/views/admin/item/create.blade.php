@@ -3998,16 +3998,27 @@
                 }
                 
                 // Watch for selectedType changes and filter dropdown options
-                this.$watch('selectedType', (newType) => {
+                this.$watch('selectedType', (newType, oldType) => {
+                    // If type is actually changing (not just initializing), clear all fields
+                    if (oldType && oldType !== newType) {
+                        clearAllFormFields();
+                    }
                     // Filter all dropdowns based on selected type
                     filterDropdownsByType(newType);
                 });
             },
             selectType(type) {
+                // If type is changing (not the same), clear all form fields
+                if (this.selectedType && this.selectedType !== type) {
+                    clearAllFormFields();
+                }
+                
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
+                
                 // Filter dropdowns by selected type
                 filterDropdownsByType(type);
+                
                 // Load items by type when type changes
                 if (type) {
                     loadItemsByType(type);
@@ -4250,6 +4261,99 @@
             });
         });
         
+    }
+    
+    // Function to clear all form fields when type changes
+    function clearAllFormFields() {
+        console.log('Clearing all form fields due to type change');
+        
+        // Clear all select/dropdown fields
+        const dropdowns = [
+            '.searchable-select',
+            'select[name="p_id"]',
+            'select[name="category_id"]',
+            'select[name="part_number_id"]',
+            'select[name="company_id"]',
+            'select[name="technology"]',
+            'select[name="quality_id"]',
+            'select[name="group"]',
+            'select[name="unit"]',
+            'select[name="vehical_id"]',
+            'select[name="car_manufacturer"]',
+            'select[name="car_model_name"]',
+            'select[name="engine_cc"]',
+            'select[name="car_manufactured_country"]',
+            'select[name="v_part_number_id"]'
+        ];
+        
+        dropdowns.forEach(selector => {
+            $(selector).each(function() {
+                const $select = $(this);
+                const isSelect2 = $select.hasClass('select2-hidden-accessible');
+                
+                // Clear the value
+                $select.val('').trigger('change');
+                
+                // If it's Select2, close it if open
+                if (isSelect2) {
+                    try {
+                        if ($select.next('.select2-container').hasClass('select2-container--open')) {
+                            $select.select2('close');
+                        }
+                    } catch(e) {
+                        // Ignore errors
+                    }
+                }
+            });
+        });
+        
+        // Clear all text inputs (except hidden inputs and specific fields that should persist)
+        $('input[type="text"], input[type="number"], textarea').each(function() {
+            const $input = $(this);
+            const inputName = $input.attr('name') || '';
+            const inputId = $input.attr('id') || '';
+            
+            // Skip hidden inputs, type input, and specific fields
+            if ($input.is(':hidden') || 
+                inputName === 'type' || 
+                inputName === 'user_id' ||
+                inputId === 'hidden_quality_id' ||
+                inputId === 'hidden_technology') {
+                return;
+            }
+            
+            // Clear the input
+            $input.val('').trigger('change').trigger('input');
+        });
+        
+        // Clear file inputs
+        $('input[type="file"]').each(function() {
+            $(this).val('');
+        });
+        
+        // Clear checkboxes (except specific ones)
+        $('input[type="checkbox"]').each(function() {
+            const $checkbox = $(this);
+            const checkboxName = $checkbox.attr('name') || '';
+            
+            // Skip if it's a specific checkbox that should persist
+            if (checkboxName === 'status' || checkboxName === 'is_active') {
+                return;
+            }
+            
+            $checkbox.prop('checked', false).trigger('change');
+        });
+        
+        // Clear radio buttons
+        $('input[type="radio"]').prop('checked', false).trigger('change');
+        
+        // Reset any custom form states
+        if (typeof window.activeSelectSearch !== 'undefined') {
+            window.activeSelectSearch = null;
+        }
+        if (typeof window.lastSearchTerm !== 'undefined') {
+            window.lastSearchTerm = {};
+        }
     }
     
     // Helper function to get current selected type
