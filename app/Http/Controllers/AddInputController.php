@@ -388,45 +388,32 @@ class AddInputController extends Controller
 
     public function post_part_number(Request $request)
     {
-        $data = ['name' => $request->name];
-        if ($request->has('type') && $request->type) {
-            $data['type'] = $request->type;
-        }
-        $part_number = PartNumber::create($data);
-        return response()->json([
-            'success' => true,
-            'id' => $part_number->id,
-            'name' => $part_number->name
-        ]);
+        // Use PartNumberController for consistency
+        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        return $controller->store($request);
     }
 
 
-        public function show_partnumber($id)
+    public function show_partnumber($id)
     {
-        return response()->json(PartNumber::findOrFail($id));
+        // Use PartNumberController for consistency
+        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        return $controller->show($id);
     }
 
 
     public function update_partnumber(Request $request, $id)
     {
-        $part_number = PartNumber::findOrFail($id);
-        $part_number->update(['name' => $request->name]);
-
-        return response()->json([
-            'success' => true,
-            'id' => $part_number->id,
-            'name' => $part_number->name,
-            'message' => "Part Number Update Successfully"
-        ]);
+        // Use PartNumberController for consistency
+        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        return $controller->update($request, $id);
     }
 
     public function destory_partnumber($id)
     {
-        PartNumber::findOrFail($id)->delete();
-        return response()->json([
-            'success' => true,
-            'message' => "Part Number deleted Successfully"
-        ]);
+        // Use PartNumberController for consistency
+        $controller = new \App\Http\Controllers\Admin\PartNumberController();
+        return $controller->destroy($id);
     }
 
 
