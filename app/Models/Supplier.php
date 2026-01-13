@@ -27,6 +27,8 @@ class Supplier extends Model
         'balance_type',
         'credit_limit_type',
         'credit_limit',
+        'created_by',
+        'branch_id',
     ];
 
     protected $casts = [
@@ -89,6 +91,24 @@ class Supplier extends Model
             }
         }
         return null;
+    }
+    
+    // Relationship with User who created the supplier
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    
+    // Relationship with Branch where supplier was created
+    public function createdByBranch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
+    }
+    
+    // Relationship with Edit History
+    public function editHistory()
+    {
+        return $this->hasMany(SupplierEditHistory::class)->orderBy('created_at', 'desc');
     }
     
 }
