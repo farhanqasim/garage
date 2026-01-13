@@ -6041,10 +6041,53 @@
                         }
                         return;
                     }
+                    
+                    // Get the type from response or form
+                    const itemType = res.type || $('#universal-type').val() || getCurrentSelectedType() || '';
+                    
+                    // Create option with type attribute
                     const option = new Option(res.name, res.id, true, true);
+                    const $option = $(option);
+                    $option.attr('data-type', itemType);
+                    
                     const $select = $(currentTargetSelect);
                     $select.find(`option[value="${res.id}"]`).remove();
                     $select.append(option).val(res.id).trigger('change');
+                    
+                    // Find all selects with the same class and add/update the option with type
+                    const selectClass = $select.attr('class').split(' ').find(cls => cls.includes('-select') && cls !== 'searchable-select' && cls !== 'form-control');
+                    
+                    if (selectClass) {
+                        $(`.${selectClass}`).each(function() {
+                            const $otherSelect = $(this);
+                            const $existingOption = $otherSelect.find(`option[value="${res.id}"]`);
+                            
+                            if ($existingOption.length) {
+                                // Update existing option's type
+                                $existingOption.attr('data-type', itemType);
+                            } else {
+                                // Add option to other selects of the same class
+                                const newOption = new Option(res.name, res.id, false, false);
+                                const $newOption = $(newOption);
+                                $newOption.attr('data-type', itemType);
+                                $otherSelect.append($newOption);
+                            }
+                        });
+                    }
+                    
+                    // Apply type filtering to all dropdowns to ensure new item only shows in matching type dropdowns
+                    const currentSelectedType = getCurrentSelectedType();
+                    if (currentSelectedType) {
+                        // Re-apply type filtering to all dropdowns
+                        filterDropdownsByType(currentSelectedType);
+                    }
+                    
+                    // If Select2 is initialized, refresh it to reflect the changes
+                    if ($select.hasClass('select2-hidden-accessible')) {
+                        // Trigger change to refresh Select2
+                        $select.trigger('change.select2');
+                    }
+                    
                     $('#universal-add-modal').modal('hide');
                     $('#universal-form')[0].reset();
                     // 🔊 Play save sound when dropdown option is saved
