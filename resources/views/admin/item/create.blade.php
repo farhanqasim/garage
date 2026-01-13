@@ -3990,6 +3990,13 @@
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
+                // Filter dropdowns on initial load if type is already selected
+                if (this.selectedType) {
+                    setTimeout(() => {
+                        filterDropdownsByType(this.selectedType);
+                    }, 500);
+                }
+                
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType) => {
                     // Filter all dropdowns based on selected type
@@ -4088,20 +4095,40 @@
 
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
+        console.log('Filtering dropdowns by type:', selectedType);
         
-        // List of all dropdowns that need filtering
+        // List of all dropdowns that need filtering (using class selectors)
         const dropdowns = [
             '.company-select',
             '.technology-select',
             '.quality-select',
             '.name-select',
             '.category-select',
-            '.part_number-select'
+            '.part_number-select',
+            '.group-select',
+            '.plates-select',
+            '.amperes-select',
+            '.volt-select',
+            '.cca-select',
+            '.minus-pole-direction-select',
+            '.Warrenty-select',
+            '.made_in-select',
+            '.grade-select',
+            '.brand-select',
+            '.mileage-select',
+            '.level-select',
+            '.formulas-select',
+            '.Services-select',
+            '.car-manufacturer-select',
+            '.car-model-select',
+            '.car-engine-select',
+            '.car-country-select'
         ];
 
         dropdowns.forEach(selector => {
             $(selector).each(function() {
                 const $select = $(this);
+                const selectId = $select.attr('id');
                 const currentValue = $select.val();
                 const isSelect2 = $select.hasClass('select2-hidden-accessible');
                 
@@ -4110,19 +4137,28 @@
                 
                 // Show/hide options based on type
                 let visibleCount = 0;
+                let hasVisibleOptions = false;
+                
                 $select.find('option').each(function() {
                     const $option = $(this);
                     const optionType = $option.data('type') || '';
+                    const optionValue = $option.val();
                     
                     // Show option if:
-                    // 1. It's the empty/default option
+                    // 1. It's the empty/default option (always show)
                     // 2. No type is selected (show all)
                     // 3. Option type matches selected type
-                    // 4. Option has no type (backward compatibility)
-                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
+                    // 4. Option has no type (backward compatibility - show it)
+                    const shouldShow = optionValue === '' || !selectedType || optionType === selectedType || optionType === '';
+                    
+                    if (shouldShow) {
                         $option.show().prop('disabled', false);
-                        if ($option.val() !== '') visibleCount++;
+                        if (optionValue !== '') {
+                            visibleCount++;
+                            hasVisibleOptions = true;
+                        }
                     } else {
+                        // Hide and disable options that don't match the type
                         $option.hide().prop('disabled', true);
                     }
                 });
@@ -4134,38 +4170,76 @@
                     $select.val('').trigger('change');
                 }
 
-                // For Select2, we need to destroy and reinitialize to properly reflect changes
+                // For Select2, we need to properly refresh to show filtered options
                 if (isSelect2) {
                     try {
-                        // Destroy Select2
+                        // Close Select2 if it's open
+                        if ($select.next('.select2-container').hasClass('select2-container--open')) {
+                            $select.select2('close');
+                        }
+                        
+                        // Destroy and reinitialize Select2 to reflect filtered options
                         $select.select2('destroy');
                         $select.removeClass('select2-hidden-accessible');
                         $select.next('.select2-container').remove();
                         
-                        // Reinitialize Select2 with same options
+                        // Reinitialize Select2 with same options and type filtering
                         setTimeout(() => {
+                            const select2Config = {
+                                placeholder: 'Please Select',
+                                allowClear: true,
+                                width: '100%',
+                                // Add matcher to filter by type during search
+                                matcher: function(params, data) {
+                                    // If no search term, show all visible options
+                                    if (!params.term || params.term.trim() === '') {
+                                        const $option = $(data.element);
+                                        const optionType = $option.data('type') || '';
+                                        // Show if no type selected, or type matches, or option has no type
+                                        if (!selectedType || optionType === selectedType || optionType === '') {
+                                            return data;
+                                        }
+                                        return null;
+                                    }
+                                    
+                                    // If there's a search term, filter by both text and type
+                                    const term = params.term.toLowerCase();
+                                    const text = data.text ? data.text.toLowerCase() : '';
+                                    const $option = $(data.element);
+                                    const optionType = $option.data('type') || '';
+                                    
+                                    // Check if text matches search term
+                                    const textMatches = text.indexOf(term) > -1;
+                                    
+                                    // Check if type matches (if type is selected)
+                                    const typeMatches = !selectedType || optionType === selectedType || optionType === '';
+                                    
+                                    // Return data only if both text and type match
+                                    if (textMatches && typeMatches) {
+                                        return data;
+                                    }
+                                    
+                                    return null;
+                                }
+                            };
+                            
                             // Special handling for part_number_id - force dropdown above
-                            if ($select.attr('id') === 'part_number_id') {
-                                $select.select2({
-                                    placeholder: 'Please Select',
-                                    allowClear: true,
-                                    width: '100%',
-                                    dropdownPosition: 'above'
-                                });
-                            } else {
-                                $select.select2({
-                                    placeholder: 'Please Select',
-                                    allowClear: true,
-                                    width: '100%'
-                                });
+                            if (selectId === 'part_number_id') {
+                                select2Config.dropdownPosition = 'above';
                             }
                             
+                            $select.select2(select2Config);
+                            
                             // Restore selection if it's still valid
-                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
-                                $select.val(selectedValue).trigger('change');
+                            if (selectedValue) {
+                                const $optionToSelect = $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`);
+                                if ($optionToSelect.length) {
+                                    $select.val(selectedValue).trigger('change');
+                                }
                             }
-                        }, 50);
+                        }, 100);
                     } catch(e) {
+                        console.error('Error refreshing Select2 for', selectId, e);
                         // Fallback: just trigger change
                         $select.trigger('change');
                     }
@@ -4175,7 +4249,99 @@
                 }
             });
         });
+        
     }
+    
+    // Helper function to get current selected type
+    function getCurrentSelectedType() {
+        try {
+            const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+            if (alpineComponent && alpineComponent.selectedType) {
+                return alpineComponent.selectedType;
+            }
+        } catch(e) {
+            // Alpine might not be ready yet
+        }
+        
+        // Fallback: try to get from hidden input
+        const typeInput = document.querySelector('input[name="type"]');
+        if (typeInput) {
+            return typeInput.value;
+        }
+        
+        return localStorage.getItem('selectedType') || '';
+    }
+    
+    // Initialize Select2 with type filtering for all searchable-select dropdowns on page load
+    $(document).ready(function() {
+        // Wait a bit for Alpine.js to initialize
+        setTimeout(function() {
+            const selectedType = getCurrentSelectedType();
+            
+            // Initialize Select2 for all searchable-select dropdowns that aren't already initialized
+            $('.searchable-select').each(function() {
+                const $select = $(this);
+                const selectId = $select.attr('id');
+                
+                // Skip if already initialized
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+                
+                // Skip part_number_id and unit_parts as they have special initialization
+                if (selectId === 'part_number_id' || selectId === 'unit_parts') {
+                    return;
+                }
+                
+                // Initialize Select2 with type-based matcher
+                const select2Config = {
+                    placeholder: 'Please Select',
+                    allowClear: true,
+                    width: '100%',
+                    matcher: function(params, data) {
+                        const currentType = getCurrentSelectedType();
+                        
+                        // If no search term, show all visible options
+                        if (!params.term || params.term.trim() === '') {
+                            const $option = $(data.element);
+                            const optionType = $option.data('type') || '';
+                            // Show if no type selected, or type matches, or option has no type
+                            if (!currentType || optionType === currentType || optionType === '') {
+                                return data;
+                            }
+                            return null;
+                        }
+                        
+                        // If there's a search term, filter by both text and type
+                        const term = params.term.toLowerCase();
+                        const text = data.text ? data.text.toLowerCase() : '';
+                        const $option = $(data.element);
+                        const optionType = $option.data('type') || '';
+                        
+                        // Check if text matches search term
+                        const textMatches = text.indexOf(term) > -1;
+                        
+                        // Check if type matches (if type is selected)
+                        const typeMatches = !currentType || optionType === currentType || optionType === '';
+                        
+                        // Return data only if both text and type match
+                        if (textMatches && typeMatches) {
+                            return data;
+                        }
+                        
+                        return null;
+                    }
+                };
+                
+                // Special handling for part_number_id - force dropdown above
+                if (selectId === 'part_number_id') {
+                    select2Config.dropdownPosition = 'above';
+                }
+                
+                $select.select2(select2Config);
+            });
+        }, 1000);
+    });
 
     // Function to update the items table
     function updateItemsTable(items) {
