@@ -6057,10 +6057,11 @@
                     // Add and select the new option in current select
                     $select.append(option).val(res.id);
                     
-                    // Find all selects with the same class and add/update the option with type
+                    // Find all selects with the same class
                     const selectClass = $select.attr('class').split(' ').find(cls => cls.includes('-select') && cls !== 'searchable-select' && cls !== 'form-control');
                     
-                    if (selectClass) {
+                    if (selectClass && itemType && currentSelectedType) {
+                        // Only add to other selects if type matches - this ensures item only shows in its type's dropdowns
                         $(`.${selectClass}`).each(function() {
                             const $otherSelect = $(this);
                             
@@ -6071,24 +6072,23 @@
                             
                             const $existingOption = $otherSelect.find(`option[value="${res.id}"]`);
                             
-                            if ($existingOption.length) {
-                                // Update existing option's type
-                                $existingOption.attr('data-type', itemType);
-                                
-                                // Hide if type doesn't match current selected type
-                                if (currentSelectedType && itemType && itemType !== currentSelectedType) {
-                                    $existingOption.hide().prop('disabled', true);
-                                } else if (!currentSelectedType || itemType === currentSelectedType || !itemType) {
+                            // Only add/update if type matches the current selected type
+                            if (itemType === currentSelectedType) {
+                                if ($existingOption.length) {
+                                    // Update existing option's type and show it
+                                    $existingOption.attr('data-type', itemType);
                                     $existingOption.show().prop('disabled', false);
-                                }
-                            } else {
-                                // Only add to other selects if type matches current selected type
-                                // This ensures it only appears in dropdowns of the type it was saved for
-                                if (!currentSelectedType || itemType === currentSelectedType || !itemType) {
+                                } else {
+                                    // Add new option only if type matches
                                     const newOption = new Option(res.name, res.id, false, false);
                                     const $newOption = $(newOption);
                                     $newOption.attr('data-type', itemType);
                                     $otherSelect.append($newOption);
+                                }
+                            } else {
+                                // Hide/remove if type doesn't match - don't show in other types
+                                if ($existingOption.length) {
+                                    $existingOption.hide().prop('disabled', true);
                                 }
                             }
                         });
