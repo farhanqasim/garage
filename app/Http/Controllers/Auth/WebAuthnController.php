@@ -19,9 +19,22 @@ class WebAuthnController extends Controller
      */
     public function getLoginOptions(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
+        // Ensure JSON response even on errors
+        if (!$request->wantsJson() && !$request->expectsJson()) {
+            $request->headers->set('Accept', 'application/json');
+        }
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid email address',
+                'errors' => $e->errors()
+            ], 422);
+        }
 
         $email = $request->input('email');
         $user = User::where('email', $email)->first();
@@ -80,15 +93,28 @@ class WebAuthnController extends Controller
      */
     public function verifyLogin(Request $request)
     {
-        $request->validate([
-            'credential' => 'required|array',
-            'credential.id' => 'required|string',
-            'credential.response' => 'required|array',
-            'credential.response.authenticatorData' => 'required|string',
-            'credential.response.clientDataJSON' => 'required|string',
-            'credential.response.signature' => 'required|string',
-            'credential.response.userHandle' => 'nullable|string',
-        ]);
+        // Ensure JSON response even on errors
+        if (!$request->wantsJson() && !$request->expectsJson()) {
+            $request->headers->set('Accept', 'application/json');
+        }
+    {
+        try {
+            $request->validate([
+                'credential' => 'required|array',
+                'credential.id' => 'required|string',
+                'credential.response' => 'required|array',
+                'credential.response.authenticatorData' => 'required|string',
+                'credential.response.clientDataJSON' => 'required|string',
+                'credential.response.signature' => 'required|string',
+                'credential.response.userHandle' => 'nullable|string',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credential data',
+                'errors' => $e->errors()
+            ], 422);
+        }
 
         // Get challenge from session
         $storedChallenge = Session::get('webauthn_login_challenge');

@@ -61,6 +61,31 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        // Handle WebAuthn routes - always return JSON
+        if ($request->is('webauthn/*')) {
+            if ($exception instanceof \Illuminate\Validation\ValidationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $exception->errors()
+                ], 422);
+            }
+            
+            if ($exception instanceof \Illuminate\Auth\AuthenticationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated'
+                ], 401);
+            }
+            
+            // For any other exception in WebAuthn routes, return JSON
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage() ?: 'An error occurred',
+                'error' => config('app.debug') ? $exception->getTraceAsString() : null
+            ], 500);
+        }
+        
         // Handle authentication errors
         if ($exception instanceof \Illuminate\Auth\AuthenticationException) {
             if ($request->expectsJson()) {
