@@ -5053,6 +5053,16 @@
                         route: '{{ route("post.qualities") }}',
                         targetSelect: '.quality-select'
                     },
+                    'quality_filters': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
+                    'quality_breakpad': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
                     'unit_parts': {
                         title: 'Add Unit',
                         route: '{{ route("post.units") }}',
