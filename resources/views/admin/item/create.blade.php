@@ -737,7 +737,7 @@
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
-                                    <label for="quality_filters">Quality:</label>
+                                    <label for="quality_filters" class="dynamic-label" data-original="Quality:">Quality:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
@@ -772,7 +772,7 @@
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
-                                    <label for="quality_breakpad">Quality:</label>
+                                    <label for="quality_breakpad" class="dynamic-label" data-original="Quality:">Quality:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
