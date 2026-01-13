@@ -60,4 +60,12 @@ public function user_items()
         return $this->belongsTo(Branch::class, 'branch_id');
     }
 
+    /**
+     * Get the WebAuthn credentials for the user.
+     */
+    public function webauthnCredentials()
+    {
+        return $this->hasMany(WebAuthnCredential::class);
+    }
+
 }
