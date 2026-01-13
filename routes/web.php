@@ -484,3 +484,4 @@ Route::get('/suppliers/{supplier}/purchase-detail-history', [SupplierController:
 Route::delete('/suppliers/{supplier}', [SupplierController::class, 'supplier_delete'])->name('suppliers.delete');
 
 
+// fs
