@@ -23,7 +23,7 @@ class WebAuthnController extends Controller
         if (!$request->wantsJson() && !$request->expectsJson()) {
             $request->headers->set('Accept', 'application/json');
         }
-    {
+        
         try {
             $request->validate([
                 'email' => 'required|email',
@@ -97,7 +97,7 @@ class WebAuthnController extends Controller
         if (!$request->wantsJson() && !$request->expectsJson()) {
             $request->headers->set('Accept', 'application/json');
         }
-    {
+        
         try {
             $request->validate([
                 'credential' => 'required|array',
