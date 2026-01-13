@@ -49,11 +49,44 @@ class WebAuthnController extends Controller
         // Get all WebAuthn credentials for this user
         $credentials = $user->webauthnCredentials()->get();
 
+        // If no credentials exist, return registration mode
         if ($credentials->isEmpty()) {
+            // Generate challenge for registration
+            $challenge = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(random_bytes(32)));
+            
+            // Store challenge in session for registration
+            Session::put('webauthn_register_challenge', $challenge);
+            Session::put('webauthn_register_user_id', $user->id);
+            Session::put('webauthn_register_timestamp', now()->timestamp);
+            
+            // Return registration options
             return response()->json([
-                'success' => false,
-                'message' => 'No WebAuthn credentials registered for this user'
-            ], 404);
+                'success' => true,
+                'mode' => 'register', // Indicate this is registration mode
+                'options' => [
+                    'challenge' => $challenge,
+                    'rp' => [
+                        'name' => config('app.name', 'AccountCover'),
+                        'id' => $this->getRpId(),
+                    ],
+                    'user' => [
+                        'id' => base64_encode($user->id),
+                        'name' => $user->email,
+                        'displayName' => $user->name ?? $user->email,
+                    ],
+                    'pubKeyCredParams' => [
+                        ['type' => 'public-key', 'alg' => -7], // ES256
+                        ['type' => 'public-key', 'alg' => -257], // RS256
+                    ],
+                    'timeout' => 60000,
+                    'attestation' => 'none',
+                    'authenticatorSelection' => [
+                        'authenticatorAttachment' => 'platform',
+                        'userVerification' => 'preferred',
+                        'requireResidentKey' => false,
+                    ],
+                ],
+            ]);
         }
 
         // Generate a random challenge (32 bytes = 256 bits)
@@ -309,5 +342,167 @@ class WebAuthnController extends Controller
         }
         
         return $scheme . '://' . $host . $port;
+    }
+
+    /**
+     * Verify WebAuthn registration response and save credential.
+     */
+    public function verifyRegister(Request $request)
+    {
+        // Ensure JSON response even on errors
+        if (!$request->wantsJson() && !$request->expectsJson()) {
+            $request->headers->set('Accept', 'application/json');
+        }
+        
+        try {
+            $request->validate([
+                'credential' => 'required|array',
+                'credential.id' => 'required|string',
+                'credential.response' => 'required|array',
+                'credential.response.attestationObject' => 'required|string',
+                'credential.response.clientDataJSON' => 'required|string',
+                'device_name' => 'nullable|string|max:255',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credential data',
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        // Get challenge from session
+        $storedChallenge = Session::get('webauthn_register_challenge');
+        $userId = Session::get('webauthn_register_user_id');
+        $timestamp = Session::get('webauthn_register_timestamp');
+
+        if (!$storedChallenge || !$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired registration challenge'
+            ], 400);
+        }
+
+        // Check challenge expiration (5 minutes)
+        if ($timestamp && (now()->timestamp - $timestamp) > 300) {
+            Session::forget(['webauthn_register_challenge', 'webauthn_register_user_id', 'webauthn_register_timestamp']);
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration challenge expired'
+            ], 400);
+        }
+
+        $credential = $request->input('credential');
+        $credentialId = $credential['id']; // Base64url encoded
+
+        // Verify client data
+        $clientDataJSONBase64 = str_replace(['-', '_'], ['+', '/'], $credential['response']['clientDataJSON']);
+        $padding = strlen($clientDataJSONBase64) % 4;
+        if ($padding) {
+            $clientDataJSONBase64 .= str_repeat('=', 4 - $padding);
+        }
+        $clientDataJSON = base64_decode($clientDataJSONBase64, true);
+        
+        if (!$clientDataJSON) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid client data'
+            ], 400);
+        }
+
+        $clientData = json_decode($clientDataJSON, true);
+        if (!$clientData) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid client data JSON'
+            ], 400);
+        }
+
+        // Verify challenge matches
+        $receivedChallengeBase64url = $clientData['challenge'] ?? '';
+        $receivedChallengeBase64 = str_replace(['-', '_'], ['+', '/'], $receivedChallengeBase64url);
+        $padding = strlen($receivedChallengeBase64) % 4;
+        if ($padding) {
+            $receivedChallengeBase64 .= str_repeat('=', 4 - $padding);
+        }
+        $receivedChallenge = base64_decode($receivedChallengeBase64, true);
+        
+        $expectedChallengeBase64 = str_replace(['-', '_'], ['+', '/'], $storedChallenge);
+        $padding = strlen($expectedChallengeBase64) % 4;
+        if ($padding) {
+            $expectedChallengeBase64 .= str_repeat('=', 4 - $padding);
+        }
+        $expectedChallenge = base64_decode($expectedChallengeBase64, true);
+
+        if (!$receivedChallenge || !hash_equals($expectedChallenge, $receivedChallenge)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Challenge mismatch'
+            ], 400);
+        }
+
+        // Verify type
+        if (($clientData['type'] ?? '') !== 'webauthn.create') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid registration type'
+            ], 400);
+        }
+
+        // Check if credential already exists
+        $existingCredential = WebAuthnCredential::where('credential_id', $credentialId)->first();
+        if ($existingCredential) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This credential is already registered'
+            ], 400);
+        }
+
+        // Extract public key from attestation object (simplified - in production use proper library)
+        // For now, we'll store the raw attestation object
+        $attestationObject = $credential['response']['attestationObject'];
+        
+        // Save the credential
+        $webauthnCredential = WebAuthnCredential::create([
+            'user_id' => $userId,
+            'credential_id' => $credentialId,
+            'public_key' => json_encode([
+                'attestationObject' => $attestationObject,
+                'clientDataJSON' => $credential['response']['clientDataJSON'],
+            ]),
+            'counter' => 0,
+            'device_name' => $request->input('device_name', 'Unknown Device'),
+            'last_used_at' => now(),
+        ]);
+
+        // Clear session challenge
+        Session::forget(['webauthn_register_challenge', 'webauthn_register_user_id', 'webauthn_register_timestamp']);
+
+        // Log the user in after successful registration
+        $user = User::find($userId);
+        if ($user) {
+            Auth::login($user, $request->has('remember'));
+            
+            // Handle branch selection if needed
+            if ($user->role === 'user') {
+                $branch = \App\Models\Branch::where('user_id', $user->id)
+                    ->where('status', 'active')
+                    ->first();
+                
+                if ($branch) {
+                    Session::put([
+                        'selected_branch_id' => $branch->id,
+                        'selected_branch_name' => $branch->branch_name,
+                        'selected_branch_code' => $branch->branch_code
+                    ]);
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Fingerprint registered successfully! You are now logged in.',
+            'redirect' => '/home'
+        ]);
     }
 }

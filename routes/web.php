@@ -53,6 +53,7 @@ Route::post('/get-user-branch', [LoginController::class, 'getUserBranchByEmail']
 Route::prefix('webauthn')->name('webauthn.')->group(function () {
     Route::post('/login/options', [WebAuthnController::class, 'getLoginOptions'])->name('login.options');
     Route::post('/login/verify', [WebAuthnController::class, 'verifyLogin'])->name('login.verify');
+    Route::post('/register/verify', [WebAuthnController::class, 'verifyRegister'])->name('register.verify');
 });
 
 // Branch selection route (requires authentication)

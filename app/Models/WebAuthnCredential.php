@@ -9,6 +9,13 @@ class WebAuthnCredential extends Model
 {
     use HasFactory;
 
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'webauthn_credentials';
+
     protected $fillable = [
         'user_id',
         'credential_id',
