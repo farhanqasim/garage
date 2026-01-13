@@ -12,9 +12,11 @@ use App\Models\CarManufacturer;
 use App\Http\Controllers\Controller;
 use App\Mail\WelcomeCustomerMail;
 use App\Models\Customer;
+use App\Models\Sale;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class CustomerController extends Controller
 {
@@ -32,70 +34,46 @@ class CustomerController extends Controller
 
     public function customer_store(Request $request)
     {
-        // Validate email if provided
-        if ($request->email) {
-            $request->validate([
-                'email' => 'email|unique:customers,email'
-            ], [
-                'email.email' => 'Please enter a valid email address.',
-                'email.unique' => 'This email is already registered. Please use another email address.'
-            ]);
-        }
-
         $plainPassword = $request->password ?? Str::random(12);
 
-        try {
-            $customer = new Customer();
-            $customer->names            = $request->names ?? [];
-            $customer->phones           = array_filter($request->phones ?? []);
-            $customer->company          = $request->company;
-            $customer->email            = $request->email;
-            $customer->carnumber        = $request->carnumber;
-            $customer->group_id         = $request->group_id;
-            $customer->opening_balance  = $request->opening_balance ?? 0;
-            $customer->as_of_date       = $request->as_of_date;
-            $customer->balance_type     = $request->balance_type ?? 'receive';
-            $customer->password         = Hash::make($plainPassword);
-            $customer->credit_limit_type = $request->credit_limit_type ?? 'no_limit';
-            $customer->credit_limit     = $request->credit_limit_type === 'custom' ? $request->credit_limit : null;
+        $customer = new Customer();
+        $customer->names            = $request->names ?? [];
+        $customer->phones           = array_filter($request->phones ?? []);
+        $customer->company          = $request->company;
+        $customer->email            = $request->email;
+        $customer->carnumber        = $request->carnumber;
+        $customer->group_id         = $request->group_id;
+        $customer->opening_balance  = $request->opening_balance ?? 0;
+        $customer->as_of_date       = $request->as_of_date;
+        $customer->balance_type     = $request->balance_type ?? 'receive';
+        $customer->password         = Hash::make($plainPassword);
+        $customer->credit_limit_type = $request->credit_limit_type ?? 'no_limit';
+        $customer->credit_limit     = $request->credit_limit_type === 'custom' ? $request->credit_limit : null;
 
-            if ($request->hasFile('profile_img')) {
-                $customer->profile_img = saveSingleFile($request->file('profile_img'), 'Customer_img');
-            }
-
-            if ($request->hasFile('visiting_doc')) {
-                $customer->visiting_doc = saveSingleFile($request->file('visiting_doc'), 'Customer_docs');
-            }
-
-            if ($request->hasFile('multiple_images')) {
-                $multipleImages = saveMultipleFiles($request->file('multiple_images'), 'Customer_images');
-                $customer->multiple_images = $multipleImages;
-            }
-
-            if ($request->hasFile('voice_note')) {
-                $customer->voice_note = saveSingleFile($request->file('voice_note'), 'Customer_audio');
-            }
-
-            $customer->save();
-
-            if ($customer->email) {
-                Mail::to($customer->email)->send(new WelcomeCustomerMail($customer->email, $plainPassword));
-            }
-
-            return redirect()->back()->with('success', 'Customer Added Successfully');
-        } catch (\Illuminate\Database\QueryException $e) {
-            if ($e->getCode() == 23000) {
-                // Duplicate entry error
-                if (strpos($e->getMessage(), 'customers_email_unique') !== false) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->withErrors(['email' => 'This email is already registered. Please use another email address.']);
-                }
-            }
-            return redirect()->back()
-                ->withInput()
-                ->withErrors(['error' => 'An error occurred while saving the customer. Please try again.']);
+        if ($request->hasFile('profile_img')) {
+            $customer->profile_img = saveSingleFile($request->file('profile_img'), 'Customer_img');
         }
+
+        if ($request->hasFile('visiting_doc')) {
+            $customer->visiting_doc = saveSingleFile($request->file('visiting_doc'), 'Customer_docs');
+        }
+
+        if ($request->hasFile('multiple_images')) {
+            $multipleImages = saveMultipleFiles($request->file('multiple_images'), 'Customer_images');
+            $customer->multiple_images = $multipleImages;
+        }
+
+        if ($request->hasFile('voice_note')) {
+            $customer->voice_note = saveSingleFile($request->file('voice_note'), 'Customer_audio');
+        }
+
+        $customer->save();
+
+        if ($customer->email) {
+            Mail::to($customer->email)->send(new WelcomeCustomerMail($customer->email, $plainPassword));
+        }
+
+        return redirect()->back()->with('success', 'Customer Added Successfully');
     }
 
     public function customer_update(Request $request, Customer $customer)
@@ -178,5 +156,73 @@ class CustomerController extends Controller
         $customer->delete();
 
         return redirect()->back()->with('success', 'Customer Deleted Successfully');
+    }
+    
+    /**
+     * Get Customer Ledger Report
+     */
+    public function getCustomerLedger(Customer $customer)
+    {
+        // Get opening balance
+        $openingBalance = $customer->opening_balance ?? 0;
+        $balanceType = $customer->balance_type ?? 'receive'; // 'receive' means customer owes us, 'pay' means we owe customer
+        
+        // Get all sales for this customer
+        $sales = Sale::where('customer_id', $customer->id)
+            ->with(['branch', 'user', 'saleItems'])
+            ->orderBy('sale_date', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->get();
+        
+        // Calculate transactions
+        $transactions = [];
+        $runningBalance = $openingBalance;
+        
+        foreach ($sales as $sale) {
+            $transaction = [
+                'date' => $sale->sale_date->format('d/m/Y'),
+                'time' => $sale->created_at->format('h:i A'),
+                'type' => 'Sale',
+                'reference' => $sale->reference ?? 'N/A',
+                'description' => 'Sale #' . $sale->id,
+                'debit' => 0,
+                'credit' => 0,
+                'balance' => 0,
+                'branch' => $sale->branch ? $sale->branch->branch_name : 'N/A',
+                'user' => $sale->user ? $sale->user->name : 'N/A',
+            ];
+            
+            // If balance_type is 'receive', sales increase what customer owes (debit)
+            // If balance_type is 'pay', sales decrease what we owe (credit)
+            if ($balanceType == 'receive') {
+                $transaction['debit'] = $sale->grand_total;
+                $runningBalance += $sale->grand_total;
+            } else {
+                $transaction['credit'] = $sale->grand_total;
+                $runningBalance -= $sale->grand_total;
+            }
+            
+            $transaction['balance'] = $runningBalance;
+            $transactions[] = $transaction;
+        }
+        
+        // Calculate ending balance
+        $endingBalance = $runningBalance;
+        
+        return response()->json([
+            'success' => true,
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->names[0] ?? 'N/A',
+                'email' => $customer->email ?? 'N/A',
+                'phone' => $customer->phones[0] ?? 'N/A',
+            ],
+            'opening_balance' => number_format($openingBalance, 2),
+            'balance_type' => $balanceType,
+            'transactions' => $transactions,
+            'ending_balance' => number_format($endingBalance, 2),
+            'total_debit' => number_format(collect($transactions)->sum('debit'), 2),
+            'total_credit' => number_format(collect($transactions)->sum('credit'), 2),
+        ]);
     }
 }

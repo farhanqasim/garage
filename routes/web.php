@@ -470,12 +470,17 @@ Route::get('pos/search', [PosController::class, 'search'])->name('pos.search');
 Route::get('/customers', [CustomerController::class, 'all_customers'])->name('customers.index');
 Route::post('/customers', [CustomerController::class, 'customer_store'])->name('customers.store');
 Route::put('/customers/{customer}', [CustomerController::class, 'customer_update'])->name('customers.update');
-Route::get('/customers/{customer}', [CustomerController::class, 'customer_delete'])->name('customers.delete');
+Route::get('/customers/{customer}/ledger', [CustomerController::class, 'getCustomerLedger'])->name('customers.ledger');
+Route::delete('/customers/{customer}', [CustomerController::class, 'customer_delete'])->name('customers.delete');
 
 // Suppliers
 Route::get('/suppliers', [SupplierController::class, 'all_suppliers'])->name('suppliers.index');
 Route::post('/suppliers', [SupplierController::class, 'supplier_store'])->name('suppliers.store');
 Route::put('/suppliers/{supplier}', [SupplierController::class, 'supplier_update'])->name('suppliers.update');
-Route::get('/suppliers/{supplier}', [SupplierController::class, 'supplier_delete'])->name('suppliers.delete');
+Route::get('/suppliers/{supplier}/edit-history', [SupplierController::class, 'getEditHistory'])->name('suppliers.edit.history');
+Route::get('/suppliers/{supplier}/ledger', [SupplierController::class, 'getSupplierLedger'])->name('suppliers.ledger');
+Route::get('/suppliers/{supplier}/ledger-pdf', [SupplierController::class, 'generateSupplierLedgerPDF'])->name('suppliers.ledger.pdf');
+Route::get('/suppliers/{supplier}/purchase-detail-history', [SupplierController::class, 'getPurchaseDetailHistory'])->name('suppliers.purchase.detail.history');
+Route::delete('/suppliers/{supplier}', [SupplierController::class, 'supplier_delete'])->name('suppliers.delete');
 
 

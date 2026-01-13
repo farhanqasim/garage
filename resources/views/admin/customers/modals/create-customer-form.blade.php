@@ -1,255 +1,171 @@
 <form action="{{ route('customers.store') }}" method="POST" enctype="multipart/form-data" id="customerForm">
     @csrf
-    <div class="modal-body p-4">
-        <!-- Name & Phone Section -->
-        <div class="mb-3">
-            <label class="form-label fw-bold mb-2">
-                <i class="ti ti-user me-1"></i>Customer Name & Contact <span class="text-danger">*</span>
-            </label>
-            <div id="namePhoneContainer">
-                <div class="row g-2 mb-2 align-items-end name-phone-row">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label small mb-1">Full Name <span class="text-danger">*</span></label>
-                        <div class="input-group flex-nowrap" style="flex-wrap: nowrap !important; width: 100%; overflow: hidden;">
-                            <span class="input-group-text d-flex align-items-center justify-content-center" style="flex-shrink: 0; min-width: 44px; width: auto;"><i class="ti ti-user"></i></span>
-                            <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input" style="flex: 1 1 auto; min-width: 0; width: 1%;" placeholder="Enter name" required>
-                            <button type="button" class="btn btn-outline-primary mic-btn d-flex align-items-center justify-content-center" style="flex-shrink: 0; min-width: 44px; width: auto;" title="Voice Input">
-                                <i class="ti ti-microphone"></i>
-                            </button>
+    <div class="modal-body">
+        <div class="row g-3 p-3">
+            <!-- Visiting Document -->
+            <div class="col-md-6">
+                <label for="visiting_doc" class="form-label">Visiting Document</label>
+                <div class="position-relative">
+                    <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                </div>
+                <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
+                <div id="visiting_preview" style="display: none; margin-top: 10px;">
+                    <div id="visiting_img_container" style="display: none;">
+                        <img id="visiting_img" src="" alt="Visiting Doc Preview" class="img-fluid rounded" style="max-height: 200px;">
+                    </div>
+                    <div id="visiting_file_info" style="display: none; text-center p-3 bg-light rounded">
+                        <i class="fas fa-file fa-3x text-muted mb-2"></i>
+                        <p class="text-muted mb-0" id="visiting_filename"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Image -->
+            <div class="col-md-6">
+                <label for="profile_img" class="form-label">Profile Image</label>
+                <div class="profile-upload-box text-center border rounded p-3 bg-light position-relative" style="cursor: pointer;">
+                    <input type="file" name="profile_img" id="profile_img" accept="image/*" class="position-absolute top-0 start-0 w-100 h-100 opacity-0">
+                    <div class="preview-container">
+                        <img id="profile_preview" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px; display: none;">
+                    </div>
+                    <div class="upload-placeholder">
+                        <i class="fas fa-camera fa-3x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Click to upload profile image</p>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm mt-2 upload-btn">Upload Image</button>
+                </div>
+            </div>
+
+            <!-- Name & Phone -->
+            <div class="col-12">
+                <div id="namePhoneContainer">
+                    <div class="row g-3 mb-3 align-items-end name-phone-row">
+                        <div class="col-md-6">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input" placeholder="Enter name or use mic" required>
+                                <button type="button" class="btn btn-outline-secondary mic-btn">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger remove-row" style="display:none;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">WhatsApp Number</label>
+                            <input type="text" name="phones[]" value="{{ old('phones.0') }}" class="form-control" placeholder="Enter phone number">
                         </div>
                     </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label small mb-1">WhatsApp Number</label>
-                        <div class="input-group flex-nowrap" style="flex-wrap: nowrap !important; width: 100%; overflow: hidden;">
-                            <span class="input-group-text d-flex align-items-center justify-content-center" style="flex-shrink: 0; min-width: 44px; width: auto;"><i class="ti ti-phone"></i></span>
-                            <input type="text" name="phones[]" value="{{ old('phones.0') }}" class="form-control" style="flex: 1 1 auto; min-width: 0; width: 1%;" placeholder="03XX-XXXXXXX">
-                        </div>
-                    </div>
                 </div>
+                <button type="button" id="addNamePhone" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Add More Name & Phone
+                </button>
             </div>
-            <button type="button" id="addNamePhone" class="btn btn-sm btn-outline-primary mt-2">
-                <i class="ti ti-plus me-1"></i>Add More
-            </button>
-        </div>
 
-        <!-- Company & Email -->
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-6">
-                <label for="company" class="form-label fw-bold mb-1">
-                    <i class="ti ti-building me-1"></i>Company Name
-                </label>
-                <div class="input-group flex-nowrap">
-                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-building"></i></span>
-                    <input type="text" name="company" value="{{ old('company') }}" class="form-control flex-grow-1" placeholder="Optional">
+            <!-- Other Fields -->
+            <div class="col-md-6">
+                <label for="company" class="form-label">Company</label>
+                <input type="text" name="company" value="{{ old('company') }}" class="form-control">
+            </div>
+            <div class="col-md-6">
+                <label for="carnumber">Add Vehicles:</label>
+                <div class="input-group">
+                    <select class="form-control" name="carnumber" id="carnumber">
+                        <option value="">Select Services</option>
+                        <option value="1">Vehicle One</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vehical-add-modal">
+                        <i data-feather="plus"></i>
+                    </button>
                 </div>
             </div>
-            <div class="col-12 col-md-6">
-                <label for="email" class="form-label fw-bold mb-1">
-                    <i class="ti ti-mail me-1"></i>Email
-                </label>
-                <div class="input-group flex-nowrap">
-                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-mail"></i></span>
-                    <input type="email" name="email" id="email" value="{{ old('email') }}" class="form-control flex-grow-1 {{ $errors->has('email') ? 'is-invalid' : '' }}" placeholder="Optional">
-                </div>
-                @if($errors->has('email'))
-                    <div class="invalid-feedback d-block text-danger small mt-1">
-                        <i class="ti ti-alert-circle me-1"></i>{{ $errors->first('email') }}
-                    </div>
-                @endif
-                <div id="email-error" class="invalid-feedback d-block text-danger small mt-1" style="display: none;">
-                    <i class="ti ti-alert-circle me-1"></i><span id="email-error-text"></span>
-                </div>
+            <div class="col-md-6">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" name="email" value="{{ old('email') }}" class="form-control">
             </div>
-        </div>
-
-        <!-- Group -->
-        <div class="mb-3">
-            <label for="group_id" class="form-label fw-bold mb-1">
-                <i class="ti ti-users me-1"></i>Group
-            </label>
-            <div class="input-group flex-nowrap">
-                <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-users"></i></span>
-                <select name="group_id" class="form-select flex-grow-1">
+            <div class="col-md-6">
+                <label for="group_id" class="form-label">Group</label>
+                <select name="group_id" class="form-select">
                     <option value="">Select Group</option>
                     <option value="1">Group One</option>
                 </select>
             </div>
-        </div>
+            <div class="col-md-6">
+                <label for="password" class="form-label">Password <small>(auto-generated)</small></label>
+                <div class="input-group">
+                    <input type="text" name="password" id="password" value="" class="form-control" readonly placeholder="Click Generate" required>
+                    <button type="button" id="generatePassword" class="btn btn-outline-primary">Generate</button>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label for="opening_balance" class="form-label">Opening Balance</label>
+                <input type="number" step="0.01" name="opening_balance" value="{{ old('opening_balance', 0) }}" class="form-control">
+            </div>
+            <div class="col-md-6">
+                <label for="as_of_date" class="form-label">As of Date</label>
+                <input type="text" name="as_of_date" id="as_of_date" class="form-control" placeholder="DD/MM/YYYY" value="{{ old('as_of_date') }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Balance Type</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="balance_type" value="receive" checked>
+                    <label class="form-check-label">To Receive</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="balance_type" value="pay">
+                    <label class="form-check-label">To Pay</label>
+                </div>
+            </div>
 
-        <!-- Password & Balance -->
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-6">
-                <label for="password" class="form-label fw-bold mb-1">
-                    <i class="ti ti-key me-1"></i>Password <span class="text-danger">*</span>
-                </label>
-                <div class="input-group flex-nowrap">
-                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-lock"></i></span>
-                    <input type="text" name="password" id="password" value="" class="form-control flex-grow-1" readonly placeholder="Auto-generated" required>
-                    <button type="button" id="generatePassword" class="btn btn-outline-primary d-flex align-items-center justify-content-center" title="Generate">
-                        <i class="ti ti-refresh"></i>
+            <!-- Credit Limit -->
+            <div class="col-md-6">
+                <label class="form-label">Credit Limit</label>
+                <div id="creditLimitDefault" class="mt-2">
+                    <button type="button" id="showCreditLimitOptions" class="btn btn-link p-0 text-primary border-0 bg-transparent">
+                        Set credit limit
                     </button>
                 </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <label for="opening_balance" class="form-label fw-bold mb-1">
-                    <i class="ti ti-currency-rupee me-1"></i>Opening Balance
-                </label>
-                <div class="input-group flex-nowrap">
-                    <span class="input-group-text d-flex align-items-center justify-content-center">Rs.</span>
-                    <input type="number" step="0.01" name="opening_balance" value="{{ old('opening_balance', 0) }}" class="form-control flex-grow-1" placeholder="0.00">
+                <div id="creditLimitOptions" style="display: none;">
+                    <div id="custom_limit_input" class="ms-4 mt-2">
+                        <input type="number" step="0.01" name="credit_limit" value="{{ old('credit_limit') }}" class="form-control" placeholder="Enter credit limit">
+                    </div>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="radio" name="credit_limit_type" value="custom">
+                        <label class="form-check-label">Custom</label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="radio" name="credit_limit_type" value="no_limit" checked>
+                        <label class="form-check-label">No Limit</label>
+                    </div>
+                    <div class="mt-3">
+                        <small><a href="#" id="hideCreditLimitOptions" class="text-muted">Cancel</a></small>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Date & Balance Type -->
-        <div class="row g-2 mb-3">
-            <div class="col-12 col-md-6">
-                <label for="as_of_date" class="form-label fw-bold mb-1">
-                    <i class="ti ti-calendar me-1"></i>As Of Date
-                </label>
-                <div class="input-group flex-nowrap">
-                    <span class="input-group-text d-flex align-items-center justify-content-center"><i class="ti ti-calendar"></i></span>
-                    <input type="text" name="as_of_date" id="as_of_date" class="form-control flex-grow-1" placeholder="DD/MM/YYYY" value="{{ old('as_of_date') }}">
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label fw-bold mb-1">Balance Type</label>
-                <div class="btn-group w-100" role="group">
-                    <input type="radio" class="btn-check" name="balance_type" value="receive" id="balance_receive" checked>
-                    <label class="btn btn-outline-success" for="balance_receive">To Receive</label>
-                    <input type="radio" class="btn-check" name="balance_type" value="pay" id="balance_pay">
-                    <label class="btn btn-outline-danger" for="balance_pay">To Pay</label>
-                </div>
-            </div>
-        </div>
-
-        <!-- Credit Limit -->
-        <div class="mb-3">
-            <label class="form-label fw-bold mb-1">
-                <i class="ti ti-credit-card me-1"></i>Credit Limit
-            </label>
-            <div id="creditLimitDefault">
-                <button type="button" id="showCreditLimitOptions" class="btn btn-outline-warning btn-sm">
-                    <i class="ti ti-plus me-1"></i>Set Credit Limit
-                </button>
-            </div>
-            <div id="creditLimitOptions" style="display: none;" class="mt-2">
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="credit_limit_type" value="no_limit" id="no_limit" checked>
-                    <label class="form-check-label" for="no_limit">No Limit</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="credit_limit_type" value="custom" id="custom_limit">
-                    <label class="form-check-label" for="custom_limit">Custom Amount</label>
-                </div>
-                <div id="custom_limit_input" class="mb-2" style="display: none;">
-                    <div class="input-group flex-nowrap">
-                        <span class="input-group-text d-flex align-items-center justify-content-center">Rs.</span>
-                        <input type="number" step="0.01" name="credit_limit" value="{{ old('credit_limit') }}" class="form-control flex-grow-1" placeholder="Enter amount">
-                    </div>
-                </div>
-                <button type="button" id="hideCreditLimitOptions" class="btn btn-sm btn-outline-secondary">
-                    <i class="ti ti-x me-1"></i>Cancel
-                </button>
-            </div>
-        </div>
-
-        <!-- Images Section (All at the end) -->
-        <div class="border-top pt-3 mt-3">
-            <h6 class="fw-bold mb-3 text-muted">
-                <i class="ti ti-photo me-1"></i>Images
-            </h6>
-            <div class="row">
-                <div class="col-12 col-md-6">
-                <div class="mb-3">
-                <label for="profile_img" class="form-label fw-bold mb-1">
-                    <i class="ti ti-user me-1"></i>Profile Picture
-                </label>
-                <input type="file" name="profile_img" id="profile_img" accept="image/*" class="form-control mb-2">
-                <input type="hidden" name="profile_img_cropped" id="profile_img_cropped">
-                <div class="profile-preview-container border rounded p-3 bg-light text-center" style="display: none; min-height: 150px;">
-                    <div class="position-relative d-inline-block">
-                        <img id="profile_preview" src="" alt="Profile Preview" class="img-fluid rounded shadow-sm" style="max-height: 180px; max-width: 100%; display: none;">
-                        <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-profile-image" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove Image">
-                            <i class="ti ti-x" style="font-size: 18px; font-weight: bold;"></i>
-                        </button>
-                        <button type="button" class="btn btn-warning btn-sm position-absolute bottom-0 start-50 translate-middle-x mb-2 crop-profile-image" style="box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Crop Image">
-                            <i class="ti ti-crop me-1"></i>Crop
-                        </button>
-                    </div>
-                </div>
-            </div>
-                </div>
-                <div class="col-12 col-md-6">
-                       <!-- Visiting Document -->
-            <div class="mb-3">
-                <label for="visiting_doc" class="form-label fw-bold mb-1">
-                    <i class="ti ti-file me-1"></i>Visiting Card/Document
-                </label>
-                <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control mb-2">
-                <div id="visiting_preview" class="mt-2" style="display: none;">
-                    <div id="visiting_img_container" class="position-relative d-inline-block text-center" style="display: none;">
-                        <img id="visiting_img" src="" alt="Preview" class="img-fluid rounded border shadow-sm" style="max-height: 150px; width: auto; display: block;">
-                        <button type="button" class="btn btn-danger position-absolute top-0 end-0 m-1 remove-visiting-doc" style="width: 36px; height: 36px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" title="Remove">
-                            <i class="ti ti-x" style="font-size: 18px; font-weight: bold;"></i>
-                        </button>
-                    </div>
-                    <div id="visiting_file_info" class="position-relative d-inline-block p-3 bg-light rounded border text-center" style="display: none;">
-                        <i class="ti ti-file text-muted d-block mb-2" style="font-size: 40px;"></i>
-                        <small class="text-muted fw-bold d-block mb-2" id="visiting_filename"></small>
-                      
-                    </div>
-                </div>
-            </div>
-                </div>
-            </div>
-            <!-- Profile Picture -->
-          
             <!-- Multiple Images -->
-            <div class="mb-2">
-                <label for="multiple_images" class="form-label fw-bold mb-1">
-                    <i class="ti ti-photo me-1"></i>Additional Images
-                </label>
-                <input type="file" name="multiple_images[]" id="multiple_images" accept="image/*" multiple class="form-control mb-2">
-                <div class="multiple-images-preview d-none d-flex flex-wrap justify-content-start gap-2 p-3 border rounded bg-light mt-2" id="multiple_images_preview"></div>
+            <div class="col-md-12">
+                <label for="multiple_images" class="form-label">Additional Images (Multiple)</label>
+                <div class="multiple-upload-box text-center border rounded p-3 bg-light position-relative" style="cursor: pointer; min-height: 200px;">
+                    <input type="file" name="multiple_images[]" id="multiple_images" accept="image/*" multiple class="position-absolute top-0 start-0 w-100 h-100 opacity-0">
+                    <div class="preview-container d-none d-flex flex-wrap justify-content-center gap-2 p-2" id="multiple_images_preview"></div>
+                    <div class="upload-placeholder">
+                        <i class="fas fa-images fa-3x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Click to upload additional images</p>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm mt-2 upload-btn">Upload Images</button>
+                </div>
+                <small class="form-text text-muted">Select multiple images to upload.</small>
             </div>
         </div>
     </div>
 
-    <div class="modal-footer border-top p-3">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="ti ti-x me-1"></i>Cancel
-        </button>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="submit" class="btn btn-primary">
             <span class="spinner-border spinner-border-sm d-none me-2"></span>
-            <i class="ti ti-check me-1"></i>Save
+            Save
         </button>
     </div>
 </form>
-
-<!-- Image Crop Modal (Outside Form) -->
-<div class="modal fade" id="imageCropModal" tabindex="-1" aria-labelledby="imageCropModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold" id="imageCropModalLabel">
-                    <i class="ti ti-crop me-2"></i>Crop Image
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="text-center">
-                    <img id="cropImage" src="" alt="Crop Image" style="max-width: 100%; max-height: 400px;">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="ti ti-x me-1"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-primary" id="cropImageBtn">
-                    <i class="ti ti-check me-1"></i>Crop & Save
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
