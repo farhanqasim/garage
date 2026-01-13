@@ -4549,11 +4549,13 @@
                         }, 300);
                     });
                     
-                    // Handle Enter key press for Part Number - trigger Add New button
+                    // Handle Enter key press for Part Number - trigger Add New button or open modal
                     $searchInput.off('keydown.partNumberEnter').on('keydown.partNumberEnter', function(e) {
                         if (e.key === 'Enter' || e.keyCode === 13) {
                             e.preventDefault();
                             e.stopPropagation();
+                            
+                            const searchText = $(this).val().trim();
                             
                             // Check if Add New button exists
                             const $addNewBtn = $('.select2-container--open .add-new-part-number-btn');
@@ -4562,6 +4564,40 @@
                                 $addNewBtn.trigger('mousedown');
                                 $addNewBtn.trigger('click');
                                 return false;
+                            } else if (searchText) {
+                                // If button doesn't exist but there's search text, check for no results
+                                const $openSelect2 = $('.select2-container--open');
+                                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                                const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                                    ($results.length === 0 && searchText.length > 0);
+                                
+                                if (hasNoResults) {
+                                    // Close Select2 dropdown
+                                    $('#part_number_id').select2('close');
+                                    
+                                    // Store search term
+                                    if (!window.lastSearchTerm) {
+                                        window.lastSearchTerm = {};
+                                    }
+                                    window.lastSearchTerm['part_number_id'] = searchText;
+                                    window.activeSelectSearch = {
+                                        selectId: 'part_number_id',
+                                        searchTerm: searchText,
+                                        hasNoResults: true
+                                    };
+                                    window.partNumberSubtitle = 'PART NUMBER:';
+                                    
+                                    // Open universal modal
+                                    const $addButton = $('#part_number_id').closest('.input-group').find('.open-universal-modal[data-mode="add"]');
+                                    if ($addButton.length) {
+                                        $addButton.trigger('click');
+                                    } else {
+                                        // Fallback: manually open modal with config
+                                        $('#universal-add-modal').modal('show');
+                                    }
+                                    return false;
+                                }
                             }
                         }
                     });
@@ -4652,59 +4688,8 @@
                     $searchInput[0].focus();
                     $searchInput[0].select();
                     
-                    // Handle Enter key press for product_name_item - trigger Add New button or open modal
-                    $searchInput.off('keydown.productNameEnter').on('keydown.productNameEnter', function(e) {
-                        if (e.key === 'Enter' || e.keyCode === 13) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            
-                            const searchText = $(this).val().trim();
-                            
-                            // Check if Add New button exists
-                            const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="product_name_item"]');
-                            if ($addNewBtn.length) {
-                                // Trigger the button click
-                                $addNewBtn.trigger('mousedown');
-                                $addNewBtn.trigger('click');
-                                return false;
-                            } else if (searchText) {
-                                // If button doesn't exist but there's search text, check for no results
-                                const $openSelect2 = $('.select2-container--open');
-                                const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
-                                const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
-                                                    ($results.length === 0 && searchText.length > 0);
-                                
-                                if (hasNoResults) {
-                                    // Close Select2 dropdown
-                                    $('#product_name_item').select2('close');
-                                    
-                                    // Store search term
-                                    if (!window.lastSearchTerm) {
-                                        window.lastSearchTerm = {};
-                                    }
-                                    window.lastSearchTerm['product_name_item'] = searchText;
-                                    window.activeSelectSearch = {
-                                        selectId: 'product_name_item',
-                                        searchTerm: searchText,
-                                        hasNoResults: true
-                                    };
-                                    window.productNameSubtitle = 'PRODUCT NAME:';
-                                    
-                                    // Open universal modal
-                                    const $addButton = $('#product_name_item').closest('.input-group').find('.open-universal-modal[data-mode="add"]');
-                                    if ($addButton.length) {
-                                        $addButton.trigger('click');
-                                    } else {
-                                        // Fallback: manually open modal with config
-                                        $('#universal-add-modal').modal('show');
-                                        // Set form data will be handled by existing modal handlers
-                                    }
-                                    return false;
-                                }
-                            }
-                        }
-                    });
+                    // Note: Enter key handling is now done in the generic dropdown handler
+                    // This ensures consistent behavior across all dropdowns
                 }
             }, 100);
         });
@@ -4812,7 +4797,8 @@
         });
         
         // Generic handler for all dropdowns (Product Name, Category, Company, Quality, Unit, etc.)
-        $(document).on('select2:open', '.input-group .searchable-select:not(#part_number_id), #unit_parts', function(e) {
+        // This handles all searchable-select dropdowns except part_number_id (which has its own handler)
+        $(document).on('select2:open', '.searchable-select:not(#part_number_id)', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id');
             
@@ -4926,79 +4912,66 @@
                         }, 300);
                     });
                     
-                    // Handle Enter key press for unit_parts - trigger Add New button
-                    if (selectId === 'unit_parts') {
-                        $searchInput.off('keydown.unitEnter').on('keydown.unitEnter', function(e) {
-                            if (e.key === 'Enter' || e.keyCode === 13) {
-                                e.preventDefault();
-                                e.stopPropagation();
+                    // Handle Enter key press for ALL dropdowns - trigger Add New button or open modal
+                    // This works for all dropdowns that have buttonConfig (unit_parts, product_name_item, category, company_parts, quality, etc.)
+                    $searchInput.off('keydown.dropdownEnter').on('keydown.dropdownEnter', function(e) {
+                        if (e.key === 'Enter' || e.keyCode === 13) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const searchText = $(this).val().trim();
+                            
+                            // Check if Add New button exists in dropdown
+                            const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="' + selectId + '"]');
+                            if ($addNewBtn.length) {
+                                // Trigger the button click
+                                $addNewBtn.trigger('mousedown');
+                                $addNewBtn.trigger('click');
+                                return false;
+                            } else if (searchText && buttonConfig) {
+                                // If button doesn't exist but there's search text and buttonConfig, check for no results
+                                const $openSelect2 = $('.select2-container--open');
+                                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                                const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                                    ($results.length === 0 && searchText.length > 0);
                                 
-                                // Check if Add New button exists
-                                const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="unit_parts"]');
-                                if ($addNewBtn.length) {
-                                    // Trigger the button click
-                                    $addNewBtn.trigger('mousedown');
-                                    $addNewBtn.trigger('click');
-                                    return false;
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Handle Enter key press for product_name_item - trigger Add New button
-                    if (selectId === 'product_name_item') {
-                        $searchInput.off('keydown.productNameEnter').on('keydown.productNameEnter', function(e) {
-                            if (e.key === 'Enter' || e.keyCode === 13) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                
-                                const searchText = $(this).val().trim();
-                                
-                                // Check if Add New button exists
-                                const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="product_name_item"]');
-                                if ($addNewBtn.length) {
-                                    // Trigger the button click
-                                    $addNewBtn.trigger('mousedown');
-                                    $addNewBtn.trigger('click');
-                                    return false;
-                                } else if (searchText) {
-                                    // If button doesn't exist but there's search text, check for no results
-                                    const $noResultsMsg = $('.select2-container--open').find('.select2-results__message');
-                                    const $results = $('.select2-container--open').find('.select2-results__option--selectable:not(.select2-results__option--loading)');
-                                    const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
-                                                        ($results.length === 0 && searchText.length > 0);
+                                if (hasNoResults) {
+                                    // Close Select2 dropdown
+                                    $('#' + selectId).select2('close');
                                     
-                                    if (hasNoResults) {
-                                        // Close Select2 dropdown
-                                        $('#product_name_item').select2('close');
-                                        
-                                        // Store search term
-                                        if (!window.lastSearchTerm) {
-                                            window.lastSearchTerm = {};
-                                        }
-                                        window.lastSearchTerm['product_name_item'] = searchText;
-                                        window.activeSelectSearch = {
-                                            selectId: 'product_name_item',
-                                            searchTerm: searchText,
-                                            hasNoResults: true
-                                        };
-                                        window.productNameSubtitle = 'PRODUCT NAME:';
-                                        
-                                        // Open universal modal
-                                        const $addButton = $('#product_name_item').closest('.input-group').find('.open-universal-modal[data-mode="add"]');
-                                        if ($addButton.length) {
-                                            $addButton.trigger('click');
-                                        } else {
-                                            // Fallback: manually open modal with config
-                                            $('#universal-add-modal').modal('show');
-                                            // Set form data will be handled by existing modal handlers
-                                        }
-                                        return false;
+                                    // Store search term
+                                    if (!window.lastSearchTerm) {
+                                        window.lastSearchTerm = {};
                                     }
+                                    window.lastSearchTerm[selectId] = searchText;
+                                    window.activeSelectSearch = {
+                                        selectId: selectId,
+                                        searchTerm: searchText,
+                                        hasNoResults: true
+                                    };
+                                    
+                                    // Set specific subtitles for known dropdowns
+                                    if (selectId === 'product_name_item') {
+                                        window.productNameSubtitle = 'PRODUCT NAME:';
+                                    } else if (selectId === 'part_number_id') {
+                                        window.partNumberSubtitle = 'PART NUMBER:';
+                                    }
+                                    
+                                    // Open universal modal - try to find Add button first
+                                    const $addButton = $('#' + selectId).closest('.input-group').find('.open-universal-modal[data-mode="add"]');
+                                    if ($addButton.length) {
+                                        $addButton.trigger('click');
+                                    } else {
+                                        // Fallback: manually open modal with config
+                                        // The modal handlers will use activeSelectSearch to pre-fill the form
+                                        $('#universal-add-modal').modal('show');
+                                    }
+                                    return false;
                                 }
                             }
-                        });
-                    }
+                        }
+                    });
                     
                     // Monitor Select2 results for "No results found" - check every 200ms
                     let checkNoResultsInterval = setInterval(function() {
@@ -5013,14 +4986,8 @@
                     // Clear interval when dropdown closes
                     $(document).one('select2:close', '#' + selectId, function() {
                         clearInterval(checkNoResultsInterval);
-                        // Remove Enter key handler when dropdown closes for unit_parts
-                        if (selectId === 'unit_parts') {
-                            $searchInput.off('keydown.unitEnter');
-                        }
-                        // Remove Enter key handler when dropdown closes for product_name_item
-                        if (selectId === 'product_name_item') {
-                            $searchInput.off('keydown.productNameEnter');
-                        }
+                        // Remove Enter key handler when dropdown closes (works for all dropdowns)
+                        $searchInput.off('keydown.dropdownEnter');
                         // Remove button from inside Select2 dropdown
                         const $selectContainer = $('#' + selectId).next('.select2-container');
                         if ($selectContainer.length) {
