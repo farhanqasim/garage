@@ -6107,6 +6107,27 @@
                         $select.trigger('change');
                     }
                     
+                    // Hide modal immediately after success
+                    const $modal = $('#universal-add-modal');
+                    if ($modal.length) {
+                        // Try Bootstrap 5 method first
+                        const modalInstance = bootstrap.Modal.getInstance($modal[0]);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        } else {
+                            // Fallback to jQuery method (Bootstrap 4)
+                            $modal.modal('hide');
+                        }
+                    }
+                    
+                    // Reset form
+                    $('#universal-form')[0].reset();
+                    
+                    // 🔊 Play save sound when dropdown option is saved
+                    if (typeof playSaveSound === 'function') {
+                        playSaveSound();
+                    }
+                    
                     // If Select2 is initialized, refresh it to reflect the changes and show selected value
                     if ($select.hasClass('select2-hidden-accessible')) {
                         // Close Select2 if open
@@ -6117,13 +6138,6 @@
                         setTimeout(function() {
                             $select.val(res.id).trigger('change.select2');
                         }, 200);
-                    }
-                    
-                    $('#universal-add-modal').modal('hide');
-                    $('#universal-form')[0].reset();
-                    // 🔊 Play save sound when dropdown option is saved
-                    if (typeof playSaveSound === 'function') {
-                        playSaveSound();
                     }
                 },
                 error: function(xhr) {
