@@ -408,9 +408,7 @@
                             throw new Error(optionsData.message || 'Failed to get login options');
                         }
 
-                        const options = optionsData.options;
-
-                        // Convert base64url to ArrayBuffer
+                        // Convert base64url to ArrayBuffer (define functions first)
                         function base64urlToArrayBuffer(base64url) {
                             const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
                             const binary = atob(base64);
@@ -430,6 +428,83 @@
                             }
                             return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
                         }
+
+                        // Check if this is registration mode
+                        if (optionsData.mode === 'register') {
+                            // Handle registration
+                            const options = optionsData.options;
+                            
+                            // Prepare public key credential creation options
+                            const publicKeyCredentialCreationOptions = {
+                                challenge: base64urlToArrayBuffer(options.challenge),
+                                rp: options.rp,
+                                user: {
+                                    id: base64urlToArrayBuffer(options.user.id),
+                                    name: options.user.name,
+                                    displayName: options.user.displayName
+                                },
+                                pubKeyCredParams: options.pubKeyCredParams,
+                                timeout: options.timeout,
+                                attestation: options.attestation,
+                                authenticatorSelection: options.authenticatorSelection
+                            };
+
+                            // Request credential creation
+                            const credential = await navigator.credentials.create({
+                                publicKey: publicKeyCredentialCreationOptions
+                            });
+
+                            if (!credential) {
+                                throw new Error('Registration cancelled or failed');
+                            }
+
+                            // Prepare response for server
+                            const response = {
+                                id: arrayBufferToBase64url(credential.rawId),
+                                type: credential.type,
+                                response: {
+                                    attestationObject: arrayBufferToBase64url(credential.response.attestationObject),
+                                    clientDataJSON: arrayBufferToBase64url(credential.response.clientDataJSON)
+                                }
+                            };
+
+                            // Verify registration with server
+                            const verifyResponse = await fetch('{{ route("webauthn.register.verify") }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    credential: response,
+                                    device_name: navigator.userAgent || 'Unknown Device',
+                                    remember: document.getElementById('remember') ? document.getElementById('remember').checked : false
+                                }),
+                                credentials: 'same-origin'
+                            });
+
+                            // Check if response is JSON
+                            const verifyContentType = verifyResponse.headers.get('content-type');
+                            if (!verifyContentType || !verifyContentType.includes('application/json')) {
+                                const text = await verifyResponse.text();
+                                console.error('Non-JSON response:', text);
+                                throw new Error('Server returned an error. Please check your connection and try again.');
+                            }
+
+                            const verifyData = await verifyResponse.json();
+
+                            if (!verifyData.success) {
+                                throw new Error(verifyData.message || 'Registration verification failed');
+                            }
+
+                            // Redirect to dashboard
+                            window.location.href = verifyData.redirect || '/home';
+                            return; // Exit early
+                        }
+
+                        // Continue with login flow
+                        const options = optionsData.options;
 
                         // Prepare public key credential request options
                         const publicKeyCredentialRequestOptions = {
