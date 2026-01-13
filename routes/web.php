@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VehicalTypeController;
 use App\Http\Controllers\Admin\WarehouseController;
+use App\Http\Controllers\Auth\WebAuthnController;
 
 /*
 |--------------------------------------------------------------------------
