@@ -6094,37 +6094,82 @@
                         });
                     }
                     
-                    // Apply type filtering to all dropdowns to ensure new item only shows in matching type dropdowns
-                    if (currentSelectedType) {
-                        // Re-apply type filtering to all dropdowns
-                        setTimeout(function() {
-                            filterDropdownsByType(currentSelectedType);
-                            // Ensure the newly added item remains selected
-                            $select.val(res.id).trigger('change');
-                        }, 150);
-                    } else {
-                        // If no type selected, just trigger change
-                        $select.trigger('change');
-                    }
+                    // First, ensure the item is selected in the dropdown immediately
+                    $select.val(res.id);
                     
-                    // If Select2 is initialized, refresh it to reflect the changes and show selected value
+                    // If Select2 is initialized, update it immediately to show selected value
                     if ($select.hasClass('select2-hidden-accessible')) {
                         // Close Select2 if open
                         if ($select.next('.select2-container').hasClass('select2-container--open')) {
                             $select.select2('close');
                         }
-                        // Refresh Select2 to show the selected value
-                        setTimeout(function() {
-                            $select.val(res.id).trigger('change.select2');
-                        }, 200);
+                        // Update Select2 to show the selected value
+                        $select.trigger('change.select2');
+                    } else {
+                        // For regular select, trigger change
+                        $select.trigger('change');
                     }
                     
-                    $('#universal-add-modal').modal('hide');
-                    $('#universal-form')[0].reset();
+                    // Show success message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success('Item saved successfully and selected in dropdown!');
+                    }
+                    
                     // 🔊 Play save sound when dropdown option is saved
                     if (typeof playSaveSound === 'function') {
                         playSaveSound();
                     }
+                    
+                    // Apply type filtering to all dropdowns to ensure new item only shows in matching type dropdowns
+                    if (currentSelectedType) {
+                        // Re-apply type filtering to all dropdowns
+                        setTimeout(function() {
+                            filterDropdownsByType(currentSelectedType);
+                            // Ensure the newly added item remains selected after filtering
+                            $select.val(res.id).trigger('change');
+                            if ($select.hasClass('select2-hidden-accessible')) {
+                                $select.trigger('change.select2');
+                            }
+                        }, 100);
+                    }
+                    
+                    // Hide modal after ensuring selection is visible (small delay)
+                    setTimeout(function() {
+                        const $modal = $('#universal-add-modal');
+                        if ($modal.length) {
+                            // Method 1: Try Bootstrap 5
+                            if (typeof bootstrap !== 'undefined') {
+                                try {
+                                    const modalInstance = bootstrap.Modal.getInstance($modal[0]);
+                                    if (modalInstance) {
+                                        modalInstance.hide();
+                                    } else {
+                                        // Create new instance and hide
+                                        const newModal = new bootstrap.Modal($modal[0]);
+                                        newModal.hide();
+                                    }
+                                } catch(e) {
+                                    // Fallback to jQuery
+                                    $modal.modal('hide');
+                                }
+                            } else {
+                                // Method 2: jQuery/Bootstrap 4
+                                $modal.modal('hide');
+                            }
+                            
+                            // Method 3: Force hide by removing classes and adding display none (backup)
+                            setTimeout(function() {
+                                if ($modal.hasClass('show')) {
+                                    $modal.removeClass('show').css('display', 'none');
+                                    $('body').removeClass('modal-open');
+                                    $('.modal-backdrop').remove();
+                                }
+                            }, 50);
+                        }
+                        
+                        // Reset form after modal is hidden
+                        $('#universal-form')[0].reset();
+                    }, 300);
                 },
                 error: function(xhr) {
                     console.error('AJAX error', xhr);
