@@ -48,6 +48,12 @@ Auth::routes();
 // Get user branch by email (for login form auto-detection)
 Route::post('/get-user-branch', [LoginController::class, 'getUserBranchByEmail'])->name('get.user.branch');
 
+// WebAuthn Routes
+Route::prefix('webauthn')->name('webauthn.')->group(function () {
+    Route::post('/login/options', [WebAuthnController::class, 'getLoginOptions'])->name('login.options');
+    Route::post('/login/verify', [WebAuthnController::class, 'verifyLogin'])->name('login.verify');
+});
+
 // Branch selection route (requires authentication)
 Route::middleware('auth')->group(function () {
     Route::get('/branch/select', function () {

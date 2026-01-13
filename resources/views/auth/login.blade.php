@@ -97,6 +97,13 @@
                                             <button type="submit" class="btn btn-login w-100">Sign In</button>
                                         </div>
 
+                                        <!-- WebAuthn / Fingerprint Login -->
+                                        <div class="form-login mb-3">
+                                            <button type="button" id="webauthnLoginBtn" class="btn btn-outline-primary w-100" style="display: none;">
+                                                <i class="ti ti-fingerprint me-2"></i> Login with Fingerprint
+                                            </button>
+                                        </div>
+
                                         <!-- Forgot Password -->
 
 
@@ -339,4 +346,159 @@
             </div>
         </div>
     </div>
+
+    <!-- WebAuthn Login Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const webauthnBtn = document.getElementById('webauthnLoginBtn');
+            const emailInput = document.getElementById('emailInput');
+            
+            // Check if WebAuthn is supported
+            if (!window.PublicKeyCredential) {
+                console.log('WebAuthn not supported in this browser');
+                return;
+            }
+
+            // Show button if WebAuthn is supported
+            if (webauthnBtn) {
+                webauthnBtn.style.display = 'block';
+            }
+
+            // Handle WebAuthn login button click
+            if (webauthnBtn) {
+                webauthnBtn.addEventListener('click', async function() {
+                    const email = emailInput ? emailInput.value.trim() : '';
+                    
+                    if (!email || !email.includes('@')) {
+                        alert('Please enter your email address first');
+                        if (emailInput) {
+                            emailInput.focus();
+                        }
+                        return;
+                    }
+
+                    try {
+                        // Disable button during authentication
+                        webauthnBtn.disabled = true;
+                        webauthnBtn.innerHTML = '<i class="ti ti-loader spinner-border spinner-border-sm me-2"></i> Authenticating...';
+
+                        // Step 1: Get login options from server
+                        const optionsResponse = await fetch('{{ route("webauthn.login.options") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ email: email })
+                        });
+
+                        const optionsData = await optionsResponse.json();
+
+                        if (!optionsData.success) {
+                            throw new Error(optionsData.message || 'Failed to get login options');
+                        }
+
+                        const options = optionsData.options;
+
+                        // Convert base64url to ArrayBuffer
+                        function base64urlToArrayBuffer(base64url) {
+                            const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+                            const binary = atob(base64);
+                            const bytes = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) {
+                                bytes[i] = binary.charCodeAt(i);
+                            }
+                            return bytes.buffer;
+                        }
+
+                        // Convert ArrayBuffer to base64url
+                        function arrayBufferToBase64url(buffer) {
+                            const bytes = new Uint8Array(buffer);
+                            let binary = '';
+                            for (let i = 0; i < bytes.length; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+                        }
+
+                        // Prepare public key credential request options
+                        const publicKeyCredentialRequestOptions = {
+                            challenge: base64urlToArrayBuffer(options.challenge),
+                            timeout: options.timeout,
+                            rpId: options.rpId,
+                            allowCredentials: options.allowCredentials.map(cred => ({
+                                id: base64urlToArrayBuffer(cred.id),
+                                type: cred.type,
+                                transports: cred.transports || ['usb', 'nfc', 'ble', 'internal']
+                            })),
+                            userVerification: options.userVerification || 'preferred'
+                        };
+
+                        // Step 2: Request authentication from authenticator
+                        const credential = await navigator.credentials.get({
+                            publicKey: publicKeyCredentialRequestOptions
+                        });
+
+                        if (!credential) {
+                            throw new Error('Authentication cancelled or failed');
+                        }
+
+                        // Step 3: Prepare response for server
+                        const response = {
+                            id: arrayBufferToBase64url(credential.rawId),
+                            type: credential.type,
+                            response: {
+                                authenticatorData: arrayBufferToBase64url(credential.response.authenticatorData),
+                                clientDataJSON: arrayBufferToBase64url(credential.response.clientDataJSON),
+                                signature: arrayBufferToBase64url(credential.response.signature),
+                                userHandle: credential.response.userHandle ? arrayBufferToBase64url(credential.response.userHandle) : null
+                            }
+                        };
+
+                        // Step 4: Verify with server
+                        const verifyResponse = await fetch('{{ route("webauthn.login.verify") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                credential: response,
+                                remember: document.getElementById('remember') ? document.getElementById('remember').checked : false
+                            })
+                        });
+
+                        const verifyData = await verifyResponse.json();
+
+                        if (!verifyData.success) {
+                            throw new Error(verifyData.message || 'Authentication verification failed');
+                        }
+
+                        // Step 5: Redirect to dashboard
+                        window.location.href = verifyData.redirect || '/home';
+
+                    } catch (error) {
+                        console.error('WebAuthn error:', error);
+                        
+                        let errorMessage = 'Authentication failed';
+                        if (error.name === 'NotAllowedError') {
+                            errorMessage = 'Authentication was cancelled or not allowed';
+                        } else if (error.name === 'InvalidStateError') {
+                            errorMessage = 'This credential is already registered or invalid';
+                        } else if (error.name === 'NotSupportedError') {
+                            errorMessage = 'WebAuthn is not supported on this device';
+                        } else if (error.message) {
+                            errorMessage = error.message;
+                        }
+
+                        alert(errorMessage);
+                        
+                        // Reset button
+                        webauthnBtn.disabled = false;
+                        webauthnBtn.innerHTML = '<i class="ti ti-fingerprint me-2"></i> Login with Fingerprint';
+                    }
+                });
+            }
+        });
+    </script>
 @endsection
