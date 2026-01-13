@@ -387,10 +387,20 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
                             },
-                            body: JSON.stringify({ email: email })
+                            body: JSON.stringify({ email: email }),
+                            credentials: 'same-origin'
                         });
+
+                        // Check if response is JSON
+                        const contentType = optionsResponse.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            const text = await optionsResponse.text();
+                            console.error('Non-JSON response:', text);
+                            throw new Error('Server returned an error. Please check your connection and try again.');
+                        }
 
                         const optionsData = await optionsResponse.json();
 
@@ -460,13 +470,23 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
                             },
                             body: JSON.stringify({
                                 credential: response,
                                 remember: document.getElementById('remember') ? document.getElementById('remember').checked : false
-                            })
+                            }),
+                            credentials: 'same-origin'
                         });
+
+                        // Check if response is JSON
+                        const verifyContentType = verifyResponse.headers.get('content-type');
+                        if (!verifyContentType || !verifyContentType.includes('application/json')) {
+                            const text = await verifyResponse.text();
+                            console.error('Non-JSON response:', text);
+                            throw new Error('Server returned an error. Please check your connection and try again.');
+                        }
 
                         const verifyData = await verifyResponse.json();
 
