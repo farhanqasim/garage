@@ -318,11 +318,24 @@ class WebAuthnController extends Controller
 
     /**
      * Get Relying Party ID (your domain).
+     * Must match the current domain exactly or be a valid parent domain.
      */
     private function getRpId()
     {
-        $host = parse_url(config('app.url'), PHP_URL_HOST);
-        return $host ?: request()->getHost();
+        // Get the current request host (most reliable)
+        $currentHost = request()->getHost();
+        
+        // Remove port number if present (WebAuthn rpId doesn't include ports)
+        $currentHost = preg_replace('/:\d+$/', '', $currentHost);
+        
+        // Special handling for localhost/127.0.0.1
+        if ($currentHost === 'localhost' || $currentHost === '127.0.0.1' || $currentHost === '::1') {
+            return 'localhost';
+        }
+        
+        // For production, use the actual domain from request
+        // This ensures rpId matches the current domain exactly
+        return $currentHost;
     }
 
     /**
