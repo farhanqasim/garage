@@ -600,12 +600,7 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add group"
-                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-
+                                        {{-- Add button removed --}}
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
@@ -669,13 +664,7 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
-                                            data-mode="add"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
+                                        {{-- Add button removed --}}
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
                                             x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
@@ -6041,135 +6030,16 @@
                         }
                         return;
                     }
-                    
-                    // Get the type from response or form
-                    const itemType = res.type || $('#universal-type').val() || getCurrentSelectedType() || '';
-                    const currentSelectedType = getCurrentSelectedType();
-                    
-                    // Create option with type attribute for current select (will be selected)
                     const option = new Option(res.name, res.id, true, true);
-                    const $option = $(option);
-                    $option.attr('data-type', itemType);
-                    
-                    // Remove existing option if any from current select
+                    const $select = $(currentTargetSelect);
                     $select.find(`option[value="${res.id}"]`).remove();
-                    
-                    // Add and select the new option in current select
-                    $select.append(option).val(res.id);
-                    
-                    // Find all selects with the same class
-                    const selectClass = $select.attr('class').split(' ').find(cls => cls.includes('-select') && cls !== 'searchable-select' && cls !== 'form-control');
-                    
-                    if (selectClass && itemType && currentSelectedType) {
-                        // Only add to other selects if type matches - this ensures item only shows in its type's dropdowns
-                        $(`.${selectClass}`).each(function() {
-                            const $otherSelect = $(this);
-                            
-                            // Skip if this is the current select (already handled)
-                            if ($otherSelect.is($select)) {
-                                return;
-                            }
-                            
-                            const $existingOption = $otherSelect.find(`option[value="${res.id}"]`);
-                            
-                            // Only add/update if type matches the current selected type
-                            if (itemType === currentSelectedType) {
-                                if ($existingOption.length) {
-                                    // Update existing option's type and show it
-                                    $existingOption.attr('data-type', itemType);
-                                    $existingOption.show().prop('disabled', false);
-                                } else {
-                                    // Add new option only if type matches
-                                    const newOption = new Option(res.name, res.id, false, false);
-                                    const $newOption = $(newOption);
-                                    $newOption.attr('data-type', itemType);
-                                    $otherSelect.append($newOption);
-                                }
-                            } else {
-                                // Hide/remove if type doesn't match - don't show in other types
-                                if ($existingOption.length) {
-                                    $existingOption.hide().prop('disabled', true);
-                                }
-                            }
-                        });
-                    }
-                    
-                    // First, ensure the item is selected in the dropdown immediately
-                    $select.val(res.id);
-                    
-                    // If Select2 is initialized, update it immediately to show selected value
-                    if ($select.hasClass('select2-hidden-accessible')) {
-                        // Close Select2 if open
-                        if ($select.next('.select2-container').hasClass('select2-container--open')) {
-                            $select.select2('close');
-                        }
-                        // Update Select2 to show the selected value
-                        $select.trigger('change.select2');
-                    } else {
-                        // For regular select, trigger change
-                        $select.trigger('change');
-                    }
-                    
-                    // Show success message
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success('Item saved successfully and selected in dropdown!');
-                    }
-                    
+                    $select.append(option).val(res.id).trigger('change');
+                    $('#universal-add-modal').modal('hide');
+                    $('#universal-form')[0].reset();
                     // 🔊 Play save sound when dropdown option is saved
                     if (typeof playSaveSound === 'function') {
                         playSaveSound();
                     }
-                    
-                    // Apply type filtering to all dropdowns to ensure new item only shows in matching type dropdowns
-                    if (currentSelectedType) {
-                        // Re-apply type filtering to all dropdowns
-                        setTimeout(function() {
-                            filterDropdownsByType(currentSelectedType);
-                            // Ensure the newly added item remains selected after filtering
-                            $select.val(res.id).trigger('change');
-                            if ($select.hasClass('select2-hidden-accessible')) {
-                                $select.trigger('change.select2');
-                            }
-                        }, 100);
-                    }
-                    
-                    // Hide modal after ensuring selection is visible (small delay)
-                    setTimeout(function() {
-                        const $modal = $('#universal-add-modal');
-                        if ($modal.length) {
-                            // Method 1: Try Bootstrap 5
-                            if (typeof bootstrap !== 'undefined') {
-                                try {
-                                    const modalInstance = bootstrap.Modal.getInstance($modal[0]);
-                                    if (modalInstance) {
-                                        modalInstance.hide();
-                                    } else {
-                                        // Create new instance and hide
-                                        const newModal = new bootstrap.Modal($modal[0]);
-                                        newModal.hide();
-                                    }
-                                } catch(e) {
-                                    // Fallback to jQuery
-                                    $modal.modal('hide');
-                                }
-                            } else {
-                                // Method 2: jQuery/Bootstrap 4
-                                $modal.modal('hide');
-                            }
-                            
-                            // Method 3: Force hide by removing classes and adding display none (backup)
-                            setTimeout(function() {
-                                if ($modal.hasClass('show')) {
-                                    $modal.removeClass('show').css('display', 'none');
-                                    $('body').removeClass('modal-open');
-                                    $('.modal-backdrop').remove();
-                                }
-                            }, 50);
-                        }
-                        
-                        // Reset form after modal is hidden
-                        $('#universal-form')[0].reset();
-                    }, 300);
                 },
                 error: function(xhr) {
                     console.error('AJAX error', xhr);
