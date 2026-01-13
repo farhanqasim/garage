@@ -482,6 +482,3 @@ Route::get('/suppliers/{supplier}/ledger', [SupplierController::class, 'getSuppl
 Route::get('/suppliers/{supplier}/ledger-pdf', [SupplierController::class, 'generateSupplierLedgerPDF'])->name('suppliers.ledger.pdf');
 Route::get('/suppliers/{supplier}/purchase-detail-history', [SupplierController::class, 'getPurchaseDetailHistory'])->name('suppliers.purchase.detail.history');
 Route::delete('/suppliers/{supplier}', [SupplierController::class, 'supplier_delete'])->name('suppliers.delete');
-
-
-// fs
