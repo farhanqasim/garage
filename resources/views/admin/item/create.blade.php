@@ -481,7 +481,7 @@
                                 <div class="col-md-4 mb-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
                             <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Part Number:</label>
+                                            <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Part Number:" style="font-weight: 900 !important;">Part Number:</label>
                                             <div id="partNumberStats" class="d-flex gap-1 ms-2" style="display: none !important;">
                                         <!-- Stats badges will be inserted here -->
                                     </div>
@@ -517,7 +517,7 @@
                                     x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name:</label>
+                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Product Name:" style="font-weight: 900 !important;">Product Name:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -548,7 +548,7 @@
                                 <div class="col-md-4 mb-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad' ">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="category" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Category:</label>
+                                            <label for="category" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Category:" style="font-weight: 900 !important;">Category:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -587,7 +587,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4 mb-3" x-show="selectedType === 'battery'">
-                                    <label for="group_select">Group Name:</label>
+                                    <label for="group_select" class="dynamic-label" data-original="Group Name:">Group Name:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control group-select searchable-select @error('group') is-invalid @enderror"
@@ -623,7 +623,7 @@
                                     x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="company_parts" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Company:</label>
+                                            <label for="company_parts" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Company:" style="font-weight: 900 !important;">Company:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -701,7 +701,7 @@
                                 <div class="col-md-4">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="quality" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Quality:</label>
+                                            <label for="quality" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Quality:" style="font-weight: 900 !important;">Quality:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -3993,6 +3993,7 @@
                 // Filter dropdowns on initial load if type is already selected
                 if (this.selectedType) {
                     setTimeout(() => {
+                        updateLabelsWithType(this.selectedType);
                         filterDropdownsByType(this.selectedType);
                     }, 500);
                 }
@@ -4003,6 +4004,8 @@
                     if (oldType && oldType !== newType) {
                         clearAllFormFields();
                     }
+                    // Update all labels with selected type
+                    updateLabelsWithType(newType);
                     // Filter all dropdowns based on selected type
                     filterDropdownsByType(newType);
                 });
@@ -4015,6 +4018,9 @@
                 
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
+                
+                // Update all labels with selected type
+                updateLabelsWithType(type);
                 
                 // Filter dropdowns by selected type
                 filterDropdownsByType(type);
@@ -4104,6 +4110,30 @@
         loadAllItemsByType();
     });
 
+    // Function to update labels with selected type
+    function updateLabelsWithType(selectedType) {
+        // Capitalize first letter of type for display
+        const typeDisplay = selectedType ? selectedType.charAt(0).toUpperCase() + selectedType.slice(1) : '';
+        
+        // Update all labels with dynamic-label class
+        $('.dynamic-label').each(function() {
+            const $label = $(this);
+            const originalText = $label.data('original') || $label.text().replace(/^[A-Za-z]+\s+/, '');
+            
+            // Store original if not already stored
+            if (!$label.data('original')) {
+                $label.data('original', originalText);
+            }
+            
+            // Update label text
+            if (selectedType && typeDisplay) {
+                $label.text(typeDisplay + ' ' + originalText);
+            } else {
+                $label.text(originalText);
+            }
+        });
+    }
+    
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
         console.log('Filtering dropdowns by type:', selectedType);
