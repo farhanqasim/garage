@@ -4651,8 +4651,62 @@
                 if ($searchInput.length) {
                     $searchInput[0].focus();
                     $searchInput[0].select();
+                    
+                    // Handle Enter key press for product_name_item - trigger Add New button or open modal
+                    $searchInput.off('keydown.productNameEnter').on('keydown.productNameEnter', function(e) {
+                        if (e.key === 'Enter' || e.keyCode === 13) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            const searchText = $(this).val().trim();
+                            
+                            // Check if Add New button exists
+                            const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="product_name_item"]');
+                            if ($addNewBtn.length) {
+                                // Trigger the button click
+                                $addNewBtn.trigger('mousedown');
+                                $addNewBtn.trigger('click');
+                                return false;
+                            } else if (searchText) {
+                                // If button doesn't exist but there's search text, check for no results
+                                const $openSelect2 = $('.select2-container--open');
+                                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                                const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                                    ($results.length === 0 && searchText.length > 0);
+                                
+                                if (hasNoResults) {
+                                    // Close Select2 dropdown
+                                    $('#product_name_item').select2('close');
+                                    
+                                    // Store search term
+                                    if (!window.lastSearchTerm) {
+                                        window.lastSearchTerm = {};
+                                    }
+                                    window.lastSearchTerm['product_name_item'] = searchText;
+                                    window.activeSelectSearch = {
+                                        selectId: 'product_name_item',
+                                        searchTerm: searchText,
+                                        hasNoResults: true
+                                    };
+                                    window.productNameSubtitle = 'PRODUCT NAME:';
+                                    
+                                    // Open universal modal
+                                    const $addButton = $('#product_name_item').closest('.input-group').find('.open-universal-modal[data-mode="add"]');
+                                    if ($addButton.length) {
+                                        $addButton.trigger('click');
+                                    } else {
+                                        // Fallback: manually open modal with config
+                                        $('#universal-add-modal').modal('show');
+                                        // Set form data will be handled by existing modal handlers
+                                    }
+                                    return false;
+                                }
+                            }
                         }
-                    }, 100);
+                    });
+                }
+            }, 100);
         });
         
         // =========================
@@ -4891,6 +4945,61 @@
                         });
                     }
                     
+                    // Handle Enter key press for product_name_item - trigger Add New button
+                    if (selectId === 'product_name_item') {
+                        $searchInput.off('keydown.productNameEnter').on('keydown.productNameEnter', function(e) {
+                            if (e.key === 'Enter' || e.keyCode === 13) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                const searchText = $(this).val().trim();
+                                
+                                // Check if Add New button exists
+                                const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="product_name_item"]');
+                                if ($addNewBtn.length) {
+                                    // Trigger the button click
+                                    $addNewBtn.trigger('mousedown');
+                                    $addNewBtn.trigger('click');
+                                    return false;
+                                } else if (searchText) {
+                                    // If button doesn't exist but there's search text, check for no results
+                                    const $noResultsMsg = $('.select2-container--open').find('.select2-results__message');
+                                    const $results = $('.select2-container--open').find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                                    const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                                        ($results.length === 0 && searchText.length > 0);
+                                    
+                                    if (hasNoResults) {
+                                        // Close Select2 dropdown
+                                        $('#product_name_item').select2('close');
+                                        
+                                        // Store search term
+                                        if (!window.lastSearchTerm) {
+                                            window.lastSearchTerm = {};
+                                        }
+                                        window.lastSearchTerm['product_name_item'] = searchText;
+                                        window.activeSelectSearch = {
+                                            selectId: 'product_name_item',
+                                            searchTerm: searchText,
+                                            hasNoResults: true
+                                        };
+                                        window.productNameSubtitle = 'PRODUCT NAME:';
+                                        
+                                        // Open universal modal
+                                        const $addButton = $('#product_name_item').closest('.input-group').find('.open-universal-modal[data-mode="add"]');
+                                        if ($addButton.length) {
+                                            $addButton.trigger('click');
+                                        } else {
+                                            // Fallback: manually open modal with config
+                                            $('#universal-add-modal').modal('show');
+                                            // Set form data will be handled by existing modal handlers
+                                        }
+                                        return false;
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    
                     // Monitor Select2 results for "No results found" - check every 200ms
                     let checkNoResultsInterval = setInterval(function() {
                 const $openSelect2 = $('.select2-container--open');
@@ -4907,6 +5016,10 @@
                         // Remove Enter key handler when dropdown closes for unit_parts
                         if (selectId === 'unit_parts') {
                             $searchInput.off('keydown.unitEnter');
+                        }
+                        // Remove Enter key handler when dropdown closes for product_name_item
+                        if (selectId === 'product_name_item') {
+                            $searchInput.off('keydown.productNameEnter');
                         }
                         // Remove button from inside Select2 dropdown
                         const $selectContainer = $('#' + selectId).next('.select2-container');
