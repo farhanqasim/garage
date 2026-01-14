@@ -4477,6 +4477,16 @@
         // Change modal title to "Edit Vehical"
         $('#vehical-modal-title').text('Edit Vehical');
         
+        // Show delete button and store vehicle configuration for deletion
+        $('#deleteVehicleBtn').show();
+        $('#deleteVehicleBtn').data('vehicle-config', {
+            part: $(this).data('part'),
+            manufacturer: $(this).data('manufacturer'),
+            model: $(this).data('model'),
+            engine: $(this).data('engine'),
+            country: $(this).data('country')
+        });
+        
         let yearRangesData = $(this).data('year-ranges');
         let yearRanges = [];
 
