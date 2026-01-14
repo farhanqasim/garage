@@ -412,6 +412,8 @@ Route::get('/vehicals/get', function() {return response()->json([
 
 Route::delete('/vehical/delete/{id}', [AddInputController::class, 'delete_vehical'])
     ->name('vehical.delete');
+Route::post('/vehical/delete-by-config', [AddInputController::class, 'delete_vehical_by_config'])
+    ->name('vehical.delete.by.config');
 Route::get('/search-vehicals-by-partnumber', [AddInputController::class, 'searchByPartNumber'])
     ->name('search.vehicals.by.partnumber');
 

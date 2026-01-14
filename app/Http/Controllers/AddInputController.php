@@ -932,6 +932,33 @@ class AddInputController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function delete_vehical_by_config(Request $request)
+    {
+        $request->validate([
+            'v_part_number_id' => 'required',
+            'car_manufacturer' => 'required',
+            'car_model_name' => 'required',
+            'engine_cc' => 'required',
+            'car_manufactured_country' => 'required',
+        ]);
+
+        // Delete all vehicles with this configuration
+        $deleted = VehicalType::where([
+            'v_part_number_id' => $request->v_part_number_id,
+            'car_manufacturer' => $request->car_manufacturer,
+            'car_model_name' => $request->car_model_name,
+            'engine_cc' => $request->engine_cc,
+            'car_manufactured_country' => $request->car_manufactured_country,
+            'status' => 'active',
+        ])->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle configuration deleted successfully!',
+            'deleted_count' => $deleted
+        ]);
+    }
+
 
 
     public function post_services(Request $request)

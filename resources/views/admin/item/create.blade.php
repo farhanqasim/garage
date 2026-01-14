@@ -2138,8 +2138,8 @@
                 </div> --}}
         </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    Close
+                <button type="button" class="btn btn-danger" id="deleteVehicleBtn" style="display: none;">
+                    Delete
                 </button>
 
                 <button type="submit" class="btn btn-primary" data-action="save">
@@ -4192,6 +4192,8 @@
     // Reset modal title to "Add Vehical" when modal is hidden
     $('#vehical-add-modal').on('hidden.bs.modal', function() {
         $('#vehical-modal-title').text('Add Vehical');
+        $('#deleteVehicleBtn').hide();
+        $('#deleteVehicleBtn').removeData('vehicle-config');
     });
 
     // Remove error styling when part number is entered (both fields)
@@ -4600,6 +4602,69 @@
         $('#yearRangesContainer').html(yearRangeHtml);
         updateRemoveButtons();
         $('#vehical-add-modal').modal('show');
+    });
+
+    // Delete Vehicle Button
+    $(document).on('click', '#deleteVehicleBtn', function() {
+        let config = $(this).data('vehicle-config');
+        if (!config || !config.part || !config.manufacturer || !config.model || !config.engine || !config.country) {
+            toastr.error('Unable to delete vehicle. Configuration data is missing.');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this vehicle configuration? This action cannot be undone.')) {
+            return;
+        }
+        
+        // Delete all vehicles with this configuration
+        $.ajax({
+            url: "{{ route('vehical.delete.by.config') }}",
+            type: "POST",
+            data: {
+                _token: '{{ csrf_token() }}',
+                v_part_number_id: config.part,
+                car_manufacturer: config.manufacturer,
+                car_model_name: config.model,
+                engine_cc: config.engine,
+                car_manufactured_country: config.country
+            },
+            success: function(res) {
+                // Play delete sound
+                let deleteSound = document.getElementById('deleteSound');
+                if (deleteSound) {
+                    deleteSound.play().catch(function(error) {
+                        console.log('Error playing delete sound:', error);
+                    });
+                }
+                
+                toastr.success('Vehicle deleted successfully!');
+                
+                // Remove matching rows from table
+                $("#vehicleTable tbody tr").each(function() {
+                    let $row = $(this);
+                    let rowPart = $row.data('part');
+                    let rowManufacturer = $row.find('.editVehicleBtn').data('manufacturer');
+                    let rowModel = $row.find('.editVehicleBtn').data('model');
+                    let rowEngine = $row.find('.editVehicleBtn').data('engine');
+                    let rowCountry = $row.find('.editVehicleBtn').data('country');
+                    
+                    if (rowPart == config.part &&
+                        rowManufacturer == config.manufacturer &&
+                        rowModel == config.model &&
+                        rowEngine == config.engine &&
+                        rowCountry == config.country) {
+                        $row.remove();
+                    }
+                });
+                
+                // Close modal
+                $('#vehical-add-modal').modal('hide');
+            },
+            error: function(xhr) {
+                let response = xhr.responseJSON;
+                toastr.error(response?.message || 'Error deleting vehicle');
+            }
+        });
     });
 </script>
 <script>
