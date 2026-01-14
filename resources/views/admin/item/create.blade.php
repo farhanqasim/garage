@@ -1545,28 +1545,6 @@
                             </select>
                             @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-4 mt-3">
-                            <label for="vehical_id">Vehicle Type:</label>
-                            <div class="input-group inputswidth">
-                                <select class="form-control searchable-select @error('vehical_id') is-invalid @enderror"
-                                    name="vehical_id" id="vehical_id">
-                                    <option value="">Select Vehicle Type</option>
-                                    @foreach ($Vehicals as $vehicle)
-                                    <option value="{{ $vehicle->id }}">
-                                        {{ $vehicle->manutacturer_vehical->name??'-' }}
-                                        {{ $vehicle->model_vehical->name??'-' }}
-                                        {{ $vehicle->engine_vehical->name??'-' }}
-                                    </option>
-                                    @endforeach
-                                </select>
-                                <button type="button" class="btn btn-primary " data-bs-toggle="modal"
-                                    data-bs-target="#vehical-add-modal">
-                                    <i data-feather="plus" class="feather-plus"></i>
-                                </button>
-                            </div>
-                            @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-
-                        </div>
                         {{-- PART NUMBER SELECT --}}
 
                         {{-- VEHICLE TABLE --}}
