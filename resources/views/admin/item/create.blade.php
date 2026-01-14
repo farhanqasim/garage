@@ -2063,7 +2063,8 @@
                                 @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-6 mt-3 d-none">
+                            {{-- 6. Part Number ------------------------------------------------- --}}
+                            <div class="col-md-6 mt-3">
                                 <label for="part_number">Part Number: <span class="text-danger">*</span></label>
                                 <div class="input-group inputswidth">
                                     <select
@@ -2077,7 +2078,6 @@
                                         </option>
                                         @endforeach
                                     </select>
-
                                 </div>
                                 @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -3706,6 +3706,13 @@
 
     // Load Vehicle Button - Filter table and save if no match found
     $(document).on('click', '.loadVehicleBtn', function() {
+        // Check if part number is selected first
+        let selectedPartNumber = $('#part_number_id').val();
+        if (!selectedPartNumber || selectedPartNumber.trim() === '') {
+            toastr.warning('Please select Part Number first.');
+            return;
+        }
+        
         // First filter the table
         filterVehicleTable();
         
@@ -3719,12 +3726,11 @@
             let selectedModel = $('.car-model-select').val();
             let selectedEngine = $('.car-engine-select').val();
             let selectedCountry = $('.car-country-select').val();
-            let selectedPartNumber = $('#part_number_id').val();
             let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
             
             // Check if all required fields are filled
-            if (!selectedManufacturer || !selectedModel || !selectedEngine || !selectedCountry || !selectedPartNumber || selectedYearRanges.length === 0) {
-                toastr.warning('Please fill all fields (Manufacturer, Model, Engine, Country, Part Number, and Year Ranges) before loading.');
+            if (!selectedManufacturer || !selectedModel || !selectedEngine || !selectedCountry || selectedYearRanges.length === 0) {
+                toastr.warning('Please fill all fields (Manufacturer, Model, Engine, Country, and Year Ranges) before loading.');
                 return;
             }
             
@@ -4499,6 +4505,19 @@
         $('#engine_cc').val($(this).data('engine')).trigger('change');
         $('#part_number').val($(this).data('part')).trigger('change');
         $('#car_manufactured_country').val($(this).data('country')).trigger('change');
+        
+        // Ensure Select2 is properly initialized for part number dropdown
+        if ($('#part_number').hasClass('searchable-select')) {
+            // Reinitialize Select2 if needed
+            if ($('#part_number').next('.select2-container').length === 0) {
+                $('#part_number').select2({
+                    dropdownParent: $('#vehical-add-modal')
+                });
+            } else {
+                // Refresh Select2 to show selected value
+                $('#part_number').trigger('change.select2');
+            }
+        }
 
         // Build year range HTML
         let yearRangeHtml = '';
