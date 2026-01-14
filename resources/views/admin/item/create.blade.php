@@ -1328,11 +1328,11 @@
                                                     <div class="card border-success bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costUnitLabel">Unit Cost:</label>
-                                                            <div class="input-group input-group-lg">
-                                                                <span class="input-group-text bg-success text-white fw-bold">Rs.</span>
+                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
                                                                 <input type="number" step="0.01" id="costPrice" name="total_price"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromUnit('cost')">
+                                                                    oninput="calculateFromUnit('cost')" style="flex: 1;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1341,11 +1341,11 @@
                                                     <div class="card border-success bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costBaseLabel">Per Base Cost:</label>
-                                                            <div class="input-group input-group-lg">
-                                                                <span class="input-group-text bg-success text-white fw-bold">Rs.</span>
+                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
                                                                 <input type="number" step="0.01" id="baseCostPrice" name="price_per_unit"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromBase('cost')">
+                                                                    oninput="calculateFromBase('cost')" style="flex: 1;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1361,11 +1361,11 @@
                                                     <div class="card border-warning bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleUnitLabel">Unit Sale:</label>
-                                                            <div class="input-group input-group-lg">
-                                                                <span class="input-group-text bg-warning text-white fw-bold">Rs.</span>
+                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
                                                                 <input type="number" step="0.01" id="salePrice" name="sale_price"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromUnit('sale')">
+                                                                    oninput="calculateFromUnit('sale')" style="flex: 1;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1374,11 +1374,11 @@
                                                     <div class="card border-warning bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleBaseLabel">Per Base Sale:</label>
-                                                            <div class="input-group input-group-lg">
-                                                                <span class="input-group-text bg-warning text-white fw-bold">Rs.</span>
+                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
                                                                 <input type="number" step="0.01" id="baseSalePrice" name="sale_price_per_base"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromBase('sale')">
+                                                                    oninput="calculateFromBase('sale')" style="flex: 1;">
                                                             </div>
                                                         </div>
                                                     </div>
