@@ -263,6 +263,24 @@
         #vehicleTable td {
             padding: 0.5rem 0.25rem !important;
             font-size: 11px !important;
+            vertical-align: top;
+        }
+        #vehicleTable thead th {
+            padding: 0.75rem 0.5rem !important;
+            background-color: #212529 !important;
+        }
+        #vehicleTable thead th .input-group {
+            margin-top: 0.25rem;
+        }
+        #vehicleTable thead th .input-group .form-control {
+            border-radius: 0.25rem 0 0 0.25rem;
+        }
+        #vehicleTable thead th .input-group .btn {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0;
+        }
+        #vehicleTable thead th .input-group .btn:last-child {
+            border-radius: 0 0.25rem 0.25rem 0;
         }
         /* Year badges - smaller on mobile */
         .badge {
@@ -1329,10 +1347,10 @@
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costUnitLabel">Unit Cost:</label>
                                                             <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
+                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
                                                                 <input type="number" step="0.01" id="costPrice" name="total_price"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromUnit('cost')" style="flex: 1;">
+                                                                    oninput="calculateFromUnit('cost')" style="flex: 1; height: 100%;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1342,10 +1360,10 @@
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costBaseLabel">Per Base Cost:</label>
                                                             <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
+                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
                                                                 <input type="number" step="0.01" id="baseCostPrice" name="price_per_unit"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromBase('cost')" style="flex: 1;">
+                                                                    oninput="calculateFromBase('cost')" style="flex: 1; height: 100%;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1362,10 +1380,10 @@
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleUnitLabel">Unit Sale:</label>
                                                             <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
+                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
                                                                 <input type="number" step="0.01" id="salePrice" name="sale_price"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromUnit('sale')" style="flex: 1;">
+                                                                    oninput="calculateFromUnit('sale')" style="flex: 1; height: 100%;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1375,10 +1393,10 @@
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleBaseLabel">Per Base Sale:</label>
                                                             <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center;">Rs.</span>
+                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
                                                                 <input type="number" step="0.01" id="baseSalePrice" name="sale_price_per_base"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromBase('sale')" style="flex: 1;">
+                                                                    oninput="calculateFromBase('sale')" style="flex: 1; height: 100%;">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1557,13 +1575,151 @@
                                 <table class="table table-bordered" id="vehicleTable">
                                     <thead class="table-dark">
                                         <tr>
-                                            <th>Manufacturer</th>
-                                            <th>Model</th>
-                                            <th>Year</th>
-                                            <th>Engine</th>
-                                            <th>Country</th>
-                                            <th>Part Number</th>
-                                            <th>Action</th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Manufacturer</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carManufacturers as $manufacturer)
+                                                            <option value="{{ $manufacturer->id }}">{{ $manufacturer->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Manufacturer" data-mode="add"
+                                                            data-route="{{ route('post.car.manufacturer') }}"
+                                                            data-target-select=".car-manufacturer-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Manufacturer"
+                                                            data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
+                                                            data-update-route="{{ route('update.car.manufacturer', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.manufacturer', ':id') }}"
+                                                            data-target-select=".car-manufacturer-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Model</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carModels as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Car Model" data-mode="add"
+                                                            data-route="{{ route('post.car.model') }}"
+                                                            data-target-select=".car-model-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Car Model"
+                                                            data-fetch-route="{{ route('show.car.model', ':id') }}"
+                                                            data-update-route="{{ route('update.car.model', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.model', ':id') }}"
+                                                            data-target-select=".car-model-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Year</div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Engine</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($engineccs as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Engine CC" data-mode="add"
+                                                            data-route="{{ route('post.engine.cc') }}"
+                                                            data-target-select=".car-engine-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Engine CC"
+                                                            data-fetch-route="{{ route('show.engine_cc', ':id') }}"
+                                                            data-update-route="{{ route('update.engine_cc', ':id') }}"
+                                                            data-delete-route="{{ route('destory.engine_cc', ':id') }}"
+                                                            data-target-select=".car-engine-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Country</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carCountries as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Country" data-mode="add"
+                                                            data-route="{{ route('post.car.country') }}"
+                                                            data-target-select=".car-country-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Country"
+                                                            data-fetch-route="{{ route('show.car.country', ':id') }}"
+                                                            data-update-route="{{ route('update.car.country', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.country', ':id') }}"
+                                                            data-target-select=".car-country-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Part Number</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control part-number-table-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($partnumbers as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Part Number" data-mode="add"
+                                                            data-route="{{ route('post.partnumber') }}"
+                                                            data-target-select=".part-number-table-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Part Number"
+                                                            data-fetch-route="{{ route('show.partnumber', ':id') }}"
+                                                            data-update-route="{{ route('update.partnumber', ':id') }}"
+                                                            data-delete-route="{{ route('destory.partnumber', ':id') }}"
+                                                            data-target-select=".part-number-table-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Action</div>
+                                                </div>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -3478,58 +3634,13 @@
     // Part number is now a simple text input - no filtering needed
 </script>
 <script>
-    // Prevent modal from opening if part number is not selected
-    $(document).on('click', '[data-bs-target="#vehical-add-modal"]', function(e) {
-        let outsidePart = $('#part_number_id').val();
-        if (!outsidePart || outsidePart.trim() === '') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            e.stopPropagation();
-
-            // Highlight the part number field
-            $('#part_number_id').addClass('is-invalid');
-            toastr.warning('Please enter part number first.');
-            // Add visual feedback
-            $('#part_number_id').focus();
-            // Scroll to the part number field if needed
-            const $partNumberField = $('#part_number_id');
-            if ($partNumberField.length && $partNumberField.offset()) {
-            $('html, body').animate({
-                    scrollTop: $partNumberField.offset().top - 100
-            }, 300);
-            }
-            return false;
-        }
-    });
-
-    // When modal opens, pre-fill Part Number from the input field
-    // Also validate that part number is entered before allowing modal to show
-    $('#vehical-add-modal').on('show.bs.modal', function(e) {
-        let outsidePart = $('#part_number_id').val();
-        if (!outsidePart || outsidePart.trim() === '') {
-            e.preventDefault();
-            toastr.error('Please enter part number first.');
-            $('#part_number_id').addClass('is-invalid').focus();
-            const $partNumberField = $('#part_number_id');
-            if ($partNumberField.length && $partNumberField.offset()) {
-            $('html, body').animate({
-                    scrollTop: $partNumberField.offset().top - 100
-            }, 300);
-            }
-            return false;
-        }
-    });
-
+    // Allow modal to open without part number validation
+    // When modal opens, pre-fill Part Number from the input field if available
     $('#vehical-add-modal').on('shown.bs.modal', function() {
         let outsidePart = $('#part_number_id').val();
         if (outsidePart && outsidePart.trim() !== '') {
             $('#part_number').val(outsidePart.trim()).trigger('change');
             $('#part_number').removeClass('is-invalid');
-        } else {
-            // If somehow modal opened without part number, close it
-            $('#vehical-add-modal').modal('hide');
-            toastr.error('Please enter part number first.');
-            $('#part_number_id').addClass('is-invalid').focus();
         }
     });
 
@@ -3560,33 +3671,16 @@
         
         let form = this;
 
-        // Validate part number before form submission
+        // Get part number from modal or outside field (optional now)
         let partNumber = $('#part_number').val();
         let outsidePartNumber = $('#part_number_id').val();
 
-        // Check both fields (modal field and outside field)
-        if ((!partNumber || partNumber.trim() === '') &&
-            (!outsidePartNumber || outsidePartNumber.trim() === '')) {
-            toastr.error('Please enter part number first.');
-            // Add error styling to part number fields
-            $('#part_number').addClass('is-invalid');
-            $('#part_number_id').addClass('is-invalid');
-            // Focus on modal part number field
-            $('#part_number').focus();
-            // Scroll to the field if needed
-            const $modalContent = $('#part_number').closest('.modal-content');
-            if ($modalContent.length && $modalContent.offset()) {
-            $('html, body').animate({
-                    scrollTop: $modalContent.offset().top - 50
-            }, 300);
-            }
-            return false;
-        }
-
         // Use outside part number if modal part number is not set
         if (!partNumber || partNumber.trim() === '') {
-            partNumber = outsidePartNumber.trim();
-            $('#part_number').val(partNumber).trigger('change');
+            if (outsidePartNumber && outsidePartNumber.trim() !== '') {
+                partNumber = outsidePartNumber.trim();
+                $('#part_number').val(partNumber).trigger('change');
+            }
         }
 
         // Remove error styling if part number is entered
@@ -3594,6 +3688,14 @@
         $('#part_number_id').removeClass('is-invalid');
 
         let formData = new FormData(form);
+        
+        // Ensure part number is included in formData if available
+        if (partNumber && partNumber.trim() !== '') {
+            formData.set('v_part_number_id', partNumber);
+        } else if (outsidePartNumber && outsidePartNumber.trim() !== '') {
+            formData.set('v_part_number_id', outsidePartNumber.trim());
+        }
+        
         let submitType = $("#submit_type").val();
         let outsidePart = $('#part_number_id').val();
         $.ajax({
