@@ -3532,6 +3532,14 @@
         $('#part_number_id').removeClass('is-invalid');
 
         let formData = new FormData(form);
+        
+        // Ensure part number is included in formData if available
+        if (partNumber && partNumber.trim() !== '') {
+            formData.set('v_part_number_id', partNumber);
+        } else if (outsidePartNumber && outsidePartNumber.trim() !== '') {
+            formData.set('v_part_number_id', outsidePartNumber.trim());
+        }
+        
         let submitType = $("#submit_type").val();
         let outsidePart = $('#part_number_id').val();
         $.ajax({
