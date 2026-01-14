@@ -1597,6 +1597,27 @@
                                             </th>
                                             <th>
                                                 <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Country</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carCountries as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Country"
+                                                            data-fetch-route="{{ route('show.car.country', ':id') }}"
+                                                            data-update-route="{{ route('update.car.country', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.country', ':id') }}"
+                                                            data-target-select=".car-country-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
                                                     <button type="button" class="btn btn-sm btn-primary open-year-range-modal mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
                                                         <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
                                                         <span style="margin-left: 4px;">Year Range</span>
@@ -1627,27 +1648,7 @@
                                                     </div>
                                                 </div>
                                             </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Country</div>
-                                                    <div class="input-group inputswidth" style="min-width: 200px;">
-                                                        <select class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
-                                                            <option value="">Select</option>
-                                                            @foreach ($carCountries as $item)
-                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
-                                                            data-mode="edit" data-title="Edit Country"
-                                                            data-fetch-route="{{ route('show.car.country', ':id') }}"
-                                                            data-update-route="{{ route('update.car.country', ':id') }}"
-                                                            data-delete-route="{{ route('destory.car.country', ':id') }}"
-                                                            data-target-select=".car-country-select">
-                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </th>
+                                          
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Action</div>
