@@ -1619,11 +1619,13 @@
                                             </th>
                                             <th>
                                                 <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">YEAR RANGES</div>
-                                                    <button type="button" class="btn btn-sm btn-primary open-year-range-modal" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                    <button type="button" class="btn btn-sm btn-primary open-year-range-modal mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
                                                         <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
-                                                        <span style="margin-left: 4px;">Select Range</span>
+                                                        <span style="margin-left: 4px;">Year Range</span>
                                                     </button>
+                                                    <div id="selectedYearRangesDisplay" class="border rounded p-2" style="min-height: 40px; max-height: 80px; overflow-y: auto; background-color: #f8f9fa; font-size: 10px;">
+                                                        <div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>
+                                                    </div>
                                                 </div>
                                             </th>
                                             <th>
@@ -3727,17 +3729,38 @@
     $(document).on('click', '#applyYearRangeFilter', function() {
         // Collect all year ranges from the modal
         let filterRanges = [];
+        let displayRanges = [];
         $('#filterYearRangesContainer .filter-year-range-item').each(function() {
             let fromYear = $(this).find('.filter-year-from').val();
             let toYear = $(this).find('.filter-year-to').val();
             
             if (fromYear || toYear) {
+                let from = fromYear ? parseInt(fromYear) : 1900;
+                let to = toYear ? parseInt(toYear) : 2100;
                 filterRanges.push({
-                    from: fromYear ? parseInt(fromYear) : 1900,
-                    to: toYear ? parseInt(toYear) : 2100
+                    from: from,
+                    to: to
                 });
+                // Format for display
+                if (from === to) {
+                    displayRanges.push(from.toString());
+                } else {
+                    displayRanges.push(from + '-' + to);
+                }
             }
         });
+        
+        // Update display box
+        let displayBox = $('#selectedYearRangesDisplay');
+        if (displayRanges.length > 0) {
+            displayBox.html('<div style="display: flex; flex-wrap: wrap; gap: 4px;">' + 
+                displayRanges.map(function(range) {
+                    return '<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 4px 8px; border-radius: 4px; font-size: 10px;">' + range + '</span>';
+                }).join('') + 
+                '</div>');
+        } else {
+            displayBox.html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
+        }
         
         // Hide all rows first
         $("#vehicleTable tbody tr").hide();
