@@ -1672,27 +1672,6 @@
                                             </th>
                                             <th>
                                                 <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Part Number</div>
-                                                    <div class="input-group inputswidth" style="min-width: 200px;">
-                                                        <select class="form-control part-number-table-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
-                                                            <option value="">Select</option>
-                                                            @foreach ($partnumbers as $item)
-                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
-                                                            data-mode="edit" data-title="Edit Part Number"
-                                                            data-fetch-route="{{ route('show.partnumber', ':id') }}"
-                                                            data-update-route="{{ route('update.partnumber', ':id') }}"
-                                                            data-delete-route="{{ route('destory.partnumber', ':id') }}"
-                                                            data-target-select=".part-number-table-select">
-                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Action</div>
                                                     <button type="button" class="btn btn-sm btn-primary loadVehicleBtn" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
                                                         <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
@@ -1723,9 +1702,6 @@
                                             <td>{{ $car->engine_vehical->name ?? '-' }}</td>
 
                                             <td>{{ $car->country_vehical->name ?? '-' }}</td>
-
-                                            <td>{{ $car->vehical_part_number->name ?? '-' }}</td>
-
                                             <td>
                                                 <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
                                                     data-part="{{ $car->v_part_number_id }}"
@@ -3665,6 +3641,115 @@
     $(document).ready(function() {
         $("#vehicleTable tbody tr").hide();
     });
+
+    // Load Vehicle Button - Filter table based on header filters and Part Number
+    $(document).on('click', '.loadVehicleBtn', function() {
+        // Get filter values from table headers
+        let selectedManufacturer = $('.car-manufacturer-select').val();
+        let selectedModel = $('.car-model-select').val();
+        let selectedEngine = $('.car-engine-select').val();
+        let selectedCountry = $('.car-country-select').val();
+        let selectedPartNumber = $('#part_number_id').val();
+        
+        // Get selected year ranges
+        let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
+        
+        // Hide all rows first
+        $("#vehicleTable tbody tr").hide();
+        
+        // Filter rows based on selected criteria
+        $("#vehicleTable tbody tr").each(function() {
+            let $row = $(this);
+            let shouldShow = true;
+            
+            // Check Manufacturer
+            if (selectedManufacturer) {
+                let rowManufacturer = $row.find('.editVehicleBtn').data('manufacturer');
+                if (rowManufacturer != selectedManufacturer) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Model
+            if (shouldShow && selectedModel) {
+                let rowModel = $row.find('.editVehicleBtn').data('model');
+                if (rowModel != selectedModel) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Engine
+            if (shouldShow && selectedEngine) {
+                let rowEngine = $row.find('.editVehicleBtn').data('engine');
+                if (rowEngine != selectedEngine) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Country
+            if (shouldShow && selectedCountry) {
+                let rowCountry = $row.find('.editVehicleBtn').data('country');
+                if (rowCountry != selectedCountry) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Part Number
+            if (shouldShow && selectedPartNumber) {
+                let rowPartNumber = $row.data('part') || $row.find('.editVehicleBtn').data('part');
+                if (rowPartNumber != selectedPartNumber) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Year Ranges
+            if (shouldShow && selectedYearRanges.length > 0) {
+                let yearCell = $row.find('td:nth-child(3)');
+                let yearText = yearCell.text();
+                let yearMatch = false;
+                
+                // Extract year ranges from table cell
+                let tableRanges = [];
+                if (yearText.includes('-')) {
+                    let rangeMatches = yearText.match(/\d{4}(-\d{4})?/g) || [];
+                    rangeMatches.forEach(function(range) {
+                        let rangeParts = range.split('-');
+                        let rangeFrom = parseInt(rangeParts[0]);
+                        let rangeTo = rangeParts[1] ? parseInt(rangeParts[1]) : rangeFrom;
+                        tableRanges.push({ from: rangeFrom, to: rangeTo });
+                    });
+                } else {
+                    let yearMatch = yearText.match(/\d{4}/);
+                    if (yearMatch) {
+                        let year = parseInt(yearMatch[0]);
+                        tableRanges.push({ from: year, to: year });
+                    }
+                }
+                
+                // Check if any selected range overlaps with table ranges
+                selectedYearRanges.forEach(function(selectedRange) {
+                    let rangeParts = selectedRange.split('-');
+                    let selectedFrom = parseInt(rangeParts[0]);
+                    let selectedTo = rangeParts.length > 1 ? parseInt(rangeParts[1]) : selectedFrom;
+                    
+                    tableRanges.forEach(function(tableRange) {
+                        if (tableRange.from <= selectedTo && tableRange.to >= selectedFrom) {
+                            yearMatch = true;
+                        }
+                    });
+                });
+                
+                if (!yearMatch) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Show row if it matches all criteria
+            if (shouldShow) {
+                $row.show();
+            }
+        });
+    });
 </script>
 <script>
     // Year Range Modal Handler
@@ -3829,30 +3914,29 @@
 
     // Apply Year Range Filter
     $(document).on('click', '#applyYearRangeFilter', function() {
-        // Check for validation errors first
-        let hasErrors = false;
+        // Auto-fix year ranges sequence (swap if From > To)
         $('#filterYearRangesContainer .filter-year-range-item').each(function() {
             let $fromSelect = $(this).find('.filter-year-from');
             let $toSelect = $(this).find('.filter-year-to');
-            
-            if ($fromSelect.hasClass('is-invalid') || $toSelect.hasClass('is-invalid')) {
-                hasErrors = true;
-                return false;
-            }
-            
             let fromYear = $fromSelect.val();
             let toYear = $toSelect.val();
             
-            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
-                hasErrors = true;
-                return false;
+            if (fromYear && toYear) {
+                let from = parseInt(fromYear);
+                let to = parseInt(toYear);
+                
+                // If From > To, swap them
+                if (from > to) {
+                    $fromSelect.val(to);
+                    $toSelect.val(from);
+                    // Remove validation errors
+                    $fromSelect.removeClass('is-invalid');
+                    $toSelect.removeClass('is-invalid');
+                    $fromSelect.next('.invalid-feedback').hide();
+                    $toSelect.next('.invalid-feedback').hide();
+                }
             }
         });
-        
-        if (hasErrors) {
-            toastr.error('Please fix year range validation errors before applying filter');
-            return;
-        }
         
         // Collect all year ranges from the modal
         let filterRanges = [];
@@ -4172,7 +4256,6 @@
                             existingRow.find('td:eq(2)').html(yearRangesHtml);
                             existingRow.find('td:eq(3)').text(group.engine_vehical?.name || '-');
                             existingRow.find('td:eq(4)').text(group.country_vehical?.name || '-');
-                            existingRow.find('td:eq(5)').text(group.vehical_part_number?.name || '-');
 
                             // Update edit button data attributes - store first year range for backward compatibility
                             let editBtn = existingRow.find('.editVehicleBtn');
@@ -4208,7 +4291,6 @@
                                     <td>${yearRangesHtml}</td>
                                     <td>${group.engine_vehical?.name || '-'}</td>
                                     <td>${group.country_vehical?.name || '-'}</td>
-                                    <td>${group.vehical_part_number?.name || '-'}</td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
                                             data-part="${group.v_part_number_id}"
