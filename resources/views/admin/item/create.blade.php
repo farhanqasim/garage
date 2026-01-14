@@ -1620,6 +1620,10 @@
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">YEAR RANGES</div>
+                                                    <button type="button" class="btn btn-sm btn-primary open-year-range-modal" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                        <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                                                        <span style="margin-left: 4px;">Select Range</span>
+                                                    </button>
                                                 </div>
                                             </th>
                                             <th>
@@ -2293,6 +2297,43 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+<!-- Year Range Selector Modal -->
+<div class="modal fade" id="yearRangeModal" tabindex="-1" aria-labelledby="yearRangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="yearRangeModalLabel">Select Year Range</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="filterYearFrom" class="form-label">From Year</label>
+                        <select class="form-control" id="filterYearFrom">
+                            <option value="">All Years</option>
+                            @for($year = 1900; $year <= 2100; $year++)
+                                <option value="{{ $year }}">{{ $year }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="filterYearTo" class="form-label">To Year</label>
+                        <select class="form-control" id="filterYearTo">
+                            <option value="">All Years</option>
+                            @for($year = 1900; $year <= 2100; $year++)
+                                <option value="{{ $year }}">{{ $year }}</option>
+                            @endfor
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyYearRangeFilter">Apply Filter</button>
+            </div>
         </div>
     </div>
 </div>
@@ -3602,6 +3643,80 @@
 <script>
     $(document).ready(function() {
         $("#vehicleTable tbody tr").hide();
+    });
+</script>
+<script>
+    // Year Range Modal Handler
+    $(document).on('click', '.open-year-range-modal', function() {
+        $('#yearRangeModal').modal('show');
+    });
+
+    // Apply Year Range Filter
+    $(document).on('click', '#applyYearRangeFilter', function() {
+        let fromYear = $('#filterYearFrom').val();
+        let toYear = $('#filterYearTo').val();
+        
+        // Hide all rows first
+        $("#vehicleTable tbody tr").hide();
+        
+        // Filter rows based on year range
+        $("#vehicleTable tbody tr").each(function() {
+            let $row = $(this);
+            let yearCell = $row.find('td:nth-child(3)'); // Year column is 3rd column
+            
+            if (yearCell.length) {
+                let yearText = yearCell.text();
+                let shouldShow = true;
+                
+                // Extract year ranges from badges/text
+                if (fromYear || toYear) {
+                    shouldShow = false;
+                    
+                    // Check if any year range matches the filter
+                    if (yearText.includes('-')) {
+                        // Multiple year ranges (e.g., "2014-2021 2015-2020")
+                        let ranges = yearText.match(/\d{4}(-\d{4})?/g) || [];
+                        ranges.forEach(function(range) {
+                            let rangeParts = range.split('-');
+                            let rangeFrom = parseInt(rangeParts[0]);
+                            let rangeTo = rangeParts[1] ? parseInt(rangeParts[1]) : rangeFrom;
+                            
+                            let filterFrom = fromYear ? parseInt(fromYear) : 1900;
+                            let filterTo = toYear ? parseInt(toYear) : 2100;
+                            
+                            // Check if ranges overlap
+                            if ((rangeFrom <= filterTo && rangeTo >= filterFrom)) {
+                                shouldShow = true;
+                            }
+                        });
+                    } else {
+                        // Single year
+                        let yearMatch = yearText.match(/\d{4}/);
+                        if (yearMatch) {
+                            let year = parseInt(yearMatch[0]);
+                            let filterFrom = fromYear ? parseInt(fromYear) : 1900;
+                            let filterTo = toYear ? parseInt(toYear) : 2100;
+                            
+                            if (year >= filterFrom && year <= filterTo) {
+                                shouldShow = true;
+                            }
+                        }
+                    }
+                }
+                
+                if (shouldShow) {
+                    $row.show();
+                }
+            }
+        });
+        
+        $('#yearRangeModal').modal('hide');
+    });
+    
+    // Reset filter when modal is closed
+    $('#yearRangeModal').on('hidden.bs.modal', function() {
+        $('#filterYearFrom').val('');
+        $('#filterYearTo').val('');
     });
 </script>
 <script>
