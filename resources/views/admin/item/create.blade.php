@@ -263,6 +263,24 @@
         #vehicleTable td {
             padding: 0.5rem 0.25rem !important;
             font-size: 11px !important;
+            vertical-align: top;
+        }
+        #vehicleTable thead th {
+            padding: 0.75rem 0.5rem !important;
+            background-color: #212529 !important;
+        }
+        #vehicleTable thead th .input-group {
+            margin-top: 0.25rem;
+        }
+        #vehicleTable thead th .input-group .form-control {
+            border-radius: 0.25rem 0 0 0.25rem;
+        }
+        #vehicleTable thead th .input-group .btn {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0;
+        }
+        #vehicleTable thead th .input-group .btn:last-child {
+            border-radius: 0 0.25rem 0.25rem 0;
         }
         /* Year badges - smaller on mobile */
         .badge {
@@ -1557,13 +1575,151 @@
                                 <table class="table table-bordered" id="vehicleTable">
                                     <thead class="table-dark">
                                         <tr>
-                                            <th>Manufacturer</th>
-                                            <th>Model</th>
-                                            <th>Year</th>
-                                            <th>Engine</th>
-                                            <th>Country</th>
-                                            <th>Part Number</th>
-                                            <th>Action</th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Manufacturer</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carManufacturers as $manufacturer)
+                                                            <option value="{{ $manufacturer->id }}">{{ $manufacturer->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Manufacturer" data-mode="add"
+                                                            data-route="{{ route('post.car.manufacturer') }}"
+                                                            data-target-select=".car-manufacturer-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Manufacturer"
+                                                            data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
+                                                            data-update-route="{{ route('update.car.manufacturer', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.manufacturer', ':id') }}"
+                                                            data-target-select=".car-manufacturer-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Model</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carModels as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Car Model" data-mode="add"
+                                                            data-route="{{ route('post.car.model') }}"
+                                                            data-target-select=".car-model-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Car Model"
+                                                            data-fetch-route="{{ route('show.car.model', ':id') }}"
+                                                            data-update-route="{{ route('update.car.model', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.model', ':id') }}"
+                                                            data-target-select=".car-model-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Year</div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Engine</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($engineccs as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Engine CC" data-mode="add"
+                                                            data-route="{{ route('post.engine.cc') }}"
+                                                            data-target-select=".car-engine-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Engine CC"
+                                                            data-fetch-route="{{ route('show.engine_cc', ':id') }}"
+                                                            data-update-route="{{ route('update.engine_cc', ':id') }}"
+                                                            data-delete-route="{{ route('destory.engine_cc', ':id') }}"
+                                                            data-target-select=".car-engine-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Country</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($carCountries as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Country" data-mode="add"
+                                                            data-route="{{ route('post.car.country') }}"
+                                                            data-target-select=".car-country-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Country"
+                                                            data-fetch-route="{{ route('show.car.country', ':id') }}"
+                                                            data-update-route="{{ route('update.car.country', ':id') }}"
+                                                            data-delete-route="{{ route('destory.car.country', ':id') }}"
+                                                            data-target-select=".car-country-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Part Number</div>
+                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                        <select class="form-control part-number-table-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                            <option value="">Select</option>
+                                                            @foreach ($partnumbers as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
+                                                            data-title="Add Part Number" data-mode="add"
+                                                            data-route="{{ route('post.partnumber') }}"
+                                                            data-target-select=".part-number-table-select">
+                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Part Number"
+                                                            data-fetch-route="{{ route('show.partnumber', ':id') }}"
+                                                            data-update-route="{{ route('update.partnumber', ':id') }}"
+                                                            data-delete-route="{{ route('destory.partnumber', ':id') }}"
+                                                            data-target-select=".part-number-table-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Action</div>
+                                                </div>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
