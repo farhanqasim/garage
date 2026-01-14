@@ -1321,27 +1321,27 @@
                                     <!-- Price Management Container -->
                                     <div id="priceManagementContainer" class="mb-4 row g-3">
                                         <!-- Cost Price Management -->
-                                        <div id="costPriceManagement" class="col-md-6 mb-0">
+                                        <div id="costPriceManagement" class="col-12 col-md-6 mb-0 mb-md-0">
                                             <h6 class="text-success fw-bold mb-3 text-uppercase">Cost Price Management</h6>
                                             <div class="row g-3">
-                                                <div class="col-md-6">
+                                                <div class="col-12 col-md-6">
                                                     <div class="card border-success bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costUnitLabel">Unit Cost:</label>
-                                                            <div class="input-group">
+                                                            <div class="input-group input-group-lg">
                                                                 <span class="input-group-text bg-success text-white fw-bold">Rs.</span>
                                                                 <input type="number" step="0.01" id="costPrice" name="total_price"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
                                                                     oninput="calculateFromUnit('cost')">
-                                            </div>
-                                        </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6" id="baseCostPriceContainer" style="display: none;">
+                                                <div class="col-12 col-md-6" id="baseCostPriceContainer" style="display: none;">
                                                     <div class="card border-success bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costBaseLabel">Per Base Cost:</label>
-                                                            <div class="input-group">
+                                                            <div class="input-group input-group-lg">
                                                                 <span class="input-group-text bg-success text-white fw-bold">Rs.</span>
                                                                 <input type="number" step="0.01" id="baseCostPrice" name="price_per_unit"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
@@ -1354,14 +1354,14 @@
                                         </div>
 
                                         <!-- Sale Price Management -->
-                                        <div id="salePriceManagement" class="col-md-6 mb-0">
+                                        <div id="salePriceManagement" class="col-12 col-md-6 mb-0 mb-md-0">
                                             <h6 class="text-warning fw-bold mb-3 text-uppercase">Sale Price Management</h6>
                                             <div class="row g-3">
-                                                <div class="col-md-6">
+                                                <div class="col-12 col-md-6">
                                                     <div class="card border-warning bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleUnitLabel">Unit Sale:</label>
-                                                            <div class="input-group">
+                                                            <div class="input-group input-group-lg">
                                                                 <span class="input-group-text bg-warning text-white fw-bold">Rs.</span>
                                                                 <input type="number" step="0.01" id="salePrice" name="sale_price"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
@@ -1370,11 +1370,11 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6" id="baseSalePriceContainer" style="display: none;">
+                                                <div class="col-12 col-md-6" id="baseSalePriceContainer" style="display: none;">
                                                     <div class="card border-warning bg-light">
                                                         <div class="card-body">
                                                             <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleBaseLabel">Per Base Sale:</label>
-                                                            <div class="input-group">
+                                                            <div class="input-group input-group-lg">
                                                                 <span class="input-group-text bg-warning text-white fw-bold">Rs.</span>
                                                                 <input type="number" step="0.01" id="baseSalePrice" name="sale_price_per_base"
                                                                     class="form-control form-control-lg fw-bold" placeholder="0"
@@ -3175,8 +3175,8 @@
         // Set initial state - hide base unit containers and make sections side by side
         $('#baseCostPriceContainer').hide();
         $('#baseSalePriceContainer').hide();
-        $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-md-6 mb-0');
-        $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-md-6 mb-0');
+        $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
+        $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
         $('#priceManagementContainer').addClass('row g-3');
         
         // Load units from API
@@ -3299,8 +3299,8 @@
             $('#baseSalePriceContainer').show();
             
             // Make Cost and Sale sections full width (stacked vertically)
-            $('#costPriceManagement').removeClass('col-md-6 mb-0').addClass('col-12 mb-4');
-            $('#salePriceManagement').removeClass('col-md-6 mb-0').addClass('col-12 mb-4');
+            $('#costPriceManagement').removeClass('col-12 col-md-6 mb-0').addClass('col-12 mb-4');
+            $('#salePriceManagement').removeClass('col-12 col-md-6 mb-0').addClass('col-12 mb-4');
         } else {
             // Hide base unit fields
             $('#costBaseLabel').text(`PER ${unitName} COST:`);
@@ -3309,8 +3309,8 @@
             $('#baseSalePriceContainer').hide();
             
             // Make Cost and Sale sections side by side
-            $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-md-6 mb-0');
-            $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-md-6 mb-0');
+            $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
+            $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
         }
         
         // Reset prices
@@ -3464,8 +3464,8 @@
         // Reset layout to default (side by side, hide base units)
         $('#baseCostPriceContainer').hide();
         $('#baseSalePriceContainer').hide();
-        $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-md-6 mb-0');
-        $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-md-6 mb-0');
+        $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
+        $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
         $('#priceManagementContainer').addClass('row g-3');
     }
 </script>
