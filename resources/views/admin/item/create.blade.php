@@ -1688,6 +1688,7 @@
                                                     data-model="{{ $car->car_model_name }}"
                                                     data-engine="{{ $car->engine_cc }}"
                                                     data-country="{{ $car->car_manufactured_country }}"
+                                                    data-year-ranges="{{ json_encode($car->year_ranges ?? []) }}"
                                                     data-year-from="{{ $car->year_from }}"
                                                     data-year-to="{{ $car->year_to }}">
                                                     <i class="ti ti-pencil"></i>
@@ -2035,6 +2036,33 @@
                                 @error('car_model_name') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            {{-- 4. Engine CC ------------------------------------------------- --}}
+                            <div class="col-md-6 mt-3">
+                                <label for="engine_cc">Engin CC:</label>
+                                <div class="input-group inputswidth">
+                                    <select
+                                        class="form-control car-engine-select searchable-select @error('engine_cc') is-invalid @enderror"
+                                        name="engine_cc" id="engine_cc">
+                                        <option value="">Select Engine CC</option>
+                                        @foreach ($engineccs as $item)
+                                        <option value="{{ $item->id }}" {{ old('engine_cc')==$item->id ?
+                                            'selected' : '' }}>
+                                            {{ $item->name }} CC
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Engine CC"
+                                        data-fetch-route="{{ route('show.engine_cc', ':id') }}"
+                                        data-update-route="{{ route('update.engine_cc', ':id') }}"
+                                        data-delete-route="{{ route('destory.engine_cc', ':id') }}"
+                                        data-target-select=".car-engine-select">
+                                        <i data-feather="edit"></i>
+                                    </button>
+                                </div>
+                                @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
                             <div class="col-md-6 mt-3 d-none">
                                 <label for="part_number">Part Number: <span class="text-danger">*</span></label>
                                 <div class="input-group inputswidth">
@@ -2054,6 +2082,7 @@
                                 @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
+                            {{-- 5. YEAR RANGES ------------------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label><strong>YEAR RANGES</strong></label>
                                 <div id="yearRangesContainer">
@@ -2086,33 +2115,6 @@
                                 </button>
                                 @error('carmanufactured_year')
                                 <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            {{-- 5. Engine CC ------------------------------------------------- --}}
-                            <div class="col-md-6 mt-3">
-                                <label for="engine_cc">Engin CC:</label>
-                                <div class="input-group inputswidth">
-                                    <select
-                                        class="form-control car-engine-select searchable-select @error('engine_cc') is-invalid @enderror"
-                                        name="engine_cc" id="engine_cc">
-                                        <option value="">Select Engine CC</option>
-                                        @foreach ($engineccs as $item)
-                                        <option value="{{ $item->id }}" {{ old('engine_cc')==$item->id ?
-                                            'selected' : '' }}>
-                                            {{ $item->name }} CC
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-secondary open-universal-modal"
-                                        data-mode="edit" data-title="Edit Engine CC"
-                                        data-fetch-route="{{ route('show.engine_cc', ':id') }}"
-                                        data-update-route="{{ route('update.engine_cc', ':id') }}"
-                                        data-delete-route="{{ route('destory.engine_cc', ':id') }}"
-                                        data-target-select=".car-engine-select">
-                                        <i data-feather="edit"></i>
-                                    </button>
-                                </div>
-                                @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
@@ -4018,6 +4020,11 @@
             $('#part_number').removeClass('is-invalid');
         }
     });
+    
+    // Reset modal title to "Add Vehical" when modal is hidden
+    $('#vehical-add-modal').on('hidden.bs.modal', function() {
+        $('#vehical-modal-title').text('Add Vehical');
+    });
 
     // Remove error styling when part number is entered (both fields)
     $(document).on('input change', '#part_number, #part_number_id', function() {
@@ -4297,6 +4304,9 @@
 </script>
 <script>
     $(document).on('click', '.editVehicleBtn', function() {
+        // Change modal title to "Edit Vehical"
+        $('#vehical-modal-title').text('Edit Vehical');
+        
         let yearRangesData = $(this).data('year-ranges');
         let yearRanges = [];
 
@@ -4306,6 +4316,19 @@
                 yearRanges = typeof yearRangesData === 'string' ? JSON.parse(yearRangesData) : yearRangesData;
             } catch(e) {
                 console.error('Error parsing year ranges:', e);
+                // Fallback to year-from and year-to
+                let yearFrom = $(this).data('year-from');
+                let yearTo = $(this).data('year-to');
+                if (yearFrom && yearTo) {
+                    yearRanges = [yearFrom == yearTo ? yearFrom.toString() : yearFrom + '-' + yearTo];
+                }
+            }
+        } else {
+            // Fallback to year-from and year-to if data-year-ranges not available
+            let yearFrom = $(this).data('year-from');
+            let yearTo = $(this).data('year-to');
+            if (yearFrom && yearTo) {
+                yearRanges = [yearFrom == yearTo ? yearFrom.toString() : yearFrom + '-' + yearTo];
             }
         }
 
