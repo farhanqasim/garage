@@ -1953,7 +1953,7 @@
                 <div class="modal-body p-3">
                     <div class="container">
                         <div class="row">
-                            {{-- 1. Car Company ---------------------------------------------------- --}}
+                            {{-- 1. Car Manufactured ---------------------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label for="car_manufacturer">Car Manufactured:</label>
                                 <div class="input-group inputswidth">
@@ -1969,12 +1969,6 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Manufacturerd" data-mode="add"
-                                        data-route="{{ route('post.car.manufacturer') }}"
-                                        data-target-select=".car-manufacturer-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Manufacturerd"
                                         data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
@@ -1987,75 +1981,7 @@
                                 @error('car_manufacturer') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            {{-- 2. Car Name ------------------------------------------------------- --}}
-                            <div class="col-md-6 mt-3">
-                                <label for="car_name">Car Model:</label>
-                                <div class="input-group inputswidth">
-                                    <select
-                                        class="form-control car-model-select searchable-select @error('car_model_name') is-invalid @enderror"
-                                        name="car_model_name" id="car_model_name">
-                                        <option value="">Select Car Model</option>
-                                        @foreach ($carModels as $item)
-                                        <option value="{{ $item->id }}" {{ old('car_model_name')==$item->id ?
-                                            'selected' : '' }}>
-                                            {{ $item->name }}
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Car Model" data-mode="add"
-                                        data-route="{{ route('post.car.model') }}"
-                                        data-target-select=".car-model-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-secondary open-universal-modal"
-                                        data-mode="edit" data-title="Edit Car Model"
-                                        data-fetch-route="{{ route('show.car.model', ':id') }}"
-                                        data-update-route="{{ route('update.car.model', ':id') }}"
-                                        data-delete-route="{{ route('destory.car.model', ':id') }}"
-                                        data-target-select=".car-model-select">
-                                        <i data-feather="edit"></i>
-                                    </button>
-
-                                </div>
-                                @error('car_model_name') <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            {{-- 3. Car Model Name ------------------------------------------------- --}}
-                            <div class="col-md-6 mt-3">
-                                <label for="engine_cc">Engin CC:</label>
-                                <div class="input-group inputswidth">
-                                    <select
-                                        class="form-control car-engine-select searchable-select @error('engine_cc') is-invalid @enderror"
-                                        name="engine_cc" id="engine_cc">
-                                        <option value="">Select Engine CC</option>
-                                        @foreach ($engineccs as $item)
-                                        <option value="{{ $item->id }}" {{ old('engine_cc')==$item->id ?
-                                            'selected' : '' }}>
-                                            {{ $item->name }} CC
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Engine CC" data-mode="add"
-                                        data-route="{{ route('post.engine.cc') }}"
-                                        data-target-select=".car-engine-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-secondary open-universal-modal"
-                                        data-mode="edit" data-title="Edit Engine CC"
-                                        data-fetch-route="{{ route('show.engine_cc', ':id') }}"
-                                        data-update-route="{{ route('update.engine_cc', ':id') }}"
-                                        data-delete-route="{{ route('destory.engine_cc', ':id') }}"
-                                        data-target-select=".car-engine-select">
-                                        <i data-feather="edit"></i>
-                                    </button>
-                                </div>
-                                @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            {{-- 4. Car Manufactured Country --------------------------------------- --}}
+                            {{-- 2. Car Manufactured Country --------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label for="car_manufactured_country">Car Manufactured Country:</label>
                                 <div class="input-group inputswidth">
@@ -2070,14 +1996,6 @@
                                         </option>
                                         @endforeach
                                     </select>
-
-                                    <button type="button" class="btn btn-primary open-universal-modal"
-                                        data-title="Add Country" data-mode="add"
-                                        data-route="{{ route('post.car.country') }}"
-                                        data-target-select=".car-country-select">
-                                        <i data-feather="plus" class="feather-plus"></i>
-                                    </button>
-
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Country"
                                         data-fetch-route="{{ route('show.car.country', ':id') }}"
@@ -2089,6 +2007,33 @@
                                 </div>
                                 @error('car_manufactured_country') <div class="invalid-feedback">{{ $message }}
                                 </div> @enderror
+                            </div>
+                            {{-- 3. Car Model ------------------------------------------------------- --}}
+                            <div class="col-md-6 mt-3">
+                                <label for="car_name">Car Model:</label>
+                                <div class="input-group inputswidth">
+                                    <select
+                                        class="form-control car-model-select searchable-select @error('car_model_name') is-invalid @enderror"
+                                        name="car_model_name" id="car_model_name">
+                                        <option value="">Select Car Model</option>
+                                        @foreach ($carModels as $item)
+                                        <option value="{{ $item->id }}" {{ old('car_model_name')==$item->id ?
+                                            'selected' : '' }}>
+                                            {{ $item->name }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Car Model"
+                                        data-fetch-route="{{ route('show.car.model', ':id') }}"
+                                        data-update-route="{{ route('update.car.model', ':id') }}"
+                                        data-delete-route="{{ route('destory.car.model', ':id') }}"
+                                        data-target-select=".car-model-select">
+                                        <i data-feather="edit"></i>
+                                    </button>
+                                </div>
+                                @error('car_model_name') <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
                             <div class="col-md-6 mt-3 d-none">
                                 <label for="part_number">Part Number: <span class="text-danger">*</span></label>
@@ -2141,6 +2086,33 @@
                                 </button>
                                 @error('carmanufactured_year')
                                 <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            {{-- 5. Engine CC ------------------------------------------------- --}}
+                            <div class="col-md-6 mt-3">
+                                <label for="engine_cc">Engin CC:</label>
+                                <div class="input-group inputswidth">
+                                    <select
+                                        class="form-control car-engine-select searchable-select @error('engine_cc') is-invalid @enderror"
+                                        name="engine_cc" id="engine_cc">
+                                        <option value="">Select Engine CC</option>
+                                        @foreach ($engineccs as $item)
+                                        <option value="{{ $item->id }}" {{ old('engine_cc')==$item->id ?
+                                            'selected' : '' }}>
+                                            {{ $item->name }} CC
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Engine CC"
+                                        data-fetch-route="{{ route('show.engine_cc', ':id') }}"
+                                        data-update-route="{{ route('update.engine_cc', ':id') }}"
+                                        data-delete-route="{{ route('destory.engine_cc', ':id') }}"
+                                        data-target-select=".car-engine-select">
+                                        <i data-feather="edit"></i>
+                                    </button>
+                                </div>
+                                @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
 
