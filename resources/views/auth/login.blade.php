@@ -392,11 +392,21 @@
                     }
 
                     const email = emailInput ? emailInput.value.trim() : '';
+                    const passwordInput = document.querySelector('input[name="password"]');
+                    const password = passwordInput ? passwordInput.value : '';
                     
                     if (!email || !email.includes('@')) {
                         alert('Please enter your email address first');
                         if (emailInput) {
                             emailInput.focus();
+                        }
+                        return;
+                    }
+                    
+                    if (!password) {
+                        alert('Please enter your password first');
+                        if (passwordInput) {
+                            passwordInput.focus();
                         }
                         return;
                     }
@@ -410,7 +420,7 @@
                         webauthnBtn.disabled = true;
                         webauthnBtn.innerHTML = '<i class="ti ti-loader spinner-border spinner-border-sm me-2"></i> Authenticating...';
 
-                        // Step 1: Get login options from server
+                        // Step 1: Get login options from server (with email and password)
                         const optionsResponse = await fetch('{{ route("webauthn.login.options") }}', {
                             method: 'POST',
                             headers: {
@@ -418,7 +428,10 @@
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                                 'Accept': 'application/json'
                             },
-                            body: JSON.stringify({ email: email }),
+                            body: JSON.stringify({ 
+                                email: email,
+                                password: password
+                            }),
                             credentials: 'same-origin',
                             signal: currentAbortController.signal
                         });
