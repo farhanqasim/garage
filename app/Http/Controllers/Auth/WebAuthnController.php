@@ -8,6 +8,7 @@ use App\Models\WebAuthnCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
@@ -27,23 +28,34 @@ class WebAuthnController extends Controller
         try {
             $request->validate([
                 'email' => 'required|email',
+                'password' => 'required|string',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid email address',
+                'message' => 'Email and password are required',
                 'errors' => $e->errors()
             ], 422);
         }
 
         $email = $request->input('email');
+        $password = $request->input('password');
+        
         $user = User::where('email', $email)->first();
 
         if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'User not found'
-            ], 404);
+                'message' => 'Invalid email or password'
+            ], 401);
+        }
+
+        // Verify password first
+        if (!Hash::check($password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid email or password'
+            ], 401);
         }
 
         // Get all WebAuthn credentials for this user
@@ -212,23 +224,23 @@ class WebAuthnController extends Controller
         }
 
         // Verify challenge matches (both are base64url encoded)
+        // Compare base64url strings directly (they should match exactly)
         $receivedChallengeBase64url = $clientData['challenge'] ?? '';
-        // Convert base64url to base64 for comparison
-        $receivedChallengeBase64 = str_replace(['-', '_'], ['+', '/'], $receivedChallengeBase64url);
-        $padding = strlen($receivedChallengeBase64) % 4;
-        if ($padding) {
-            $receivedChallengeBase64 .= str_repeat('=', 4 - $padding);
-        }
-        $receivedChallenge = base64_decode($receivedChallengeBase64, true);
         
-        $expectedChallengeBase64 = str_replace(['-', '_'], ['+', '/'], $storedChallenge);
-        $padding = strlen($expectedChallengeBase64) % 4;
-        if ($padding) {
-            $expectedChallengeBase64 .= str_repeat('=', 4 - $padding);
-        }
-        $expectedChallenge = base64_decode($expectedChallengeBase64, true);
-
-        if (!$receivedChallenge || !hash_equals($expectedChallenge, $receivedChallenge)) {
+        // Normalize both challenges by removing padding and comparing
+        $receivedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $receivedChallengeBase64url), '=');
+        $expectedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $storedChallenge), '=');
+        
+        // Also try comparing the raw base64url strings
+        if ($receivedChallengeBase64url !== $storedChallenge && $receivedChallengeNormalized !== $expectedChallengeNormalized) {
+            // Log for debugging
+            Log::warning('WebAuthn challenge mismatch', [
+                'expected' => $storedChallenge,
+                'received' => $receivedChallengeBase64url,
+                'expected_normalized' => $expectedChallengeNormalized,
+                'received_normalized' => $receivedChallengeNormalized
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Challenge mismatch'
@@ -432,23 +444,24 @@ class WebAuthnController extends Controller
             ], 400);
         }
 
-        // Verify challenge matches
+        // Verify challenge matches (both are base64url encoded)
+        // Compare base64url strings directly (they should match exactly)
         $receivedChallengeBase64url = $clientData['challenge'] ?? '';
-        $receivedChallengeBase64 = str_replace(['-', '_'], ['+', '/'], $receivedChallengeBase64url);
-        $padding = strlen($receivedChallengeBase64) % 4;
-        if ($padding) {
-            $receivedChallengeBase64 .= str_repeat('=', 4 - $padding);
-        }
-        $receivedChallenge = base64_decode($receivedChallengeBase64, true);
         
-        $expectedChallengeBase64 = str_replace(['-', '_'], ['+', '/'], $storedChallenge);
-        $padding = strlen($expectedChallengeBase64) % 4;
-        if ($padding) {
-            $expectedChallengeBase64 .= str_repeat('=', 4 - $padding);
-        }
-        $expectedChallenge = base64_decode($expectedChallengeBase64, true);
-
-        if (!$receivedChallenge || !hash_equals($expectedChallenge, $receivedChallenge)) {
+        // Normalize both challenges by removing padding and comparing
+        $receivedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $receivedChallengeBase64url), '=');
+        $expectedChallengeNormalized = rtrim(str_replace(['+', '/'], ['-', '_'], $storedChallenge), '=');
+        
+        // Also try comparing the raw base64url strings
+        if ($receivedChallengeBase64url !== $storedChallenge && $receivedChallengeNormalized !== $expectedChallengeNormalized) {
+            // Log for debugging
+            Log::warning('WebAuthn registration challenge mismatch', [
+                'expected' => $storedChallenge,
+                'received' => $receivedChallengeBase64url,
+                'expected_normalized' => $expectedChallengeNormalized,
+                'received_normalized' => $receivedChallengeNormalized
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Challenge mismatch'
