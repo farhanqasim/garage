@@ -81,7 +81,8 @@ class WebAuthnController extends Controller
                     'timeout' => 60000,
                     'attestation' => 'none',
                     'authenticatorSelection' => [
-                        'authenticatorAttachment' => 'platform',
+                        // Don't restrict to platform only - allow both platform (fingerprint) and cross-platform (security keys)
+                        // Browser will prefer platform authenticator if available
                         'userVerification' => 'preferred',
                         'requireResidentKey' => false,
                     ],

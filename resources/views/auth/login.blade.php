@@ -380,10 +380,14 @@
 
             // Handle WebAuthn login button click
             if (webauthnBtn) {
-                webauthnBtn.addEventListener('click', async function() {
+                webauthnBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
                     // Prevent multiple simultaneous requests
                     if (isRequestPending) {
                         console.log('A request is already pending');
+                        // Don't show alert, just return silently
                         return;
                     }
 
@@ -540,7 +544,8 @@
                             allowCredentials: options.allowCredentials.map(cred => ({
                                 id: base64urlToArrayBuffer(cred.id),
                                 type: cred.type,
-                                transports: cred.transports || ['usb', 'nfc', 'ble', 'internal']
+                                // Prefer internal (platform) authenticators like fingerprint
+                                transports: ['internal', 'usb', 'nfc', 'ble']
                             })),
                             userVerification: options.userVerification || 'preferred'
                         };
@@ -603,15 +608,25 @@
                         console.error('WebAuthn error:', error);
                         
                         // Don't show alert for user cancellation (they already cancelled)
-                        if (error.name === 'AbortError' || error.name === 'NotAllowedError') {
-                            // User cancelled - silently reset button
+                        if (error.name === 'NotAllowedError') {
+                            // User cancelled biometric prompt - silently reset button
                             resetButtonState();
                             return;
                         }
                         
                         // Handle fetch abort (request cancelled)
-                        if (error.name === 'AbortError' && error.message?.includes('aborted')) {
+                        if (error.name === 'AbortError') {
                             resetButtonState();
+                            return;
+                        }
+                        
+                        // Handle "request already pending" error
+                        if (error.message && (error.message.includes('already pending') || error.message.includes('pending request'))) {
+                            resetButtonState();
+                            // Wait a moment and allow retry
+                            setTimeout(() => {
+                                resetButtonState();
+                            }, 1000);
                             return;
                         }
                         
@@ -619,10 +634,12 @@
                         if (error.name === 'InvalidStateError') {
                             errorMessage = 'This credential is already registered or invalid';
                         } else if (error.name === 'NotSupportedError') {
-                            errorMessage = 'WebAuthn is not supported on this device';
+                            errorMessage = 'Fingerprint login is not supported on this device. Please use password login.';
+                        } else if (error.name === 'SecurityError') {
+                            errorMessage = 'Security error. Please ensure you are using HTTPS or localhost.';
                         } else if (error.name === 'NetworkError' || error.message?.includes('fetch')) {
                             errorMessage = 'Network error. Please check your connection and try again.';
-                        } else if (error.message && !error.message.includes('aborted')) {
+                        } else if (error.message && !error.message.includes('aborted') && !error.message.includes('cancelled')) {
                             errorMessage = error.message;
                         } else {
                             // For other errors, just reset silently
