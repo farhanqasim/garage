@@ -1585,12 +1585,6 @@
                                                             <option value="{{ $manufacturer->id }}">{{ $manufacturer->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
-                                                            data-title="Add Manufacturer" data-mode="add"
-                                                            data-route="{{ route('post.car.manufacturer') }}"
-                                                            data-target-select=".car-manufacturer-select">
-                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
-                                                        </button>
                                                         <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
                                                             data-mode="edit" data-title="Edit Manufacturer"
                                                             data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
@@ -1612,12 +1606,6 @@
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
-                                                            data-title="Add Car Model" data-mode="add"
-                                                            data-route="{{ route('post.car.model') }}"
-                                                            data-target-select=".car-model-select">
-                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
-                                                        </button>
                                                         <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
                                                             data-mode="edit" data-title="Edit Car Model"
                                                             data-fetch-route="{{ route('show.car.model', ':id') }}"
@@ -1644,12 +1632,6 @@
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
-                                                            data-title="Add Engine CC" data-mode="add"
-                                                            data-route="{{ route('post.engine.cc') }}"
-                                                            data-target-select=".car-engine-select">
-                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
-                                                        </button>
                                                         <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
                                                             data-mode="edit" data-title="Edit Engine CC"
                                                             data-fetch-route="{{ route('show.engine_cc', ':id') }}"
@@ -1671,12 +1653,6 @@
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-primary open-universal-modal"
-                                                            data-title="Add Country" data-mode="add"
-                                                            data-route="{{ route('post.car.country') }}"
-                                                            data-target-select=".car-country-select">
-                                                            <i data-feather="plus" class="feather-plus" style="width: 14px; height: 14px;"></i>
-                                                        </button>
                                                         <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
                                                             data-mode="edit" data-title="Edit Country"
                                                             data-fetch-route="{{ route('show.car.country', ':id') }}"
