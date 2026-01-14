@@ -3478,58 +3478,13 @@
     // Part number is now a simple text input - no filtering needed
 </script>
 <script>
-    // Prevent modal from opening if part number is not selected
-    $(document).on('click', '[data-bs-target="#vehical-add-modal"]', function(e) {
-        let outsidePart = $('#part_number_id').val();
-        if (!outsidePart || outsidePart.trim() === '') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            e.stopPropagation();
-
-            // Highlight the part number field
-            $('#part_number_id').addClass('is-invalid');
-            toastr.warning('Please enter part number first.');
-            // Add visual feedback
-            $('#part_number_id').focus();
-            // Scroll to the part number field if needed
-            const $partNumberField = $('#part_number_id');
-            if ($partNumberField.length && $partNumberField.offset()) {
-            $('html, body').animate({
-                    scrollTop: $partNumberField.offset().top - 100
-            }, 300);
-            }
-            return false;
-        }
-    });
-
-    // When modal opens, pre-fill Part Number from the input field
-    // Also validate that part number is entered before allowing modal to show
-    $('#vehical-add-modal').on('show.bs.modal', function(e) {
-        let outsidePart = $('#part_number_id').val();
-        if (!outsidePart || outsidePart.trim() === '') {
-            e.preventDefault();
-            toastr.error('Please enter part number first.');
-            $('#part_number_id').addClass('is-invalid').focus();
-            const $partNumberField = $('#part_number_id');
-            if ($partNumberField.length && $partNumberField.offset()) {
-            $('html, body').animate({
-                    scrollTop: $partNumberField.offset().top - 100
-            }, 300);
-            }
-            return false;
-        }
-    });
-
+    // Allow modal to open without part number validation
+    // When modal opens, pre-fill Part Number from the input field if available
     $('#vehical-add-modal').on('shown.bs.modal', function() {
         let outsidePart = $('#part_number_id').val();
         if (outsidePart && outsidePart.trim() !== '') {
             $('#part_number').val(outsidePart.trim()).trigger('change');
             $('#part_number').removeClass('is-invalid');
-        } else {
-            // If somehow modal opened without part number, close it
-            $('#vehical-add-modal').modal('hide');
-            toastr.error('Please enter part number first.');
-            $('#part_number_id').addClass('is-invalid').focus();
         }
     });
 
@@ -3560,33 +3515,16 @@
         
         let form = this;
 
-        // Validate part number before form submission
+        // Get part number from modal or outside field (optional now)
         let partNumber = $('#part_number').val();
         let outsidePartNumber = $('#part_number_id').val();
 
-        // Check both fields (modal field and outside field)
-        if ((!partNumber || partNumber.trim() === '') &&
-            (!outsidePartNumber || outsidePartNumber.trim() === '')) {
-            toastr.error('Please enter part number first.');
-            // Add error styling to part number fields
-            $('#part_number').addClass('is-invalid');
-            $('#part_number_id').addClass('is-invalid');
-            // Focus on modal part number field
-            $('#part_number').focus();
-            // Scroll to the field if needed
-            const $modalContent = $('#part_number').closest('.modal-content');
-            if ($modalContent.length && $modalContent.offset()) {
-            $('html, body').animate({
-                    scrollTop: $modalContent.offset().top - 50
-            }, 300);
-            }
-            return false;
-        }
-
         // Use outside part number if modal part number is not set
         if (!partNumber || partNumber.trim() === '') {
-            partNumber = outsidePartNumber.trim();
-            $('#part_number').val(partNumber).trigger('change');
+            if (outsidePartNumber && outsidePartNumber.trim() !== '') {
+                partNumber = outsidePartNumber.trim();
+                $('#part_number').val(partNumber).trigger('change');
+            }
         }
 
         // Remove error styling if part number is entered
