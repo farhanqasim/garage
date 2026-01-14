@@ -2317,20 +2317,28 @@
                             <div class="col-5">
                                 <label class="form-label small">From Year</label>
                                 <select class="form-control filter-year-from">
-                                    <option value="">All Years</option>
-                                    @for($year = 1900; $year <= 2100; $year++)
-                                        <option value="{{ $year }}">{{ $year }}</option>
-                                    @endfor
+                                    <option value="">Select Year</option>
+                                    @php
+                                        $currentYear = date('Y');
+                                        for($year = $currentYear; $year >= 1980; $year--) {
+                                            echo '<option value="' . $year . '">' . $year . '</option>';
+                                        }
+                                    @endphp
                                 </select>
+                                <div class="invalid-feedback" style="display: none; font-size: 10px;">From Year cannot be greater than To Year</div>
                             </div>
                             <div class="col-5">
                                 <label class="form-label small">To Year</label>
                                 <select class="form-control filter-year-to">
-                                    <option value="">All Years</option>
-                                    @for($year = 1900; $year <= 2100; $year++)
-                                        <option value="{{ $year }}">{{ $year }}</option>
-                                    @endfor
+                                    <option value="">Select Year</option>
+                                    @php
+                                        $currentYear = date('Y');
+                                        for($year = $currentYear; $year >= 1980; $year--) {
+                                            echo '<option value="' . $year . '">' . $year . '</option>';
+                                        }
+                                    @endphp
                                 </select>
+                                <div class="invalid-feedback" style="display: none; font-size: 10px;">To Year cannot be less than From Year</div>
                             </div>
                             <div class="col-2 d-flex align-items-end">
                                 <button type="button" class="btn btn-danger btn-sm removeFilterYearRange" style="display: none;">X</button>
@@ -3721,9 +3729,10 @@
         let container = $('#filterYearRangesContainer');
         let newRange = $('<div class="filter-year-range-item mb-2"></div>');
         
-        // Build year options
+        // Build year options in descending order (current year to 1980)
         let yearOptions = '';
-        for (let year = 1900; year <= 2100; year++) {
+        let currentYear = new Date().getFullYear();
+        for (let year = currentYear; year >= 1980; year--) {
             yearOptions += `<option value="${year}">${year}</option>`;
         }
         
@@ -3732,16 +3741,18 @@
                 <div class="col-5">
                     <label class="form-label small">From Year</label>
                     <select class="form-control filter-year-from">
-                        <option value="">All Years</option>
+                        <option value="">Select Year</option>
                         ${yearOptions}
                     </select>
+                    <div class="invalid-feedback" style="display: none; font-size: 10px;">From Year cannot be greater than To Year</div>
                 </div>
                 <div class="col-5">
                     <label class="form-label small">To Year</label>
                     <select class="form-control filter-year-to">
-                        <option value="">All Years</option>
+                        <option value="">Select Year</option>
                         ${yearOptions}
                     </select>
+                    <div class="invalid-feedback" style="display: none; font-size: 10px;">To Year cannot be less than From Year</div>
                 </div>
                 <div class="col-2 d-flex align-items-end">
                     <button type="button" class="btn btn-danger btn-sm removeFilterYearRange">X</button>
@@ -3752,11 +3763,63 @@
         container.append(newRange);
         updateFilterYearRangeRemoveButtons();
         
+        // Add validation handlers for the new range
+        attachYearRangeValidation(newRange);
+        
         // Re-initialize feather icons
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
     });
+
+    // Function to attach year range validation
+    function attachYearRangeValidation($container) {
+        let $fromSelect = $container.find('.filter-year-from');
+        let $toSelect = $container.find('.filter-year-to');
+        let $fromError = $fromSelect.next('.invalid-feedback');
+        let $toError = $toSelect.next('.invalid-feedback');
+        
+        // Validate when From Year changes
+        $fromSelect.on('change', function() {
+            let fromYear = $(this).val();
+            let toYear = $toSelect.val();
+            
+            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
+                $(this).addClass('is-invalid');
+                $fromError.show();
+                $toSelect.addClass('is-invalid');
+                $toError.show();
+            } else {
+                $(this).removeClass('is-invalid');
+                $fromError.hide();
+                if (!toYear || parseInt(fromYear) <= parseInt(toYear)) {
+                    $toSelect.removeClass('is-invalid');
+                    $toError.hide();
+                }
+            }
+        });
+        
+        // Validate when To Year changes
+        $toSelect.on('change', function() {
+            let fromYear = $fromSelect.val();
+            let toYear = $(this).val();
+            
+            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
+                $(this).addClass('is-invalid');
+                $toError.show();
+                $fromSelect.addClass('is-invalid');
+                $fromError.show();
+            } else {
+                $(this).removeClass('is-invalid');
+                $toError.hide();
+                if (!fromYear || parseInt(fromYear) <= parseInt(toYear)) {
+                    $fromSelect.removeClass('is-invalid');
+                    $fromError.hide();
+                }
+            }
+        });
+    }
+
 
     // Remove Year Range from Filter Modal
     $(document).on('click', '.removeFilterYearRange', function() {
@@ -3766,6 +3829,31 @@
 
     // Apply Year Range Filter
     $(document).on('click', '#applyYearRangeFilter', function() {
+        // Check for validation errors first
+        let hasErrors = false;
+        $('#filterYearRangesContainer .filter-year-range-item').each(function() {
+            let $fromSelect = $(this).find('.filter-year-from');
+            let $toSelect = $(this).find('.filter-year-to');
+            
+            if ($fromSelect.hasClass('is-invalid') || $toSelect.hasClass('is-invalid')) {
+                hasErrors = true;
+                return false;
+            }
+            
+            let fromYear = $fromSelect.val();
+            let toYear = $toSelect.val();
+            
+            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
+                hasErrors = true;
+                return false;
+            }
+        });
+        
+        if (hasErrors) {
+            toastr.error('Please fix year range validation errors before applying filter');
+            return;
+        }
+        
         // Collect all year ranges from the modal
         let filterRanges = [];
         let displayRanges = [];
@@ -3774,8 +3862,8 @@
             let toYear = $(this).find('.filter-year-to').val();
             
             if (fromYear || toYear) {
-                let from = fromYear ? parseInt(fromYear) : 1900;
-                let to = toYear ? parseInt(toYear) : 2100;
+                let from = fromYear ? parseInt(fromYear) : 1980;
+                let to = toYear ? parseInt(toYear) : new Date().getFullYear();
                 filterRanges.push({
                     from: from,
                     to: to
@@ -3862,26 +3950,29 @@
     $('#yearRangeModal').on('hidden.bs.modal', function() {
         // Reset to single empty range
         let yearOptions = '';
-        for (let year = 1900; year <= 2100; year++) {
+        let currentYear = new Date().getFullYear();
+        for (let year = currentYear; year >= 1980; year--) {
             yearOptions += `<option value="${year}">${year}</option>`;
         }
         
-        $('#filterYearRangesContainer').html(`
+        let $newRange = $(`
             <div class="filter-year-range-item mb-2">
                 <div class="row g-2">
                     <div class="col-5">
                         <label class="form-label small">From Year</label>
                         <select class="form-control filter-year-from">
-                            <option value="">All Years</option>
+                            <option value="">Select Year</option>
                             ${yearOptions}
                         </select>
+                        <div class="invalid-feedback" style="display: none; font-size: 10px;">From Year cannot be greater than To Year</div>
                     </div>
                     <div class="col-5">
                         <label class="form-label small">To Year</label>
                         <select class="form-control filter-year-to">
-                            <option value="">All Years</option>
+                            <option value="">Select Year</option>
                             ${yearOptions}
                         </select>
+                        <div class="invalid-feedback" style="display: none; font-size: 10px;">To Year cannot be less than From Year</div>
                     </div>
                     <div class="col-2 d-flex align-items-end">
                         <button type="button" class="btn btn-danger btn-sm removeFilterYearRange" style="display: none;">X</button>
@@ -3889,6 +3980,16 @@
                 </div>
             </div>
         `);
+        
+        $('#filterYearRangesContainer').html($newRange);
+        attachYearRangeValidation($newRange);
+    });
+
+    // Attach validation when modal opens
+    $('#yearRangeModal').on('shown.bs.modal', function() {
+        $('#filterYearRangesContainer .filter-year-range-item').each(function() {
+            attachYearRangeValidation($(this));
+        });
     });
 </script>
 <script>
