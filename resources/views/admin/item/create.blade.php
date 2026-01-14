@@ -2063,7 +2063,8 @@
                                 @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-6 mt-3 d-none">
+                            {{-- 6. Part Number ------------------------------------------------- --}}
+                            <div class="col-md-6 mt-3">
                                 <label for="part_number">Part Number: <span class="text-danger">*</span></label>
                                 <div class="input-group inputswidth">
                                     <select
@@ -2077,7 +2078,6 @@
                                         </option>
                                         @endforeach
                                     </select>
-
                                 </div>
                                 @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -4505,6 +4505,19 @@
         $('#engine_cc').val($(this).data('engine')).trigger('change');
         $('#part_number').val($(this).data('part')).trigger('change');
         $('#car_manufactured_country').val($(this).data('country')).trigger('change');
+        
+        // Ensure Select2 is properly initialized for part number dropdown
+        if ($('#part_number').hasClass('searchable-select')) {
+            // Reinitialize Select2 if needed
+            if ($('#part_number').next('.select2-container').length === 0) {
+                $('#part_number').select2({
+                    dropdownParent: $('#vehical-add-modal')
+                });
+            } else {
+                // Refresh Select2 to show selected value
+                $('#part_number').trigger('change.select2');
+            }
+        }
 
         // Build year range HTML
         let yearRangeHtml = '';
