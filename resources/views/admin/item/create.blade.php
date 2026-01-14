@@ -3706,6 +3706,13 @@
 
     // Load Vehicle Button - Filter table and save if no match found
     $(document).on('click', '.loadVehicleBtn', function() {
+        // Check if part number is selected first
+        let selectedPartNumber = $('#part_number_id').val();
+        if (!selectedPartNumber || selectedPartNumber.trim() === '') {
+            toastr.warning('Please select Part Number first.');
+            return;
+        }
+        
         // First filter the table
         filterVehicleTable();
         
@@ -3719,12 +3726,11 @@
             let selectedModel = $('.car-model-select').val();
             let selectedEngine = $('.car-engine-select').val();
             let selectedCountry = $('.car-country-select').val();
-            let selectedPartNumber = $('#part_number_id').val();
             let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
             
             // Check if all required fields are filled
-            if (!selectedManufacturer || !selectedModel || !selectedEngine || !selectedCountry || !selectedPartNumber || selectedYearRanges.length === 0) {
-                toastr.warning('Please fill all fields (Manufacturer, Model, Engine, Country, Part Number, and Year Ranges) before loading.');
+            if (!selectedManufacturer || !selectedModel || !selectedEngine || !selectedCountry || selectedYearRanges.length === 0) {
+                toastr.warning('Please fill all fields (Manufacturer, Model, Engine, Country, and Year Ranges) before loading.');
                 return;
             }
             
