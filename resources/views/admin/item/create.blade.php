@@ -3621,8 +3621,8 @@
         $("#vehicleTable tbody tr").hide();
     });
 
-    // Load Vehicle Button - Filter table based on header filters and Part Number
-    $(document).on('click', '.loadVehicleBtn', function() {
+    // Common function to filter vehicle table
+    function filterVehicleTable() {
         // Get filter values from table headers
         let selectedManufacturer = $('.car-manufacturer-select').val();
         let selectedModel = $('.car-model-select').val();
@@ -3728,6 +3728,36 @@
                 $row.show();
             }
         });
+    }
+
+    // Load Vehicle Button - Filter table based on header filters and Part Number
+    $(document).on('click', '.loadVehicleBtn', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Manufacturer
+    $(document).on('change', '.car-manufacturer-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Model
+    $(document).on('change', '.car-model-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Engine
+    $(document).on('change', '.car-engine-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Country
+    $(document).on('change', '.car-country-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on Part Number change
+    $(document).on('change', '#part_number_id', function() {
+        filterVehicleTable();
     });
 </script>
 <script>
@@ -3951,62 +3981,10 @@
             displayBox.html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
         }
         
-        // Hide all rows first
-        $("#vehicleTable tbody tr").hide();
-        
-        // If no filters, show all
-        if (filterRanges.length === 0) {
-            $("#vehicleTable tbody tr").show();
-            $('#yearRangeModal').modal('hide');
-            return;
-        }
-        
-        // Filter rows based on year ranges
-        $("#vehicleTable tbody tr").each(function() {
-            let $row = $(this);
-            let yearCell = $row.find('td:nth-child(3)'); // Year column is 3rd column
-            
-            if (yearCell.length) {
-                let yearText = yearCell.text();
-                let shouldShow = false;
-                
-                // Extract year ranges from badges/text
-                let tableRanges = [];
-                if (yearText.includes('-')) {
-                    // Multiple year ranges (e.g., "2014-2021 2015-2020")
-                    let rangeMatches = yearText.match(/\d{4}(-\d{4})?/g) || [];
-                    rangeMatches.forEach(function(range) {
-                        let rangeParts = range.split('-');
-                        let rangeFrom = parseInt(rangeParts[0]);
-                        let rangeTo = rangeParts[1] ? parseInt(rangeParts[1]) : rangeFrom;
-                        tableRanges.push({ from: rangeFrom, to: rangeTo });
-                    });
-                } else {
-                    // Single year
-                    let yearMatch = yearText.match(/\d{4}/);
-                    if (yearMatch) {
-                        let year = parseInt(yearMatch[0]);
-                        tableRanges.push({ from: year, to: year });
-                    }
-                }
-                
-                // Check if any table range overlaps with any filter range
-                tableRanges.forEach(function(tableRange) {
-                    filterRanges.forEach(function(filterRange) {
-                        // Check if ranges overlap
-                        if (tableRange.from <= filterRange.to && tableRange.to >= filterRange.from) {
-                            shouldShow = true;
-                        }
-                    });
-                });
-                
-                if (shouldShow) {
-                    $row.show();
-                }
-            }
-        });
-        
         $('#yearRangeModal').modal('hide');
+        
+        // Auto-filter table using common filter function
+        filterVehicleTable();
     });
     
     // Reset filter when modal is closed

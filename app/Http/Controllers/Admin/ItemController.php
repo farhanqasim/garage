@@ -200,6 +200,7 @@ class ItemController extends Controller
         // Optimize: Remove eager loading to prevent timeout - select only needed columns and limit results
         $Vehis = VehicalType::where('status', 'active')
             ->select('id', 'v_part_number_id', 'car_manufacturer', 'car_model_name', 'engine_cc', 'car_manufactured_country', 'year_from', 'year_to')
+            ->orderBy('id', 'desc') // Order by latest first
             ->limit(2000) // Limit to prevent timeout
             ->get()
             ->groupBy(function($vehicle) {
@@ -242,7 +243,8 @@ class ItemController extends Controller
                 $first->years = $yearRanges->implode(', ');
                 return $first;
             })
-            ->values(); // Reset keys
+            ->values() // Reset keys
+            ->take(5); // Limit to 5 latest vehicles
 
         $services      = Services::where('status', 'active')->get();
         $warrenties      = Warrenty::where('status', 'active')->get();
