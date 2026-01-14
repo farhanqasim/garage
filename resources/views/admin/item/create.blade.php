@@ -3704,9 +3704,171 @@
         });
     }
 
-    // Load Vehicle Button - Filter table based on header filters and Part Number
+    // Load Vehicle Button - Filter table and save if no match found
     $(document).on('click', '.loadVehicleBtn', function() {
+        // First filter the table
         filterVehicleTable();
+        
+        // Count visible rows
+        let visibleRows = $("#vehicleTable tbody tr:visible").length;
+        
+        // If no vehicles match, save the vehicle
+        if (visibleRows === 0) {
+            // Get all filter values
+            let selectedManufacturer = $('.car-manufacturer-select').val();
+            let selectedModel = $('.car-model-select').val();
+            let selectedEngine = $('.car-engine-select').val();
+            let selectedCountry = $('.car-country-select').val();
+            let selectedPartNumber = $('#part_number_id').val();
+            let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
+            
+            // Check if all required fields are filled
+            if (!selectedManufacturer || !selectedModel || !selectedEngine || !selectedCountry || !selectedPartNumber || selectedYearRanges.length === 0) {
+                toastr.warning('Please fill all fields (Manufacturer, Model, Engine, Country, Part Number, and Year Ranges) before loading.');
+                return;
+            }
+            
+            // Prepare form data
+            let formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('car_manufacturer', selectedManufacturer);
+            formData.append('car_model_name', selectedModel);
+            formData.append('engine_cc', selectedEngine);
+            formData.append('car_manufactured_country', selectedCountry);
+            formData.append('v_part_number_id', selectedPartNumber);
+            
+            // Add year ranges
+            selectedYearRanges.forEach(function(range) {
+                let rangeParts = range.split('-');
+                let fromYear = rangeParts[0];
+                let toYear = rangeParts.length > 1 ? rangeParts[1] : rangeParts[0];
+                formData.append('year_from[]', fromYear);
+                formData.append('year_to[]', toYear);
+            });
+            
+            // Save vehicle via AJAX
+            $.ajax({
+                url: "{{ route('post.product_vehical') }}",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    if (res.errors && res.errors.length > 0) {
+                        res.errors.forEach(function(error) {
+                            toastr.error(error);
+                        });
+                        return;
+                    }
+                    
+                    if (res.vehicles && res.vehicles.length > 0) {
+                        toastr.success(res.message || "Vehicle saved and loaded successfully!");
+                        
+                        // Add vehicles to table
+                        let vehicleGroups = {};
+                        res.vehicles.forEach(function(v) {
+                            let key = `${v.v_part_number_id}-${v.car_manufacturer}-${v.car_model_name}-${v.engine_cc}-${v.car_manufactured_country}`;
+                            if (!vehicleGroups[key]) {
+                                vehicleGroups[key] = {
+                                    v_part_number_id: v.v_part_number_id,
+                                    car_manufacturer: v.car_manufacturer,
+                                    car_model_name: v.car_model_name,
+                                    engine_cc: v.engine_cc,
+                                    car_manufactured_country: v.car_manufactured_country,
+                                    manutacturer_vehical: v.manutacturer_vehical,
+                                    model_vehical: v.model_vehical,
+                                    engine_vehical: v.engine_vehical,
+                                    country_vehical: v.country_vehical,
+                                    yearRanges: []
+                                };
+                            }
+                            if (v.year_from && v.year_to) {
+                                let yearStr = v.year_from == v.year_to ? v.year_from : v.year_from + '-' + v.year_to;
+                                if (vehicleGroups[key].yearRanges.indexOf(yearStr) === -1) {
+                                    vehicleGroups[key].yearRanges.push(yearStr);
+                                }
+                            }
+                        });
+                        
+                        // Add new vehicles to table
+                        Object.keys(vehicleGroups).forEach(function(key) {
+                            let group = vehicleGroups[key];
+                            
+                            // Check if row already exists
+                            let exists = false;
+                            $("#vehicleTable tbody tr").each(function() {
+                                let $row = $(this);
+                                if ($row.data('part') == group.v_part_number_id &&
+                                    $row.find('.editVehicleBtn').data('manufacturer') == group.car_manufacturer &&
+                                    $row.find('.editVehicleBtn').data('model') == group.car_model_name &&
+                                    $row.find('.editVehicleBtn').data('engine') == group.engine_cc &&
+                                    $row.find('.editVehicleBtn').data('country') == group.car_manufactured_country) {
+                                    exists = true;
+                                    return false;
+                                }
+                            });
+                            
+                            if (!exists) {
+                                // Build year ranges HTML
+                                let yearRangesHtml = '';
+                                if (group.yearRanges.length > 0) {
+                                    group.yearRanges.sort(function(a, b) {
+                                        let aFrom = parseInt(a.split('-')[0]);
+                                        let bFrom = parseInt(b.split('-')[0]);
+                                        return aFrom - bFrom;
+                                    });
+                                    yearRangesHtml = '<div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
+                                    group.yearRanges.forEach(function(range) {
+                                        yearRangesHtml += `<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">${range}</span>`;
+                                    });
+                                    yearRangesHtml += '</div>';
+                                } else {
+                                    yearRangesHtml = '<span class="badge bg-secondary">-</span>';
+                                }
+                                
+                                // Add new row
+                                let newRow = `
+                                    <tr data-part="${group.v_part_number_id}">
+                                        <td>${group.manutacturer_vehical?.name || '-'}</td>
+                                        <td>${group.model_vehical?.name || '-'}</td>
+                                        <td>${yearRangesHtml}</td>
+                                        <td>${group.engine_vehical?.name || '-'}</td>
+                                        <td>${group.country_vehical?.name || '-'}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
+                                                data-part="${group.v_part_number_id}"
+                                                data-manufacturer="${group.car_manufacturer}"
+                                                data-model="${group.car_model_name}"
+                                                data-engine="${group.engine_cc}"
+                                                data-country="${group.car_manufactured_country}"
+                                                data-year-ranges='${JSON.stringify(group.yearRanges)}'
+                                                data-year-from="${group.yearRanges.length > 0 ? group.yearRanges[0].split('-')[0] : ''}"
+                                                data-year-to="${group.yearRanges.length > 0 ? (group.yearRanges[0].includes('-') ? group.yearRanges[0].split('-')[1] : group.yearRanges[0]) : ''}">
+                                                <i class="ti ti-pencil"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                                $("#vehicleTable tbody").prepend(newRow);
+                            }
+                        });
+                        
+                        // Filter again to show the new vehicle
+                        filterVehicleTable();
+                    }
+                },
+                error: function(xhr) {
+                    let response = xhr.responseJSON;
+                    if (response && response.errors && Array.isArray(response.errors)) {
+                        response.errors.forEach(function(error) {
+                            toastr.error(error);
+                        });
+                    } else {
+                        toastr.error(response?.message || 'Error saving vehicle');
+                    }
+                }
+            });
+        }
     });
 
     // Auto-filter on dropdown change - Manufacturer
