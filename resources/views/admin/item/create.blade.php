@@ -1619,7 +1619,7 @@
                                             </th>
                                             <th>
                                                 <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Year</div>
+                                                    <div class="mb-2 fw-bold">YEAR RANGES</div>
                                                 </div>
                                             </th>
                                             <th>
@@ -1674,6 +1674,14 @@
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
+                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                            data-mode="edit" data-title="Edit Part Number"
+                                                            data-fetch-route="{{ route('show.partnumber', ':id') }}"
+                                                            data-update-route="{{ route('update.partnumber', ':id') }}"
+                                                            data-delete-route="{{ route('destory.partnumber', ':id') }}"
+                                                            data-target-select=".part-number-table-select">
+                                                            <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </th>
