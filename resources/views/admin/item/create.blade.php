@@ -1718,6 +1718,10 @@
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Action</div>
+                                                    <button type="button" class="btn btn-sm btn-primary loadVehicleBtn" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                        <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
+                                                        <span style="margin-left: 4px;">Load</span>
+                                                    </button>
                                                 </div>
                                             </th>
                                         </tr>
