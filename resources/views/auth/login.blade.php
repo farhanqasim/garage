@@ -353,6 +353,10 @@
             const webauthnBtn = document.getElementById('webauthnLoginBtn');
             const emailInput = document.getElementById('emailInput');
             
+            // Request state management
+            let isRequestPending = false;
+            let currentAbortController = null;
+            
             // Check if WebAuthn is supported
             if (!window.PublicKeyCredential) {
                 console.log('WebAuthn not supported in this browser');
@@ -364,9 +368,25 @@
                 webauthnBtn.style.display = 'block';
             }
 
+            // Function to reset button state
+            function resetButtonState() {
+                if (webauthnBtn) {
+                    webauthnBtn.disabled = false;
+                    webauthnBtn.innerHTML = '<i class="ti ti-fingerprint me-2"></i> Login with Fingerprint';
+                }
+                isRequestPending = false;
+                currentAbortController = null;
+            }
+
             // Handle WebAuthn login button click
             if (webauthnBtn) {
                 webauthnBtn.addEventListener('click', async function() {
+                    // Prevent multiple simultaneous requests
+                    if (isRequestPending) {
+                        console.log('A request is already pending');
+                        return;
+                    }
+
                     const email = emailInput ? emailInput.value.trim() : '';
                     
                     if (!email || !email.includes('@')) {
@@ -376,6 +396,10 @@
                         }
                         return;
                     }
+
+                    // Set request state
+                    isRequestPending = true;
+                    currentAbortController = new AbortController();
 
                     try {
                         // Disable button during authentication
@@ -391,7 +415,8 @@
                                 'Accept': 'application/json'
                             },
                             body: JSON.stringify({ email: email }),
-                            credentials: 'same-origin'
+                            credentials: 'same-origin',
+                            signal: currentAbortController.signal
                         });
 
                         // Check if response is JSON
@@ -481,7 +506,8 @@
                                     device_name: navigator.userAgent || 'Unknown Device',
                                     remember: document.getElementById('remember') ? document.getElementById('remember').checked : false
                                 }),
-                                credentials: 'same-origin'
+                                credentials: 'same-origin',
+                                signal: currentAbortController.signal
                             });
 
                             // Check if response is JSON
@@ -552,7 +578,8 @@
                                 credential: response,
                                 remember: document.getElementById('remember') ? document.getElementById('remember').checked : false
                             }),
-                            credentials: 'same-origin'
+                            credentials: 'same-origin',
+                            signal: currentAbortController.signal
                         });
 
                         // Check if response is JSON
@@ -575,22 +602,39 @@
                     } catch (error) {
                         console.error('WebAuthn error:', error);
                         
+                        // Don't show alert for user cancellation (they already cancelled)
+                        if (error.name === 'AbortError' || error.name === 'NotAllowedError') {
+                            // User cancelled - silently reset button
+                            resetButtonState();
+                            return;
+                        }
+                        
+                        // Handle fetch abort (request cancelled)
+                        if (error.name === 'AbortError' && error.message?.includes('aborted')) {
+                            resetButtonState();
+                            return;
+                        }
+                        
                         let errorMessage = 'Authentication failed';
-                        if (error.name === 'NotAllowedError') {
-                            errorMessage = 'Authentication was cancelled or not allowed';
-                        } else if (error.name === 'InvalidStateError') {
+                        if (error.name === 'InvalidStateError') {
                             errorMessage = 'This credential is already registered or invalid';
                         } else if (error.name === 'NotSupportedError') {
                             errorMessage = 'WebAuthn is not supported on this device';
-                        } else if (error.message) {
+                        } else if (error.name === 'NetworkError' || error.message?.includes('fetch')) {
+                            errorMessage = 'Network error. Please check your connection and try again.';
+                        } else if (error.message && !error.message.includes('aborted')) {
                             errorMessage = error.message;
+                        } else {
+                            // For other errors, just reset silently
+                            resetButtonState();
+                            return;
                         }
 
+                        // Only show alert for non-cancellation errors
                         alert(errorMessage);
                         
                         // Reset button
-                        webauthnBtn.disabled = false;
-                        webauthnBtn.innerHTML = '<i class="ti ti-fingerprint me-2"></i> Login with Fingerprint';
+                        resetButtonState();
                     }
                 });
             }
