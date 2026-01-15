@@ -36,7 +36,8 @@ class Unit extends Model
     {
         return $this->belongsToMany(Unit::class, 'unit_base_units', 'unit_id', 'base_unit_id')
             ->withPivot('multiplier')
-            ->withTimestamps();
+            ->withTimestamps()
+            ->orderBy('unit_base_units.id', 'asc'); // Preserve insertion order
     }
 
     // Reverse relationship - units that have this unit as base
