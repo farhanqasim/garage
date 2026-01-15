@@ -2078,6 +2078,14 @@
                                         </option>
                                         @endforeach
                                     </select>
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Part Number"
+                                        data-fetch-route="{{ route('show.partnumber', ':id') }}"
+                                        data-update-route="{{ route('update.partnumber', ':id') }}"
+                                        data-delete-route="{{ route('destory.partnumber', ':id') }}"
+                                        data-target-select=".part_number-select">
+                                        <i data-feather="edit"></i>
+                                    </button>
                                 </div>
                                 @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -6181,6 +6189,11 @@
                         title: 'Add Engine CC',
                         route: '{{ route("post.engine.cc") }}',
                         targetSelect: '.car-engine-select'
+                    },
+                    'part_number': {
+                        title: 'Add Part Number',
+                        route: '{{ route("post.partnumber") }}',
+                        targetSelect: '.part_number-select'
                     }
                 };
                 
