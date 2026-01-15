@@ -280,38 +280,45 @@
             background-color: #ffffff !important;
             color: #000000 !important;
         }
-        #vehicleTable thead th .input-group {
-            margin-top: 0.25rem;
-            flex-wrap: nowrap !important; /* Prevent wrapping to next line */
-            display: flex !important;
-            white-space: nowrap !important;
-        }
-        #vehicleTable thead th .input-group .form-control {
-            border-radius: 0.25rem 0 0 0.25rem;
-            flex: 1 1 auto !important;
-            min-width: 150px !important; /* Minimum width for select */
-            max-width: none !important;
-        }
-        #vehicleTable thead th .input-group .btn {
-            padding: 0.25rem 0.5rem;
-            border-radius: 0;
-            flex-shrink: 0 !important; /* Prevent button from shrinking */
-        }
-        #vehicleTable thead th .input-group .btn:last-child {
-            border-radius: 0 0.25rem 0.25rem 0;
-        }
-        /* Prevent wrapping in vehicle table header cells */
+        /* Vehicle table header - keep select and button on same line */
         #vehicleTable thead th {
             white-space: nowrap !important;
         }
         #vehicleTable thead th .d-flex.flex-column {
             min-width: 0;
+            width: 100%;
+        }
+        #vehicleTable thead th .input-group {
+            margin-top: 0.25rem;
+            flex-wrap: nowrap !important; /* Prevent wrapping to next line */
+            display: flex !important;
+            white-space: nowrap !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        #vehicleTable thead th .input-group .form-control {
+            border-radius: 0.25rem 0 0 0.25rem;
+            flex: 1 1 auto !important;
+            min-width: 120px !important; /* Minimum width for select */
+            max-width: calc(100% - 40px) !important; /* Leave space for button */
+            width: auto !important;
+        }
+        #vehicleTable thead th .input-group .btn {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0;
+            flex-shrink: 0 !important; /* Prevent button from shrinking */
+            width: auto !important;
+            min-width: 35px !important;
+        }
+        #vehicleTable thead th .input-group .btn:last-child {
+            border-radius: 0 0.25rem 0.25rem 0;
         }
         #vehicleTable thead th .inputswidth {
             min-width: 200px !important;
-            width: auto !important;
+            width: 100% !important;
             flex-wrap: nowrap !important;
             display: flex !important;
+            max-width: 100% !important;
         }
         /* Ensure table-responsive allows horizontal scroll */
         .table-responsive {
