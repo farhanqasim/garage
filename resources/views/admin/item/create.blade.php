@@ -282,16 +282,36 @@
         }
         #vehicleTable thead th .input-group {
             margin-top: 0.25rem;
+            flex-wrap: nowrap !important; /* Prevent wrapping to next line */
+            display: flex !important;
+            white-space: nowrap !important;
         }
         #vehicleTable thead th .input-group .form-control {
             border-radius: 0.25rem 0 0 0.25rem;
+            flex: 1 1 auto !important;
+            min-width: 150px !important; /* Minimum width for select */
+            max-width: none !important;
         }
         #vehicleTable thead th .input-group .btn {
             padding: 0.25rem 0.5rem;
             border-radius: 0;
+            flex-shrink: 0 !important; /* Prevent button from shrinking */
         }
         #vehicleTable thead th .input-group .btn:last-child {
             border-radius: 0 0.25rem 0.25rem 0;
+        }
+        /* Prevent wrapping in vehicle table header cells */
+        #vehicleTable thead th {
+            white-space: nowrap !important;
+        }
+        #vehicleTable thead th .d-flex.flex-column {
+            min-width: 0;
+        }
+        #vehicleTable thead th .inputswidth {
+            min-width: 200px !important;
+            width: auto !important;
+            flex-wrap: nowrap !important;
+            display: flex !important;
         }
         /* Ensure table-responsive allows horizontal scroll */
         .table-responsive {
