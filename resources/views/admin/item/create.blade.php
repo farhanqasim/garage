@@ -2335,27 +2335,7 @@
                 $('#Unit-form [name="short_name"]').removeClass('is-invalid');
             }
             
-            // Auto-sequence multipliers before form submission
-            const multiplierInputs = $('#baseUnitsContainer').find('input[name*="[multiplier]"]');
-            const baseUnitItems = [];
-            
-            multiplierInputs.each(function() {
-                const $input = $(this);
-                const $item = $input.closest('.base-unit-item');
-                const baseUnitId = $item.find('select[name*="[base_unit_id]"]').val();
-                
-                // Include all items that have a base unit selected (even if multiplier is empty)
-                if (baseUnitId && baseUnitId !== '') {
-                    const multiplier = parseFloat($input.val()) || 0;
-                    baseUnitItems.push({
-                        item: $item,
-                        multiplier: multiplier,
-                        baseUnitId: baseUnitId
-                    });
-                }
-            });
-            
-            // Remove items without selected base unit
+            // Remove items without selected base unit (preserve order as entered by user)
             $('#baseUnitsContainer .base-unit-item').each(function() {
                 const $item = $(this);
                 const baseUnitId = $item.find('select[name*="[base_unit_id]"]').val();
@@ -2364,25 +2344,7 @@
                 }
             });
             
-            // Sort by multiplier value (ascending order), items with 0 multiplier go to end
-            baseUnitItems.sort((a, b) => {
-                if (a.multiplier === 0 && b.multiplier === 0) return 0;
-                if (a.multiplier === 0) return 1;
-                if (b.multiplier === 0) return -1;
-                return a.multiplier - b.multiplier;
-            });
-            
-            // Reorder DOM elements and update multipliers to sequence (1, 2, 3, ...)
-            if (baseUnitItems.length > 0) {
-                const $container = $('#baseUnitsContainer');
-                baseUnitItems.forEach((item, index) => {
-                    // Move item to correct position
-                    $container.append(item.item);
-                    // Update multiplier to sequence number
-                    const newMultiplier = index + 1;
-                    item.item.find('input[name*="[multiplier]"]').val(newMultiplier);
-                });
-            }
+            // Preserve the order as entered by user - do NOT sort or auto-sequence multipliers
             
             let formData = new FormData(this);
             let url = currentUnitId ?
