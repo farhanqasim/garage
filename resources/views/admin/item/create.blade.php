@@ -258,16 +258,27 @@
         /* Vehicle table - better mobile display */
         #vehicleTable {
             font-size: 11px !important;
+            width: 100% !important;
+            min-width: 800px !important; /* Ensure table doesn't get too compressed */
         }
         #vehicleTable th,
         #vehicleTable td {
             padding: 0.5rem 0.25rem !important;
             font-size: 11px !important;
             vertical-align: top;
+            white-space: nowrap !important; /* Prevent text wrapping */
         }
         #vehicleTable thead th {
             padding: 0.75rem 0.5rem !important;
             background-color: #212529 !important;
+            color: #ffffff !important;
+        }
+        #vehicleTable tbody {
+            background-color: #ffffff !important;
+        }
+        #vehicleTable tbody td {
+            background-color: #ffffff !important;
+            color: #000000 !important;
         }
         #vehicleTable thead th .input-group {
             margin-top: 0.25rem;
@@ -281,6 +292,18 @@
         }
         #vehicleTable thead th .input-group .btn:last-child {
             border-radius: 0 0.25rem 0.25rem 0;
+        }
+        /* Ensure table-responsive allows horizontal scroll */
+        .table-responsive {
+            overflow-x: auto !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+            background-color: #ffffff !important;
+        }
+        /* Fix table wrapper background */
+        .table-responsive .table {
+            background-color: #ffffff !important;
+            margin-bottom: 0;
         }
         /* Year badges - smaller on mobile */
         .badge {
@@ -341,12 +364,13 @@
         .type-box .fs-1 {
             font-size: 1.5rem !important;
         }
-        /* Hide table columns on very small screens if needed */
-        #vehicleTable th:nth-child(4),
-        #vehicleTable td:nth-child(4),
-        #vehicleTable th:nth-child(5),
-        #vehicleTable td:nth-child(5) {
-            display: none;
+        /* On very small screens, allow horizontal scroll instead of hiding columns */
+        #vehicleTable {
+            min-width: 600px !important;
+        }
+        .table-responsive {
+            overflow-x: scroll !important;
+            -webkit-overflow-scrolling: touch;
         }
     }
     
@@ -1549,8 +1573,8 @@
 
                         {{-- VEHICLE TABLE --}}
                         <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <div class="table-responsive mt-4" style="max-height:250px;overflow-y:auto;">
-                                <table class="table table-bordered" id="vehicleTable">
+                            <div class="table-responsive mt-4" style="max-height:250px;overflow-x:auto;overflow-y:auto;background-color:#ffffff;">
+                                <table class="table table-bordered" id="vehicleTable" style="background-color:#ffffff;">
                                     <thead class="table-dark">
                                         <tr>
                                             <th>
