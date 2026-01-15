@@ -1557,7 +1557,7 @@
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Manufacturer</div>
                                                     <div class="input-group inputswidth" style="min-width: 200px;">
-                                                        <select class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                        <select id="vehicle_manufacturer_select" class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($carManufacturers as $manufacturer)
                                                             <option value="{{ $manufacturer->id }}">{{ $manufacturer->name }}</option>
@@ -1578,7 +1578,7 @@
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Model</div>
                                                     <div class="input-group inputswidth" style="min-width: 200px;">
-                                                        <select class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                        <select id="vehicle_model_select" class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($carModels as $item)
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
@@ -1599,7 +1599,7 @@
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Country</div>
                                                     <div class="input-group inputswidth" style="min-width: 200px;">
-                                                        <select class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                        <select id="vehicle_country_select" class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($carCountries as $item)
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
@@ -1631,7 +1631,7 @@
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Engine</div>
                                                     <div class="input-group inputswidth" style="min-width: 200px;">
-                                                        <select class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                        <select id="vehicle_engine_select" class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($engineccs as $item)
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
@@ -6007,6 +6007,26 @@
                         title: 'Add Unit',
                         route: '{{ route("post.units") }}',
                         targetSelect: '#unit_parts'
+                    },
+                    'vehicle_manufacturer_select': {
+                        title: 'Add Manufacturer',
+                        route: '{{ route("post.car.manufacturer") }}',
+                        targetSelect: '.car-manufacturer-select'
+                    },
+                    'vehicle_model_select': {
+                        title: 'Add Car Model',
+                        route: '{{ route("post.car.model") }}',
+                        targetSelect: '.car-model-select'
+                    },
+                    'vehicle_country_select': {
+                        title: 'Add Country',
+                        route: '{{ route("post.car.country") }}',
+                        targetSelect: '.car-country-select'
+                    },
+                    'vehicle_engine_select': {
+                        title: 'Add Engine CC',
+                        route: '{{ route("post.engine.cc") }}',
+                        targetSelect: '.car-engine-select'
                     }
                 };
                 
