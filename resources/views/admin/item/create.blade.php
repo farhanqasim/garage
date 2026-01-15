@@ -6161,6 +6161,26 @@
                         title: 'Add Engine CC',
                         route: '{{ route("post.engine.cc") }}',
                         targetSelect: '.car-engine-select'
+                    },
+                    'car_manufacturer': {
+                        title: 'Add Manufacturer',
+                        route: '{{ route("post.car.manufacturer") }}',
+                        targetSelect: '.car-manufacturer-select'
+                    },
+                    'car_model_name': {
+                        title: 'Add Car Model',
+                        route: '{{ route("post.car.model") }}',
+                        targetSelect: '.car-model-select'
+                    },
+                    'car_manufactured_country': {
+                        title: 'Add Country',
+                        route: '{{ route("post.car.country") }}',
+                        targetSelect: '.car-country-select'
+                    },
+                    'engine_cc': {
+                        title: 'Add Engine CC',
+                        route: '{{ route("post.engine.cc") }}',
+                        targetSelect: '.car-engine-select'
                     }
                 };
                 
