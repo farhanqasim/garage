@@ -4181,12 +4181,81 @@
 <script>
     // Allow modal to open without part number validation
     // When modal opens, pre-fill Part Number from the input field if available
+    // Also ensure all dropdowns are properly initialized with Select2
     $('#vehical-add-modal').on('shown.bs.modal', function() {
         let outsidePart = $('#part_number_id').val();
         if (outsidePart && outsidePart.trim() !== '') {
             $('#part_number').val(outsidePart.trim()).trigger('change');
             $('#part_number').removeClass('is-invalid');
         }
+        
+        // Initialize Select2 for all modal dropdowns if not already initialized
+        const modalDropdowns = ['#car_manufacturer', '#car_model_name', '#engine_cc', '#car_manufactured_country', '#part_number'];
+        const select2Config = {
+            dropdownParent: $('#vehical-add-modal'),
+            allowClear: false,
+            width: '100%'
+        };
+        
+        modalDropdowns.forEach(function(selector) {
+            const $select = $(selector);
+            if ($select.hasClass('searchable-select') && $select.next('.select2-container').length === 0) {
+                $select.select2(select2Config);
+            }
+        });
+        
+        // Add focus handlers for all dropdowns when they open
+        modalDropdowns.forEach(function(selector) {
+            const $select = $(selector);
+            if ($select.length) {
+                // Remove existing handlers to avoid duplicates
+                $select.off('select2:opening.modalFocus select2:open.modalFocus');
+                
+                // Focus search input when dropdown opens
+                $select.on('select2:opening.modalFocus', function(e) {
+                    setTimeout(function() {
+                        const $searchInput = $('.select2-container--open .select2-search__field');
+                        if ($searchInput.length) {
+                            $searchInput[0].focus();
+                            $searchInput[0].select();
+                        }
+                    }, 10);
+                });
+                
+                // Also handle when dropdown is fully open
+                $select.on('select2:open.modalFocus', function(e) {
+                    function focusSearchInput() {
+                        const $container = $select.next('.select2-container');
+                        if ($container.length && $container.hasClass('select2-container--open')) {
+                            const $searchInput = $container.find('.select2-search__field');
+                            if ($searchInput.length && $searchInput.length > 0) {
+                                const searchInput = $searchInput[0];
+                                if (searchInput) {
+                                    // Ensure input is enabled and focusable
+                                    searchInput.removeAttribute('readonly');
+                                    searchInput.removeAttribute('disabled');
+                                    searchInput.style.pointerEvents = 'auto';
+                                    searchInput.style.cursor = 'text';
+                                    
+                                    // Focus and select
+                                    searchInput.focus();
+                                    searchInput.select();
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }
+                    
+                    // Try multiple times with different delays
+                    setTimeout(focusSearchInput, 0);
+                    setTimeout(focusSearchInput, 10);
+                    setTimeout(focusSearchInput, 30);
+                    setTimeout(focusSearchInput, 50);
+                    setTimeout(focusSearchInput, 100);
+                });
+            }
+        });
     });
     
     // Reset modal title to "Add Vehical" when modal is hidden
@@ -4512,24 +4581,32 @@
             }
         }
 
+        // Initialize/Refresh Select2 for all modal dropdowns with proper configuration
+        const modalDropdowns = ['#car_manufacturer', '#car_model_name', '#engine_cc', '#car_manufactured_country', '#part_number'];
+        const select2Config = {
+            dropdownParent: $('#vehical-add-modal'),
+            allowClear: false,
+            width: '100%'
+        };
+        
+        modalDropdowns.forEach(function(selector) {
+            const $select = $(selector);
+            if ($select.hasClass('searchable-select')) {
+                // Destroy existing Select2 if it exists
+                if ($select.next('.select2-container').length > 0) {
+                    $select.select2('destroy');
+                }
+                // Initialize Select2 with modal parent
+                $select.select2(select2Config);
+            }
+        });
+        
+        // Set values after Select2 initialization
         $('#car_manufacturer').val($(this).data('manufacturer')).trigger('change');
         $('#car_model_name').val($(this).data('model')).trigger('change');
         $('#engine_cc').val($(this).data('engine')).trigger('change');
         $('#part_number').val($(this).data('part')).trigger('change');
         $('#car_manufactured_country').val($(this).data('country')).trigger('change');
-        
-        // Ensure Select2 is properly initialized for part number dropdown
-        if ($('#part_number').hasClass('searchable-select')) {
-            // Reinitialize Select2 if needed
-            if ($('#part_number').next('.select2-container').length === 0) {
-                $('#part_number').select2({
-                    dropdownParent: $('#vehical-add-modal')
-                });
-            } else {
-                // Refresh Select2 to show selected value
-                $('#part_number').trigger('change.select2');
-            }
-        }
 
         // Build year range HTML
         let yearRangeHtml = '';
@@ -4611,6 +4688,63 @@
 
         $('#yearRangesContainer').html(yearRangeHtml);
         updateRemoveButtons();
+        
+        // Add focus handlers for modal dropdowns when they open
+        setTimeout(function() {
+            modalDropdowns.forEach(function(selector) {
+                const $select = $(selector);
+                if ($select.length) {
+                    // Remove existing handlers to avoid duplicates
+                    $select.off('select2:opening.modalFocus select2:open.modalFocus');
+                    
+                    // Focus search input when dropdown opens
+                    $select.on('select2:opening.modalFocus', function(e) {
+                        // Delay to ensure Select2 has initialized the search input
+                        setTimeout(function() {
+                            const $searchInput = $('.select2-container--open .select2-search__field');
+                            if ($searchInput.length) {
+                                $searchInput[0].focus();
+                                $searchInput[0].select();
+                            }
+                        }, 10);
+                    });
+                    
+                    // Also handle when dropdown is fully open
+                    $select.on('select2:open.modalFocus', function(e) {
+                        function focusSearchInput() {
+                            const $container = $select.next('.select2-container');
+                            if ($container.length && $container.hasClass('select2-container--open')) {
+                                const $searchInput = $container.find('.select2-search__field');
+                                if ($searchInput.length && $searchInput.length > 0) {
+                                    const searchInput = $searchInput[0];
+                                    if (searchInput) {
+                                        // Ensure input is enabled and focusable
+                                        searchInput.removeAttribute('readonly');
+                                        searchInput.removeAttribute('disabled');
+                                        searchInput.style.pointerEvents = 'auto';
+                                        searchInput.style.cursor = 'text';
+                                        
+                                        // Focus and select
+                                        searchInput.focus();
+                                        searchInput.select();
+                                        return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        
+                        // Try multiple times with different delays
+                        setTimeout(focusSearchInput, 0);
+                        setTimeout(focusSearchInput, 10);
+                        setTimeout(focusSearchInput, 30);
+                        setTimeout(focusSearchInput, 50);
+                        setTimeout(focusSearchInput, 100);
+                    });
+                }
+            });
+        }, 100);
+        
         $('#vehical-add-modal').modal('show');
     });
 
