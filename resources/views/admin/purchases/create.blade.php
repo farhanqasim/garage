@@ -30,15 +30,58 @@
                                 <span class="fw-bold me-2 text-uppercase" style="font-size: 12px;">ACTIVE BRANCH:</span>
                                 <div class="dropdown">
                                     <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle fw-bold" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 14px;">
-                                        <span id="selectedBranchName">{{ session('selected_branch_name', 'Select Branch') }}</span>
-                                        @if(session('selected_branch_code'))
-                                            <span id="selectedBranchCode"> ({{ session('selected_branch_code') }})</span>
+                                        @php
+                                            $defaultBranchName = session('selected_branch_name');
+                                            $defaultBranchCode = session('selected_branch_code');
+                                            
+                                            // If no branch in session, get logged-in user's branch
+                                            if (!$defaultBranchName && auth()->check()) {
+                                                $userBranch = \App\Models\Branch::where('user_id', auth()->id())
+                                                    ->where('status', 'active')
+                                                    ->first();
+                                                if ($userBranch) {
+                                                    $defaultBranchName = $userBranch->branch_name;
+                                                    $defaultBranchCode = $userBranch->branch_code;
+                                                }
+                                            }
+                                        @endphp
+                                        <span id="selectedBranchName">{{ $defaultBranchName ?? 'Select Branch' }}</span>
+                                        @if($defaultBranchCode)
+                                            <span id="selectedBranchCode"> ({{ $defaultBranchCode }})</span>
                                         @endif
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="branchDropdown">
                                         @php
-                                            $branches = \App\Models\Branch::where('status', 'active')->get();
+                                            // Filter branches based on user role
+                                            if (auth()->check() && auth()->user()->role === 'admin') {
+                                                // Admin can see all active branches
+                                                $branches = \App\Models\Branch::where('status', 'active')->get();
+                                            } else {
+                                                // Regular users can only see their own branch
+                                                $branches = \App\Models\Branch::where('user_id', auth()->id())
+                                                    ->where('status', 'active')
+                                                    ->get();
+                                            }
+                                            
                                             $currentBranchId = session('selected_branch_id');
+                                            
+                                            // If no branch in session, get logged-in user's branch
+                                            if (!$currentBranchId && auth()->check()) {
+                                                $userBranch = \App\Models\Branch::where('user_id', auth()->id())
+                                                    ->where('status', 'active')
+                                                    ->first();
+                                                if ($userBranch) {
+                                                    $currentBranchId = $userBranch->id;
+                                                    // Set in session for display
+                                                    if (!session('selected_branch_id')) {
+                                                        session([
+                                                            'selected_branch_id' => $userBranch->id,
+                                                            'selected_branch_name' => $userBranch->branch_name,
+                                                            'selected_branch_code' => $userBranch->branch_code
+                                                        ]);
+                                                    }
+                                                }
+                                            }
                                         @endphp
                                         @foreach($branches as $branch)
                                         <li>
@@ -51,7 +94,7 @@
                                     </ul>
                                 </div>
                             </div>
-                            <input type="hidden" name="branch_id" id="purchaseBranchId" value="{{ session('selected_branch_id') }}" required>
+                            <input type="hidden" name="branch_id" id="purchaseBranchId" value="{{ session('selected_branch_id', $currentBranchId ?? '') }}" required>
                         </div>
 
                         <!-- Business Information Panel (Like Gemini Design) -->
@@ -974,6 +1017,25 @@ $(document).ready(function() {
         }, 500); // Wait 500ms after user stops typing
     });
 
+    // Auto-select logged-in user's branch on page load if not already selected
+    $(document).ready(function() {
+        const currentBranchId = $('#purchaseBranchId').val();
+        const currentBranchName = $('#selectedBranchName').text().trim();
+        
+        // If no branch is selected, try to get user's branch from PHP
+        @if(auth()->check() && !session('selected_branch_id'))
+            @php
+                $userBranch = \App\Models\Branch::where('user_id', auth()->id())
+                    ->where('status', 'active')
+                    ->first();
+            @endphp
+            @if($userBranch)
+                // Auto-select user's branch
+                selectPurchaseBranch({{ $userBranch->id }}, '{{ $userBranch->branch_name }}', '{{ $userBranch->branch_code ?? '' }}');
+            @endif
+        @endif
+    });
+    
     // Branch selection for purchase
     function selectPurchaseBranch(branchId, branchName, branchCode) {
         // Update UI immediately
