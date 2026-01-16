@@ -430,6 +430,79 @@
                     </div>
                     <input type="hidden" id="selected-item-id">
                     <input type="hidden" id="selected-warehouse-id">
+                    
+                    <!-- Advanced Filters (Collapsible) -->
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="item-advanced-filters-toggle" style="border-radius: 6px;">
+                            <i class="ti ti-filter me-1"></i> Advanced Filters
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger d-none" id="item-clear-filters" style="border-radius: 6px;">
+                            <i class="ti ti-x me-1"></i> Clear Filters
+                        </button>
+                    </div>
+                    
+                    <!-- Advanced Filters Panel -->
+                    <div class="collapse mt-2" id="itemAdvancedFiltersPanel">
+                        <div class="card border" style="background-color: #f8f9fa;">
+                            <div class="card-body p-3">
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Manufacturer</label>
+                                        <select class="form-select form-select-sm" id="item-filter-manufacturer">
+                                            <option value="">All Manufacturers</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Model</label>
+                                        <select class="form-select form-select-sm" id="item-filter-model">
+                                            <option value="">All Models</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Country</label>
+                                        <select class="form-select form-select-sm" id="item-filter-country">
+                                            <option value="">All Countries</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Engine CC</label>
+                                        <select class="form-select form-select-sm" id="item-filter-engine">
+                                            <option value="">All Engines</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Category</label>
+                                        <select class="form-select form-select-sm" id="item-filter-category">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Part Number</label>
+                                        <select class="form-select form-select-sm" id="item-filter-part-number">
+                                            <option value="">All Part Numbers</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Type</label>
+                                        <select class="form-select form-select-sm" id="item-filter-type">
+                                            <option value="">All Types</option>
+                                            <option value="parts">Parts</option>
+                                            <option value="battery">Battery</option>
+                                            <option value="oil">Oil</option>
+                                            <option value="scrap">Scrap</option>
+                                            <option value="services">Services</option>
+                                            <option value="filters">Filters</option>
+                                            <option value="breakpad">Break Pad</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1">Year Range</label>
+                                        <input type="text" class="form-control form-control-sm" id="item-filter-year" placeholder="e.g., 2020 or 2020-2025">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- STOCK STATUS Section (Shows when item is selected) -->
@@ -1163,6 +1236,159 @@ $(document).ready(function() {
         $('#add-item-modal').modal('show');
     });
     
+    // Toggle Advanced Filters Panel
+    $('#item-advanced-filters-toggle').on('click', function() {
+        $('#itemAdvancedFiltersPanel').collapse('toggle');
+        $(this).find('i').toggleClass('ti-filter ti-filter-off');
+    });
+    
+    // Clear Advanced Filters
+    $('#item-clear-filters').on('click', function() {
+        $('#item-filter-manufacturer').val('');
+        $('#item-filter-model').val('');
+        $('#item-filter-country').val('');
+        $('#item-filter-engine').val('');
+        $('#item-filter-category').val('');
+        $('#item-filter-part-number').val('');
+        $('#item-filter-type').val('');
+        $('#item-filter-year').val('');
+        
+        // Trigger search again if there's a query
+        const query = $('#item-search').val().trim();
+        if (query.length >= 2) {
+            $('#item-search').trigger('input');
+        }
+        
+        $('#item-clear-filters').addClass('d-none');
+        toastr.success('Filters cleared');
+    });
+    
+    // Watch for filter changes and trigger search
+    $('#item-filter-manufacturer, #item-filter-model, #item-filter-country, #item-filter-engine, #item-filter-category, #item-filter-part-number, #item-filter-type, #item-filter-year').on('change', function() {
+        const query = $('#item-search').val().trim();
+        if (query.length >= 2) {
+            $('#item-search').trigger('input');
+        }
+        
+        // Show clear button if any filter is set
+        const hasFilters = $('#item-filter-manufacturer').val() || 
+                          $('#item-filter-model').val() || 
+                          $('#item-filter-country').val() || 
+                          $('#item-filter-engine').val() || 
+                          $('#item-filter-category').val() || 
+                          $('#item-filter-part-number').val() || 
+                          $('#item-filter-type').val() || 
+                          $('#item-filter-year').val();
+        
+        if (hasFilters) {
+            $('#item-clear-filters').removeClass('d-none');
+        } else {
+            $('#item-clear-filters').addClass('d-none');
+        }
+    });
+    
+    // Load filter dropdowns data from search results
+    function loadAdvancedFilterOptions() {
+        const branchId = $('#purchaseBranchId').val();
+        if (!branchId) return;
+        
+        // Get all items to extract unique filter values
+        $.ajax({
+            url: "{{ route('purchases.items.ajax.search') }}",
+            method: 'GET',
+            data: {
+                q: '', // Empty query to get all items
+                branch_id: branchId,
+                limit: 1000 // Get more items to populate filters
+            },
+            success: function(results) {
+                const manufacturers = {};
+                const models = {};
+                const countries = {};
+                const engines = {};
+                const categories = {};
+                const partNumbers = {};
+                
+                results.forEach(function(result) {
+                    if (result.type === 'item' && result.item) {
+                        const item = result.item;
+                        const vehicle = item.vehical_item;
+                        
+                        // Extract manufacturers
+                        if (vehicle && vehicle.manutacturer_vehical) {
+                            const m = vehicle.manutacturer_vehical;
+                            if (!manufacturers[m.id]) {
+                                manufacturers[m.id] = m.name;
+                            }
+                        }
+                        
+                        // Extract models
+                        if (vehicle && vehicle.model_vehical) {
+                            const m = vehicle.model_vehical;
+                            if (!models[m.id]) {
+                                models[m.id] = m.name;
+                            }
+                        }
+                        
+                        // Extract countries
+                        if (vehicle && vehicle.country_vehical) {
+                            const c = vehicle.country_vehical;
+                            if (!countries[c.id]) {
+                                countries[c.id] = c.name;
+                            }
+                        }
+                        
+                        // Extract engines
+                        if (vehicle && vehicle.engine_vehical) {
+                            const e = vehicle.engine_vehical;
+                            if (!engines[e.id]) {
+                                engines[e.id] = e.name;
+                            }
+                        }
+                        
+                        // Extract categories
+                        if (item.category) {
+                            const c = item.category;
+                            if (!categories[c.id]) {
+                                categories[c.id] = c.name;
+                            }
+                        }
+                        
+                        // Extract part numbers
+                        if (item.partnumber_item) {
+                            const pn = item.partnumber_item;
+                            if (!partNumbers[pn.id]) {
+                                partNumbers[pn.id] = pn.name;
+                            }
+                        }
+                    }
+                });
+                
+                // Populate dropdowns
+                populateDropdown('#item-filter-manufacturer', manufacturers, 'All Manufacturers');
+                populateDropdown('#item-filter-model', models, 'All Models');
+                populateDropdown('#item-filter-country', countries, 'All Countries');
+                populateDropdown('#item-filter-engine', engines, 'All Engines');
+                populateDropdown('#item-filter-category', categories, 'All Categories');
+                populateDropdown('#item-filter-part-number', partNumbers, 'All Part Numbers');
+            }
+        });
+    }
+    
+    function populateDropdown(selector, data, defaultText) {
+        let html = `<option value="">${defaultText}</option>`;
+        const sorted = Object.keys(data).sort((a, b) => data[a].localeCompare(data[b]));
+        sorted.forEach(function(id) {
+            html += `<option value="${id}">${data[id]}</option>`;
+        });
+        $(selector).html(html);
+    }
+    
+    // Load filter options when modal opens
+    $('#add-item-modal').on('shown.bs.modal', function() {
+        loadAdvancedFilterOptions();
+    });
+    
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
         const branchId = $('#purchaseBranchId').val();
@@ -1180,6 +1406,18 @@ $(document).ready(function() {
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
+        
+        // Reset advanced filters
+        $('#item-filter-manufacturer').val('');
+        $('#item-filter-model').val('');
+        $('#item-filter-country').val('');
+        $('#item-filter-engine').val('');
+        $('#item-filter-category').val('');
+        $('#item-filter-part-number').val('');
+        $('#item-filter-type').val('');
+        $('#item-filter-year').val('');
+        $('#item-clear-filters').addClass('d-none');
+        $('#itemAdvancedFiltersPanel').collapse('hide');
         
         // Focus on search input
         setTimeout(function() {
@@ -1205,13 +1443,26 @@ $(document).ready(function() {
         
         // Debounce search
         itemSearchTimeout = setTimeout(function() {
+            // Get advanced filter values
+            const advancedFilters = {
+                manufacturer_id: $('#item-filter-manufacturer').val() || '',
+                model_id: $('#item-filter-model').val() || '',
+                country_id: $('#item-filter-country').val() || '',
+                engine_id: $('#item-filter-engine').val() || '',
+                category_id: $('#item-filter-category').val() || '',
+                part_number_id: $('#item-filter-part-number').val() || '',
+                type: $('#item-filter-type').val() || '',
+                year: $('#item-filter-year').val() || ''
+            };
+            
             $.ajax({
                 url: "{{ route('purchases.items.ajax.search') }}",
                 method: 'GET',
                 data: {
                     q: query,
                     branch_id: branchId,
-                    limit: 10
+                    limit: 10,
+                    ...advancedFilters
                 },
                 success: function(results) {
                     if (results.length === 0) {

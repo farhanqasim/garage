@@ -838,22 +838,40 @@ class PurchaseController extends Controller
                 });
                 
                 // ========== VEHICLE RELATED SEARCH ==========
+                // Direct vehicle_id search (if numeric)
+                if (is_numeric($search)) {
+                    $q->orWhere('vehical_id', $search);
+                }
+                
+                // Vehicle relationship search
                 $q->orWhereHas('vehical_item', function ($subQ) use ($search) {
+                    // Year ranges
                     $subQ->where('year_from', 'LIKE', "%{$search}%")
                       ->orWhere('year_to', 'LIKE', "%{$search}%")
-                      ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
+                      ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%")
+                      // Vehicle ID in vehicle table
+                      ->orWhere('id', 'LIKE', "%{$search}%")
+                      ->orWhere('v_part_number_id', 'LIKE', "%{$search}%");
                 })
                 ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                    $subQ->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('id', 'LIKE', "%{$search}%");
                 })
                 ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                    $subQ->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('id', 'LIKE', "%{$search}%");
                 })
                 ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                    $subQ->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('id', 'LIKE', "%{$search}%");
                 })
                 ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                    $subQ->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('id', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($search) {
+                    $subQ->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('id', 'LIKE', "%{$search}%");
                 });
                 
                 // ========== PRODUCT TYPE AND IDENTIFICATION ==========
@@ -949,11 +967,25 @@ class PurchaseController extends Controller
                   ->orWhere('scale', 'LIKE', "%{$search}%")
                   ->orWhere('weight_unit', 'LIKE', "%{$search}%");
                 
-                // Numeric fields (convert to string for search)
+                // Numeric fields - Always search as string (works for both numbers and letters)
+                $q->orWhere('filling', 'LIKE', "%{$search}%")
+                  ->orWhere('weight_for_delivery', 'LIKE', "%{$search}%")
+                  ->orWhere('packing_purchase_rate', 'LIKE', "%{$search}%")
+                  ->orWhere('total_price', 'LIKE', "%{$search}%")
+                  ->orWhere('price_per_unit', 'LIKE', "%{$search}%")
+                  ->orWhere('sale_price', 'LIKE', "%{$search}%")
+                  ->orWhere('on_hand', 'LIKE', "%{$search}%");
+                
+                // If search is numeric, also search as exact number match
                 if (is_numeric($search)) {
-                    $q->orWhere('filling', 'LIKE', "%{$search}%")
-                      ->orWhere('weight_for_delivery', 'LIKE', "%{$search}%")
-                      ->orWhere('packing_purchase_rate', 'LIKE', "%{$search}%");
+                    $numericValue = (float)$search;
+                    $q->orWhere('filling', $numericValue)
+                      ->orWhere('weight_for_delivery', $numericValue)
+                      ->orWhere('packing_purchase_rate', $numericValue)
+                      ->orWhere('total_price', $numericValue)
+                      ->orWhere('price_per_unit', $numericValue)
+                      ->orWhere('sale_price', $numericValue)
+                      ->orWhere('on_hand', (int)$numericValue);
                 }
                 
                 // ========== STORAGE AND SUPPLIER ==========
@@ -999,6 +1031,63 @@ class PurchaseController extends Controller
             $query->whereHas('vehical_item.manutacturer_vehical', function ($q) use ($request) {
                 $q->where('id', $request->manufacturer_id);
             });
+        }
+
+        // Filter by model
+        if ($request->has('model_id') && $request->model_id) {
+            $query->whereHas('vehical_item.model_vehical', function ($q) use ($request) {
+                $q->where('id', $request->model_id);
+            });
+        }
+
+        // Filter by country
+        if ($request->has('country_id') && $request->country_id) {
+            $query->whereHas('vehical_item.country_vehical', function ($q) use ($request) {
+                $q->where('id', $request->country_id);
+            });
+        }
+
+        // Filter by engine
+        if ($request->has('engine_id') && $request->engine_id) {
+            $query->whereHas('vehical_item.engine_vehical', function ($q) use ($request) {
+                $q->where('id', $request->engine_id);
+            });
+        }
+
+        // Filter by type
+        if ($request->has('type') && $request->type) {
+            $query->where('type', $request->type);
+        }
+
+        // Filter by year
+        if ($request->has('year') && $request->year) {
+            $yearFilter = $request->year;
+            // Check if it's a range (e.g., "2020-2025") or single year
+            if (strpos($yearFilter, '-') !== false) {
+                $years = explode('-', $yearFilter);
+                $yearFrom = trim($years[0]);
+                $yearTo = trim($years[1] ?? $years[0]);
+                $query->whereHas('vehical_item', function ($q) use ($yearFrom, $yearTo) {
+                    $q->where(function ($subQ) use ($yearFrom, $yearTo) {
+                        $subQ->where(function ($yq) use ($yearFrom, $yearTo) {
+                            // Year range overlaps with search range
+                            $yq->where('year_from', '<=', $yearTo)
+                               ->where('year_to', '>=', $yearFrom);
+                        });
+                    });
+                });
+            } else {
+                // Single year search
+                $year = trim($yearFilter);
+                $query->whereHas('vehical_item', function ($q) use ($year) {
+                    $q->where(function ($subQ) use ($year) {
+                        $subQ->where('year_from', '<=', $year)
+                             ->where('year_to', '>=', $year)
+                             ->orWhere('year_from', 'LIKE', "%{$year}%")
+                             ->orWhere('year_to', 'LIKE', "%{$year}%");
+                    });
+                });
+            }
         }
 
         // Filter by part number
