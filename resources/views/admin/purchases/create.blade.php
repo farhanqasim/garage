@@ -422,7 +422,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
                     <div class="position-relative">
-                        <input type="text" id="item-search" class="form-control" placeholder="Search or select product..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <input type="text" id="item-search" class="form-control" placeholder="Search by barcode, part number, vehicle, manufacturer, model, year, type, category, company, or any column..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
                         <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
