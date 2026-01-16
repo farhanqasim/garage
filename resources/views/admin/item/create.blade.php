@@ -3817,6 +3817,18 @@
         $('#selectAllVehicles').prop('checked', totalCheckboxes === checkedCheckboxes);
     });
     
+    // Function to collect checked vehicle IDs
+    function getCheckedVehicleIds() {
+        const checkedVehicles = [];
+        $('.vehicle-checkbox:checked').each(function() {
+            const vehicleId = $(this).data('vehicle-id');
+            if (vehicleId) {
+                checkedVehicles.push(vehicleId);
+            }
+        });
+        return checkedVehicles;
+    }
+    
 
     // Load Vehicle Button - Filter table and save if no match found
     $(document).on('click', '.loadVehicleBtn', function() {
@@ -7523,6 +7535,19 @@
             // Add hidden input if technology has a value
             if (techVal) {
                 $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
+            }
+            
+            // Collect checked vehicle IDs from vehicle table
+            const checkedVehicleIds = getCheckedVehicleIds();
+            
+            // Remove any existing hidden vehical_id inputs to avoid duplicates
+            $(this).find('input[type="hidden"][name="vehical_id[]"], input[type="hidden"][name="vehical_id"]').remove();
+            
+            // Add hidden inputs for each checked vehicle ID
+            if (checkedVehicleIds.length > 0) {
+                checkedVehicleIds.forEach(function(vehicleId) {
+                    $(this).append('<input type="hidden" name="vehical_id[]" value="' + vehicleId + '">');
+                }.bind(this));
             }
             
             // Create FormData for AJAX submission
