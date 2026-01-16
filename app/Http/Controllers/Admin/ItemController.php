@@ -199,6 +199,7 @@ class ItemController extends Controller
         // Multiple records exist per vehicle configuration with different year ranges
         // Optimize: Remove eager loading to prevent timeout - select only needed columns and limit results
         $Vehis = VehicalType::where('status', 'active')
+            ->with(['vehical_part_number'])
             ->select('id', 'v_part_number_id', 'car_manufacturer', 'car_model_name', 'engine_cc', 'car_manufactured_country', 'year_from', 'year_to')
             ->orderBy('id', 'desc') // Order by latest first
             ->limit(2000) // Limit to prevent timeout
