@@ -606,73 +606,75 @@ class AddInputController extends Controller
                 ->toArray();
 
             $savedVehicles = [];
-            $duplicateRanges = [];
-            $overlapWithExisting = [];
-
-            // Save one record per year range
+            $duplicateYears = [];
+            
+            // Convert year ranges to individual years
+            $individualYears = [];
             foreach ($validRanges as $range) {
-                // Check if exact duplicate exists
+                $fromInt = (int) $range['from'];
+                $toInt = (int) $range['to'];
+                
+                // Generate all years in the range
+                for ($year = $fromInt; $year <= $toInt; $year++) {
+                    $yearStr = (string) $year;
+                    if (!in_array($yearStr, $individualYears)) {
+                        $individualYears[] = $yearStr;
+                    }
+                }
+            }
+            
+            // Sort years
+            sort($individualYears);
+
+            // Save one record per individual year
+            foreach ($individualYears as $year) {
+                // Check if this exact year already exists for this vehicle config
                 $exists = VehicalType::where(array_merge($commonFields, [
-                    'year_from' => $range['from'],
-                    'year_to' => $range['to']
+                    'year_from' => $year,
+                    'year_to' => $year
                 ]))->exists();
 
                 if ($exists) {
-                    $rangeStr = $range['from'] . ($range['from'] != $range['to'] ? '-' . $range['to'] : '');
-                    $duplicateRanges[] = $rangeStr;
+                    $duplicateYears[] = $year;
                     continue;
                 }
 
-                // Check overlap with existing ranges
-                $hasOverlap = false;
+                // Check if this year is covered by any existing range
+                $yearInt = (int) $year;
+                $isCovered = false;
                 foreach ($existingRanges as $existing) {
-                    if ($this->rangesOverlap($range, $existing)) {
-                        $existingStr = $existing['from'] . ($existing['from'] != $existing['to'] ? '-' . $existing['to'] : '');
-                        $newRangeStr = $range['from'] . ($range['from'] != $range['to'] ? '-' . $range['to'] : '');
-                        
-                        // Check if specific years are covered
-                        $fromInt = (int) $range['from'];
-                        $toInt = (int) $range['to'];
-                        $existingFrom = (int) $existing['from'];
-                        $existingTo = (int) $existing['to'];
-                        
-                        if ($fromInt >= $existingFrom && $fromInt <= $existingTo) {
-                            $overlapWithExisting[] = "Year {$range['from']} is already covered in range {$existingStr}.";
-                        } elseif ($toInt >= $existingFrom && $toInt <= $existingTo) {
-                            $overlapWithExisting[] = "Year {$range['to']} is already covered in range {$existingStr}.";
-                        } else {
-                            $overlapWithExisting[] = "Range $newRangeStr overlaps with existing range $existingStr.";
-                        }
-                        $hasOverlap = true;
+                    $existingFrom = (int) $existing['from'];
+                    $existingTo = (int) $existing['to'];
+                    if ($yearInt >= $existingFrom && $yearInt <= $existingTo) {
+                        $isCovered = true;
                         break;
                     }
                 }
 
-                if ($hasOverlap) {
+                if ($isCovered) {
+                    $duplicateYears[] = $year;
                     continue;
                 }
 
+                // Save individual year as both year_from and year_to
                 $savedVehicles[] = VehicalType::create(array_merge($commonFields, [
-                    'year_from' => $range['from'],
-                    'year_to' => $range['to']
+                    'year_from' => $year,
+                    'year_to' => $year
                 ]));
             }
 
-            if (!empty($overlapWithExisting)) {
+            if (empty($savedVehicles) && !empty($duplicateYears)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'YEAR OVERLAP ERROR',
-                    'errors' => $overlapWithExisting,
-                    'duplicate_years' => $duplicateRanges,
+                    'message' => 'All years already exist for this vehicle configuration.',
+                    'duplicate_years' => $duplicateYears,
                 ], 422);
             }
-
-            if (empty($savedVehicles) && !empty($duplicateRanges)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'All year ranges already exist for this vehicle configuration.',
-                    'duplicate_years' => $duplicateRanges,
-                ], 422);
+            
+            // Show warning if some years were duplicates
+            $warningMessage = '';
+            if (!empty($duplicateYears) && !empty($savedVehicles)) {
+                $warningMessage = 'Some years (' . implode(', ', $duplicateYears) . ') already existed and were skipped.';
             }
 
             $savedIds = collect($savedVehicles)->pluck('id')->toArray();
@@ -685,8 +687,8 @@ class AddInputController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Vehicle saved successfully!',
-                'duplicate_years' => $duplicateRanges,
+                'message' => 'Vehicle saved successfully!' . ($warningMessage ? ' ' . $warningMessage : ''),
+                'duplicate_years' => $duplicateYears,
                 'vehicles' => VehicalType::with([
                     'manutacturer_vehical',
                     'model_vehical',
@@ -826,25 +828,8 @@ class AddInputController extends Controller
             ], 422);
         }
 
-        // Check for overlaps within the input ranges
-        $overlapErrors = [];
-        for ($i = 0; $i < count($validRanges); $i++) {
-            for ($j = $i + 1; $j < count($validRanges); $j++) {
-                if ($this->rangesOverlap($validRanges[$i], $validRanges[$j])) {
-                    $range1Str = $validRanges[$i]['from'] . ($validRanges[$i]['from'] != $validRanges[$i]['to'] ? '-' . $validRanges[$i]['to'] : '');
-                    $range2Str = $validRanges[$j]['from'] . ($validRanges[$j]['from'] != $validRanges[$j]['to'] ? '-' . $validRanges[$j]['to'] : '');
-                    $overlapErrors[] = "Ranges $range1Str and $range2Str overlap.";
-                }
-            }
-        }
-
-        if (!empty($overlapErrors)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'YEAR OVERLAP ERROR',
-                'errors' => $overlapErrors,
-            ], 422);
-        }
+        // Overlap checking is not needed since we'll convert to individual years
+        // Overlapping ranges will result in duplicate years which will be handled gracefully
 
         $commonFields = [
             'v_part_number_id' => $request->v_part_number_id,
@@ -856,40 +841,66 @@ class AddInputController extends Controller
         ];
 
         $savedVehicles = [];
-        $duplicateRanges = [];
-
-        // Save one record per year range
+        $duplicateYears = [];
+        
+        // Convert year ranges to individual years
+        $individualYears = [];
         foreach ($validRanges as $range) {
+            $fromInt = (int) $range['from'];
+            $toInt = (int) $range['to'];
+            
+            // Generate all years in the range
+            for ($year = $fromInt; $year <= $toInt; $year++) {
+                $yearStr = (string) $year;
+                if (!in_array($yearStr, $individualYears)) {
+                    $individualYears[] = $yearStr;
+                }
+            }
+        }
+        
+        // Sort years
+        sort($individualYears);
+
+        // Save one record per individual year
+        foreach ($individualYears as $year) {
+            // Check if this exact year already exists for this vehicle config
             $exists = VehicalType::where(array_merge($commonFields, [
-                'year_from' => $range['from'],
-                'year_to' => $range['to']
+                'year_from' => $year,
+                'year_to' => $year
             ]))->exists();
 
             if ($exists) {
-                $duplicateRanges[] = $range['from'] . ($range['from'] != $range['to'] ? '-' . $range['to'] : '');
+                $duplicateYears[] = $year;
                 continue;
             }
 
+            // Save individual year as both year_from and year_to
             $savedVehicles[] = VehicalType::create(array_merge($commonFields, [
-                'year_from' => $range['from'],
-                'year_to' => $range['to']
+                'year_from' => $year,
+                'year_to' => $year
             ]));
         }
 
-        if (empty($savedVehicles) && !empty($duplicateRanges)) {
+        if (empty($savedVehicles) && !empty($duplicateYears)) {
             return response()->json([
                 'success' => false,
-                'message' => 'All year ranges already exist for this vehicle configuration.',
+                'message' => 'All years already exist for this vehicle configuration.',
                 'deleted_ids' => $deleted_ids,
             ], 422);
         }
 
         $savedIds = collect($savedVehicles)->pluck('id')->toArray();
+        
+        // Show warning if some years were duplicates
+        $warningMessage = '';
+        if (!empty($duplicateYears) && !empty($savedVehicles)) {
+            $warningMessage = ' Some years (' . implode(', ', $duplicateYears) . ') already existed and were skipped.';
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Vehicle updated successfully!',
-            'duplicate_years' => $duplicateRanges,
+            'message' => 'Vehicle updated successfully!' . $warningMessage,
+            'duplicate_years' => $duplicateYears,
             'vehicles' => VehicalType::with([
                 'manutacturer_vehical',
                 'model_vehical',
