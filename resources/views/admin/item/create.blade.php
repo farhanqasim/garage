@@ -1712,6 +1712,11 @@
                                                     </button>
                                                 </div>
                                             </th>
+                                            <th>
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Part Number</div>
+                                                </div>
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1748,6 +1753,7 @@
                                                     <i class="ti ti-pencil"></i>
                                                 </button>
                                             </td>
+                                            <td>{{ $car->vehical_part_number->name ?? '-' }}</td>
                                         </tr>
                                         @endforeach
                                     </tbody>
@@ -3838,6 +3844,7 @@
                                     model_vehical: v.model_vehical,
                                     engine_vehical: v.engine_vehical,
                                     country_vehical: v.country_vehical,
+                                    vehical_part_number: v.vehical_part_number,
                                     yearRanges: []
                                 };
                             }
@@ -3906,6 +3913,7 @@
                                                 <i class="ti ti-pencil"></i>
                                             </button>
                                         </td>
+                                        <td>${group.vehical_part_number?.name || '-'}</td>
                                     </tr>
                                 `;
                                 $("#vehicleTable tbody").prepend(newRow);
