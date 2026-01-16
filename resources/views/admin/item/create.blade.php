@@ -5915,6 +5915,35 @@
                                         
                                         // Open modal
                                         $('#universal-add-modal').modal('show');
+                                        
+                                        // Focus input with multiple strategies
+                                        function focusUniversalInput() {
+                                            const $input = $('#universal-name');
+                                            if ($input.length) {
+                                                $input[0].focus();
+                                                if (searchText) {
+                                                    requestAnimationFrame(function() {
+                                                        $input[0].select();
+                                                        const len = $input.val().length;
+                                                        if ($input[0].setSelectionRange) {
+                                                            $input[0].setSelectionRange(len, len);
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        }
+                                        
+                                        setTimeout(focusUniversalInput, 100);
+                                        setTimeout(focusUniversalInput, 300);
+                                        setTimeout(focusUniversalInput, 500);
+                                        
+                                        $('#universal-add-modal').one('shown.bs.modal', function() {
+                                            requestAnimationFrame(function() {
+                                                requestAnimationFrame(function() {
+                                                    focusUniversalInput();
+                                                });
+                                            });
+                                        });
                                     }
                                     return false;
                                 }
@@ -6928,13 +6957,39 @@
                 
                 // Open modal and focus input
                 $('#universal-add-modal').modal('show');
-                setTimeout(function() {
-                    $('#universal-name').focus();
-                    // Select all text for easy editing
-                    if (finalSearchTerm) {
-                        $('#universal-name').select();
+                
+                // Multiple strategies to ensure focus works
+                function focusInput() {
+                    const $input = $('#universal-name');
+                    if ($input.length) {
+                        $input[0].focus();
+                        // Select all text for easy editing if search term exists
+                        if (finalSearchTerm) {
+                            requestAnimationFrame(function() {
+                                $input[0].select();
+                                // Ensure cursor is at end for better UX
+                                if ($input[0].setSelectionRange) {
+                                    const len = $input.val().length;
+                                    $input[0].setSelectionRange(len, len);
+                                }
+                            });
+                        }
                     }
-                }, 300);
+                }
+                
+                // Try multiple times with different delays to ensure focus works
+                setTimeout(focusInput, 100);
+                setTimeout(focusInput, 300);
+                setTimeout(focusInput, 500);
+                
+                // Also focus when modal is fully shown
+                $('#universal-add-modal').one('shown.bs.modal', function() {
+                    requestAnimationFrame(function() {
+                        requestAnimationFrame(function() {
+                            focusInput();
+                        });
+                    });
+                });
             }
             // =========================
             // EDIT MODE
