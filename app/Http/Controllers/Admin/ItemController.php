@@ -306,7 +306,7 @@ class ItemController extends Controller
 
     public function items_store(Request $request)
     {
-        // Validate fields
+        // Validate fields first (before transaction)
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code',
             'user_id' => 'nullable|exists:users,id',
@@ -466,30 +466,47 @@ class ItemController extends Controller
             /* ============================
             ✅ Handle Vehicle IDs Array
             ============================ */
-            // Handle vehical_id array - convert to comma-separated string
+            // Handle vehical_id array - save first vehicle ID only (since vehical_id is a foreign key)
             if (isset($data['vehical_id']) && is_array($data['vehical_id'])) {
                 // Filter out null/empty values
                 $vehicleIds = array_filter($data['vehical_id'], function($id) {
-                    return !empty($id);
+                    return !empty($id) && is_numeric($id);
                 });
                 
                 if (count($vehicleIds) > 0) {
-                    // Save as comma-separated string
-                    $data['vehical_id'] = implode(',', $vehicleIds);
+                    // Save first vehicle ID only (vehical_id is a foreign key, can only store one ID)
+                    $data['vehical_id'] = (int) reset($vehicleIds);
                 } else {
                     unset($data['vehical_id']);
                 }
-            } else {
-                // If not array or empty, keep as is or remove
+            } elseif (isset($data['vehical_id']) && !empty($data['vehical_id'])) {
+                // If it's already a single value, ensure it's an integer
+                $data['vehical_id'] = is_numeric($data['vehical_id']) ? (int) $data['vehical_id'] : null;
                 if (empty($data['vehical_id'])) {
                     unset($data['vehical_id']);
                 }
+            } else {
+                // If empty, remove it
+                unset($data['vehical_id']);
             }
 
             /* ============================
             ✅ Create Item
             ============================ */
+            // Log data before creating (for debugging)
+            Log::info('Creating item', [
+                'vehical_id' => isset($data['vehical_id']) ? $data['vehical_id'] : 'not set',
+                'bar_code' => isset($data['bar_code']) ? $data['bar_code'] : 'not set',
+                'type' => isset($data['type']) ? $data['type'] : 'not set',
+            ]);
+            
             $item = Item::create($data);
+            
+            // Log after creation
+            Log::info('Item created successfully', [
+                'item_id' => $item->id,
+                'vehical_id' => $item->vehical_id ?? 'null'
+            ]);
 
             DB::commit();
 
