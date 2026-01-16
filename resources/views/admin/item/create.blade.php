@@ -495,66 +495,59 @@
             <form method="POST" action="{{ route('all.items.store') }}" enctype="multipart/form-data" id="mainItemForm">
                 @csrf
                 <input type="hidden" name="user_id" value="{{ auth()->check() ? auth()->user()->id : '' }}">
-                <div class="container" x-data="productForm()">
+                <div class="container" id="productFormContainer">
                     <!-- 4 Clickable Type Boxes -->
                     <div class="row mb-5 g-3">
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
-                                @click="selectType('parts')">
+                            <div class="type-box text-center p-4" data-type="parts">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
-                                @click="selectType('filters')">
+                            <div class="type-box text-center p-4" data-type="filters">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
-                                @click="selectType('breakpad')">
+                            <div class="type-box text-center p-4" data-type="breakpad">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
-                                @click="selectType('oil')">
+                            <div class="type-box text-center p-4" data-type="oil">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
-                                @click="selectType('battery')">
+                            <div class="type-box text-center p-4" data-type="battery">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
-                                @click="selectType('scrap')">
+                            <div class="type-box text-center p-4" data-type="scrap">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
-                            <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
-                                @click="selectType('services')">
+                            <div class="type-box text-center p-4" data-type="services">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" name="type" x-model="selectedType">
+                    <input type="hidden" name="type" id="itemTypeInput" value="{{ old('type') }}">
                     <!-- Hidden inputs to ensure quality_id and technology are submitted even when fields are hidden -->
                     <input type="hidden" name="quality_id" id="hidden_quality_id" value="">
                     <input type="hidden" name="technology" id="hidden_technology" value="">
                     <div class="row" id="itemFormsContainer">
                         <!-- COMMON FIELDS (Visible after type selection) -->
-                        <div class="col-md-12 field-group" :class="{ 'active': selectedType }">
+                        <div class="col-md-12 field-group common-fields">
                             <h4 class="mt-3">Item Info:</h4>
                             <div class="row mt-4">
                                 <!-- Barcode -->
@@ -777,7 +770,7 @@
                         </div>
                         <!-- PARTS FIELDS -->
 
-                        <div class="field-group" :class="{ 'active': selectedType === 'parts' }">
+                        <div class="field-group parts-fields" data-type="parts">
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
@@ -815,7 +808,7 @@
                         </div>
 
                         <!-- FILTERS FIELDS -->
-                        <div class="field-group" :class="{ 'active': selectedType === 'filters' }">
+                        <div class="field-group filters-fields" data-type="filters">
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
@@ -850,7 +843,7 @@
                         </div>
 
                         <!-- BREAK PAD FIELDS -->
-                        <div class="field-group" :class="{ 'active': selectedType === 'breakpad' }">
+                        <div class="field-group breakpad-fields" data-type="breakpad">
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
@@ -883,7 +876,7 @@
                         </div>
 
                         <!-- BATTERY FIELDS -->
-                        <div class="field-group" :class="{ 'active': selectedType === 'battery' }">
+                        <div class="field-group battery-fields" data-type="battery">
                             <div class="row p-3 mt-4">
                                 <div class="col-md-4">
                                     <label for="plates_scrap">Plates:</label>
@@ -1139,7 +1132,7 @@
                         </div>
 
                         <!-- OIL FIELDS -->
-                        <div class="field-group" :class="{ 'active': selectedType === 'oil' }">
+                        <div class="field-group oil-fields" data-type="oil">
                             <div class="row p-3 mt-4">
                                 <div class="col-md-4">
                                     <label for="grade_select">Grade:</label>
@@ -1308,7 +1301,7 @@
                         </div>
 
                         <!-- SCRAP FIELDS -->
-                        <div class="field-group" :class="{ 'active': selectedType === 'scrap' }">
+                        <div class="field-group scrap-fields" data-type="scrap">
                             <div class="row p-3 mt-4">
                                 {{-- <div class="col-md-4">
                                     <label for="plates_scrap">Plates:</label>
@@ -1343,7 +1336,7 @@
                     </div>
                 </div>
 
-                <div class="field-group" :class="{ 'active': selectedType === 'services' }">
+                <div class="field-group services-fields" data-type="services">
                     <div class="row p-3 mt-4">
                         <div class="col-md-4">
                             <label for="Services_scrap">Services:</label>
@@ -5023,86 +5016,99 @@
 </script>
 <script>
 
-    // Simple Alpine.js productForm - original working version
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('productForm', () => ({
-            selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-            init() {
-                // Filter dropdowns on initial load if type is already selected
-                if (this.selectedType) {
-                    setTimeout(() => {
-                        if (typeof updateLabelsWithType === 'function') {
-                            updateLabelsWithType(this.selectedType);
-                        }
-                        if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(this.selectedType);
-                        }
-                    }, 500);
-                }
+    // Simple JavaScript for type selection - NO Alpine.js dependency
+    $(document).ready(function() {
+        let selectedType = localStorage.getItem('selectedType') || '{{ old("type") }}' || '';
+        
+        // Initialize: Set selected type from localStorage or old input
+        if (selectedType) {
+            selectType(selectedType, false);
+        }
+        
+        // Handle type box clicks
+        $(document).on('click', '.type-box', function() {
+            const type = $(this).data('type');
+            if (type) {
+                selectType(type, true);
+            }
+        });
+        
+        // Main function to handle type selection
+        function selectType(type, clearFields) {
+            console.log('selectType called with:', type);
+            
+            // Update selected type
+            selectedType = type || '';
+            localStorage.setItem('selectedType', selectedType);
+            
+            // Update hidden input
+            $('#itemTypeInput').val(selectedType);
+            
+            // Update type boxes - remove selected class from all, add to clicked one
+            $('.type-box').removeClass('selected');
+            if (type) {
+                $(`.type-box[data-type="${type}"]`).addClass('selected');
+            }
+            
+            // Clear fields if type is changing
+            if (clearFields && typeof clearAllFormFields === 'function') {
+                clearAllFormFields();
+            }
+            
+            // Update field visibility
+            updateFieldVisibility(type);
+            
+            // Update labels
+            if (typeof updateLabelsWithType === 'function') {
+                updateLabelsWithType(type);
+            }
+            
+            // Filter dropdowns
+            if (typeof filterDropdownsByType === 'function') {
+                filterDropdownsByType(type);
+            }
+            
+            // Update required fields
+            if (typeof updateRequiredFields === 'function') {
+                updateRequiredFields(type);
+            }
+            
+            // Load items by type
+            if (type && typeof loadItemsByType === 'function') {
+                loadItemsByType(type);
+            } else if (typeof loadAllItems === 'function') {
+                loadAllItems();
+            }
+        }
+        
+        // Function to update field visibility based on type
+        function updateFieldVisibility(type) {
+            // Hide all field-groups first
+            $('#itemFormsContainer .field-group').removeClass('active');
+            
+            if (type) {
+                // Show common fields
+                $('#itemFormsContainer .field-group.common-fields').addClass('active');
                 
-                // Watch for selectedType changes and filter dropdown options
-                this.$watch('selectedType', (newType, oldType) => {
-                    // If type is actually changing (not just initializing), clear all fields
-                    if (oldType && oldType !== newType) {
-                        if (typeof clearAllFormFields === 'function') {
-                            clearAllFormFields();
+                // Show type-specific fields using data-type attribute or class
+                $(`#itemFormsContainer .field-group[data-type="${type}"], #itemFormsContainer .field-group.${type}-fields`).addClass('active');
+                
+                // Show media and checkbox fields (check by heading text)
+                $('#itemFormsContainer .field-group').each(function() {
+                    const $group = $(this);
+                    const h4 = $group.find('h4');
+                    if (h4.length) {
+                        const text = h4.text().toLowerCase();
+                        if (text.includes('media') || text.includes('status') || text.includes('description')) {
+                            $group.addClass('active');
                         }
-                    }
-                    // Update all labels with selected type
-                    if (typeof updateLabelsWithType === 'function') {
-                        updateLabelsWithType(newType);
-                    }
-                    // Filter all dropdowns based on selected type
-                    if (typeof filterDropdownsByType === 'function') {
-                        filterDropdownsByType(newType);
-                    }
-                    // Update required attributes based on field visibility
-                    if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(newType);
                     }
                 });
-                
-                // Initial update of required fields
-                setTimeout(() => {
-                    if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(this.selectedType);
-                    }
-                }, 500);
-            },
-            selectType(type) {
-                // If type is changing (not the same), clear all form fields
-                if (this.selectedType && this.selectedType !== type) {
-                    if (typeof clearAllFormFields === 'function') {
-                        clearAllFormFields();
-                    }
-                }
-                
-                this.selectedType = type;
-                localStorage.setItem('selectedType', type);
-                
-                // Update all labels with selected type
-                if (typeof updateLabelsWithType === 'function') {
-                    updateLabelsWithType(type);
-                }
-                
-                // Filter dropdowns by selected type
-                if (typeof filterDropdownsByType === 'function') {
-                    filterDropdownsByType(type);
-                }
-                
-                // Update required attributes based on field visibility
-                if (typeof updateRequiredFields === 'function') {
-                    updateRequiredFields(type);
-                }
-                
-                // Load items by type when type changes
-                if (type && typeof loadItemsByType === 'function') {
-                    loadItemsByType(type);
-                } else if (typeof loadAllItems === 'function') {
-                    loadAllItems();
-                }
             }
-        }));
+        }
+        
+        // Make selectType available globally
+        window.selectType = selectType;
     });
 
     // Function to update required fields based on type visibility
