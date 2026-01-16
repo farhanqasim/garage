@@ -5027,57 +5027,110 @@
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
+                console.log('Alpine productForm initialized, selectedType:', this.selectedType);
+                
                 // Filter dropdowns on initial load if type is already selected
                 if (this.selectedType) {
                     setTimeout(() => {
-                        updateLabelsWithType(this.selectedType);
-                        filterDropdownsByType(this.selectedType);
+                        if (typeof updateLabelsWithType === 'function') {
+                            updateLabelsWithType(this.selectedType);
+                        }
+                        if (typeof filterDropdownsByType === 'function') {
+                            filterDropdownsByType(this.selectedType);
+                        }
                     }, 500);
                 }
                 
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType, oldType) => {
+                    console.log('selectedType changed from', oldType, 'to', newType);
+                    
                     // If type is actually changing (not just initializing), clear all fields
                     if (oldType && oldType !== newType) {
-                        clearAllFormFields();
+                        if (typeof clearAllFormFields === 'function') {
+                            clearAllFormFields();
+                        }
                     }
+                    
                     // Update all labels with selected type
-                    updateLabelsWithType(newType);
+                    if (typeof updateLabelsWithType === 'function') {
+                        updateLabelsWithType(newType);
+                    }
+                    
                     // Filter all dropdowns based on selected type
-                    filterDropdownsByType(newType);
+                    if (typeof filterDropdownsByType === 'function') {
+                        filterDropdownsByType(newType);
+                    }
+                    
                     // Update required attributes based on field visibility
-                    updateRequiredFields(newType);
+                    if (typeof updateRequiredFields === 'function') {
+                        updateRequiredFields(newType);
+                    }
                 });
                 
                 // Initial update of required fields
                 setTimeout(() => {
-                    updateRequiredFields(this.selectedType);
+                    if (typeof updateRequiredFields === 'function') {
+                        updateRequiredFields(this.selectedType);
+                    }
                 }, 500);
             },
             selectType(type) {
+                console.log('selectType called with:', type); // Debug log
+                
                 // If type is changing (not the same), clear all form fields
                 if (this.selectedType && this.selectedType !== type) {
-                    clearAllFormFields();
+                    if (typeof clearAllFormFields === 'function') {
+                        clearAllFormFields();
+                    }
                 }
                 
+                // Set selected type
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
                 
-                // Update all labels with selected type
-                updateLabelsWithType(type);
-                
-                // Filter dropdowns by selected type
-                filterDropdownsByType(type);
-                
-                // Update required attributes based on field visibility
-                updateRequiredFields(type);
-                
-                // Load items by type when type changes
-                if (type) {
-                    loadItemsByType(type);
-                } else {
-                    loadAllItems();
+                // Set hidden type input field (x-model will handle this, but ensure it's set)
+                let typeInput = document.querySelector('input[name="type"]');
+                if (!typeInput) {
+                    // Create hidden input if it doesn't exist
+                    const form = document.getElementById('mainItemForm');
+                    if (form) {
+                        typeInput = document.createElement('input');
+                        typeInput.type = 'hidden';
+                        typeInput.name = 'type';
+                        form.appendChild(typeInput);
+                    }
                 }
+                if (typeInput) {
+                    typeInput.value = type || '';
+                    // Trigger input event to ensure x-model updates
+                    typeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                
+                // Force Alpine.js to update the DOM
+                this.$nextTick(() => {
+                    // Update all labels with selected type
+                    if (typeof updateLabelsWithType === 'function') {
+                        updateLabelsWithType(type);
+                    }
+                    
+                    // Filter dropdowns by selected type
+                    if (typeof filterDropdownsByType === 'function') {
+                        filterDropdownsByType(type);
+                    }
+                    
+                    // Update required attributes based on field visibility
+                    if (typeof updateRequiredFields === 'function') {
+                        updateRequiredFields(type);
+                    }
+                    
+                    // Load items by type when type changes
+                    if (type && typeof loadItemsByType === 'function') {
+                        loadItemsByType(type);
+                    } else if (typeof loadAllItems === 'function') {
+                        loadAllItems();
+                    }
+                });
             }
         }));
     });
@@ -7505,7 +7558,10 @@
             $('.car-engine-select').val(null).trigger('change');
             $('.car-country-select').val(null).trigger('change');
             
-            // Reset Alpine.js selected type
+            // Reset Alpine.js selected type - but don't clear if user wants to keep type selected
+            // Only clear type if explicitly needed, otherwise keep it for better UX
+            // Commenting out type reset so user doesn't lose type selection
+            /*
             if (window.Alpine && document.querySelector('[x-data*="productForm"]')) {
                 try {
                     const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
@@ -7516,6 +7572,7 @@
                     localStorage.removeItem('selectedType');
                 }
             }
+            */
             
             // Clear file inputs
             $('input[type="file"]').val('');
@@ -7523,8 +7580,8 @@
             // Clear any images preview
             $('.item-image-preview').remove();
             
-            // Reset all hidden inputs
-            $('input[type="hidden"]').not('[name="_token"]').not('[name="user_id"]').val('');
+            // Reset all hidden inputs (except type, token, and user_id)
+            $('input[type="hidden"]').not('[name="_token"]').not('[name="user_id"]').not('[name="type"]').val('');
             
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
