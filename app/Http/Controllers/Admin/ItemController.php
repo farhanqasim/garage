@@ -311,7 +311,8 @@ class ItemController extends Controller
             'bar_code' => 'required|unique:items,bar_code',
             'user_id' => 'nullable|exists:users,id',
             'p_id' => 'nullable|string|max:255',
-            'vehical_id' => 'nullable|string',
+            'vehical_id' => 'nullable|array',
+            'vehical_id.*' => 'nullable|exists:vehical_types,id',
             'total_price' => 'nullable',
             'price_per_unit' => 'nullable',
             'on_hand' => 'nullable',
@@ -460,6 +461,29 @@ class ItemController extends Controller
             if (isset($data['formulas'])) {
                 $data['farmula'] = $data['formulas'];
                 unset($data['formulas']);
+            }
+            
+            /* ============================
+            ✅ Handle Vehicle IDs Array
+            ============================ */
+            // Handle vehical_id array - convert to comma-separated string
+            if (isset($data['vehical_id']) && is_array($data['vehical_id'])) {
+                // Filter out null/empty values
+                $vehicleIds = array_filter($data['vehical_id'], function($id) {
+                    return !empty($id);
+                });
+                
+                if (count($vehicleIds) > 0) {
+                    // Save as comma-separated string
+                    $data['vehical_id'] = implode(',', $vehicleIds);
+                } else {
+                    unset($data['vehical_id']);
+                }
+            } else {
+                // If not array or empty, keep as is or remove
+                if (empty($data['vehical_id'])) {
+                    unset($data['vehical_id']);
+                }
             }
 
             /* ============================
