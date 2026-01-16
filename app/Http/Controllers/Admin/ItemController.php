@@ -311,8 +311,8 @@ class ItemController extends Controller
             'bar_code' => 'required|unique:items,bar_code',
             'user_id' => 'nullable|exists:users,id',
             'p_id' => 'nullable|string|max:255',
-            'vehical_id' => 'nullable|array',
-            'vehical_id.*' => 'nullable|exists:vehical_types,id',
+            'vehical_id' => 'nullable',
+            'vehical_id.*' => 'nullable|integer|exists:vehical_types,id',
             'total_price' => 'nullable',
             'price_per_unit' => 'nullable',
             'on_hand' => 'nullable',
@@ -496,6 +496,25 @@ class ItemController extends Controller
             /* ============================
             ✅ Redirects
             ============================ */
+            // Return JSON response for AJAX requests
+            if ($request->ajax() || $request->wantsJson()) {
+                if ($request->action === 'save_new') {
+                    Log::info('Item created (Save & New)', ['item_id' => $item->id]);
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Item created successfully!',
+                        'redirect' => route('all.items.create')
+                    ]);
+                }
+                
+                Log::info('Item created (Save)', ['item_id' => $item->id]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Item created successfully!'
+                ]);
+            }
+            
+            // Regular redirect for non-AJAX requests
             if ($request->action === 'save_new') {
                 Log::info('Item created (Save & New)', ['item_id' => $item->id]);
                 return redirect()->route('all.items.create')
@@ -507,8 +526,22 @@ class ItemController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->with('success', 'Item created successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            
+            // Return JSON response for validation errors in AJAX requests
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput();
         } catch (\Exception $e) {
-
             DB::rollBack();
 
             Log::error('Item creation failed', [
@@ -516,6 +549,14 @@ class ItemController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'data' => $request->except(['image', 'images'])
             ]);
+            
+            // Return JSON response for errors in AJAX requests
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create item: ' . $e->getMessage()
+                ], 500);
+            }
 
             return redirect()->back()
                 ->with('error', 'Failed to create item: ' . $e->getMessage())
