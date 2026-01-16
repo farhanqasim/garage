@@ -1702,7 +1702,10 @@
                                           
                                             <th>
                                                 <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Action</div>
+                                                    <button type="button" class="btn btn-sm btn-warning clearVehicleFiltersBtn mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                        <i data-feather="x-circle" style="width: 12px; height: 12px;"></i>
+                                                        <span style="margin-left: 4px;">Empty</span>
+                                                    </button>
                                                     <button type="button" class="btn btn-sm btn-primary loadVehicleBtn" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
                                                         <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
                                                         <span style="margin-left: 4px;">Load</span>
@@ -3724,6 +3727,35 @@
             }
         });
     }
+
+    // Clear All Vehicle Filters Button
+    $(document).on('click', '.clearVehicleFiltersBtn', function() {
+        // Clear all Select2 dropdowns
+        $('#vehicle_manufacturer_select').val('').trigger('change');
+        $('#vehicle_model_select').val('').trigger('change');
+        $('#vehicle_country_select').val('').trigger('change');
+        $('#vehicle_engine_select').val('').trigger('change');
+        
+        // Clear part number if exists
+        if ($('#part_number_id').length) {
+            $('#part_number_id').val('').trigger('change');
+        }
+        
+        // Clear year ranges
+        $('#selectedYearRangesDisplay').data('all-ranges', []);
+        $('#selectedYearRangesDisplay').attr('data-show-all', 'false');
+        $('#selectedYearRangesDisplay').html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
+        
+        // Clear any selected year ranges from modal if open
+        if ($('#yearRangeModal').length) {
+            $('#yearRangeModal input[type="checkbox"]:checked').prop('checked', false);
+        }
+        
+        // Show all rows in table
+        filterVehicleTable();
+        
+        toastr.success('All filters cleared successfully.');
+    });
 
     // Load Vehicle Button - Filter table and save if no match found
     $(document).on('click', '.loadVehicleBtn', function() {
