@@ -7437,7 +7437,31 @@
         // ENSURE quality_id AND technology ARE SUBMITTED ON FORM SUBMIT
         // This ensures they are sent even if fields are hidden by Alpine.js
         // =========================
+        // Function to reset form after successful save
+        function resetFormAfterSave() {
+            setTimeout(function() {
+                $('#mainItemForm')[0].reset();
+                // Clear Select2 values
+                $('.searchable-select').val(null).trigger('change');
+                // Clear Alpine.js selected type
+                if (window.Alpine && document.querySelector('[x-data*="productForm"]')) {
+                    try {
+                        const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                        if (alpineComponent && alpineComponent.selectType) {
+                            alpineComponent.selectType('');
+                        }
+                    } catch(e) {
+                        localStorage.removeItem('selectedType');
+                    }
+                }
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 2000);
+        }
+        
         $('#mainItemForm').on('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission
+            
             // Extract unit ID from composite value (unit_id_base_unit_id format)
             const unitSelectVal = $('#unit_parts').val();
             if (unitSelectVal && unitSelectVal.includes('_')) {
@@ -7469,6 +7493,116 @@
             if (techVal) {
                 $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
             }
+            
+            // Create FormData for AJAX submission
+            const formData = new FormData(this);
+            const submitBtn = $(this).find('button[type="submit"]');
+            const originalBtnText = submitBtn.html();
+            
+            // Disable submit button and show loading
+            submitBtn.prop('disabled', true).html('<i class="ti ti-loader spinner"></i> Saving...');
+            
+            // Submit via AJAX
+            $.ajax({
+                url: $(this).attr('action'),
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                success: function(response) {
+                    // Re-enable submit button
+                    submitBtn.prop('disabled', false).html(originalBtnText);
+                    
+                    // Check if response is JSON or HTML (redirect response)
+                    let isJson = false;
+                    let jsonResponse = null;
+                    
+                    try {
+                        // Try to parse as JSON if response is a string
+                        if (typeof response === 'string') {
+                            jsonResponse = JSON.parse(response);
+                            isJson = true;
+                        } else if (response && typeof response === 'object') {
+                            jsonResponse = response;
+                            isJson = true;
+                        }
+                    } catch(e) {
+                        // Not JSON, likely HTML redirect response
+                        isJson = false;
+                    }
+                    
+                    // Show success message and play sound
+                    if (isJson && jsonResponse) {
+                        if (jsonResponse.success || jsonResponse.message) {
+                            toastr.success(jsonResponse.message || 'Item saved successfully!');
+                            // 🔊 Play save sound
+                            if (typeof playSaveSound === 'function') {
+                                playSaveSound();
+                            }
+                            
+                            // Handle redirect if provided
+                            if (jsonResponse.redirect) {
+                                setTimeout(function() {
+                                    window.location.href = jsonResponse.redirect;
+                                }, 1500);
+                            } else {
+                                // Reset form after successful save
+                                resetFormAfterSave();
+                            }
+                        }
+                    } else {
+                        // HTML response - likely a redirect page, show success anyway
+                        toastr.success('Item saved successfully!');
+                        // 🔊 Play save sound
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                        
+                        // Reset form
+                        resetFormAfterSave();
+                    }
+                },
+                error: function(xhr) {
+                    // Re-enable submit button
+                    submitBtn.prop('disabled', false).html(originalBtnText);
+                    
+                    // Handle validation errors
+                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                        const errors = xhr.responseJSON.errors;
+                        let errorMessages = [];
+                        
+                        $.each(errors, function(field, messages) {
+                            if (Array.isArray(messages)) {
+                                errorMessages = errorMessages.concat(messages);
+                            } else {
+                                errorMessages.push(messages);
+                            }
+                            
+                            // Highlight invalid fields
+                            const $field = $('[name="' + field + '"]');
+                            if ($field.length) {
+                                $field.addClass('is-invalid');
+                                const errorHtml = '<div class="invalid-feedback">' + (Array.isArray(messages) ? messages[0] : messages) + '</div>';
+                                $field.closest('.input-group, .form-group, .col-md-4, .col-md-6').find('.invalid-feedback').remove();
+                                $field.after(errorHtml);
+                            }
+                        });
+                        
+                        // Show first error message
+                        if (errorMessages.length > 0) {
+                            toastr.error(errorMessages[0]);
+                        }
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                        toastr.error(xhr.responseJSON.message);
+                    } else {
+                        toastr.error('Error saving item. Please try again.');
+                    }
+                }
+            });
         });
     });
 </script>
