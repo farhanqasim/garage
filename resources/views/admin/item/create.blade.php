@@ -7482,24 +7482,52 @@
         // =========================
         // Function to reset form after successful save
         function resetFormAfterSave() {
+            // Small delay to ensure success message is shown
             setTimeout(function() {
+                // Clear all form fields
                 $('#mainItemForm')[0].reset();
-                // Clear Select2 values
-                $('.searchable-select').val(null).trigger('change');
-                // Clear Alpine.js selected type
-                if (window.Alpine && document.querySelector('[x-data*="productForm"]')) {
-                    try {
-                        const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
-                        if (alpineComponent && alpineComponent.selectType) {
-                            alpineComponent.selectType('');
-                        }
-                    } catch(e) {
-                        localStorage.removeItem('selectedType');
+            
+            // Clear Select2 values
+            $('.searchable-select').val(null).trigger('change');
+            
+            // Clear vehicle checkboxes
+            $('.vehicle-checkbox').prop('checked', false);
+            $('#selectAllVehicles').prop('checked', false);
+            
+            // Clear year ranges in vehicle modal
+            $('#yearRangesContainer').html('');
+            $('#selectedYearRangesDisplay').html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
+            $('#selectedYearRangesDisplay').data('all-ranges', []);
+            
+            // Clear vehicle table filters
+            $('.car-manufacturer-select').val(null).trigger('change');
+            $('.car-model-select').val(null).trigger('change');
+            $('.car-engine-select').val(null).trigger('change');
+            $('.car-country-select').val(null).trigger('change');
+            
+            // Reset Alpine.js selected type
+            if (window.Alpine && document.querySelector('[x-data*="productForm"]')) {
+                try {
+                    const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                    if (alpineComponent && alpineComponent.selectType) {
+                        alpineComponent.selectType('');
                     }
+                } catch(e) {
+                    localStorage.removeItem('selectedType');
                 }
-                // Scroll to top
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }, 2000);
+            }
+            
+            // Clear file inputs
+            $('input[type="file"]').val('');
+            
+            // Clear any images preview
+            $('.item-image-preview').remove();
+            
+            // Reset all hidden inputs
+            $('input[type="hidden"]').not('[name="_token"]').not('[name="user_id"]').val('');
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         
         $('#mainItemForm').on('submit', function(e) {
@@ -7594,19 +7622,27 @@
                     // Show success message and play sound
                     if (isJson && jsonResponse) {
                         if (jsonResponse.success || jsonResponse.message) {
-                            toastr.success(jsonResponse.message || 'Item saved successfully!');
+                            // Show success message with item count if available
+                            let message = jsonResponse.message || 'Item saved successfully!';
+                            if (jsonResponse.items_count && jsonResponse.items_count > 1) {
+                                message = jsonResponse.items_count + ' items saved successfully!';
+                            }
+                            toastr.success(message);
+                            
                             // 🔊 Play save sound
                             if (typeof playSaveSound === 'function') {
                                 playSaveSound();
                             }
                             
-                            // Handle redirect if provided
+                            // Handle redirect if provided (for Save & New)
                             if (jsonResponse.redirect) {
+                                // Reset form first, then redirect after delay
+                                resetFormAfterSave();
                                 setTimeout(function() {
                                     window.location.href = jsonResponse.redirect;
                                 }, 1500);
                             } else {
-                                // Reset form after successful save
+                                // Reset form after successful save (stay on same page - no redirect)
                                 resetFormAfterSave();
                             }
                         }
