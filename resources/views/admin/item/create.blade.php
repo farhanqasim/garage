@@ -5002,7 +5002,14 @@
                     updateLabelsWithType(newType);
                     // Filter all dropdowns based on selected type
                     filterDropdownsByType(newType);
+                    // Update required attributes based on field visibility
+                    updateRequiredFields(newType);
                 });
+                
+                // Initial update of required fields
+                setTimeout(() => {
+                    updateRequiredFields(this.selectedType);
+                }, 500);
             },
             selectType(type) {
                 // If type is changing (not the same), clear all form fields
@@ -5019,6 +5026,9 @@
                 // Filter dropdowns by selected type
                 filterDropdownsByType(type);
                 
+                // Update required attributes based on field visibility
+                updateRequiredFields(type);
+                
                 // Load items by type when type changes
                 if (type) {
                     loadItemsByType(type);
@@ -5028,6 +5038,79 @@
             }
         }));
     });
+
+    // Function to update required fields based on type visibility
+    function updateRequiredFields(type) {
+        // Define which types show which fields (based on x-show conditions)
+        const categoryTypes = ['parts', 'oil', 'scrap', 'services', 'filters', 'breakpad'];
+        const companyTypes = ['parts', 'battery', 'oil', 'filters', 'breakpad'];
+        const qualityTypes = ['parts']; // Quality shows only for parts
+        const unitTypes = ['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad'];
+        
+        // Category field - required when visible
+        const $category = $('#category');
+        if ($category.length) {
+            const $categoryContainer = $category.closest('.col-md-4');
+            const isVisible = type && categoryTypes.includes(type);
+            const isActuallyVisible = $categoryContainer.is(':visible') && !$categoryContainer.hasClass('d-none');
+            
+            if (isVisible && isActuallyVisible) {
+                $category.prop('required', true);
+                $category.attr('required', 'required');
+            } else {
+                $category.prop('required', false);
+                $category.removeAttr('required');
+            }
+        }
+        
+        // Company field - required when visible
+        const $company = $('#company_parts');
+        if ($company.length) {
+            const $companyContainer = $company.closest('.col-md-4');
+            const isVisible = type && companyTypes.includes(type);
+            const isActuallyVisible = $companyContainer.is(':visible') && !$companyContainer.hasClass('d-none');
+            
+            if (isVisible && isActuallyVisible) {
+                $company.prop('required', true);
+                $company.attr('required', 'required');
+            } else {
+                $company.prop('required', false);
+                $company.removeAttr('required');
+            }
+        }
+        
+        // Quality field - required when visible (only for parts)
+        const $quality = $('#quality');
+        if ($quality.length) {
+            const $qualityContainer = $quality.closest('.col-md-4');
+            const isVisible = type && qualityTypes.includes(type);
+            const isActuallyVisible = $qualityContainer.is(':visible') && !$qualityContainer.hasClass('d-none');
+            
+            if (isVisible && isActuallyVisible) {
+                $quality.prop('required', true);
+                $quality.attr('required', 'required');
+            } else {
+                $quality.prop('required', false);
+                $quality.removeAttr('required');
+            }
+        }
+        
+        // Unit field - required when visible
+        const $unit = $('#unit_parts');
+        if ($unit.length) {
+            const $unitContainer = $unit.closest('.col-12, .field-group').first();
+            const isVisible = type && unitTypes.includes(type);
+            const isActuallyVisible = $unitContainer.is(':visible') && !$unitContainer.hasClass('d-none');
+            
+            if (isVisible && isActuallyVisible) {
+                $unit.prop('required', true);
+                $unit.attr('required', 'required');
+            } else {
+                $unit.prop('required', false);
+                $unit.removeAttr('required');
+            }
+        }
+    }
 
     // Function to load items by type (with limit option)
     function loadItemsByType(type, loadAll = false) {
@@ -5578,6 +5661,14 @@
     });
     $(document).ready(function() {
         feather.replace();
+        
+        // Update required fields on page load after Alpine initializes
+        setTimeout(function() {
+            const initialType = localStorage.getItem('selectedType') || '{{ old("type") }}' || '';
+            if (initialType) {
+                updateRequiredFields(initialType);
+            }
+        }, 1000);
         // Generate random barcode
         function generateRandomItemCode() {
             const digits = '0123456789';
