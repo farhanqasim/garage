@@ -280,13 +280,18 @@
             background-color: #ffffff !important;
             color: #000000 !important;
         }
-        /* Vehicle table header - keep select and button on same line */
+        /* Vehicle table header - keep select and button on same line and within cell */
         #vehicleTable thead th {
             white-space: nowrap !important;
+            overflow: hidden !important; /* Prevent content from spilling to next column */
+            position: relative !important;
+            vertical-align: top !important;
         }
         #vehicleTable thead th .d-flex.flex-column {
             min-width: 0;
             width: 100%;
+            max-width: 100% !important;
+            overflow: hidden !important;
         }
         #vehicleTable thead th .input-group {
             margin-top: 0.25rem;
@@ -295,13 +300,29 @@
             white-space: nowrap !important;
             width: 100% !important;
             max-width: 100% !important;
+            overflow: hidden !important; /* Prevent overflow */
+            box-sizing: border-box !important;
         }
-        #vehicleTable thead th .input-group .form-control {
+        #vehicleTable thead th .input-group .form-control,
+        #vehicleTable thead th .input-group .select2-container {
             border-radius: 0.25rem 0 0 0.25rem;
             flex: 1 1 auto !important;
-            min-width: 120px !important; /* Minimum width for select */
+            min-width: 0 !important; /* Allow shrinking */
             max-width: calc(100% - 40px) !important; /* Leave space for button */
             width: auto !important;
+            overflow: hidden !important;
+        }
+        #vehicleTable thead th .input-group .select2-container {
+            flex: 1 1 auto !important;
+            max-width: calc(100% - 40px) !important;
+        }
+        #vehicleTable thead th .input-group .select2-selection {
+            max-width: 100% !important;
+        }
+        #vehicleTable thead th .input-group .select2-selection__rendered {
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
         #vehicleTable thead th .input-group .btn {
             padding: 0.25rem 0.5rem;
@@ -309,16 +330,19 @@
             flex-shrink: 0 !important; /* Prevent button from shrinking */
             width: auto !important;
             min-width: 35px !important;
+            max-width: 40px !important;
         }
         #vehicleTable thead th .input-group .btn:last-child {
             border-radius: 0 0.25rem 0.25rem 0;
         }
         #vehicleTable thead th .inputswidth {
-            min-width: 200px !important;
+            min-width: 150px !important; /* Reduced from 200px */
             width: 100% !important;
+            max-width: 100% !important;
             flex-wrap: nowrap !important;
             display: flex !important;
-            max-width: 100% !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
         }
         /* Ensure table-responsive allows horizontal scroll */
         .table-responsive {
@@ -1607,7 +1631,7 @@
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Manufacturer</div>
-                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                    <div class="input-group inputswidth">
                                                         <select id="vehicle_manufacturer_select" class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($carManufacturers as $manufacturer)
@@ -1628,7 +1652,7 @@
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Model</div>
-                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                    <div class="input-group inputswidth">
                                                         <select id="vehicle_model_select" class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($carModels as $item)
@@ -1649,7 +1673,7 @@
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Country</div>
-                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                    <div class="input-group inputswidth">
                                                         <select id="vehicle_country_select" class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($carCountries as $item)
@@ -1681,7 +1705,7 @@
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Engine</div>
-                                                    <div class="input-group inputswidth" style="min-width: 200px;">
+                                                    <div class="input-group inputswidth">
                                                         <select id="vehicle_engine_select" class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                             <option value="">Select</option>
                                                             @foreach ($engineccs as $item)
