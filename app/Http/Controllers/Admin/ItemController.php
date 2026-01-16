@@ -464,70 +464,100 @@ class ItemController extends Controller
             }
             
             /* ============================
-            ✅ Handle Vehicle IDs Array
+            ✅ Handle Vehicle IDs Array - Create Multiple Items
             ============================ */
-            // Handle vehical_id array - save first vehicle ID only (since vehical_id is a foreign key)
+            // Get vehicle IDs array
+            $vehicleIds = [];
             if (isset($data['vehical_id']) && is_array($data['vehical_id'])) {
                 // Filter out null/empty values
                 $vehicleIds = array_filter($data['vehical_id'], function($id) {
                     return !empty($id) && is_numeric($id);
                 });
-                
-                if (count($vehicleIds) > 0) {
-                    // Save first vehicle ID only (vehical_id is a foreign key, can only store one ID)
-                    $data['vehical_id'] = (int) reset($vehicleIds);
-                } else {
-                    unset($data['vehical_id']);
-                }
-            } elseif (isset($data['vehical_id']) && !empty($data['vehical_id'])) {
-                // If it's already a single value, ensure it's an integer
-                $data['vehical_id'] = is_numeric($data['vehical_id']) ? (int) $data['vehical_id'] : null;
-                if (empty($data['vehical_id'])) {
-                    unset($data['vehical_id']);
+                $vehicleIds = array_map('intval', $vehicleIds); // Convert to integers
+            } elseif (isset($data['vehical_id']) && !empty($data['vehical_id']) && is_numeric($data['vehical_id'])) {
+                // Single vehicle ID
+                $vehicleIds = [(int) $data['vehical_id']];
+            }
+            
+            // Remove vehical_id from data (we'll add it per item)
+            unset($data['vehical_id']);
+            
+            // Store original bar_code
+            $originalBarCode = $data['bar_code'] ?? '';
+            
+            /* ============================
+            ✅ Create Items - One per Vehicle
+            ============================ */
+            $createdItems = [];
+            
+            if (count($vehicleIds) > 0) {
+                // Create one item per vehicle
+                foreach ($vehicleIds as $index => $vehicleId) {
+                    // Clone data for each item
+                    $itemData = $data;
+                    
+                    // Add vehicle ID
+                    $itemData['vehical_id'] = $vehicleId;
+                    
+                    // Make bar_code unique for each vehicle item
+                    if ($index > 0) {
+                        // For additional items, append vehicle ID to make bar_code unique
+                        $itemData['bar_code'] = $originalBarCode . '-' . $vehicleId;
+                    }
+                    
+                    // Create item
+                    $item = Item::create($itemData);
+                    $createdItems[] = $item;
                 }
             } else {
-                // If empty, remove it
-                unset($data['vehical_id']);
+                // No vehicles selected, create single item without vehicle
+                $item = Item::create($data);
+                $createdItems[] = $item;
             }
-
-            /* ============================
-            ✅ Create Item
-            ============================ */
-            // Log data before creating (for debugging)
-            Log::info('Creating item', [
-                'vehical_id' => isset($data['vehical_id']) ? $data['vehical_id'] : 'not set',
-                'bar_code' => isset($data['bar_code']) ? $data['bar_code'] : 'not set',
-                'type' => isset($data['type']) ? $data['type'] : 'not set',
-            ]);
-            
-            $item = Item::create($data);
             
             // Log after creation
-            Log::info('Item created successfully', [
-                'item_id' => $item->id,
-                'vehical_id' => $item->vehical_id ?? 'null'
+            Log::info('Items created successfully', [
+                'count' => count($createdItems),
+                'item_ids' => array_map(function($item) { return $item->id; }, $createdItems),
+                'vehicle_ids' => $vehicleIds
             ]);
+            
+            // Use first created item for response
+            $item = $createdItems[0];
 
             DB::commit();
 
             /* ============================
             ✅ Redirects
             ============================ */
+            // Prepare success message
+            $itemCount = count($createdItems);
+            $vehicleCount = count($vehicleIds);
+            if ($itemCount > 1) {
+                $successMessage = $itemCount . ' items created successfully (one for each selected vehicle)!';
+            } elseif ($vehicleCount > 0) {
+                $successMessage = 'Item created successfully with vehicle!';
+            } else {
+                $successMessage = 'Item created successfully!';
+            }
+            
             // Return JSON response for AJAX requests
             if ($request->ajax() || $request->wantsJson()) {
                 if ($request->action === 'save_new') {
-                    Log::info('Item created (Save & New)', ['item_id' => $item->id]);
+                    Log::info('Items created (Save & New)', ['count' => $itemCount, 'item_ids' => array_map(function($i) { return $i->id; }, $createdItems)]);
                     return response()->json([
                         'success' => true,
-                        'message' => 'Item created successfully!',
+                        'message' => $successMessage,
+                        'items_count' => $itemCount,
                         'redirect' => route('all.items.create')
                     ]);
                 }
                 
-                Log::info('Item created (Save)', ['item_id' => $item->id]);
+                Log::info('Items created (Save)', ['count' => $itemCount, 'item_ids' => array_map(function($i) { return $i->id; }, $createdItems)]);
                 return response()->json([
                     'success' => true,
-                    'message' => 'Item created successfully!'
+                    'message' => $successMessage,
+                    'items_count' => $itemCount
                 ]);
             }
             
