@@ -1624,39 +1624,18 @@
 
                         {{-- VEHICLE TABLE --}}
                         <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <!-- Vehicle Search Filter -->
-                            <div class="mb-3 mt-4">
-                                <div class="card border">
-                                    <div class="card-body p-3">
-                                        <div class="row g-2 align-items-end">
-                                            <div class="col-md-4">
-                                                <label class="form-label small fw-bold mb-1">Search Vehicles:</label>
-                                                <input type="text" class="form-control form-control-sm" id="vehicleTableSearch" 
-                                                    placeholder="Search by manufacturer, model, country, engine, year, part number..." 
-                                                    autocomplete="off">
-                                            </div>
-                                            <div class="col-md-2">
-                                                <button type="button" class="btn btn-sm btn-primary w-100" id="vehicleTableSearchBtn">
-                                                    <i class="ti ti-search me-1"></i> Search
-                                                </button>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <button type="button" class="btn btn-sm btn-secondary w-100" id="vehicleTableClearSearch">
-                                                    <i class="ti ti-x me-1"></i> Clear
-                                                </button>
-                                            </div>
-                                            <div class="col-md-4 text-end">
-                                                <small class="text-muted" id="vehicleTableSearchCount"></small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="table-responsive mt-2" style="max-height:250px;overflow-x:auto;overflow-y:auto;background-color:#ffffff;">
+                            <div class="table-responsive mt-4" style="max-height:250px;overflow-x:auto;overflow-y:auto;background-color:#ffffff;">
                                 <table class="table table-bordered" id="vehicleTable" style="background-color:#ffffff;">
                                     <thead class="table-dark">
                                         <tr>
+                                            <th style="width: 50px; text-align: center;">
+                                                <div class="d-flex flex-column">
+                                                    <div class="mb-2 fw-bold">Select</div>
+                                                    <div class="text-center">
+                                                        <input type="checkbox" id="selectAllVehicles" style="cursor: pointer;" title="Select All">
+                                                    </div>
+                                                </div>
+                                            </th>
                                             <th>
                                                 <div class="d-flex flex-column">
                                                     <div class="mb-2 fw-bold">Manufacturer</div>
@@ -1775,7 +1754,16 @@
                                     <tbody>
                                         @foreach ($Vehis as $car)
                                         <tr data-part="{{ $car->v_part_number_id??'' }}">
-
+                                            <td style="text-align: center;">
+                                                <input type="checkbox" class="vehicle-checkbox" 
+                                                    data-vehicle-id="{{ $car->id ?? '' }}"
+                                                    data-part="{{ $car->v_part_number_id??'' }}"
+                                                    data-manufacturer="{{ $car->car_manufacturer }}"
+                                                    data-model="{{ $car->car_model_name }}"
+                                                    data-engine="{{ $car->engine_cc }}"
+                                                    data-country="{{ $car->car_manufactured_country }}"
+                                                    style="cursor: pointer;">
+                                            </td>
                                             <td>{{ $car->manutacturer_vehical->name ?? '-' }}</td>
 
                                             <td>{{ $car->model_vehical->name ?? '-' }}</td>
@@ -3816,107 +3804,19 @@
         toastr.success('All filters cleared successfully.');
     });
 
-    // Vehicle Table Text Search
-    function searchVehicleTable(searchText) {
-        if (!searchText || searchText.trim() === '') {
-            // If search is empty, show all rows
-            $("#vehicleTable tbody tr").show();
-            $('#vehicleTableSearchCount').text('');
-            return;
-        }
-        
-        const searchLower = searchText.toLowerCase().trim();
-        let visibleCount = 0;
-        
-        // Hide all rows first
-        $("#vehicleTable tbody tr").hide();
-        
-        // Filter rows based on search text
-        $("#vehicleTable tbody tr").each(function() {
-            let $row = $(this);
-            let $editBtn = $row.find('.editVehicleBtn');
-            let rowText = '';
-            
-            // Get manufacturer name
-            let manufacturerName = $editBtn.closest('tr').find('td').eq(0).text().toLowerCase();
-            rowText += manufacturerName + ' ';
-            
-            // Get model name
-            let modelName = $editBtn.closest('tr').find('td').eq(1).text().toLowerCase();
-            rowText += modelName + ' ';
-            
-            // Get year ranges
-            let yearRanges = $editBtn.closest('tr').find('td').eq(2).text().toLowerCase();
-            rowText += yearRanges + ' ';
-            
-            // Get engine
-            let engine = $editBtn.closest('tr').find('td').eq(3).text().toLowerCase();
-            rowText += engine + ' ';
-            
-            // Get country
-            let country = $editBtn.closest('tr').find('td').eq(4).text().toLowerCase();
-            rowText += country + ' ';
-            
-            // Get part number
-            let partNumber = $editBtn.closest('tr').find('td').eq(6).text().toLowerCase();
-            rowText += partNumber + ' ';
-            
-            // Get data attributes
-            let manufacturerId = $editBtn.data('manufacturer') || '';
-            let modelId = $editBtn.data('model') || '';
-            let engineId = $editBtn.data('engine') || '';
-            let countryId = $editBtn.data('country') || '';
-            let partId = $editBtn.data('part') || '';
-            
-            rowText += manufacturerId + ' ' + modelId + ' ' + engineId + ' ' + countryId + ' ' + partId;
-            
-            // Check if search text matches
-            if (rowText.includes(searchLower)) {
-                $row.show();
-                visibleCount++;
-            }
-        });
-        
-        // Update count
-        const totalCount = $("#vehicleTable tbody tr").length;
-        $('#vehicleTableSearchCount').text(`Showing ${visibleCount} of ${totalCount} vehicles`);
-        
-        if (visibleCount === 0) {
-            $('#vehicleTableSearchCount').html('<span class="text-danger">No vehicles found matching "' + searchText + '"</span>');
-        }
-    }
-    
-    // Search button click
-    $(document).on('click', '#vehicleTableSearchBtn', function() {
-        const searchText = $('#vehicleTableSearch').val();
-        searchVehicleTable(searchText);
+    // Select All Vehicles Checkbox
+    $(document).on('change', '#selectAllVehicles', function() {
+        const isChecked = $(this).is(':checked');
+        $('.vehicle-checkbox').prop('checked', isChecked);
     });
     
-    // Enter key in search input
-    $(document).on('keypress', '#vehicleTableSearch', function(e) {
-        if (e.which === 13) { // Enter key
-            e.preventDefault();
-            const searchText = $(this).val();
-            searchVehicleTable(searchText);
-        }
+    // Individual checkbox change - update select all checkbox
+    $(document).on('change', '.vehicle-checkbox', function() {
+        const totalCheckboxes = $('.vehicle-checkbox').length;
+        const checkedCheckboxes = $('.vehicle-checkbox:checked').length;
+        $('#selectAllVehicles').prop('checked', totalCheckboxes === checkedCheckboxes);
     });
     
-    // Real-time search (as user types) - with debounce
-    let searchTimeout = null;
-    $(document).on('input', '#vehicleTableSearch', function() {
-        const searchText = $(this).val();
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(function() {
-            searchVehicleTable(searchText);
-        }, 300); // Wait 300ms after user stops typing
-    });
-    
-    // Clear search button
-    $(document).on('click', '#vehicleTableClearSearch', function() {
-        $('#vehicleTableSearch').val('');
-        searchVehicleTable('');
-        toastr.success('Search cleared');
-    });
 
     // Load Vehicle Button - Filter table and save if no match found
     $(document).on('click', '.loadVehicleBtn', function() {
