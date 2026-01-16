@@ -607,7 +607,7 @@
                         </div>
                          <!-- Product Name -->
                                 <div class="col-md-4 mb-3"
-                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    x-show="selectedType === 'parts' || selectedType === 'breakpad'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
                                             <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Product Name:" style="font-weight: 900 !important;">Product Name:</label>
