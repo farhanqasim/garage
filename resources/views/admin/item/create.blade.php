@@ -500,49 +500,49 @@
                     <div class="row mb-5 g-3">
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
-                                @click="selectType('parts')">
+                                @click="selectType('parts')" data-type="parts">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
-                                @click="selectType('filters')">
+                                @click="selectType('filters')" data-type="filters">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
-                                @click="selectType('breakpad')">
+                                @click="selectType('breakpad')" data-type="breakpad">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
-                                @click="selectType('oil')">
+                                @click="selectType('oil')" data-type="oil">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
-                                @click="selectType('battery')">
+                                @click="selectType('battery')" data-type="battery">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
-                                @click="selectType('scrap')">
+                                @click="selectType('scrap')" data-type="scrap">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
-                                @click="selectType('services')">
+                                @click="selectType('services')" data-type="services">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
                             </div>
@@ -5023,85 +5023,194 @@
 </script>
 <script>
 
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('productForm', () => ({
-            selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-            init() {
-                // Filter dropdowns on initial load if type is already selected
-                if (this.selectedType) {
-                    setTimeout(() => {
-                        if (typeof updateLabelsWithType === 'function') {
-                            updateLabelsWithType(this.selectedType);
+    // Wait for Alpine.js to be available
+    function initProductForm() {
+        if (typeof Alpine === 'undefined') {
+            console.log('Alpine.js not loaded yet, retrying...');
+            setTimeout(initProductForm, 100);
+            return;
+        }
+        
+        console.log('Alpine.js loaded, registering productForm');
+        
+        Alpine.data('productForm', function() {
+            return {
+                selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+                init() {
+                    console.log('productForm init called, selectedType:', this.selectedType);
+                    
+                    // Filter dropdowns on initial load if type is already selected
+                    if (this.selectedType) {
+                        setTimeout(() => {
+                            if (typeof updateLabelsWithType === 'function') {
+                                updateLabelsWithType(this.selectedType);
+                            }
+                            if (typeof filterDropdownsByType === 'function') {
+                                filterDropdownsByType(this.selectedType);
+                            }
+                        }, 500);
+                    }
+                    
+                    // Watch for selectedType changes and filter dropdown options
+                    this.$watch('selectedType', (newType, oldType) => {
+                        console.log('selectedType changed from', oldType, 'to', newType);
+                        
+                        // If type is actually changing (not just initializing), clear all fields
+                        if (oldType && oldType !== newType) {
+                            if (typeof clearAllFormFields === 'function') {
+                                clearAllFormFields();
+                            }
                         }
+                        // Update all labels with selected type
+                        if (typeof updateLabelsWithType === 'function') {
+                            updateLabelsWithType(newType);
+                        }
+                        // Filter all dropdowns based on selected type
                         if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(this.selectedType);
+                            filterDropdownsByType(newType);
+                        }
+                        // Update required attributes based on field visibility
+                        if (typeof updateRequiredFields === 'function') {
+                            updateRequiredFields(newType);
+                        }
+                    });
+                    
+                    // Initial update of required fields
+                    setTimeout(() => {
+                        if (typeof updateRequiredFields === 'function') {
+                            updateRequiredFields(this.selectedType);
                         }
                     }, 500);
-                }
-                
-                // Watch for selectedType changes and filter dropdown options
-                this.$watch('selectedType', (newType, oldType) => {
-                    // If type is actually changing (not just initializing), clear all fields
-                    if (oldType && oldType !== newType) {
+                },
+                selectType(type) {
+                    console.log('selectType called with:', type, 'Current selectedType:', this.selectedType);
+                    
+                    // If type is changing (not the same), clear all form fields
+                    if (this.selectedType && this.selectedType !== type) {
                         if (typeof clearAllFormFields === 'function') {
                             clearAllFormFields();
                         }
                     }
+                    
+                    this.selectedType = type;
+                    localStorage.setItem('selectedType', type);
+                    
+                    console.log('selectedType updated to:', this.selectedType);
+                    
                     // Update all labels with selected type
                     if (typeof updateLabelsWithType === 'function') {
-                        updateLabelsWithType(newType);
+                        updateLabelsWithType(type);
                     }
-                    // Filter all dropdowns based on selected type
+                    
+                    // Filter dropdowns by selected type
                     if (typeof filterDropdownsByType === 'function') {
-                        filterDropdownsByType(newType);
+                        filterDropdownsByType(type);
                     }
+                    
                     // Update required attributes based on field visibility
                     if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(newType);
+                        updateRequiredFields(type);
                     }
-                });
-                
-                // Initial update of required fields
-                setTimeout(() => {
-                    if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(this.selectedType);
-                    }
-                }, 500);
-            },
-            selectType(type) {
-                // If type is changing (not the same), clear all form fields
-                if (this.selectedType && this.selectedType !== type) {
-                    if (typeof clearAllFormFields === 'function') {
-                        clearAllFormFields();
+                    
+                    // Load items by type when type changes
+                    if (type && typeof loadItemsByType === 'function') {
+                        loadItemsByType(type);
+                    } else if (typeof loadAllItems === 'function') {
+                        loadAllItems();
                     }
                 }
-                
-                this.selectedType = type;
-                localStorage.setItem('selectedType', type);
-                
-                // Update all labels with selected type
-                if (typeof updateLabelsWithType === 'function') {
-                    updateLabelsWithType(type);
-                }
-                
-                // Filter dropdowns by selected type
-                if (typeof filterDropdownsByType === 'function') {
-                    filterDropdownsByType(type);
-                }
-                
-                // Update required attributes based on field visibility
-                if (typeof updateRequiredFields === 'function') {
-                    updateRequiredFields(type);
-                }
-                
-                // Load items by type when type changes
-                if (type && typeof loadItemsByType === 'function') {
-                    loadItemsByType(type);
-                } else if (typeof loadAllItems === 'function') {
-                    loadAllItems();
+            };
+        });
+        
+        console.log('productForm registered successfully');
+    }
+    
+    // Multiple initialization strategies
+    // Strategy 1: Wait for alpine:init event (preferred)
+    document.addEventListener('alpine:init', function() {
+        console.log('alpine:init event fired');
+        initProductForm();
+    });
+    
+    // Strategy 2: Wait for DOMContentLoaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded fired');
+            setTimeout(initProductForm, 100);
+        });
+    } else {
+        // DOM already loaded
+        setTimeout(initProductForm, 500);
+    }
+    
+    // Strategy 3: Window load as fallback
+    window.addEventListener('load', function() {
+        console.log('Window load fired');
+        setTimeout(initProductForm, 200);
+    });
+    
+    // Strategy 4: Manual fallback click handler (in case Alpine.js fails)
+    $(document).ready(function() {
+        console.log('jQuery ready fired');
+        
+        // Add manual click handler as fallback
+        $(document).on('click', '.type-box', function(e) {
+            const type = $(this).data('type') || $(this).attr('data-type');
+            if (!type) {
+                // Try to extract from Alpine.js @click attribute
+                const clickAttr = $(this).attr('@click');
+                if (clickAttr && clickAttr.includes("selectType('")) {
+                    const match = clickAttr.match(/selectType\('([^']+)'/);
+                    if (match && match[1]) {
+                        const extractedType = match[1];
+                        console.log('Fallback: Manual type selection for:', extractedType);
+                        
+                        // Try to call Alpine.js selectType
+                        const alpineEl = document.querySelector('[x-data*="productForm"]');
+                        if (alpineEl && window.Alpine) {
+                            try {
+                                const alpineData = Alpine.$data(alpineEl);
+                                if (alpineData && alpineData.selectType) {
+                                    alpineData.selectType(extractedType);
+                                    return;
+                                }
+                            } catch(err) {
+                                console.error('Error calling Alpine selectType:', err);
+                            }
+                        }
+                        
+                        // Ultimate fallback: Direct DOM manipulation
+                        $('.type-box').removeClass('selected');
+                        $(this).addClass('selected');
+                        $('input[name="type"]').val(extractedType);
+                        localStorage.setItem('selectedType', extractedType);
+                        
+                        // Trigger field visibility update
+                        if (typeof updateLabelsWithType === 'function') {
+                            updateLabelsWithType(extractedType);
+                        }
+                        if (typeof filterDropdownsByType === 'function') {
+                            filterDropdownsByType(extractedType);
+                        }
+                        if (typeof updateRequiredFields === 'function') {
+                            updateRequiredFields(extractedType);
+                        }
+                        
+                        // Show relevant field groups
+                        $('#itemFormsContainer .field-group').removeClass('active');
+                        if (extractedType) {
+                            $('#itemFormsContainer .field-group:has(h4:contains("Item Info"))').addClass('active');
+                            $(`#itemFormsContainer .field-group[\\:class*="${extractedType}"]`).each(function() {
+                                const classAttr = $(this).attr(':class');
+                                if (classAttr && classAttr.includes(`selectedType === '${extractedType}'`)) {
+                                    $(this).addClass('active');
+                                }
+                            });
+                        }
+                    }
                 }
             }
-        }));
+        });
     });
 
     // Function to update required fields based on type visibility
