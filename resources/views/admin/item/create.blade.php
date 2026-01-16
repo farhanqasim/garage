@@ -131,10 +131,10 @@
         box-shadow: 0 4px 12px #fe962e;
     }
     .field-group {
-        display: none;
+        display: none !important;
     }
     .field-group.active {
-        display: block;
+        display: block !important;
     }
     .border {
         border: 1px solid #ddd !important;
@@ -5076,7 +5076,7 @@
                 }, 500);
             },
             selectType(type) {
-                console.log('selectType called with:', type); // Debug log
+                console.log('selectType called with:', type, 'Current selectedType:', this.selectedType);
                 
                 // If type is changing (not the same), clear all form fields
                 if (this.selectedType && this.selectedType !== type) {
@@ -5085,14 +5085,13 @@
                     }
                 }
                 
-                // Set selected type
-                this.selectedType = type;
-                localStorage.setItem('selectedType', type);
+                // Set selected type - this will trigger $watch
+                this.selectedType = type || '';
+                localStorage.setItem('selectedType', type || '');
                 
-                // Set hidden type input field (x-model will handle this, but ensure it's set)
+                // Set hidden type input field
                 let typeInput = document.querySelector('input[name="type"]');
                 if (!typeInput) {
-                    // Create hidden input if it doesn't exist
                     const form = document.getElementById('mainItemForm');
                     if (form) {
                         typeInput = document.createElement('input');
@@ -5103,12 +5102,60 @@
                 }
                 if (typeInput) {
                     typeInput.value = type || '';
-                    // Trigger input event to ensure x-model updates
-                    typeInput.dispatchEvent(new Event('input', { bubbles: true }));
                 }
                 
-                // Force Alpine.js to update the DOM
-                this.$nextTick(() => {
+                // Force Alpine.js to update DOM immediately
+                // Manually toggle active class on field-groups
+                setTimeout(() => {
+                    // Hide all field-groups first
+                    const allFieldGroups = document.querySelectorAll('#itemFormsContainer .field-group');
+                    allFieldGroups.forEach(group => {
+                        group.classList.remove('active');
+                    });
+                    
+                    // Show common fields if type is selected (first field-group usually contains common fields)
+                    if (type && allFieldGroups.length > 0) {
+                        // Show common fields (usually the first one)
+                        const commonFields = Array.from(allFieldGroups).find(group => {
+                            const h4 = group.querySelector('h4');
+                            return h4 && h4.textContent.includes('Item Info');
+                        });
+                        if (commonFields) {
+                            commonFields.classList.add('active');
+                        } else if (allFieldGroups[0]) {
+                            // Fallback: show first field-group
+                            allFieldGroups[0].classList.add('active');
+                        }
+                        
+                        // Show type-specific fields by checking :class attribute
+                        allFieldGroups.forEach(group => {
+                            const classBinding = group.getAttribute(':class');
+                            if (classBinding) {
+                                // Check if binding contains the selected type
+                                if (classBinding.includes(`selectedType === '${type}'`) || 
+                                    classBinding.includes(`selectedType === "${type}"`) ||
+                                    classBinding.includes(`selectedType === \`${type}\``)) {
+                                    group.classList.add('active');
+                                }
+                                // Also check for common fields (active when selectedType is truthy)
+                                if (classBinding.includes('selectedType') && !classBinding.includes('===')) {
+                                    group.classList.add('active');
+                                }
+                            }
+                        });
+                        
+                        // Show media and checkbox fields (usually have h4 with "Media" or "Status")
+                        allFieldGroups.forEach(group => {
+                            const h4 = group.querySelector('h4');
+                            if (h4) {
+                                const text = h4.textContent.toLowerCase();
+                                if (text.includes('media') || text.includes('status')) {
+                                    group.classList.add('active');
+                                }
+                            }
+                        });
+                    }
+                    
                     // Update all labels with selected type
                     if (typeof updateLabelsWithType === 'function') {
                         updateLabelsWithType(type);
@@ -5130,7 +5177,9 @@
                     } else if (typeof loadAllItems === 'function') {
                         loadAllItems();
                     }
-                });
+                    
+                    console.log('After selectType, selectedType is:', this.selectedType);
+                }, 10);
             }
         }));
     });
