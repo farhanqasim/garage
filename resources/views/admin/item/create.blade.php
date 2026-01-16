@@ -5023,174 +5023,87 @@
 </script>
 <script>
 
-    // Register Alpine.js data component - MUST be before Alpine.js initializes
-    // Use both DOMContentLoaded and alpine:init to ensure it works
-    function registerProductForm() {
-        if (typeof Alpine === 'undefined') {
-            console.error('Alpine.js not loaded yet');
-            return;
-        }
-        
-        // Check if already registered
-        if (Alpine.data('productForm')) {
-            console.log('productForm already registered');
-            return;
-        }
-        
-        console.log('Registering productForm with Alpine.js');
-        
-        Alpine.data('productForm', function() {
-            return {
-                selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-                init() {
-                    console.log('Alpine productForm init called, selectedType:', this.selectedType);
-                    
-                    // Filter dropdowns on initial load if type is already selected
-                    if (this.selectedType) {
-                        setTimeout(() => {
-                            if (typeof updateLabelsWithType === 'function') {
-                                updateLabelsWithType(this.selectedType);
-                            }
-                            if (typeof filterDropdownsByType === 'function') {
-                                filterDropdownsByType(this.selectedType);
-                            }
-                            this.updateFieldVisibility(this.selectedType);
-                        }, 500);
-                    }
-                    
-                    // Watch for selectedType changes
-                    this.$watch('selectedType', (newType, oldType) => {
-                        console.log('selectedType changed from', oldType, 'to', newType);
-                        
-                        if (oldType && oldType !== newType) {
-                            if (typeof clearAllFormFields === 'function') {
-                                clearAllFormFields();
-                            }
-                        }
-                        
-                        this.updateFieldVisibility(newType);
-                        
-                        if (typeof updateLabelsWithType === 'function') {
-                            updateLabelsWithType(newType);
-                        }
-                        
-                        if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(newType);
-                        }
-                        
-                        if (typeof updateRequiredFields === 'function') {
-                            updateRequiredFields(newType);
-                        }
-                    });
-                    
+    // Simple Alpine.js productForm - original working version
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('productForm', () => ({
+            selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+            init() {
+                // Filter dropdowns on initial load if type is already selected
+                if (this.selectedType) {
                     setTimeout(() => {
-                        if (typeof updateRequiredFields === 'function') {
-                            updateRequiredFields(this.selectedType);
+                        if (typeof updateLabelsWithType === 'function') {
+                            updateLabelsWithType(this.selectedType);
+                        }
+                        if (typeof filterDropdownsByType === 'function') {
+                            filterDropdownsByType(this.selectedType);
                         }
                     }, 500);
-                },
-                selectType(type) {
-                    console.log('selectType called with:', type);
-                    
-                    if (this.selectedType && this.selectedType !== type) {
+                }
+                
+                // Watch for selectedType changes and filter dropdown options
+                this.$watch('selectedType', (newType, oldType) => {
+                    // If type is actually changing (not just initializing), clear all fields
+                    if (oldType && oldType !== newType) {
                         if (typeof clearAllFormFields === 'function') {
                             clearAllFormFields();
                         }
                     }
-                    
-                    this.selectedType = type || '';
-                    localStorage.setItem('selectedType', type || '');
-                    
-                    let typeInput = document.querySelector('input[name="type"]');
-                    if (!typeInput) {
-                        const form = document.getElementById('mainItemForm');
-                        if (form) {
-                            typeInput = document.createElement('input');
-                            typeInput.type = 'hidden';
-                            typeInput.name = 'type';
-                            form.appendChild(typeInput);
-                        }
-                    }
-                    if (typeInput) {
-                        typeInput.value = type || '';
-                    }
-                    
-                    this.updateFieldVisibility(type);
-                    
+                    // Update all labels with selected type
                     if (typeof updateLabelsWithType === 'function') {
-                        updateLabelsWithType(type);
+                        updateLabelsWithType(newType);
                     }
-                    
+                    // Filter all dropdowns based on selected type
                     if (typeof filterDropdownsByType === 'function') {
-                        filterDropdownsByType(type);
+                        filterDropdownsByType(newType);
                     }
-                    
+                    // Update required attributes based on field visibility
                     if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(type);
+                        updateRequiredFields(newType);
                     }
-                    
-                    if (type && typeof loadItemsByType === 'function') {
-                        loadItemsByType(type);
-                    } else if (typeof loadAllItems === 'function') {
-                        loadAllItems();
+                });
+                
+                // Initial update of required fields
+                setTimeout(() => {
+                    if (typeof updateRequiredFields === 'function') {
+                        updateRequiredFields(this.selectedType);
                     }
-                },
-                updateFieldVisibility(type) {
-                    const allFieldGroups = document.querySelectorAll('#itemFormsContainer .field-group');
-                    allFieldGroups.forEach(group => {
-                        group.classList.remove('active');
-                    });
-                    
-                    if (type && allFieldGroups.length > 0) {
-                        const commonFields = Array.from(allFieldGroups).find(group => {
-                            const h4 = group.querySelector('h4');
-                            return h4 && h4.textContent.includes('Item Info');
-                        });
-                        if (commonFields) {
-                            commonFields.classList.add('active');
-                        } else if (allFieldGroups[0]) {
-                            allFieldGroups[0].classList.add('active');
-                        }
-                        
-                        allFieldGroups.forEach(group => {
-                            const classBinding = group.getAttribute(':class');
-                            if (classBinding) {
-                                if (classBinding.includes(`selectedType === '${type}'`) || 
-                                    classBinding.includes(`selectedType === "${type}"`) ||
-                                    classBinding.includes(`selectedType === \`${type}\``)) {
-                                    group.classList.add('active');
-                                }
-                                if (classBinding.includes('selectedType') && !classBinding.includes('===')) {
-                                    group.classList.add('active');
-                                }
-                            }
-                        });
-                        
-                        allFieldGroups.forEach(group => {
-                            const h4 = group.querySelector('h4');
-                            if (h4) {
-                                const text = h4.textContent.toLowerCase();
-                                if (text.includes('media') || text.includes('status')) {
-                                    group.classList.add('active');
-                                }
-                            }
-                        });
+                }, 500);
+            },
+            selectType(type) {
+                // If type is changing (not the same), clear all form fields
+                if (this.selectedType && this.selectedType !== type) {
+                    if (typeof clearAllFormFields === 'function') {
+                        clearAllFormFields();
                     }
                 }
-            };
-        });
-        
-        console.log('productForm registered successfully');
-    }
-    
-    // Register on multiple events to ensure it works
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', registerProductForm);
-    } else {
-        registerProductForm();
-    }
-    
-    document.addEventListener('alpine:init', registerProductForm);
+                
+                this.selectedType = type;
+                localStorage.setItem('selectedType', type);
+                
+                // Update all labels with selected type
+                if (typeof updateLabelsWithType === 'function') {
+                    updateLabelsWithType(type);
+                }
+                
+                // Filter dropdowns by selected type
+                if (typeof filterDropdownsByType === 'function') {
+                    filterDropdownsByType(type);
+                }
+                
+                // Update required attributes based on field visibility
+                if (typeof updateRequiredFields === 'function') {
+                    updateRequiredFields(type);
+                }
+                
+                // Load items by type when type changes
+                if (type && typeof loadItemsByType === 'function') {
+                    loadItemsByType(type);
+                } else if (typeof loadAllItems === 'function') {
+                    loadAllItems();
+                }
+            }
+        }));
+    });
 
     // Function to update required fields based on type visibility
     function updateRequiredFields(type) {
@@ -7748,28 +7661,23 @@
                                 playSaveSound();
                             }
                             
-                            // Handle redirect if provided (for Save & New)
-                            if (jsonResponse.redirect) {
-                                // Reset form first, then redirect after delay
-                                resetFormAfterSave();
-                                setTimeout(function() {
-                                    window.location.href = jsonResponse.redirect;
-                                }, 1500);
-                            } else {
-                                // Reset form after successful save (stay on same page - no redirect)
-                                resetFormAfterSave();
-                            }
+                            // Always redirect back to create page for fresh form
+                            setTimeout(function() {
+                                window.location.href = "{{ route('all.items.create') }}";
+                            }, 1500);
                         }
                     } else {
-                        // HTML response - likely a redirect page, show success anyway
+                        // HTML response - redirect to create page
                         toastr.success('Item saved successfully!');
                         // 🔊 Play save sound
                         if (typeof playSaveSound === 'function') {
                             playSaveSound();
                         }
                         
-                        // Reset form
-                        resetFormAfterSave();
+                        // Redirect to create page
+                        setTimeout(function() {
+                            window.location.href = "{{ route('all.items.create') }}";
+                        }, 1500);
                     }
                 },
                 error: function(xhr) {
