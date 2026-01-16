@@ -1,5 +1,65 @@
 @extends('layouts.app')
 @section('title', 'Create Product')
+
+@push('alpine-register')
+<script>
+    // CRITICAL: Register Alpine.js component BEFORE Alpine.js script loads
+    document.addEventListener('alpine:init', function() {
+        console.log('[Alpine] alpine:init event fired');
+        
+        Alpine.data('productForm', function() {
+            return {
+                selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+                init() {
+                    console.log('[Alpine] productForm.init() - selectedType:', this.selectedType);
+                    
+                    if (this.selectedType) {
+                        setTimeout(() => {
+                            if (typeof updateLabelsWithType === 'function') updateLabelsWithType(this.selectedType);
+                            if (typeof filterDropdownsByType === 'function') filterDropdownsByType(this.selectedType);
+                        }, 500);
+                    }
+                    
+                    this.$watch('selectedType', (newType, oldType) => {
+                        if (oldType && oldType !== newType && typeof clearAllFormFields === 'function') {
+                            clearAllFormFields();
+                        }
+                        if (typeof updateLabelsWithType === 'function') updateLabelsWithType(newType);
+                        if (typeof filterDropdownsByType === 'function') filterDropdownsByType(newType);
+                        if (typeof updateRequiredFields === 'function') updateRequiredFields(newType);
+                    });
+                    
+                    setTimeout(() => {
+                        if (typeof updateRequiredFields === 'function') updateRequiredFields(this.selectedType);
+                    }, 500);
+                },
+                selectType(type) {
+                    console.log('[Alpine] selectType() called:', type);
+                    
+                    if (this.selectedType && this.selectedType !== type && typeof clearAllFormFields === 'function') {
+                        clearAllFormFields();
+                    }
+                    
+                    this.selectedType = type || '';
+                    localStorage.setItem('selectedType', type || '');
+                    
+                    if (typeof updateLabelsWithType === 'function') updateLabelsWithType(type);
+                    if (typeof filterDropdownsByType === 'function') filterDropdownsByType(type);
+                    if (typeof updateRequiredFields === 'function') updateRequiredFields(type);
+                    if (type && typeof loadItemsByType === 'function') {
+                        loadItemsByType(type);
+                    } else if (typeof loadAllItems === 'function') {
+                        loadAllItems();
+                    }
+                }
+            };
+        });
+        
+        console.log('[Alpine] ✓ productForm registered successfully!');
+    });
+</script>
+@endpush
+
 @section('content')
 @push('styles')
 <style>
@@ -5021,133 +5081,141 @@
         });
     });
 </script>
+@push('alpine-register')
 <script>
-
-    // Wait for Alpine.js to be available
-    function initProductForm() {
-        if (typeof Alpine === 'undefined') {
-            console.log('Alpine.js not loaded yet, retrying...');
-            setTimeout(initProductForm, 100);
-            return;
-        }
+    // CRITICAL: Register Alpine.js component BEFORE Alpine.js processes DOM
+    // This runs in layout before Alpine.js script loads
+    // Use IIFE to execute immediately
+    (function() {
+        'use strict';
         
-        console.log('Alpine.js loaded, registering productForm');
-        
-        Alpine.data('productForm', function() {
-            return {
-                selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-                init() {
-                    console.log('productForm init called, selectedType:', this.selectedType);
-                    
-                    // Filter dropdowns on initial load if type is already selected
-                    if (this.selectedType) {
-                        setTimeout(() => {
+        function registerProductForm() {
+            // Check if Alpine is available
+            if (typeof Alpine === 'undefined') {
+                console.warn('Alpine.js not available yet, will retry...');
+                return false;
+            }
+            
+            // Prevent duplicate registration
+            if (Alpine.data('productForm')) {
+                console.log('productForm already registered, skipping...');
+                return true;
+            }
+            
+            console.log('Registering productForm with Alpine.js...');
+            
+            try {
+                Alpine.data('productForm', function() {
+                    return {
+                        selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+                        init() {
+                            console.log('✓ productForm initialized, selectedType:', this.selectedType);
+                            
+                            // Filter dropdowns on initial load if type is already selected
+                            if (this.selectedType) {
+                                setTimeout(() => {
+                                    if (typeof updateLabelsWithType === 'function') {
+                                        updateLabelsWithType(this.selectedType);
+                                    }
+                                    if (typeof filterDropdownsByType === 'function') {
+                                        filterDropdownsByType(this.selectedType);
+                                    }
+                                }, 500);
+                            }
+                            
+                            // Watch for selectedType changes
+                            this.$watch('selectedType', (newType, oldType) => {
+                                console.log('selectedType changed:', oldType, '→', newType);
+                                
+                                if (oldType && oldType !== newType) {
+                                    if (typeof clearAllFormFields === 'function') {
+                                        clearAllFormFields();
+                                    }
+                                }
+                                
+                                if (typeof updateLabelsWithType === 'function') {
+                                    updateLabelsWithType(newType);
+                                }
+                                if (typeof filterDropdownsByType === 'function') {
+                                    filterDropdownsByType(newType);
+                                }
+                                if (typeof updateRequiredFields === 'function') {
+                                    updateRequiredFields(newType);
+                                }
+                            });
+                            
+                            setTimeout(() => {
+                                if (typeof updateRequiredFields === 'function') {
+                                    updateRequiredFields(this.selectedType);
+                                }
+                            }, 500);
+                        },
+                        selectType(type) {
+                            console.log('✓ selectType called:', type);
+                            
+                            if (this.selectedType && this.selectedType !== type) {
+                                if (typeof clearAllFormFields === 'function') {
+                                    clearAllFormFields();
+                                }
+                            }
+                            
+                            this.selectedType = type || '';
+                            localStorage.setItem('selectedType', type || '');
+                            
                             if (typeof updateLabelsWithType === 'function') {
-                                updateLabelsWithType(this.selectedType);
+                                updateLabelsWithType(type);
                             }
                             if (typeof filterDropdownsByType === 'function') {
-                                filterDropdownsByType(this.selectedType);
+                                filterDropdownsByType(type);
                             }
-                        }, 500);
-                    }
-                    
-                    // Watch for selectedType changes and filter dropdown options
-                    this.$watch('selectedType', (newType, oldType) => {
-                        console.log('selectedType changed from', oldType, 'to', newType);
-                        
-                        // If type is actually changing (not just initializing), clear all fields
-                        if (oldType && oldType !== newType) {
-                            if (typeof clearAllFormFields === 'function') {
-                                clearAllFormFields();
+                            if (typeof updateRequiredFields === 'function') {
+                                updateRequiredFields(type);
+                            }
+                            if (type && typeof loadItemsByType === 'function') {
+                                loadItemsByType(type);
+                            } else if (typeof loadAllItems === 'function') {
+                                loadAllItems();
                             }
                         }
-                        // Update all labels with selected type
-                        if (typeof updateLabelsWithType === 'function') {
-                            updateLabelsWithType(newType);
-                        }
-                        // Filter all dropdowns based on selected type
-                        if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(newType);
-                        }
-                        // Update required attributes based on field visibility
-                        if (typeof updateRequiredFields === 'function') {
-                            updateRequiredFields(newType);
-                        }
-                    });
-                    
-                    // Initial update of required fields
-                    setTimeout(() => {
-                        if (typeof updateRequiredFields === 'function') {
-                            updateRequiredFields(this.selectedType);
-                        }
-                    }, 500);
-                },
-                selectType(type) {
-                    console.log('selectType called with:', type, 'Current selectedType:', this.selectedType);
-                    
-                    // If type is changing (not the same), clear all form fields
-                    if (this.selectedType && this.selectedType !== type) {
-                        if (typeof clearAllFormFields === 'function') {
-                            clearAllFormFields();
-                        }
-                    }
-                    
-                    this.selectedType = type;
-                    localStorage.setItem('selectedType', type);
-                    
-                    console.log('selectedType updated to:', this.selectedType);
-                    
-                    // Update all labels with selected type
-                    if (typeof updateLabelsWithType === 'function') {
-                        updateLabelsWithType(type);
-                    }
-                    
-                    // Filter dropdowns by selected type
-                    if (typeof filterDropdownsByType === 'function') {
-                        filterDropdownsByType(type);
-                    }
-                    
-                    // Update required attributes based on field visibility
-                    if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(type);
-                    }
-                    
-                    // Load items by type when type changes
-                    if (type && typeof loadItemsByType === 'function') {
-                        loadItemsByType(type);
-                    } else if (typeof loadAllItems === 'function') {
-                        loadAllItems();
-                    }
-                }
-            };
+                    };
+                });
+                
+                console.log('✓ productForm registered successfully!');
+                return true;
+            } catch (error) {
+                console.error('✗ Error registering productForm:', error);
+                return false;
+            }
+        }
+        
+        // Strategy 1: Register on alpine:init (BEST - Alpine.js fires this)
+        document.addEventListener('alpine:init', function() {
+            console.log('→ alpine:init event fired');
+            registerProductForm();
         });
         
-        console.log('productForm registered successfully');
-    }
-    
-    // Multiple initialization strategies
-    // Strategy 1: Wait for alpine:init event (preferred)
-    document.addEventListener('alpine:init', function() {
-        console.log('alpine:init event fired');
-        initProductForm();
-    });
-    
-    // Strategy 2: Wait for DOMContentLoaded
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOMContentLoaded fired');
-            setTimeout(initProductForm, 100);
-        });
-    } else {
-        // DOM already loaded
-        setTimeout(initProductForm, 500);
-    }
-    
-    // Strategy 3: Window load as fallback
-    window.addEventListener('load', function() {
-        console.log('Window load fired');
-        setTimeout(initProductForm, 200);
-    });
+        // Strategy 2: Try to register immediately if Alpine is already loaded
+        if (typeof Alpine !== 'undefined') {
+            console.log('→ Alpine.js already loaded, registering immediately');
+            registerProductForm();
+        } else {
+            // Strategy 3: Poll for Alpine.js availability (fallback)
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max
+            
+            const checkAlpine = setInterval(function() {
+                attempts++;
+                if (typeof Alpine !== 'undefined') {
+                    console.log('→ Alpine.js detected after', attempts * 100, 'ms');
+                    clearInterval(checkAlpine);
+                    registerProductForm();
+                } else if (attempts >= maxAttempts) {
+                    console.error('✗ Alpine.js not loaded after', maxAttempts * 100, 'ms');
+                    clearInterval(checkAlpine);
+                }
+            }, 100);
+        }
+    })();
     
     // Strategy 4: Manual fallback click handler (in case Alpine.js fails)
     $(document).ready(function() {
