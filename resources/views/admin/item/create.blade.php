@@ -5023,7 +5023,10 @@
 </script>
 <script>
 
+    // Register Alpine.js data component using alpine:init event
     document.addEventListener('alpine:init', () => {
+        console.log('Alpine.js initialized, registering productForm');
+        
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
@@ -5038,6 +5041,7 @@
                         if (typeof filterDropdownsByType === 'function') {
                             filterDropdownsByType(this.selectedType);
                         }
+                        this.updateFieldVisibility(this.selectedType);
                     }, 500);
                 }
                 
@@ -5051,6 +5055,9 @@
                             clearAllFormFields();
                         }
                     }
+                    
+                    // Update field visibility
+                    this.updateFieldVisibility(newType);
                     
                     // Update all labels with selected type
                     if (typeof updateLabelsWithType === 'function') {
@@ -5104,84 +5111,84 @@
                     typeInput.value = type || '';
                 }
                 
-                // Force Alpine.js to update DOM immediately
-                // Manually toggle active class on field-groups
-                setTimeout(() => {
-                    // Hide all field-groups first
-                    const allFieldGroups = document.querySelectorAll('#itemFormsContainer .field-group');
+                // Update field visibility immediately
+                this.updateFieldVisibility(type);
+                
+                // Update all labels with selected type
+                if (typeof updateLabelsWithType === 'function') {
+                    updateLabelsWithType(type);
+                }
+                
+                // Filter dropdowns by selected type
+                if (typeof filterDropdownsByType === 'function') {
+                    filterDropdownsByType(type);
+                }
+                
+                // Update required attributes based on field visibility
+                if (typeof updateRequiredFields === 'function') {
+                    updateRequiredFields(type);
+                }
+                
+                // Load items by type when type changes
+                if (type && typeof loadItemsByType === 'function') {
+                    loadItemsByType(type);
+                } else if (typeof loadAllItems === 'function') {
+                    loadAllItems();
+                }
+            },
+            updateFieldVisibility(type) {
+                // Hide all field-groups first
+                const allFieldGroups = document.querySelectorAll('#itemFormsContainer .field-group');
+                allFieldGroups.forEach(group => {
+                    group.classList.remove('active');
+                });
+                
+                // Show common fields if type is selected
+                if (type && allFieldGroups.length > 0) {
+                    // Show common fields (usually the first one with "Item Info")
+                    const commonFields = Array.from(allFieldGroups).find(group => {
+                        const h4 = group.querySelector('h4');
+                        return h4 && h4.textContent.includes('Item Info');
+                    });
+                    if (commonFields) {
+                        commonFields.classList.add('active');
+                    } else if (allFieldGroups[0]) {
+                        // Fallback: show first field-group
+                        allFieldGroups[0].classList.add('active');
+                    }
+                    
+                    // Show type-specific fields by checking :class attribute
                     allFieldGroups.forEach(group => {
-                        group.classList.remove('active');
+                        const classBinding = group.getAttribute(':class');
+                        if (classBinding) {
+                            // Check if binding contains the selected type
+                            if (classBinding.includes(`selectedType === '${type}'`) || 
+                                classBinding.includes(`selectedType === "${type}"`) ||
+                                classBinding.includes(`selectedType === \`${type}\``)) {
+                                group.classList.add('active');
+                            }
+                            // Also check for common fields (active when selectedType is truthy)
+                            if (classBinding.includes('selectedType') && !classBinding.includes('===')) {
+                                group.classList.add('active');
+                            }
+                        }
                     });
                     
-                    // Show common fields if type is selected (first field-group usually contains common fields)
-                    if (type && allFieldGroups.length > 0) {
-                        // Show common fields (usually the first one)
-                        const commonFields = Array.from(allFieldGroups).find(group => {
-                            const h4 = group.querySelector('h4');
-                            return h4 && h4.textContent.includes('Item Info');
-                        });
-                        if (commonFields) {
-                            commonFields.classList.add('active');
-                        } else if (allFieldGroups[0]) {
-                            // Fallback: show first field-group
-                            allFieldGroups[0].classList.add('active');
+                    // Show media and checkbox fields (usually have h4 with "Media" or "Status")
+                    allFieldGroups.forEach(group => {
+                        const h4 = group.querySelector('h4');
+                        if (h4) {
+                            const text = h4.textContent.toLowerCase();
+                            if (text.includes('media') || text.includes('status')) {
+                                group.classList.add('active');
+                            }
                         }
-                        
-                        // Show type-specific fields by checking :class attribute
-                        allFieldGroups.forEach(group => {
-                            const classBinding = group.getAttribute(':class');
-                            if (classBinding) {
-                                // Check if binding contains the selected type
-                                if (classBinding.includes(`selectedType === '${type}'`) || 
-                                    classBinding.includes(`selectedType === "${type}"`) ||
-                                    classBinding.includes(`selectedType === \`${type}\``)) {
-                                    group.classList.add('active');
-                                }
-                                // Also check for common fields (active when selectedType is truthy)
-                                if (classBinding.includes('selectedType') && !classBinding.includes('===')) {
-                                    group.classList.add('active');
-                                }
-                            }
-                        });
-                        
-                        // Show media and checkbox fields (usually have h4 with "Media" or "Status")
-                        allFieldGroups.forEach(group => {
-                            const h4 = group.querySelector('h4');
-                            if (h4) {
-                                const text = h4.textContent.toLowerCase();
-                                if (text.includes('media') || text.includes('status')) {
-                                    group.classList.add('active');
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Update all labels with selected type
-                    if (typeof updateLabelsWithType === 'function') {
-                        updateLabelsWithType(type);
-                    }
-                    
-                    // Filter dropdowns by selected type
-                    if (typeof filterDropdownsByType === 'function') {
-                        filterDropdownsByType(type);
-                    }
-                    
-                    // Update required attributes based on field visibility
-                    if (typeof updateRequiredFields === 'function') {
-                        updateRequiredFields(type);
-                    }
-                    
-                    // Load items by type when type changes
-                    if (type && typeof loadItemsByType === 'function') {
-                        loadItemsByType(type);
-                    } else if (typeof loadAllItems === 'function') {
-                        loadAllItems();
-                    }
-                    
-                    console.log('After selectType, selectedType is:', this.selectedType);
-                }, 10);
+                    });
+                }
             }
         }));
+        
+        console.log('productForm registered successfully');
     });
 
     // Function to update required fields based on type visibility
