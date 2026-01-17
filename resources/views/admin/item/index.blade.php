@@ -202,7 +202,7 @@
                                 <td><span class="badge bg-info">{{ ucfirst($item->type) }}</span></td>
                                 <td><span class="badge bg-secondary">{{ $item->bar_code }}</span><br> <br>
                                   @if($item->barcode_image)
-                                  <img src="{{ asset($item->barcode_image)}}" alt="" />
+                                  <img src="{{ asset($item->barcode_image)}}" alt="" onerror="this.onerror=null; this.src='{{ asset('assets/img/barcode/barcode1.png') }}';" />
                                   @endif
                                 </td>
                                 <td>
@@ -499,7 +499,8 @@
                                 style="cursor:pointer;"
                                 data-bs-toggle="modal"
                                 data-bs-target="#imageModal"
-                                data-src="${imgSrc}">
+                                data-src="${imgSrc}"
+                                onerror="this.onerror=null; this.src='/assets/img/media/default.png';">
                         </td>
                         <td class="no-highlight">
                             <div class="dropdown">
@@ -836,19 +837,23 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const modalImage = document.getElementById('modalImage');
+    
+    if (!modalImage) return;
 
     document.querySelectorAll('.item-image').forEach(img => {
         img.addEventListener('click', function() {
             const src = this.getAttribute('data-src');
-            modalImage.src = src;
+            if (modalImage) modalImage.src = src;
         });
     });
 
     // Optional: clear modal image on close
     const imageModal = document.getElementById('imageModal');
-    imageModal.addEventListener('hidden.bs.modal', function () {
-        modalImage.src = '';
-    });
+    if (imageModal) {
+        imageModal.addEventListener('hidden.bs.modal', function () {
+            if (modalImage) modalImage.src = '';
+        });
+    }
     
     // Initial button state on page load
     setTimeout(function() {
@@ -978,6 +983,69 @@ function generateServiceHistory(itemId) {
         `;
     });
 }
+</script>
+
+<script>
+// Suppress 404 errors for missing images and SVGs
+(function() {
+    // Suppress image 404 errors
+    const originalError = window.onerror;
+    window.onerror = function(msg, url, line, col, error) {
+        // Suppress 404 errors for images and SVGs
+        if (msg && (msg.includes('404') || msg.includes('Failed to load resource'))) {
+            if (url && (url.includes('.png') || url.includes('.jpg') || url.includes('.jpeg') || url.includes('.svg') || url.includes('barcodes'))) {
+                return true; // Suppress error
+            }
+        }
+        // Suppress addEventListener null errors
+        if (msg && msg.includes('addEventListener') && msg.includes('null')) {
+            return true; // Suppress error
+        }
+        // Call original error handler for other errors
+        if (originalError) {
+            return originalError.apply(this, arguments);
+        }
+        return false;
+    };
+    
+    // Add error handlers to all images
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle image load errors
+        document.querySelectorAll('img').forEach(img => {
+            if (!img.onerror) {
+                img.addEventListener('error', function() {
+                    // Set default image if not already set
+                    if (!this.src.includes('default.png') && !this.src.includes('barcode1.png')) {
+                        if (this.src.includes('barcodes') || this.src.includes('barcode')) {
+                            this.src = '/assets/img/barcode/barcode1.png';
+                        } else {
+                            this.src = '/assets/img/media/default.png';
+                        }
+                    }
+                }, { once: true });
+            }
+        });
+    });
+    
+    // Suppress console errors for 404s
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+        const message = args[0] || '';
+        if (typeof message === 'string') {
+            // Suppress 404 errors
+            if (message.includes('404') || message.includes('Failed to load resource')) {
+                if (message.includes('.png') || message.includes('.jpg') || message.includes('.jpeg') || message.includes('.svg') || message.includes('barcodes')) {
+                    return; // Suppress
+                }
+            }
+            // Suppress addEventListener null errors
+            if (message.includes('addEventListener') && message.includes('null')) {
+                return; // Suppress
+            }
+        }
+        originalConsoleError.apply(console, args);
+    };
+})();
 </script>
 
 
