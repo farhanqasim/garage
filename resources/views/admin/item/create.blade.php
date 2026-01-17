@@ -6431,15 +6431,17 @@
             
             // Get search value - check input field first
             let searchVal = '';
-            if ($searchInput.length && $searchInput.val()) {
-                searchVal = $searchInput.val().trim();
+            if ($searchInput.length) {
+                searchVal = ($searchInput.val() || '').trim();
             }
             
             // Check if "NO RESULTS FOUND" message is visible
-            const hasNoResultsMsg = $noResultsMsg.length && $noResultsMsg.is(':visible') && $noResultsMsg.text().toUpperCase().includes('NO RESULTS');
+            const hasNoResultsMsg = $noResultsMsg.length && $noResultsMsg.is(':visible');
             const hasNoSelectableResults = $results.length === 0;
+            // Show button if: no results message visible OR (no selectable results AND search term exists)
             const hasNoResults = hasNoResultsMsg || (hasNoSelectableResults && searchVal.length > 0);
             
+            // Show button if no results and search term exists
             if (hasNoResults && searchVal.length > 0) {
                         // Hide the default "No results found" message
                         if ($noResultsMsg.length) {
@@ -6803,13 +6805,14 @@
                             if ($select.length) {
                                 const $selectContainer = $select.next('.select2-container');
                                 if ($selectContainer.is($openSelect2)) {
+                                    // Always check and show button
                                     checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
                                 }
                             }
                         } else {
                             clearInterval(checkNoResultsInterval);
                         }
-                    }, 150);
+                    }, 100);
                     
                     // Clear interval when dropdown closes
                     $(document).one('select2:close', '#' + selectId, function() {
@@ -7311,6 +7314,14 @@
                 subtitle = window.companySubtitle;
                 // Clear the flag after using it
                 window.companySubtitle = null;
+            } else if (mode === 'add' && window.categorySubtitle) {
+                subtitle = window.categorySubtitle;
+                // Clear the flag after using it
+                window.categorySubtitle = null;
+            } else if (mode === 'add' && window.qualitySubtitle) {
+                subtitle = window.qualitySubtitle;
+                // Clear the flag after using it
+                window.qualitySubtitle = null;
             } else if (mode !== 'add') {
                 subtitle = 'Update the details below';
             }
