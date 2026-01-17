@@ -766,7 +766,6 @@
 
                             </div>
                         </div>
-
                         <!-- BREAK PAD FIELDS -->
                         <div class="field-group" :class="{ 'active': selectedType === 'breakpad' }">
                             <div class="row  p-3 mt-4">
