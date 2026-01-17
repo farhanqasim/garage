@@ -6,12 +6,22 @@
           <div class="mb-3">
             <h1 class="mb-1">Welcome, {{ auth()->user()->name?? "Guest" }}</h1>
             <p class="fw-medium">You have <span class="text-primary fw-bold">200+</span> Orders, Today</p>
+            <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
+              <a href="{{ route('car.wash') }}" class="btn btn-primary btn-lg">
+                <i class="ti ti-car me-2"></i> Elite Car Wash
+              </a>
+              <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#advancedDashboardModal">
+                <i class="ti ti-chart-line me-2"></i> Advanced Dashboard
+              </button>
           </div>
+          </div>
+          <div class="d-flex align-items-center gap-3">
           <div class="input-icon-start position-relative mb-3">
             <span class="input-icon-addon fs-16 text-gray-9">
               <i class="ti ti-calendar"></i>
             </span>
             <input type="text" class="form-control date-range bookingrange" placeholder="Search Product">
+            </div>
           </div>
         </div>
         <div class="alert bg-orange-transparent alert-dismissible fade show mb-4">
@@ -1249,4 +1259,254 @@
         </div>
 
       </div>
+
+      <!-- Advanced Dashboard Modal -->
+      <div class="modal fade" id="advancedDashboardModal" tabindex="-1" aria-labelledby="advancedDashboardModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title" id="advancedDashboardModalLabel">
+                <i class="ti ti-chart-line me-2"></i>Advanced Analytics Dashboard
+              </h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+              <!-- Real-time Statistics Cards -->
+              <div class="row g-3 mb-4">
+                <div class="col-md-3 col-sm-6">
+                  <div class="card border-0 shadow-sm bg-gradient-primary text-white">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <p class="mb-1 text-white-50 small">Today's Revenue</p>
+                          <h3 class="mb-0" id="todayRevenue">$48,988</h3>
+                          <small class="text-white-50"><i class="ti ti-arrow-up"></i> <span id="revenueChange">+22%</span></small>
+                        </div>
+                        <div class="fs-32 opacity-50">
+                          <i class="ti ti-currency-dollar"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <div class="card border-0 shadow-sm bg-gradient-success text-white">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <p class="mb-1 text-white-50 small">Active Orders</p>
+                          <h3 class="mb-0" id="activeOrders">200+</h3>
+                          <small class="text-white-50"><i class="ti ti-arrow-up"></i> <span id="ordersChange">+15%</span></small>
+                        </div>
+                        <div class="fs-32 opacity-50">
+                          <i class="ti ti-shopping-cart"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <div class="card border-0 shadow-sm bg-gradient-warning text-white">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <p class="mb-1 text-white-50 small">Total Customers</p>
+                          <h3 class="mb-0" id="totalCustomers">4,896</h3>
+                          <small class="text-white-50"><i class="ti ti-arrow-up"></i> <span id="customersChange">+8%</span></small>
+                        </div>
+                        <div class="fs-32 opacity-50">
+                          <i class="ti ti-users"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <div class="card border-0 shadow-sm bg-gradient-info text-white">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <p class="mb-1 text-white-50 small">Low Stock Items</p>
+                          <h3 class="mb-0" id="lowStockItems">5</h3>
+                          <small class="text-white-50"><i class="ti ti-alert-triangle"></i> Alert</small>
+                        </div>
+                        <div class="fs-32 opacity-50">
+                          <i class="ti ti-package"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions Grid -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="mb-3"><i class="ti ti-bolt me-2 text-primary"></i>Quick Actions</h6>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <a href="{{ route('pos.index') }}" class="card border text-decoration-none hover-shadow h-100">
+                    <div class="card-body text-center p-4">
+                      <div class="mb-3">
+                        <i class="ti ti-shopping-cart fs-32 text-primary"></i>
+                      </div>
+                      <h6 class="mb-0">Point of Sale</h6>
+                      <small class="text-muted">Start new sale</small>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <a href="{{ route('customers.index') }}" class="card border text-decoration-none hover-shadow h-100">
+                    <div class="card-body text-center p-4">
+                      <div class="mb-3">
+                        <i class="ti ti-users fs-32 text-info"></i>
+                      </div>
+                      <h6 class="mb-0">Customers</h6>
+                      <small class="text-muted">Manage customers</small>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <a href="{{ route('suppliers.index') }}" class="card border text-decoration-none hover-shadow h-100">
+                    <div class="card-body text-center p-4">
+                      <div class="mb-3">
+                        <i class="ti ti-truck fs-32 text-warning"></i>
+                      </div>
+                      <h6 class="mb-0">Suppliers</h6>
+                      <small class="text-muted">View suppliers</small>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <a href="{{ route('all.items') }}" class="card border text-decoration-none hover-shadow h-100">
+                    <div class="card-body text-center p-4">
+                      <div class="mb-3">
+                        <i class="ti ti-package fs-32 text-success"></i>
+                      </div>
+                      <h6 class="mb-0">Items</h6>
+                      <small class="text-muted">Manage inventory</small>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Recent Activity Timeline -->
+              <div class="row">
+                <div class="col-12">
+                  <h6 class="mb-3"><i class="ti ti-clock me-2 text-primary"></i>Recent Activity</h6>
+                  <div class="card border">
+                    <div class="card-body">
+                      <div class="activity-timeline" id="activityTimeline">
+                        <div class="activity-item d-flex align-items-start mb-3">
+                          <div class="activity-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                            <i class="ti ti-shopping-cart"></i>
+                          </div>
+                          <div class="ms-3 flex-grow-1">
+                            <h6 class="mb-1">New Sale Completed</h6>
+                            <p class="text-muted small mb-0">Order #12345 - $1,250.00</p>
+                            <small class="text-muted">2 minutes ago</small>
+                          </div>
+                        </div>
+                        <div class="activity-item d-flex align-items-start mb-3">
+                          <div class="activity-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                            <i class="ti ti-user-plus"></i>
+                          </div>
+                          <div class="ms-3 flex-grow-1">
+                            <h6 class="mb-1">New Customer Added</h6>
+                            <p class="text-muted small mb-0">John Doe registered</p>
+                            <small class="text-muted">15 minutes ago</small>
+                          </div>
+                        </div>
+                        <div class="activity-item d-flex align-items-start mb-3">
+                          <div class="activity-icon bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                            <i class="ti ti-alert-triangle"></i>
+                          </div>
+                          <div class="ms-3 flex-grow-1">
+                            <h6 class="mb-0">Low Stock Alert</h6>
+                            <p class="text-muted small mb-0">5 items below threshold</p>
+                            <small class="text-muted">1 hour ago</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-primary" onclick="refreshDashboard()">
+                <i class="ti ti-refresh me-2"></i>Refresh Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        .hover-shadow {
+          transition: all 0.3s ease;
+        }
+        .hover-shadow:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          transform: translateY(-2px);
+        }
+        .bg-gradient-primary {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .bg-gradient-success {
+          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .bg-gradient-warning {
+          background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .bg-gradient-info {
+          background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+      </style>
+
+      <script>
+        // Advanced Dashboard Functionality
+        function refreshDashboard() {
+          // Simulate data refresh
+          const revenue = (Math.random() * 10000 + 40000).toFixed(2);
+          const orders = Math.floor(Math.random() * 50 + 150);
+          const customers = Math.floor(Math.random() * 500 + 4000);
+          const stock = Math.floor(Math.random() * 20);
+          
+          document.getElementById('todayRevenue').textContent = '$' + parseFloat(revenue).toLocaleString();
+          document.getElementById('activeOrders').textContent = orders + '+';
+          document.getElementById('totalCustomers').textContent = customers.toLocaleString();
+          document.getElementById('lowStockItems').textContent = stock;
+          
+          // Show refresh animation
+          const btn = event.target;
+          const originalHtml = btn.innerHTML;
+          btn.innerHTML = '<i class="ti ti-loader me-2 spin"></i>Refreshing...';
+          btn.disabled = true;
+          
+          setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+          }, 1500);
+        }
+
+        // Auto-refresh on modal open
+        document.addEventListener('DOMContentLoaded', function() {
+          const modal = document.getElementById('advancedDashboardModal');
+          if (modal) {
+            modal.addEventListener('show.bs.modal', function() {
+              // Refresh data when modal opens
+              setTimeout(refreshDashboard, 100);
+            });
+          }
+        });
+      </script>
 @endsection

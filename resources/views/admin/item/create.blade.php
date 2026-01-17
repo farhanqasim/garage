@@ -1,65 +1,5 @@
 @extends('layouts.app')
 @section('title', 'Create Product')
-
-@push('alpine-register')
-<script>
-    // CRITICAL: Register Alpine.js component BEFORE Alpine.js script loads
-    document.addEventListener('alpine:init', function() {
-        console.log('[Alpine] alpine:init event fired');
-        
-        Alpine.data('productForm', function() {
-            return {
-                selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-                init() {
-                    console.log('[Alpine] productForm.init() - selectedType:', this.selectedType);
-                    
-                    if (this.selectedType) {
-                        setTimeout(() => {
-                            if (typeof updateLabelsWithType === 'function') updateLabelsWithType(this.selectedType);
-                            if (typeof filterDropdownsByType === 'function') filterDropdownsByType(this.selectedType);
-                        }, 500);
-                    }
-                    
-                    this.$watch('selectedType', (newType, oldType) => {
-                        if (oldType && oldType !== newType && typeof clearAllFormFields === 'function') {
-                            clearAllFormFields();
-                        }
-                        if (typeof updateLabelsWithType === 'function') updateLabelsWithType(newType);
-                        if (typeof filterDropdownsByType === 'function') filterDropdownsByType(newType);
-                        if (typeof updateRequiredFields === 'function') updateRequiredFields(newType);
-                    });
-                    
-                    setTimeout(() => {
-                        if (typeof updateRequiredFields === 'function') updateRequiredFields(this.selectedType);
-                    }, 500);
-                },
-                selectType(type) {
-                    console.log('[Alpine] selectType() called:', type);
-                    
-                    if (this.selectedType && this.selectedType !== type && typeof clearAllFormFields === 'function') {
-                        clearAllFormFields();
-                    }
-                    
-                    this.selectedType = type || '';
-                    localStorage.setItem('selectedType', type || '');
-                    
-                    if (typeof updateLabelsWithType === 'function') updateLabelsWithType(type);
-                    if (typeof filterDropdownsByType === 'function') filterDropdownsByType(type);
-                    if (typeof updateRequiredFields === 'function') updateRequiredFields(type);
-                    if (type && typeof loadItemsByType === 'function') {
-                        loadItemsByType(type);
-                    } else if (typeof loadAllItems === 'function') {
-                        loadAllItems();
-                    }
-                }
-            };
-        });
-        
-        console.log('[Alpine] ✓ productForm registered successfully!');
-    });
-</script>
-@endpush
-
 @section('content')
 @push('styles')
 <style>
@@ -191,10 +131,10 @@
         box-shadow: 0 4px 12px #fe962e;
     }
     .field-group {
-        display: none !important;
+        display: none;
     }
     .field-group.active {
-        display: block !important;
+        display: block;
     }
     .border {
         border: 1px solid #ddd !important;
@@ -318,103 +258,11 @@
         /* Vehicle table - better mobile display */
         #vehicleTable {
             font-size: 11px !important;
-            width: 100% !important;
-            min-width: 800px !important; /* Ensure table doesn't get too compressed */
         }
         #vehicleTable th,
         #vehicleTable td {
             padding: 0.5rem 0.25rem !important;
             font-size: 11px !important;
-            vertical-align: top;
-            white-space: nowrap !important; /* Prevent text wrapping */
-        }
-        #vehicleTable thead th {
-            padding: 0.75rem 0.5rem !important;
-            background-color: #212529 !important;
-            color: #ffffff !important;
-        }
-        #vehicleTable tbody {
-            background-color: #ffffff !important;
-        }
-        #vehicleTable tbody td {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-        /* Vehicle table header - keep select and button on same line and within cell */
-        #vehicleTable thead th {
-            white-space: nowrap !important;
-            overflow: hidden !important; /* Prevent content from spilling to next column */
-            position: relative !important;
-            vertical-align: top !important;
-        }
-        #vehicleTable thead th .d-flex.flex-column {
-            min-width: 0;
-            width: 100%;
-            max-width: 100% !important;
-            overflow: hidden !important;
-        }
-        #vehicleTable thead th .input-group {
-            margin-top: 0.25rem;
-            flex-wrap: nowrap !important; /* Prevent wrapping to next line */
-            display: flex !important;
-            white-space: nowrap !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            overflow: hidden !important; /* Prevent overflow */
-            box-sizing: border-box !important;
-        }
-        #vehicleTable thead th .input-group .form-control,
-        #vehicleTable thead th .input-group .select2-container {
-            border-radius: 0.25rem 0 0 0.25rem;
-            flex: 1 1 auto !important;
-            min-width: 0 !important; /* Allow shrinking */
-            max-width: calc(100% - 40px) !important; /* Leave space for button */
-            width: auto !important;
-            overflow: hidden !important;
-        }
-        #vehicleTable thead th .input-group .select2-container {
-            flex: 1 1 auto !important;
-            max-width: calc(100% - 40px) !important;
-        }
-        #vehicleTable thead th .input-group .select2-selection {
-            max-width: 100% !important;
-        }
-        #vehicleTable thead th .input-group .select2-selection__rendered {
-            max-width: 100% !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-        }
-        #vehicleTable thead th .input-group .btn {
-            padding: 0.25rem 0.5rem;
-            border-radius: 0;
-            flex-shrink: 0 !important; /* Prevent button from shrinking */
-            width: auto !important;
-            min-width: 35px !important;
-            max-width: 40px !important;
-        }
-        #vehicleTable thead th .input-group .btn:last-child {
-            border-radius: 0 0.25rem 0.25rem 0;
-        }
-        #vehicleTable thead th .inputswidth {
-            min-width: 150px !important; /* Reduced from 200px */
-            width: 100% !important;
-            max-width: 100% !important;
-            flex-wrap: nowrap !important;
-            display: flex !important;
-            overflow: hidden !important;
-            box-sizing: border-box !important;
-        }
-        /* Ensure table-responsive allows horizontal scroll */
-        .table-responsive {
-            overflow-x: auto !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch;
-            background-color: #ffffff !important;
-        }
-        /* Fix table wrapper background */
-        .table-responsive .table {
-            background-color: #ffffff !important;
-            margin-bottom: 0;
         }
         /* Year badges - smaller on mobile */
         .badge {
@@ -475,13 +323,12 @@
         .type-box .fs-1 {
             font-size: 1.5rem !important;
         }
-        /* On very small screens, allow horizontal scroll instead of hiding columns */
-        #vehicleTable {
-            min-width: 600px !important;
-        }
-        .table-responsive {
-            overflow-x: scroll !important;
-            -webkit-overflow-scrolling: touch;
+        /* Hide table columns on very small screens if needed */
+        #vehicleTable th:nth-child(4),
+        #vehicleTable td:nth-child(4),
+        #vehicleTable th:nth-child(5),
+        #vehicleTable td:nth-child(5) {
+            display: none;
         }
     }
     
@@ -560,49 +407,49 @@
                     <div class="row mb-5 g-3">
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
-                                @click="selectType('parts')" data-type="parts">
+                                @click="selectType('parts')">
                                 <i class="ti ti-tool fs-1 d-block mb-2"></i>
                                 Parts
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
-                                @click="selectType('filters')" data-type="filters">
+                                @click="selectType('filters')">
                                 <i class="ti ti-filter fs-1 d-block mb-2"></i>
                                 Filters
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
-                                @click="selectType('breakpad')" data-type="breakpad">
+                                @click="selectType('breakpad')">
                                 <i class="ti ti-disc fs-1 d-block mb-2"></i>
                                 Break Pad
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
-                                @click="selectType('oil')" data-type="oil">
+                                @click="selectType('oil')">
                                 <i class="ti ti-droplet fs-1 d-block mb-2"></i>
                                 Oil
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
-                                @click="selectType('battery')" data-type="battery">
+                                @click="selectType('battery')">
                                 <i class="ti ti-battery fs-1 d-block mb-2"></i>
                                 Battery
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
-                                @click="selectType('scrap')" data-type="scrap">
+                                @click="selectType('scrap')">
                                 <i class="ti ti-trash fs-1 d-block mb-2"></i>
                                 Scrap
                             </div>
                         </div>
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
-                                @click="selectType('services')" data-type="services">
+                                @click="selectType('services')">
                                 <i class="ti ti-tools fs-1 d-block mb-2"></i>
                                 Services
                             </div>
@@ -634,7 +481,7 @@
                                 <div class="col-md-4 mb-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' ">
                             <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Part Number:" style="font-weight: 900 !important;">Part Number:</label>
+                                            <label for="part_number_id" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Part Number:</label>
                                             <div id="partNumberStats" class="d-flex gap-1 ms-2" style="display: none !important;">
                                         <!-- Stats badges will be inserted here -->
                                     </div>
@@ -667,10 +514,10 @@
                         </div>
                          <!-- Product Name -->
                                 <div class="col-md-4 mb-3"
-                                    x-show="selectedType === 'parts' || selectedType === 'breakpad'">
+                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Product Name:" style="font-weight: 900 !important;">Product Name:</label>
+                                            <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -701,7 +548,7 @@
                                 <div class="col-md-4 mb-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad' ">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="category" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Category:" style="font-weight: 900 !important;">Category:</label>
+                                            <label for="category" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Category:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -740,7 +587,7 @@
                                     @enderror
                                 </div>
                                 <div class="col-md-4 mb-3" x-show="selectedType === 'battery'">
-                                    <label for="group_select" class="dynamic-label" data-original="Group Name:">Group Name:</label>
+                                    <label for="group_select">Group Name:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control group-select searchable-select @error('group') is-invalid @enderror"
@@ -753,7 +600,12 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        {{-- Add button removed --}}
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            data-mode="add" data-title="Add group"
+                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
+
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
@@ -771,7 +623,7 @@
                                     x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="company_parts" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Company:" style="font-weight: 900 !important;">Company:</label>
+                                            <label for="company_parts" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Company:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -817,7 +669,13 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        {{-- Add button removed --}}
+                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
+                                            data-mode="add"
+                                            data-route="{{ route('post.technology') }}"
+                                            data-target-select=".technology-select">
+                                            <i data-feather="plus" class="feather-plus"></i>
+                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
                                             x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
@@ -843,7 +701,7 @@
                                 <div class="col-md-4">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
-                                            <label for="quality" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold dynamic-label" data-original="Quality:" style="font-weight: 900 !important;">Quality:</label>
+                                            <label for="quality" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Quality:</label>
                                         </div>
                                     </div>
                                     <div class="input-group inputswidth">
@@ -879,7 +737,7 @@
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
-                                    <label for="quality_filters" class="dynamic-label" data-original="Quality:">Quality:</label>
+                                    <label for="quality_filters">Quality:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
@@ -908,13 +766,12 @@
 
                             </div>
                         </div>
-
                         <!-- BREAK PAD FIELDS -->
                         <div class="field-group" :class="{ 'active': selectedType === 'breakpad' }">
                             <div class="row  p-3 mt-4">
 
                                 <div class="col-md-4">
-                                    <label for="quality_breakpad" class="dynamic-label" data-original="Quality:">Quality:</label>
+                                    <label for="quality_breakpad">Quality:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
@@ -1471,68 +1328,65 @@
                                         <strong>WARNING:</strong> SALE PRICE IS LESS THAN COST PRICE (LOSS)
                             </div>
 
-                                    <!-- Price Management Container -->
-                                    <div id="priceManagementContainer" class="mb-4 row g-3">
-                                        <!-- Cost Price Management -->
-                                        <div id="costPriceManagement" class="col-12 col-md-6 mb-0 mb-md-0">
-                                            <h6 class="text-success fw-bold mb-3 text-uppercase">Cost Price Management</h6>
-                                            <div class="row g-3">
-                                                <div class="col-12 col-md-6">
-                                                    <div class="card border-success bg-light">
-                                                        <div class="card-body">
-                                                            <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costUnitLabel">Unit Cost:</label>
-                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
-                                                                <input type="number" step="0.01" id="costPrice" name="total_price"
-                                                                    class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromUnit('cost')" style="flex: 1; height: 100%;">
-                                                            </div>
+                                    <!-- Cost Price Management -->
+                                    <div id="costPriceManagement" class="mb-4" style="display: none;">
+                                        <h6 class="text-success fw-bold mb-3 text-uppercase">Cost Price Management</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6" id="costUnitContainer">
+                                                <div class="card border-success bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costUnitLabel">Unit Cost:</label>
+                                                        <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                            <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
+                                                            <input type="number" step="0.01" id="costPrice" name="total_price"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromUnit('cost')" style="flex: 1; height: 100%;">
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-12 col-md-6" id="baseCostPriceContainer" style="display: none;">
-                                                    <div class="card border-success bg-light">
-                                                        <div class="card-body">
-                                                            <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costBaseLabel">Per Base Cost:</label>
-                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
-                                                                <input type="number" step="0.01" id="baseCostPrice" name="price_per_unit"
-                                                                    class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromBase('cost')" style="flex: 1; height: 100%;">
-                                                            </div>
+                                            </div>
+                                            <div class="col-md-6" id="baseCostPriceContainer" style="display: none;">
+                                                <div class="card border-success bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-success text-uppercase mb-1" id="costBaseLabel">Per Base Cost:</label>
+                                                        <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                            <span class="input-group-text bg-success text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
+                                                            <input type="number" step="0.01" id="baseCostPrice" name="price_per_unit"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromBase('cost')" style="flex: 1; height: 100%;">
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <!-- Sale Price Management -->
-                                        <div id="salePriceManagement" class="col-12 col-md-6 mb-0 mb-md-0">
-                                            <h6 class="text-warning fw-bold mb-3 text-uppercase">Sale Price Management</h6>
-                                            <div class="row g-3">
-                                                <div class="col-12 col-md-6">
-                                                    <div class="card border-warning bg-light">
-                                                        <div class="card-body">
-                                                            <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleUnitLabel">Unit Sale:</label>
-                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
-                                                                <input type="number" step="0.01" id="salePrice" name="sale_price"
-                                                                    class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromUnit('sale')" style="flex: 1; height: 100%;">
-                                                            </div>
+                                    <!-- Sale Price Management -->
+                                    <div id="salePriceManagement" class="mb-4" style="display: none;">
+                                        <h6 class="text-warning fw-bold mb-3 text-uppercase">Sale Price Management</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6" id="saleUnitContainer">
+                                                <div class="card border-warning bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleUnitLabel">Unit Sale:</label>
+                                                        <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                            <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
+                                                            <input type="number" step="0.01" id="salePrice" name="sale_price"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromUnit('sale')" style="flex: 1; height: 100%;">
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="col-12 col-md-6" id="baseSalePriceContainer" style="display: none;">
-                                                    <div class="card border-warning bg-light">
-                                                        <div class="card-body">
-                                                            <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleBaseLabel">Per Base Sale:</label>
-                                                            <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
-                                                                <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
-                                                                <input type="number" step="0.01" id="baseSalePrice" name="sale_price_per_base"
-                                                                    class="form-control form-control-lg fw-bold" placeholder="0"
-                                                                    oninput="calculateFromBase('sale')" style="flex: 1; height: 100%;">
-                                                            </div>
+                                            </div>
+                                            <div class="col-md-6" id="baseSalePriceContainer" style="display: none;">
+                                                <div class="card border-warning bg-light">
+                                                    <div class="card-body">
+                                                        <label class="form-label small fw-bold text-warning text-uppercase mb-1" id="saleBaseLabel">Per Base Sale:</label>
+                                                        <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                            <span class="input-group-text bg-warning text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
+                                                            <input type="number" step="0.01" id="baseSalePrice" name="sale_price_per_base"
+                                                                class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                oninput="calculateFromBase('sale')" style="flex: 1; height: 100%;">
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1679,6 +1533,28 @@
                                 </optgroup>
                             </select>
                             @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-4 mt-3">
+                            <label for="vehical_id">Vehicle Type:</label>
+                            <div class="input-group inputswidth">
+                                <select class="form-control searchable-select @error('vehical_id') is-invalid @enderror"
+                                    name="vehical_id" id="vehical_id">
+                                    <option value="">Select Vehicle Type</option>
+                                    @foreach ($Vehicals as $vehicle)
+                                    <option value="{{ $vehicle->id }}">
+                                        {{ $vehicle->manutacturer_vehical->name??'-' }}
+                                        {{ $vehicle->model_vehical->name??'-' }}
+                                        {{ $vehicle->engine_vehical->name??'-' }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-primary " data-bs-toggle="modal"
+                                    data-bs-target="#vehical-add-modal">
+                                    <i data-feather="plus" class="feather-plus"></i>
+                                </button>
+                            </div>
+                            @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+
                         </div>
                         {{-- PART NUMBER SELECT --}}
 
@@ -1827,6 +1703,7 @@
                                             <td>{{ $car->manutacturer_vehical->name ?? '-' }}</td>
 
                                             <td>{{ $car->model_vehical->name ?? '-' }}</td>
+                                            <td>{{ $car->country_vehical->name ?? '-' }}</td>
                                             <td>
                                                 @if($car->year_ranges && count($car->year_ranges) > 0)
                                                     <div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">
@@ -1839,8 +1716,6 @@
                                                 @endif
                                             </td>
                                             <td>{{ $car->engine_vehical->name ?? '-' }}</td>
-
-                                            <td>{{ $car->country_vehical->name ?? '-' }}</td>
                                             <td>
                                                 <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
                                                     data-part="{{ $car->v_part_number_id }}"
@@ -2115,7 +1990,7 @@
                 <div class="modal-body p-3">
                     <div class="container">
                         <div class="row">
-                            {{-- 1. Car Manufactured ---------------------------------------------------- --}}
+                            {{-- 1. Car Company ---------------------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label for="car_manufacturer">Car Manufactured:</label>
                                 <div class="input-group inputswidth">
@@ -2131,6 +2006,12 @@
                                         </option>
                                         @endforeach
                                     </select>
+                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                        data-title="Add Manufacturerd" data-mode="add"
+                                        data-route="{{ route('post.car.manufacturer') }}"
+                                        data-target-select=".car-manufacturer-select">
+                                        <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Manufacturerd"
                                         data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
@@ -2143,7 +2024,7 @@
                                 @error('car_manufacturer') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            {{-- 2. Car Model ------------------------------------------------------- --}}
+                            {{-- 2. Car Name ------------------------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label for="car_name">Car Model:</label>
                                 <div class="input-group inputswidth">
@@ -2158,6 +2039,12 @@
                                         </option>
                                         @endforeach
                                     </select>
+                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                        data-title="Add Car Model" data-mode="add"
+                                        data-route="{{ route('post.car.model') }}"
+                                        data-target-select=".car-model-select">
+                                        <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Car Model"
                                         data-fetch-route="{{ route('show.car.model', ':id') }}"
@@ -2166,38 +2053,13 @@
                                         data-target-select=".car-model-select">
                                         <i data-feather="edit"></i>
                                     </button>
+
                                 </div>
                                 @error('car_model_name') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            {{-- 3. Car Manufactured Country --------------------------------------- --}}
-                            <div class="col-md-6 mt-3">
-                                <label for="car_manufactured_country">Car Manufactured Country:</label>
-                                <div class="input-group inputswidth">
-                                    <select
-                                        class="form-control car-country-select searchable-select @error('car_manufactured_country') is-invalid @enderror"
-                                        name="car_manufactured_country" id="car_manufactured_country">
-                                        <option value="">Select Country</option>
-                                        @foreach ($carCountries as $item)
-                                        <option value="{{ $item->id }}" {{ old('car_manufactured_country')==$item->id ?
-                                            'selected' : '' }}>
-                                            {{ $item->name }}
-                                        </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-secondary open-universal-modal"
-                                        data-mode="edit" data-title="Edit Country"
-                                        data-fetch-route="{{ route('show.car.country', ':id') }}"
-                                        data-update-route="{{ route('update.car.country', ':id') }}"
-                                        data-delete-route="{{ route('destory.car.country', ':id') }}"
-                                        data-target-select=".car-country-select">
-                                        <i data-feather="edit"></i>
-                                    </button>
-                                </div>
-                                @error('car_manufactured_country') <div class="invalid-feedback">{{ $message }}
-                                </div> @enderror
-                            </div>
-                            {{-- 4. Engine CC ------------------------------------------------- --}}
+
+                            {{-- 3. Car Model Name ------------------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label for="engine_cc">Engin CC:</label>
                                 <div class="input-group inputswidth">
@@ -2212,6 +2074,12 @@
                                         </option>
                                         @endforeach
                                     </select>
+                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                        data-title="Add Engine CC" data-mode="add"
+                                        data-route="{{ route('post.engine.cc') }}"
+                                        data-target-select=".car-engine-select">
+                                        <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
                                     <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-mode="edit" data-title="Edit Engine CC"
                                         data-fetch-route="{{ route('show.engine_cc', ':id') }}"
@@ -2224,8 +2092,42 @@
                                 @error('engine_cc') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            {{-- 6. Part Number ------------------------------------------------- --}}
+                            {{-- 4. Car Manufactured Country --------------------------------------- --}}
                             <div class="col-md-6 mt-3">
+                                <label for="car_manufactured_country">Car Manufactured Country:</label>
+                                <div class="input-group inputswidth">
+                                    <select
+                                        class="form-control car-country-select searchable-select @error('car_manufactured_country') is-invalid @enderror"
+                                        name="car_manufactured_country" id="car_manufactured_country">
+                                        <option value="">Select Country</option>
+                                        @foreach ($carCountries as $item)
+                                        <option value="{{ $item->id }}" {{ old('car_manufactured_country')==$item->id ?
+                                            'selected' : '' }}>
+                                            {{ $item->name }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+
+                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                        data-title="Add Country" data-mode="add"
+                                        data-route="{{ route('post.car.country') }}"
+                                        data-target-select=".car-country-select">
+                                        <i data-feather="plus" class="feather-plus"></i>
+                                    </button>
+
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
+                                        data-mode="edit" data-title="Edit Country"
+                                        data-fetch-route="{{ route('show.car.country', ':id') }}"
+                                        data-update-route="{{ route('update.car.country', ':id') }}"
+                                        data-delete-route="{{ route('destory.car.country', ':id') }}"
+                                        data-target-select=".car-country-select">
+                                        <i data-feather="edit"></i>
+                                    </button>
+                                </div>
+                                @error('car_manufactured_country') <div class="invalid-feedback">{{ $message }}
+                                </div> @enderror
+                            </div>
+                            <div class="col-md-6 mt-3 d-none">
                                 <label for="part_number">Part Number: <span class="text-danger">*</span></label>
                                 <div class="input-group inputswidth">
                                     <select
@@ -2239,19 +2141,11 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-secondary open-universal-modal"
-                                        data-mode="edit" data-title="Edit Part Number"
-                                        data-fetch-route="{{ route('show.partnumber', ':id') }}"
-                                        data-update-route="{{ route('update.partnumber', ':id') }}"
-                                        data-delete-route="{{ route('destory.partnumber', ':id') }}"
-                                        data-target-select=".part_number-select">
-                                        <i data-feather="edit"></i>
-                                    </button>
+
                                 </div>
                                 @error('v_part_number_id') <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-                            {{-- 5. YEAR RANGES ------------------------------------------------- --}}
                             <div class="col-md-6 mt-3">
                                 <label><strong>YEAR RANGES</strong></label>
                                 <div id="yearRangesContainer">
@@ -2311,6 +2205,10 @@
                     Delete
                 </button>
 
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Close
+                </button>
+
                 <button type="submit" class="btn btn-primary" data-action="save">
                     Save
                 </button>
@@ -2324,6 +2222,62 @@
         </form>
     </div>
 </div>
+</div>
+<!-- Year Range Selector Modal -->
+<div class="modal fade" id="yearRangeModal" tabindex="-1" aria-labelledby="yearRangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="yearRangeModalLabel">Select Year Range</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="filterYearRangesContainer">
+                    <div class="filter-year-range-item mb-2">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <label class="form-label small">From Year</label>
+                                <select class="form-control filter-year-from">
+                                    <option value="">Select Year</option>
+                                    @php
+                                        $currentYear = date('Y');
+                                        for($year = $currentYear; $year >= 1980; $year--) {
+                                            echo '<option value="' . $year . '">' . $year . '</option>';
+                                        }
+                                    @endphp
+                                </select>
+                                <div class="invalid-feedback" style="display: none; font-size: 10px;">From Year cannot be greater than To Year</div>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small">To Year</label>
+                                <select class="form-control filter-year-to">
+                                    <option value="">Select Year</option>
+                                    @php
+                                        $currentYear = date('Y');
+                                        for($year = $currentYear; $year >= 1980; $year--) {
+                                            echo '<option value="' . $year . '">' . $year . '</option>';
+                                        }
+                                    @endphp
+                                </select>
+                                <div class="invalid-feedback" style="display: none; font-size: 10px;">To Year cannot be less than From Year</div>
+                            </div>
+                            <div class="col-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger btn-sm removeFilterYearRange" style="display: none;">X</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm mt-2" id="addMoreFilterYearRange">
+                    <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                    Add More Year Range
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyYearRangeFilter">Apply Filter</button>
+            </div>
+        </div>
+    </div>
 </div>
 <!-- Universal Modal -->
 <div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
@@ -2400,62 +2354,6 @@
         </div>
     </div>
 </div>
-<!-- Year Range Selector Modal -->
-<div class="modal fade" id="yearRangeModal" tabindex="-1" aria-labelledby="yearRangeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="yearRangeModalLabel">Select Year Range</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="filterYearRangesContainer">
-                    <div class="filter-year-range-item mb-2">
-                        <div class="row g-2">
-                            <div class="col-5">
-                                <label class="form-label small">From Year</label>
-                                <select class="form-control filter-year-from">
-                                    <option value="">Select Year</option>
-                                    @php
-                                        $currentYear = date('Y');
-                                        for($year = $currentYear; $year >= 1980; $year--) {
-                                            echo '<option value="' . $year . '">' . $year . '</option>';
-                                        }
-                                    @endphp
-                                </select>
-                                <div class="invalid-feedback" style="display: none; font-size: 10px;">From Year cannot be greater than To Year</div>
-                            </div>
-                            <div class="col-5">
-                                <label class="form-label small">To Year</label>
-                                <select class="form-control filter-year-to">
-                                    <option value="">Select Year</option>
-                                    @php
-                                        $currentYear = date('Y');
-                                        for($year = $currentYear; $year >= 1980; $year--) {
-                                            echo '<option value="' . $year . '">' . $year . '</option>';
-                                        }
-                                    @endphp
-                                </select>
-                                <div class="invalid-feedback" style="display: none; font-size: 10px;">To Year cannot be less than From Year</div>
-                            </div>
-                            <div class="col-2 d-flex align-items-end">
-                                <button type="button" class="btn btn-danger btn-sm removeFilterYearRange" style="display: none;">X</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-primary btn-sm mt-2" id="addMoreFilterYearRange">
-                    <i data-feather="plus" style="width: 14px; height: 14px;"></i>
-                    Add More Year Range
-                </button>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="applyYearRangeFilter">Apply Filter</button>
-            </div>
-        </div>
-    </div>
-</div>
 <audio id="deleteSound" src="{{ asset('deleteaudio_ubWu5Ok3.mp3') }}" preload="auto"></audio>
 @endsection
 @push('scripts')
@@ -2496,7 +2394,27 @@
                 $('#Unit-form [name="short_name"]').removeClass('is-invalid');
             }
             
-            // Remove items without selected base unit (preserve order as entered by user)
+            // Auto-sequence multipliers before form submission
+            const multiplierInputs = $('#baseUnitsContainer').find('input[name*="[multiplier]"]');
+            const baseUnitItems = [];
+            
+            multiplierInputs.each(function() {
+                const $input = $(this);
+                const $item = $input.closest('.base-unit-item');
+                const baseUnitId = $item.find('select[name*="[base_unit_id]"]').val();
+                
+                // Include all items that have a base unit selected (even if multiplier is empty)
+                if (baseUnitId && baseUnitId !== '') {
+                    const multiplier = parseFloat($input.val()) || 0;
+                    baseUnitItems.push({
+                        item: $item,
+                        multiplier: multiplier,
+                        baseUnitId: baseUnitId
+                    });
+                }
+            });
+            
+            // Remove items without selected base unit
             $('#baseUnitsContainer .base-unit-item').each(function() {
                 const $item = $(this);
                 const baseUnitId = $item.find('select[name*="[base_unit_id]"]').val();
@@ -2505,7 +2423,25 @@
                 }
             });
             
-            // Preserve the order as entered by user - do NOT sort or auto-sequence multipliers
+            // Sort by multiplier value (ascending order), items with 0 multiplier go to end
+            baseUnitItems.sort((a, b) => {
+                if (a.multiplier === 0 && b.multiplier === 0) return 0;
+                if (a.multiplier === 0) return 1;
+                if (b.multiplier === 0) return -1;
+                return a.multiplier - b.multiplier;
+            });
+            
+            // Reorder DOM elements and update multipliers to sequence (1, 2, 3, ...)
+            if (baseUnitItems.length > 0) {
+                const $container = $('#baseUnitsContainer');
+                baseUnitItems.forEach((item, index) => {
+                    // Move item to correct position
+                    $container.append(item.item);
+                    // Update multiplier to sequence number
+                    const newMultiplier = index + 1;
+                    item.item.find('input[name*="[multiplier]"]').val(newMultiplier);
+                });
+            }
             
             let formData = new FormData(this);
             let url = currentUnitId ?
@@ -3424,12 +3360,9 @@
     
     // Initialize unit dropdown
     $(document).ready(function() {
-        // Set initial state - hide base unit containers and make sections side by side
-        $('#baseCostPriceContainer').hide();
-        $('#baseSalePriceContainer').hide();
-        $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
-        $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
-        $('#priceManagementContainer').addClass('row g-3');
+        // Hide price management sections initially
+        $('#costPriceManagement').hide();
+        $('#salePriceManagement').hide();
         
         // Load units from API
         loadUnitsForDropdown();
@@ -3445,6 +3378,14 @@
                 width: '100%'
             });
         }
+        
+        // Check if unit is already selected (from old value) and trigger change
+        setTimeout(function() {
+            const selectedValue = $('#unit_parts').val();
+            if (selectedValue && selectedValue !== '') {
+                handleUnitChange();
+            }
+        }, 500);
     });
     
     // Load units with conversions from API
@@ -3527,9 +3468,16 @@
     function handleUnitChange() {
         const selectedOption = $('#unit_parts option:selected');
         if (!selectedOption.val() || selectedOption.val() === '') {
+            // Hide both price management sections if no unit is selected
+            $('#costPriceManagement').hide();
+            $('#salePriceManagement').hide();
             resetPriceFields();
             return;
         }
+        
+        // Show both price management sections when unit is selected
+        $('#costPriceManagement').show();
+        $('#salePriceManagement').show();
         
         const unitName = selectedOption.attr('data-unit-name');
         const baseUnitName = selectedOption.attr('data-base-unit-name');
@@ -3540,29 +3488,29 @@
         $('#costUnitLabel').text(`${unitName} COST:`);
         $('#saleUnitLabel').text(`${unitName} SALE:`);
         
-        // Check if base unit exists
-        const hasBaseUnit = baseUnitName && multiplier && multiplier > 0;
+        // Check if unit has base unit
+        const hasBaseUnit = baseUnitName && baseUnitName !== '' && multiplier && multiplier > 0;
         
         if (hasBaseUnit) {
-            // Show base unit fields
+            // Show base unit inputs
             $('#costBaseLabel').text(`PER ${baseUnitName} COST:`);
             $('#saleBaseLabel').text(`PER ${baseUnitName} SALE:`);
             $('#baseCostPriceContainer').show();
             $('#baseSalePriceContainer').show();
             
-            // Make Cost and Sale sections full width (stacked vertically)
-            $('#costPriceManagement').removeClass('col-12 col-md-6 mb-0').addClass('col-12 mb-4');
-            $('#salePriceManagement').removeClass('col-12 col-md-6 mb-0').addClass('col-12 mb-4');
+            // Adjust column widths - make them side by side when base unit exists
+            $('#costUnitContainer').removeClass('col-12').addClass('col-md-6');
+            $('#saleUnitContainer').removeClass('col-12').addClass('col-md-6');
         } else {
-            // Hide base unit fields
+            // Hide base unit inputs - show only unit cost and unit sale
             $('#costBaseLabel').text(`PER ${unitName} COST:`);
             $('#saleBaseLabel').text(`PER ${unitName} SALE:`);
             $('#baseCostPriceContainer').hide();
             $('#baseSalePriceContainer').hide();
             
-            // Make Cost and Sale sections side by side
-            $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
-            $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
+            // Make unit inputs full width when no base unit
+            $('#costUnitContainer').removeClass('col-md-6').addClass('col-12');
+            $('#saleUnitContainer').removeClass('col-md-6').addClass('col-12');
         }
         
         // Reset prices
@@ -3712,34 +3660,573 @@
         $('#costPrice, #baseCostPrice, #salePrice, #baseSalePrice').val('');
         $('#derivedPricesList').empty();
         $('#priceWarning').hide();
-        
-        // Reset layout to default (side by side, hide base units)
-        $('#baseCostPriceContainer').hide();
-        $('#baseSalePriceContainer').hide();
-        $('#costPriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
-        $('#salePriceManagement').removeClass('col-12 mb-4').addClass('col-12 col-md-6 mb-0');
-        $('#priceManagementContainer').addClass('row g-3');
     }
 </script>
 <script>
-    $(document).ready(function() {
-        $("#vehicleTable tbody tr").hide();
+    // Part number is now a simple text input - no filtering needed
+</script>
+<script>
+    // Prevent modal from opening if part number is not selected
+    $(document).on('click', '[data-bs-target="#vehical-add-modal"]', function(e) {
+        let outsidePart = $('#part_number_id').val();
+        if (!outsidePart || outsidePart.trim() === '') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+
+            // Highlight the part number field
+            $('#part_number_id').addClass('is-invalid');
+            toastr.warning('Please enter part number first.');
+            // Add visual feedback
+            $('#part_number_id').focus();
+            // Scroll to the part number field if needed
+            const $partNumberField = $('#part_number_id');
+            if ($partNumberField.length && $partNumberField.offset()) {
+            $('html, body').animate({
+                    scrollTop: $partNumberField.offset().top - 100
+            }, 300);
+            }
+            return false;
+        }
     });
 
+    // When modal opens, pre-fill Part Number from the input field
+    // Also validate that part number is entered before allowing modal to show
+    $('#vehical-add-modal').on('show.bs.modal', function(e) {
+        let outsidePart = $('#part_number_id').val();
+        if (!outsidePart || outsidePart.trim() === '') {
+            e.preventDefault();
+            toastr.error('Please enter part number first.');
+            $('#part_number_id').addClass('is-invalid').focus();
+            const $partNumberField = $('#part_number_id');
+            if ($partNumberField.length && $partNumberField.offset()) {
+            $('html, body').animate({
+                    scrollTop: $partNumberField.offset().top - 100
+            }, 300);
+            }
+            return false;
+        }
+    });
+
+    $('#vehical-add-modal').on('shown.bs.modal', function() {
+        let outsidePart = $('#part_number_id').val();
+        if (outsidePart && outsidePart.trim() !== '') {
+            $('#part_number').val(outsidePart.trim()).trigger('change');
+            $('#part_number').removeClass('is-invalid');
+        } else {
+            // If somehow modal opened without part number, close it
+            $('#vehical-add-modal').modal('hide');
+            toastr.error('Please enter part number first.');
+            $('#part_number_id').addClass('is-invalid').focus();
+        }
+    });
+
+    // Remove error styling when part number is entered (both fields)
+    $(document).on('input change', '#part_number, #part_number_id', function() {
+        if ($(this).val() && $(this).val().trim() !== '') {
+            $(this).removeClass('is-invalid');
+            // Also remove error from the other field
+            $('#part_number, #part_number_id').removeClass('is-invalid');
+        }
+    });
+</script>
+<script>
+    // Set hidden input based on which submit button was clicked
+    $("#vehical-form button[type=submit]").on("click", function() {
+        $("#submit_type").val($(this).data("action"));
+    });
+</script>
+<script>
+    $("#vehical-form").off("submit").on("submit", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Check if modal is actually visible
+        if (!$('#vehical-add-modal').hasClass('show')) {
+            return false;
+        }
+        
+        let form = this;
+
+        // Validate part number before form submission
+        let partNumber = $('#part_number').val();
+        let outsidePartNumber = $('#part_number_id').val();
+
+        // Check both fields (modal field and outside field)
+        if ((!partNumber || partNumber.trim() === '') &&
+            (!outsidePartNumber || outsidePartNumber.trim() === '')) {
+            toastr.error('Please enter part number first.');
+            // Add error styling to part number fields
+            $('#part_number').addClass('is-invalid');
+            $('#part_number_id').addClass('is-invalid');
+            // Focus on modal part number field
+            $('#part_number').focus();
+            // Scroll to the field if needed
+            const $modalContent = $('#part_number').closest('.modal-content');
+            if ($modalContent.length && $modalContent.offset()) {
+            $('html, body').animate({
+                    scrollTop: $modalContent.offset().top - 50
+            }, 300);
+            }
+            return false;
+        }
+
+        // Use outside part number if modal part number is not set
+        if (!partNumber || partNumber.trim() === '') {
+            partNumber = outsidePartNumber.trim();
+            $('#part_number').val(partNumber).trigger('change');
+        }
+
+        // Remove error styling if part number is entered
+        $('#part_number').removeClass('is-invalid');
+        $('#part_number_id').removeClass('is-invalid');
+
+        let formData = new FormData(form);
+        let submitType = $("#submit_type").val();
+        let outsidePart = $('#part_number_id').val();
+        $.ajax({
+            url: "{{ route('post.product_vehical') }}",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                // Only show success message if there's a valid response with vehicles
+                if (!res) {
+                    console.error('No response from server');
+                    toastr.error('No response from server');
+                    return;
+                }
+                
+                if (res.errors && res.errors.length > 0) {
+                    // Display overlap errors
+                    res.errors.forEach(function(error) {
+                        toastr.error(error);
+                    });
+                    return;
+                }
+                
+                if (res.duplicate_years?.length) {
+                    toastr.warning("Already exists for year(s): " + res.duplicate_years.join(', '));
+                } else if (res.vehicles && res.vehicles.length > 0) {
+                    // Only show success if vehicles were actually saved and modal is visible
+                    if ($('#vehical-add-modal').hasClass('show')) {
+                        toastr.success(res.message || "Vehicle saved successfully!");
+                        // 🔊 Play save sound when vehicle is saved
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                    }
+                } else if (res.message && $('#vehical-add-modal').hasClass('show')) {
+                    // If there's a message but no vehicles, show it (might be a warning)
+                    toastr.info(res.message);
+                }
+
+                // Add/update vehicles in table without page reload
+                if (res.vehicles && res.vehicles.length > 0) {
+                    // Group vehicles by config (part, manufacturer, model, engine, country)
+                    let vehicleGroups = {};
+                    res.vehicles.forEach(function(v) {
+                        let key = `${v.v_part_number_id}-${v.car_manufacturer}-${v.car_model_name}-${v.engine_cc}-${v.car_manufactured_country}`;
+                        if (!vehicleGroups[key]) {
+                            vehicleGroups[key] = {
+                                v_part_number_id: v.v_part_number_id,
+                                car_manufacturer: v.car_manufacturer,
+                                car_model_name: v.car_model_name,
+                                engine_cc: v.engine_cc,
+                                car_manufactured_country: v.car_manufactured_country,
+                                manutacturer_vehical: v.manutacturer_vehical,
+                                model_vehical: v.model_vehical,
+                                engine_vehical: v.engine_vehical,
+                                country_vehical: v.country_vehical,
+                                vehical_part_number: v.vehical_part_number,
+                                yearRanges: []
+                            };
+                        }
+                        // Add year range
+                        if (v.year_from && v.year_to) {
+                            let yearStr = v.year_from == v.year_to ? v.year_from : v.year_from + '-' + v.year_to;
+                            if (vehicleGroups[key].yearRanges.indexOf(yearStr) === -1) {
+                                vehicleGroups[key].yearRanges.push(yearStr);
+                            }
+                        }
+                    });
+
+                    // Check if vehicle group already exists in table, if yes update it, else add new
+                    Object.keys(vehicleGroups).forEach(function(key) {
+                        let group = vehicleGroups[key];
+
+                        // Find existing row by matching all config fields
+                        let existingRow = null;
+                        $("#vehicleTable tbody tr").each(function() {
+                            let $row = $(this);
+                            if ($row.data('part') == group.v_part_number_id &&
+                                $row.find('.editVehicleBtn').data('manufacturer') == group.car_manufacturer &&
+                                $row.find('.editVehicleBtn').data('model') == group.car_model_name &&
+                                $row.find('.editVehicleBtn').data('engine') == group.engine_cc &&
+                                $row.find('.editVehicleBtn').data('country') == group.car_manufactured_country) {
+                                existingRow = $row;
+                                return false; // break loop
+                            }
+                        });
+
+                        // Build year ranges display with light blue badges (sorted by year)
+                        let yearRangesHtml = '';
+                        if (group.yearRanges.length > 0) {
+                            // Sort year ranges by 'from' year
+                            group.yearRanges.sort(function(a, b) {
+                                let aFrom = parseInt(a.split('-')[0]);
+                                let bFrom = parseInt(b.split('-')[0]);
+                                return aFrom - bFrom;
+                            });
+
+                            yearRangesHtml = '<div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
+                            group.yearRanges.forEach(function(range) {
+                                yearRangesHtml += `<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">${range}</span>`;
+                            });
+                            yearRangesHtml += '</div>';
+                        } else {
+                            yearRangesHtml = '<span class="badge bg-secondary">-</span>';
+                        }
+
+                        if (existingRow && existingRow.length > 0) {
+                            // Update existing row
+                            existingRow.find('td:eq(0)').text(group.manutacturer_vehical?.name || '-');
+                            existingRow.find('td:eq(1)').text(group.model_vehical?.name || '-');
+                            existingRow.find('td:eq(2)').html(yearRangesHtml);
+                            existingRow.find('td:eq(3)').text(group.engine_vehical?.name || '-');
+                            existingRow.find('td:eq(4)').text(group.country_vehical?.name || '-');
+                            existingRow.find('td:eq(5)').text(group.vehical_part_number?.name || '-');
+
+                            // Update edit button data attributes - store first year range for backward compatibility
+                            let editBtn = existingRow.find('.editVehicleBtn');
+                            editBtn.attr('data-part', group.v_part_number_id);
+                            editBtn.attr('data-manufacturer', group.car_manufacturer);
+                            editBtn.attr('data-model', group.car_model_name);
+                            editBtn.attr('data-engine', group.engine_cc);
+                            editBtn.attr('data-country', group.car_manufactured_country);
+                            // Store all year ranges as JSON string
+                            editBtn.attr('data-year-ranges', JSON.stringify(group.yearRanges));
+                            // For backward compatibility, also store first range
+                            if (group.yearRanges.length > 0) {
+                                let firstRange = group.yearRanges[0];
+                                let rangeParts = firstRange.split('-');
+                                editBtn.attr('data-year-from', rangeParts[0]);
+                                editBtn.attr('data-year-to', rangeParts.length > 1 ? rangeParts[1] : rangeParts[0]);
+                            }
+                        } else {
+                            // Add new row
+                            let firstYearFrom = '';
+                            let firstYearTo = '';
+                            if (group.yearRanges.length > 0) {
+                                let firstRange = group.yearRanges[0];
+                                let rangeParts = firstRange.split('-');
+                                firstYearFrom = rangeParts[0];
+                                firstYearTo = rangeParts.length > 1 ? rangeParts[1] : rangeParts[0];
+                            }
+
+                            $("#vehicleTable tbody").append(`
+                                <tr data-part="${group.v_part_number_id}">
+                                    <td style="text-align: center;">
+                                        <input type="checkbox" class="vehicle-checkbox" 
+                                            data-vehicle-id="${group.id || ''}"
+                                            data-part="${group.v_part_number_id}"
+                                            data-manufacturer="${group.car_manufacturer}"
+                                            data-model="${group.car_model_name}"
+                                            data-engine="${group.engine_cc}"
+                                            data-country="${group.car_manufactured_country}"
+                                            style="cursor: pointer;">
+                                    </td>
+                                    <td>${group.manutacturer_vehical?.name || '-'}</td>
+                                    <td>${group.model_vehical?.name || '-'}</td>
+                                    <td>${group.country_vehical?.name || '-'}</td>
+                                    <td>${yearRangesHtml}</td>
+                                    <td>${group.engine_vehical?.name || '-'}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
+                                            data-part="${group.v_part_number_id}"
+                                            data-manufacturer="${group.car_manufacturer}"
+                                            data-model="${group.car_model_name}"
+                                            data-engine="${group.engine_cc}"
+                                            data-country="${group.car_manufactured_country}"
+                                            data-year-ranges="${JSON.stringify(group.yearRanges)}"
+                                            data-year-from="${firstYearFrom}"
+                                            data-year-to="${firstYearTo}">
+                                            <i class="ti ti-pencil"></i>
+                                        </button>
+                                    </td>
+                                    <td>${group.vehical_part_number?.name || '-'}</td>
+                                </tr>
+                            `);
+                        }
+                    });
+                }
+
+                // Reset the form
+                form.reset();
+                // Clear year ranges
+                let yearOptions = '';
+                for (let year = 1900; year <= 2100; year++) {
+                    yearOptions += `<option value="${year}">${year}</option>`;
+                }
+                $("#yearRangesContainer").html(`
+                    <div class="year-range-item mb-2">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <select class="form-control year-from-select" name="year_from[]">
+                                    <option value="">From Year</option>
+                                    ${yearOptions}
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <select class="form-control year-to-select" name="year_to[]">
+                                    <option value="">To Year</option>
+                                    ${yearOptions}
+                                </select>
+                            </div>
+                            <div class="col-2">
+                                <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                updateRemoveButtons();
+
+                // Close modal or keep open based on submit type
+                if (submitType === 'save') {
+                    if (outsidePart) {
+                        $("#part_number").val(outsidePart).trigger('change');
+                    } else {
+                        $("#part_number").val('').trigger('change');
+                    }
+                    $("#vehical-add-modal").modal('hide');
+                } else if (submitType === 'save_new') {
+                    $("#part_number").val('').trigger('change');
+                }
+            },
+            error: function(xhr) {
+                let response = xhr.responseJSON;
+                if (response && response.errors && Array.isArray(response.errors)) {
+                    response.errors.forEach(function(error) {
+                        toastr.error(error);
+                    });
+                } else {
+                    let msg = response?.message || 'Something went wrong!';
+                    toastr.error(msg);
+                }
+            }
+        });
+    });
+</script>
+<script>
+    $(document).on('click', '.editVehicleBtn', function() {
+        let yearRangesData = $(this).data('year-ranges');
+        let yearRanges = [];
+
+        // Parse year ranges from JSON data attribute
+        if (yearRangesData) {
+            try {
+                yearRanges = typeof yearRangesData === 'string' ? JSON.parse(yearRangesData) : yearRangesData;
+            } catch(e) {
+                console.error('Error parsing year ranges:', e);
+            }
+        }
+
+        $('#car_manufacturer').val($(this).data('manufacturer')).trigger('change');
+        $('#car_model_name').val($(this).data('model')).trigger('change');
+        $('#engine_cc').val($(this).data('engine')).trigger('change');
+        $('#part_number').val($(this).data('part')).trigger('change');
+        $('#car_manufactured_country').val($(this).data('country')).trigger('change');
+
+        // Build year range HTML
+        let yearRangeHtml = '';
+
+        // Generate year options
+        let yearOptions = '';
+        for (let year = 1900; year <= 2100; year++) {
+            yearOptions += `<option value="${year}">${year}</option>`;
+        }
+
+        if (yearRanges.length > 0) {
+            // Populate with existing year ranges
+            yearRanges.forEach(function(rangeStr) {
+                let fromYear = '';
+                let toYear = '';
+
+                // Parse range string (e.g., "2014-2021" or "2015")
+                if (rangeStr.includes('-')) {
+                    let parts = rangeStr.split('-');
+                    fromYear = parts[0].trim();
+                    toYear = parts[1].trim();
+                } else {
+                    fromYear = rangeStr.trim();
+                    toYear = rangeStr.trim();
+                }
+
+                // Build options with selected year
+                let fromOptions = '<option value="">From Year</option>';
+                let toOptions = '<option value="">To Year</option>';
+                for (let year = 1900; year <= 2100; year++) {
+                    fromOptions += `<option value="${year}" ${fromYear == year ? 'selected' : ''}>${year}</option>`;
+                    toOptions += `<option value="${year}" ${toYear == year ? 'selected' : ''}>${year}</option>`;
+                }
+
+                yearRangeHtml += `
+                    <div class="year-range-item mb-2">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <select class="form-control year-from-select" name="year_from[]">
+                                    ${fromOptions}
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <select class="form-control year-to-select" name="year_to[]">
+                                    ${toOptions}
+                                </select>
+                            </div>
+                            <div class="col-2">
+                                <button type="button" class="btn btn-danger btn-sm removeYearRange">X</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            // No ranges, show empty range input
+            yearRangeHtml = `
+                <div class="year-range-item mb-2">
+                    <div class="row g-2">
+                        <div class="col-5">
+                            <select class="form-control year-from-select" name="year_from[]">
+                                <option value="">From Year</option>
+                                ${yearOptions}
+                            </select>
+                        </div>
+                        <div class="col-5">
+                            <select class="form-control year-to-select" name="year_to[]">
+                                <option value="">To Year</option>
+                                ${yearOptions}
+                            </select>
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        $('#yearRangesContainer').html(yearRangeHtml);
+        updateRemoveButtons();
+        $('#vehical-add-modal').modal('show');
+    });
+</script>
+<script>
+    // Function to update remove buttons visibility
+    function updateRemoveButtons() {
+        let ranges = document.querySelectorAll('.year-range-item');
+        ranges.forEach((range, index) => {
+            let removeBtn = range.querySelector('.removeYearRange');
+            if (ranges.length > 1) {
+                removeBtn.style.display = 'block';
+            } else {
+                removeBtn.style.display = 'none';
+            }
+        });
+    }
+
+    // Add year range
+    document.getElementById('addYearRangeBtn').addEventListener('click', function() {
+        let container = document.getElementById('yearRangesContainer');
+        let newRange = document.createElement('div');
+        newRange.className = 'year-range-item mb-2';
+
+        // Build year options
+        let yearOptions = '';
+        for (let year = 1900; year <= 2100; year++) {
+            yearOptions += `<option value="${year}">${year}</option>`;
+        }
+
+        newRange.innerHTML = `
+            <div class="row g-2">
+                <div class="col-5">
+                    <select class="form-control year-from-select" name="year_from[]">
+                        <option value="">From Year</option>
+                        ${yearOptions}
+                    </select>
+                </div>
+                <div class="col-5">
+                    <select class="form-control year-to-select" name="year_to[]">
+                        <option value="">To Year</option>
+                        ${yearOptions}
+                    </select>
+                </div>
+                <div class="col-2">
+                    <button type="button" class="btn btn-danger btn-sm removeYearRange">X</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(newRange);
+        updateRemoveButtons();
+    });
+
+    // Remove year range
+    $(document).on('click', '.removeYearRange', function() {
+        $(this).closest('.year-range-item').remove();
+        updateRemoveButtons();
+    });
+
+    // Initialize remove buttons on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateRemoveButtons();
+    });
+</script>
+<script>
+    document.getElementById("part_number").addEventListener("keydown", function(e) {
+        if (e.key === " ") {
+            e.preventDefault();
+            this.value += "-";
+        }
+    });
+    document.addEventListener("DOMContentLoaded", function() {
+        const checkboxes = document.querySelectorAll('.form-check-input');
+        checkboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    checkboxes.forEach((cb) => {
+                        if (cb !== this) {
+                            cb.checked = false;
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+<script>
     // Common function to filter vehicle table
     function filterVehicleTable() {
         // Get filter values from table headers
-        let selectedManufacturer = $('.car-manufacturer-select').val();
-        let selectedModel = $('.car-model-select').val();
-        let selectedEngine = $('.car-engine-select').val();
-        let selectedCountry = $('.car-country-select').val();
+        let selectedManufacturer = $('#vehicle_manufacturer_select').val() || $('.car-manufacturer-select').val();
+        let selectedModel = $('#vehicle_model_select').val() || $('.car-model-select').val();
+        let selectedEngine = $('#vehicle_engine_select').val() || $('.car-engine-select').val();
+        let selectedCountry = $('#vehicle_country_select').val() || $('.car-country-select').val();
         let selectedPartNumber = $('#part_number_id').val();
         
         // Get selected year ranges
         let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
         
-        // Hide all rows first
-        $("#vehicleTable tbody tr").hide();
+        // Check if any filter is selected
+        const hasFilters = selectedManufacturer || selectedModel || selectedEngine || selectedCountry || selectedPartNumber || selectedYearRanges.length > 0;
+        
+        // Hide all rows first only if filters are applied
+        if (hasFilters) {
+            $("#vehicleTable tbody tr").hide();
+        } else {
+            // If no filters, show all rows
+            $("#vehicleTable tbody tr").show();
+            return;
+        }
         
         // Filter rows based on selected criteria
         $("#vehicleTable tbody tr").each(function() {
@@ -3788,7 +4275,7 @@
             
             // Check Year Ranges
             if (shouldShow && selectedYearRanges.length > 0) {
-                let yearCell = $row.find('td:nth-child(3)');
+                let yearCell = $row.find('td:nth-child(5)');
                 let yearText = yearCell.text();
                 let yearMatch = false;
                 
@@ -3852,11 +4339,6 @@
         $('#selectedYearRangesDisplay').data('all-ranges', []);
         $('#selectedYearRangesDisplay').attr('data-show-all', 'false');
         $('#selectedYearRangesDisplay').html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
-        
-        // Clear any selected year ranges from modal if open
-        if ($('#yearRangeModal').length) {
-            $('#yearRangeModal input[type="checkbox"]:checked').prop('checked', false);
-        }
         
         // Show all rows in table
         filterVehicleTable();
@@ -4022,11 +4504,21 @@
                                 // Add new row
                                 let newRow = `
                                     <tr data-part="${group.v_part_number_id}">
+                                        <td style="text-align: center;">
+                                            <input type="checkbox" class="vehicle-checkbox" 
+                                                data-vehicle-id="${group.id || ''}"
+                                                data-part="${group.v_part_number_id}"
+                                                data-manufacturer="${group.car_manufacturer}"
+                                                data-model="${group.car_model_name}"
+                                                data-engine="${group.engine_cc}"
+                                                data-country="${group.car_manufactured_country}"
+                                                style="cursor: pointer;">
+                                        </td>
                                         <td>${group.manutacturer_vehical?.name || '-'}</td>
                                         <td>${group.model_vehical?.name || '-'}</td>
+                                        <td>${group.country_vehical?.name || '-'}</td>
                                         <td>${yearRangesHtml}</td>
                                         <td>${group.engine_vehical?.name || '-'}</td>
-                                        <td>${group.country_vehical?.name || '-'}</td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
                                                 data-part="${group.v_part_number_id}"
@@ -4088,6 +4580,18 @@
     // Auto-filter on Part Number change
     $(document).on('change', '#part_number_id', function() {
         filterVehicleTable();
+    });
+
+    // Show all vehicles on page load (if no filters are applied)
+    $(document).ready(function() {
+        // Show all vehicles initially
+        $("#vehicleTable tbody tr").show();
+        
+        // If part number is selected, filter by it
+        const selectedPartNumber = $('#part_number_id').val();
+        if (selectedPartNumber) {
+            filterVehicleTable();
+        }
     });
 </script>
 <script>
@@ -4364,372 +4868,7 @@
     });
 </script>
 <script>
-    // Part number is now a simple text input - no filtering needed
-</script>
-<script>
-    // Allow modal to open without part number validation
-    // When modal opens, pre-fill Part Number from the input field if available
-    // Also ensure all dropdowns are properly initialized with Select2
-    $('#vehical-add-modal').on('shown.bs.modal', function() {
-        let outsidePart = $('#part_number_id').val();
-        if (outsidePart && outsidePart.trim() !== '') {
-            $('#part_number').val(outsidePart.trim()).trigger('change');
-            $('#part_number').removeClass('is-invalid');
-        }
-        
-        // Initialize Select2 for all modal dropdowns if not already initialized
-        const modalDropdowns = ['#car_manufacturer', '#car_model_name', '#engine_cc', '#car_manufactured_country', '#part_number'];
-        const select2Config = {
-            dropdownParent: $('#vehical-add-modal'),
-            allowClear: false,
-            width: '100%'
-        };
-        
-        modalDropdowns.forEach(function(selector) {
-            const $select = $(selector);
-            if ($select.hasClass('searchable-select') && $select.next('.select2-container').length === 0) {
-                $select.select2(select2Config);
-            }
-        });
-        
-        // Add focus handlers for all dropdowns when they open
-        modalDropdowns.forEach(function(selector) {
-            const $select = $(selector);
-            if ($select.length) {
-                // Remove existing handlers to avoid duplicates
-                $select.off('select2:opening.modalFocus select2:open.modalFocus');
-                
-                // Focus search input when dropdown opens
-                $select.on('select2:opening.modalFocus', function(e) {
-                    setTimeout(function() {
-                        const $searchInput = $('.select2-container--open .select2-search__field');
-                        if ($searchInput.length) {
-                            $searchInput[0].focus();
-                            $searchInput[0].select();
-                        }
-                    }, 10);
-                });
-                
-                // Also handle when dropdown is fully open
-                $select.on('select2:open.modalFocus', function(e) {
-                    function focusSearchInput() {
-                        const $container = $select.next('.select2-container');
-                        if ($container.length && $container.hasClass('select2-container--open')) {
-                            const $searchInput = $container.find('.select2-search__field');
-                            if ($searchInput.length && $searchInput.length > 0) {
-                                const searchInput = $searchInput[0];
-                                if (searchInput) {
-                                    // Ensure input is enabled and focusable
-                                    searchInput.removeAttribute('readonly');
-                                    searchInput.removeAttribute('disabled');
-                                    searchInput.style.pointerEvents = 'auto';
-                                    searchInput.style.cursor = 'text';
-                                    
-                                    // Focus and select
-                                    searchInput.focus();
-                                    searchInput.select();
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }
-                    
-                    // Try multiple times with different delays
-                    setTimeout(focusSearchInput, 0);
-                    setTimeout(focusSearchInput, 10);
-                    setTimeout(focusSearchInput, 30);
-                    setTimeout(focusSearchInput, 50);
-                    setTimeout(focusSearchInput, 100);
-                });
-            }
-        });
-    });
-    
-    // Reset modal title to "Add Vehical" when modal is hidden
-    $('#vehical-add-modal').on('hidden.bs.modal', function() {
-        $('#vehical-modal-title').text('Add Vehical');
-        $('#deleteVehicleBtn').hide();
-        $('#deleteVehicleBtn').removeData('vehicle-config');
-    });
-
-    // Remove error styling when part number is entered (both fields)
-    $(document).on('input change', '#part_number, #part_number_id', function() {
-        if ($(this).val() && $(this).val().trim() !== '') {
-            $(this).removeClass('is-invalid');
-            // Also remove error from the other field
-            $('#part_number, #part_number_id').removeClass('is-invalid');
-        }
-    });
-</script>
-<script>
-    // Set hidden input based on which submit button was clicked
-    $("#vehical-form button[type=submit]").on("click", function() {
-        $("#submit_type").val($(this).data("action"));
-    });
-</script>
-<script>
-    $("#vehical-form").off("submit").on("submit", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Check if modal is actually visible
-        if (!$('#vehical-add-modal').hasClass('show')) {
-            return false;
-        }
-        
-        let form = this;
-
-        // Get part number from modal or outside field (optional now)
-        let partNumber = $('#part_number').val();
-        let outsidePartNumber = $('#part_number_id').val();
-
-        // Use outside part number if modal part number is not set
-        if (!partNumber || partNumber.trim() === '') {
-            if (outsidePartNumber && outsidePartNumber.trim() !== '') {
-                partNumber = outsidePartNumber.trim();
-                $('#part_number').val(partNumber).trigger('change');
-            }
-        }
-
-        // Remove error styling if part number is entered
-        $('#part_number').removeClass('is-invalid');
-        $('#part_number_id').removeClass('is-invalid');
-
-        let formData = new FormData(form);
-        
-        // Ensure part number is included in formData if available
-        if (partNumber && partNumber.trim() !== '') {
-            formData.set('v_part_number_id', partNumber);
-        } else if (outsidePartNumber && outsidePartNumber.trim() !== '') {
-            formData.set('v_part_number_id', outsidePartNumber.trim());
-        }
-        
-        let submitType = $("#submit_type").val();
-        let outsidePart = $('#part_number_id').val();
-        $.ajax({
-            url: "{{ route('post.product_vehical') }}",
-            type: "POST",
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(res) {
-                // Only show success message if there's a valid response with vehicles
-                if (!res) {
-                    console.error('No response from server');
-                    toastr.error('No response from server');
-                    return;
-                }
-                
-                if (res.errors && res.errors.length > 0) {
-                    // Display overlap errors
-                    res.errors.forEach(function(error) {
-                        toastr.error(error);
-                    });
-                    return;
-                }
-                
-                if (res.duplicate_years?.length) {
-                    toastr.warning("Already exists for year(s): " + res.duplicate_years.join(', '));
-                } else if (res.vehicles && res.vehicles.length > 0) {
-                    // Only show success if vehicles were actually saved and modal is visible
-                    if ($('#vehical-add-modal').hasClass('show')) {
-                        toastr.success(res.message || "Vehicle saved successfully!");
-                        // 🔊 Play save sound when vehicle is saved
-                        if (typeof playSaveSound === 'function') {
-                            playSaveSound();
-                        }
-                    }
-                } else if (res.message && $('#vehical-add-modal').hasClass('show')) {
-                    // If there's a message but no vehicles, show it (might be a warning)
-                    toastr.info(res.message);
-                }
-
-                // Add/update vehicles in table without page reload
-                if (res.vehicles && res.vehicles.length > 0) {
-                    // Group vehicles by config (part, manufacturer, model, engine, country)
-                    let vehicleGroups = {};
-                    res.vehicles.forEach(function(v) {
-                        let key = `${v.v_part_number_id}-${v.car_manufacturer}-${v.car_model_name}-${v.engine_cc}-${v.car_manufactured_country}`;
-                        if (!vehicleGroups[key]) {
-                            vehicleGroups[key] = {
-                                v_part_number_id: v.v_part_number_id,
-                                car_manufacturer: v.car_manufacturer,
-                                car_model_name: v.car_model_name,
-                                engine_cc: v.engine_cc,
-                                car_manufactured_country: v.car_manufactured_country,
-                                manutacturer_vehical: v.manutacturer_vehical,
-                                model_vehical: v.model_vehical,
-                                engine_vehical: v.engine_vehical,
-                                country_vehical: v.country_vehical,
-                                vehical_part_number: v.vehical_part_number,
-                                yearRanges: []
-                            };
-                        }
-                        // Add year range
-                        if (v.year_from && v.year_to) {
-                            let yearStr = v.year_from == v.year_to ? v.year_from : v.year_from + '-' + v.year_to;
-                            if (vehicleGroups[key].yearRanges.indexOf(yearStr) === -1) {
-                                vehicleGroups[key].yearRanges.push(yearStr);
-                            }
-                        }
-                    });
-
-                    // Check if vehicle group already exists in table, if yes update it, else add new
-                    Object.keys(vehicleGroups).forEach(function(key) {
-                        let group = vehicleGroups[key];
-
-                        // Find existing row by matching all config fields
-                        let existingRow = null;
-                        $("#vehicleTable tbody tr").each(function() {
-                            let $row = $(this);
-                            if ($row.data('part') == group.v_part_number_id &&
-                                $row.find('.editVehicleBtn').data('manufacturer') == group.car_manufacturer &&
-                                $row.find('.editVehicleBtn').data('model') == group.car_model_name &&
-                                $row.find('.editVehicleBtn').data('engine') == group.engine_cc &&
-                                $row.find('.editVehicleBtn').data('country') == group.car_manufactured_country) {
-                                existingRow = $row;
-                                return false; // break loop
-                            }
-                        });
-
-                        // Build year ranges display with light blue badges (sorted by year)
-                        let yearRangesHtml = '';
-                        if (group.yearRanges.length > 0) {
-                            // Sort year ranges by 'from' year
-                            group.yearRanges.sort(function(a, b) {
-                                let aFrom = parseInt(a.split('-')[0]);
-                                let bFrom = parseInt(b.split('-')[0]);
-                                return aFrom - bFrom;
-                            });
-
-                            yearRangesHtml = '<div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
-                            group.yearRanges.forEach(function(range) {
-                                yearRangesHtml += `<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">${range}</span>`;
-                            });
-                            yearRangesHtml += '</div>';
-                        } else {
-                            yearRangesHtml = '<span class="badge bg-secondary">-</span>';
-                        }
-
-                        if (existingRow && existingRow.length > 0) {
-                            // Update existing row
-                            existingRow.find('td:eq(0)').text(group.manutacturer_vehical?.name || '-');
-                            existingRow.find('td:eq(1)').text(group.model_vehical?.name || '-');
-                            existingRow.find('td:eq(2)').html(yearRangesHtml);
-                            existingRow.find('td:eq(3)').text(group.engine_vehical?.name || '-');
-                            existingRow.find('td:eq(4)').text(group.country_vehical?.name || '-');
-
-                            // Update edit button data attributes - store first year range for backward compatibility
-                            let editBtn = existingRow.find('.editVehicleBtn');
-                            editBtn.attr('data-part', group.v_part_number_id);
-                            editBtn.attr('data-manufacturer', group.car_manufacturer);
-                            editBtn.attr('data-model', group.car_model_name);
-                            editBtn.attr('data-engine', group.engine_cc);
-                            editBtn.attr('data-country', group.car_manufactured_country);
-                            // Store all year ranges as JSON string
-                            editBtn.attr('data-year-ranges', JSON.stringify(group.yearRanges));
-                            // For backward compatibility, also store first range
-                            if (group.yearRanges.length > 0) {
-                                let firstRange = group.yearRanges[0];
-                                let rangeParts = firstRange.split('-');
-                                editBtn.attr('data-year-from', rangeParts[0]);
-                                editBtn.attr('data-year-to', rangeParts.length > 1 ? rangeParts[1] : rangeParts[0]);
-                            }
-                        } else {
-                            // Add new row
-                            let firstYearFrom = '';
-                            let firstYearTo = '';
-                            if (group.yearRanges.length > 0) {
-                                let firstRange = group.yearRanges[0];
-                                let rangeParts = firstRange.split('-');
-                                firstYearFrom = rangeParts[0];
-                                firstYearTo = rangeParts.length > 1 ? rangeParts[1] : rangeParts[0];
-                            }
-
-                            $("#vehicleTable tbody").append(`
-                                <tr data-part="${group.v_part_number_id}">
-                                    <td>${group.manutacturer_vehical?.name || '-'}</td>
-                                    <td>${group.model_vehical?.name || '-'}</td>
-                                    <td>${yearRangesHtml}</td>
-                                    <td>${group.engine_vehical?.name || '-'}</td>
-                                    <td>${group.country_vehical?.name || '-'}</td>
-                                    <td>
-                                        <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
-                                            data-part="${group.v_part_number_id}"
-                                            data-manufacturer="${group.car_manufacturer}"
-                                            data-model="${group.car_model_name}"
-                                            data-engine="${group.engine_cc}"
-                                            data-country="${group.car_manufactured_country}"
-                                            data-year-ranges="${JSON.stringify(group.yearRanges)}"
-                                            data-year-from="${firstYearFrom}"
-                                            data-year-to="${firstYearTo}">
-                                            <i class="ti ti-pencil"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            `);
-                        }
-                    });
-                }
-
-                // Reset the form
-                form.reset();
-                // Clear year ranges
-                let yearOptions = '';
-                for (let year = 1900; year <= 2100; year++) {
-                    yearOptions += `<option value="${year}">${year}</option>`;
-                }
-                $("#yearRangesContainer").html(`
-                    <div class="year-range-item mb-2">
-                        <div class="row g-2">
-                            <div class="col-5">
-                                <select class="form-control year-from-select" name="year_from[]">
-                                    <option value="">From Year</option>
-                                    ${yearOptions}
-                                </select>
-                            </div>
-                            <div class="col-5">
-                                <select class="form-control year-to-select" name="year_to[]">
-                                    <option value="">To Year</option>
-                                    ${yearOptions}
-                                </select>
-                            </div>
-                            <div class="col-2">
-                                <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
-                            </div>
-                        </div>
-                    </div>
-                `);
-                updateRemoveButtons();
-
-                // Close modal or keep open based on submit type
-                if (submitType === 'save') {
-                    if (outsidePart) {
-                        $("#part_number").val(outsidePart).trigger('change');
-                    } else {
-                        $("#part_number").val('').trigger('change');
-                    }
-                    $("#vehical-add-modal").modal('hide');
-                } else if (submitType === 'save_new') {
-                    $("#part_number").val('').trigger('change');
-                }
-            },
-            error: function(xhr) {
-                let response = xhr.responseJSON;
-                if (response && response.errors && Array.isArray(response.errors)) {
-                    response.errors.forEach(function(error) {
-                        toastr.error(error);
-                    });
-                } else {
-                    let msg = response?.message || 'Something went wrong!';
-                    toastr.error(msg);
-                }
-            }
-        });
-    });
-</script>
-<script>
+    // Update editVehicleBtn to include delete functionality and proper year ranges handling
     $(document).on('click', '.editVehicleBtn', function() {
         // Change modal title to "Edit Vehical"
         $('#vehical-modal-title').text('Edit Vehical');
@@ -4769,27 +4908,7 @@
             }
         }
 
-        // Initialize/Refresh Select2 for all modal dropdowns with proper configuration
-        const modalDropdowns = ['#car_manufacturer', '#car_model_name', '#engine_cc', '#car_manufactured_country', '#part_number'];
-        const select2Config = {
-            dropdownParent: $('#vehical-add-modal'),
-            allowClear: false,
-            width: '100%'
-        };
-        
-        modalDropdowns.forEach(function(selector) {
-            const $select = $(selector);
-            if ($select.hasClass('searchable-select')) {
-                // Destroy existing Select2 if it exists
-                if ($select.next('.select2-container').length > 0) {
-                    $select.select2('destroy');
-                }
-                // Initialize Select2 with modal parent
-                $select.select2(select2Config);
-            }
-        });
-        
-        // Set values after Select2 initialization
+        // Set values
         $('#car_manufacturer').val($(this).data('manufacturer')).trigger('change');
         $('#car_model_name').val($(this).data('model')).trigger('change');
         $('#engine_cc').val($(this).data('engine')).trigger('change');
@@ -4877,62 +4996,6 @@
         $('#yearRangesContainer').html(yearRangeHtml);
         updateRemoveButtons();
         
-        // Add focus handlers for modal dropdowns when they open
-        setTimeout(function() {
-            modalDropdowns.forEach(function(selector) {
-                const $select = $(selector);
-                if ($select.length) {
-                    // Remove existing handlers to avoid duplicates
-                    $select.off('select2:opening.modalFocus select2:open.modalFocus');
-                    
-                    // Focus search input when dropdown opens
-                    $select.on('select2:opening.modalFocus', function(e) {
-                        // Delay to ensure Select2 has initialized the search input
-                        setTimeout(function() {
-                            const $searchInput = $('.select2-container--open .select2-search__field');
-                            if ($searchInput.length) {
-                                $searchInput[0].focus();
-                                $searchInput[0].select();
-                            }
-                        }, 10);
-                    });
-                    
-                    // Also handle when dropdown is fully open
-                    $select.on('select2:open.modalFocus', function(e) {
-                        function focusSearchInput() {
-                            const $container = $select.next('.select2-container');
-                            if ($container.length && $container.hasClass('select2-container--open')) {
-                                const $searchInput = $container.find('.select2-search__field');
-                                if ($searchInput.length && $searchInput.length > 0) {
-                                    const searchInput = $searchInput[0];
-                                    if (searchInput) {
-                                        // Ensure input is enabled and focusable
-                                        searchInput.removeAttribute('readonly');
-                                        searchInput.removeAttribute('disabled');
-                                        searchInput.style.pointerEvents = 'auto';
-                                        searchInput.style.cursor = 'text';
-                                        
-                                        // Focus and select
-                                        searchInput.focus();
-                                        searchInput.select();
-                                        return true;
-                                    }
-                                }
-                            }
-                            return false;
-                        }
-                        
-                        // Try multiple times with different delays
-                        setTimeout(focusSearchInput, 0);
-                        setTimeout(focusSearchInput, 10);
-                        setTimeout(focusSearchInput, 30);
-                        setTimeout(focusSearchInput, 50);
-                        setTimeout(focusSearchInput, 100);
-                    });
-                }
-            });
-        }, 100);
-        
         $('#vehical-add-modal').modal('show');
     });
 
@@ -4998,361 +5061,68 @@
             }
         });
     });
-</script>
-<script>
-    // Function to update remove buttons visibility
-    function updateRemoveButtons() {
-        let ranges = document.querySelectorAll('.year-range-item');
-        ranges.forEach((range, index) => {
-            let removeBtn = range.querySelector('.removeYearRange');
-            if (ranges.length > 1) {
-                removeBtn.style.display = 'block';
-            } else {
-                removeBtn.style.display = 'none';
-            }
-        });
-    }
 
-    // Add year range
-    document.getElementById('addYearRangeBtn').addEventListener('click', function() {
-        let container = document.getElementById('yearRangesContainer');
-        let newRange = document.createElement('div');
-        newRange.className = 'year-range-item mb-2';
-
-        // Build year options
+    // Reset modal when closed
+    $('#vehical-add-modal').on('hidden.bs.modal', function() {
+        $('#vehical-modal-title').text('Add Vehical');
+        $('#deleteVehicleBtn').hide();
+        $('#vehical-form')[0].reset();
+        
+        // Reset year ranges to single empty range
         let yearOptions = '';
         for (let year = 1900; year <= 2100; year++) {
             yearOptions += `<option value="${year}">${year}</option>`;
         }
-
-        newRange.innerHTML = `
-            <div class="row g-2">
-                <div class="col-5">
-                    <select class="form-control year-from-select" name="year_from[]">
-                        <option value="">From Year</option>
-                        ${yearOptions}
-                    </select>
-                </div>
-                <div class="col-5">
-                    <select class="form-control year-to-select" name="year_to[]">
-                        <option value="">To Year</option>
-                        ${yearOptions}
-                    </select>
-                </div>
-                <div class="col-2">
-                    <button type="button" class="btn btn-danger btn-sm removeYearRange">X</button>
+        $("#yearRangesContainer").html(`
+            <div class="year-range-item mb-2">
+                <div class="row g-2">
+                    <div class="col-5">
+                        <select class="form-control year-from-select" name="year_from[]">
+                            <option value="">From Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                    <div class="col-5">
+                        <select class="form-control year-to-select" name="year_to[]">
+                            <option value="">To Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <button type="button" class="btn btn-danger btn-sm removeYearRange" style="display: none;">X</button>
+                    </div>
                 </div>
             </div>
-        `;
-        container.appendChild(newRange);
-        updateRemoveButtons();
-    });
-
-    // Remove year range
-    $(document).on('click', '.removeYearRange', function() {
-        $(this).closest('.year-range-item').remove();
-        updateRemoveButtons();
-    });
-
-    // Initialize remove buttons on page load
-    document.addEventListener('DOMContentLoaded', function() {
+        `);
         updateRemoveButtons();
     });
 </script>
 <script>
-    document.getElementById("part_number").addEventListener("keydown", function(e) {
-        if (e.key === " ") {
-            e.preventDefault();
-            this.value += "-";
-        }
-    });
-    document.addEventListener("DOMContentLoaded", function() {
-        const checkboxes = document.querySelectorAll('.form-check-input');
-        checkboxes.forEach((checkbox) => {
-            checkbox.addEventListener('change', function() {
-                if (this.checked) {
-                    checkboxes.forEach((cb) => {
-                        if (cb !== this) {
-                            cb.checked = false;
-                        }
-                    });
-                }
-            });
-        });
-    });
-</script>
-@push('alpine-register')
-<script>
-    // CRITICAL: Register Alpine.js component BEFORE Alpine.js processes DOM
-    // This runs in layout before Alpine.js script loads
-    // Use IIFE to execute immediately
-    (function() {
-        'use strict';
-        
-        function registerProductForm() {
-            // Check if Alpine is available
-            if (typeof Alpine === 'undefined') {
-                console.warn('Alpine.js not available yet, will retry...');
-                return false;
-            }
-            
-            // Prevent duplicate registration
-            if (Alpine.data('productForm')) {
-                console.log('productForm already registered, skipping...');
-                return true;
-            }
-            
-            console.log('Registering productForm with Alpine.js...');
-            
-            try {
-                Alpine.data('productForm', function() {
-                    return {
-                        selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
-                        init() {
-                            console.log('✓ productForm initialized, selectedType:', this.selectedType);
-                            
-                            // Filter dropdowns on initial load if type is already selected
-                            if (this.selectedType) {
-                                setTimeout(() => {
-                                    if (typeof updateLabelsWithType === 'function') {
-                                        updateLabelsWithType(this.selectedType);
-                                    }
-                                    if (typeof filterDropdownsByType === 'function') {
-                                        filterDropdownsByType(this.selectedType);
-                                    }
-                                }, 500);
-                            }
-                            
-                            // Watch for selectedType changes
-                            this.$watch('selectedType', (newType, oldType) => {
-                                console.log('selectedType changed:', oldType, '→', newType);
-                                
-                                if (oldType && oldType !== newType) {
-                                    if (typeof clearAllFormFields === 'function') {
-                                        clearAllFormFields();
-                                    }
-                                }
-                                
-                                if (typeof updateLabelsWithType === 'function') {
-                                    updateLabelsWithType(newType);
-                                }
-                                if (typeof filterDropdownsByType === 'function') {
-                                    filterDropdownsByType(newType);
-                                }
-                                if (typeof updateRequiredFields === 'function') {
-                                    updateRequiredFields(newType);
-                                }
-                            });
-                            
-                            setTimeout(() => {
-                                if (typeof updateRequiredFields === 'function') {
-                                    updateRequiredFields(this.selectedType);
-                                }
-                            }, 500);
-                        },
-                        selectType(type) {
-                            console.log('✓ selectType called:', type);
-                            
-                            if (this.selectedType && this.selectedType !== type) {
-                                if (typeof clearAllFormFields === 'function') {
-                                    clearAllFormFields();
-                                }
-                            }
-                            
-                            this.selectedType = type || '';
-                            localStorage.setItem('selectedType', type || '');
-                            
-                            if (typeof updateLabelsWithType === 'function') {
-                                updateLabelsWithType(type);
-                            }
-                            if (typeof filterDropdownsByType === 'function') {
-                                filterDropdownsByType(type);
-                            }
-                            if (typeof updateRequiredFields === 'function') {
-                                updateRequiredFields(type);
-                            }
-                            if (type && typeof loadItemsByType === 'function') {
-                                loadItemsByType(type);
-                            } else if (typeof loadAllItems === 'function') {
-                                loadAllItems();
-                            }
-                        }
-                    };
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('productForm', () => ({
+            selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
+            init() {
+                // Watch for selectedType changes and filter dropdown options
+                this.$watch('selectedType', (newType) => {
+                    // Filter all dropdowns based on selected type
+                    filterDropdownsByType(newType);
                 });
-                
-                console.log('✓ productForm registered successfully!');
-                return true;
-            } catch (error) {
-                console.error('✗ Error registering productForm:', error);
-                return false;
-            }
-        }
-        
-        // Strategy 1: Register on alpine:init (BEST - Alpine.js fires this)
-        document.addEventListener('alpine:init', function() {
-            console.log('→ alpine:init event fired');
-            registerProductForm();
-        });
-        
-        // Strategy 2: Try to register immediately if Alpine is already loaded
-        if (typeof Alpine !== 'undefined') {
-            console.log('→ Alpine.js already loaded, registering immediately');
-            registerProductForm();
-        } else {
-            // Strategy 3: Poll for Alpine.js availability (fallback)
-            let attempts = 0;
-            const maxAttempts = 50; // 5 seconds max
-            
-            const checkAlpine = setInterval(function() {
-                attempts++;
-                if (typeof Alpine !== 'undefined') {
-                    console.log('→ Alpine.js detected after', attempts * 100, 'ms');
-                    clearInterval(checkAlpine);
-                    registerProductForm();
-                } else if (attempts >= maxAttempts) {
-                    console.error('✗ Alpine.js not loaded after', maxAttempts * 100, 'ms');
-                    clearInterval(checkAlpine);
-                }
-            }, 100);
-        }
-    })();
-    
-    // Strategy 4: Manual fallback click handler (in case Alpine.js fails)
-    $(document).ready(function() {
-        console.log('jQuery ready fired');
-        
-        // Add manual click handler as fallback
-        $(document).on('click', '.type-box', function(e) {
-            const type = $(this).data('type') || $(this).attr('data-type');
-            if (!type) {
-                // Try to extract from Alpine.js @click attribute
-                const clickAttr = $(this).attr('@click');
-                if (clickAttr && clickAttr.includes("selectType('")) {
-                    const match = clickAttr.match(/selectType\('([^']+)'/);
-                    if (match && match[1]) {
-                        const extractedType = match[1];
-                        console.log('Fallback: Manual type selection for:', extractedType);
-                        
-                        // Try to call Alpine.js selectType
-                        const alpineEl = document.querySelector('[x-data*="productForm"]');
-                        if (alpineEl && window.Alpine) {
-                            try {
-                                const alpineData = Alpine.$data(alpineEl);
-                                if (alpineData && alpineData.selectType) {
-                                    alpineData.selectType(extractedType);
-                                    return;
-                                }
-                            } catch(err) {
-                                console.error('Error calling Alpine selectType:', err);
-                            }
-                        }
-                        
-                        // Ultimate fallback: Direct DOM manipulation
-                        $('.type-box').removeClass('selected');
-                        $(this).addClass('selected');
-                        $('input[name="type"]').val(extractedType);
-                        localStorage.setItem('selectedType', extractedType);
-                        
-                        // Trigger field visibility update
-                        if (typeof updateLabelsWithType === 'function') {
-                            updateLabelsWithType(extractedType);
-                        }
-                        if (typeof filterDropdownsByType === 'function') {
-                            filterDropdownsByType(extractedType);
-                        }
-                        if (typeof updateRequiredFields === 'function') {
-                            updateRequiredFields(extractedType);
-                        }
-                        
-                        // Show relevant field groups
-                        $('#itemFormsContainer .field-group').removeClass('active');
-                        if (extractedType) {
-                            $('#itemFormsContainer .field-group:has(h4:contains("Item Info"))').addClass('active');
-                            $(`#itemFormsContainer .field-group[\\:class*="${extractedType}"]`).each(function() {
-                                const classAttr = $(this).attr(':class');
-                                if (classAttr && classAttr.includes(`selectedType === '${extractedType}'`)) {
-                                    $(this).addClass('active');
-                                }
-                            });
-                        }
-                    }
+            },
+            selectType(type) {
+                this.selectedType = type;
+                localStorage.setItem('selectedType', type);
+                // Filter dropdowns by selected type
+                filterDropdownsByType(type);
+                // Load items by type when type changes
+                if (type) {
+                    loadItemsByType(type);
+                } else {
+                    loadAllItems();
                 }
             }
-        });
+        }));
     });
-
-    // Function to update required fields based on type visibility
-    function updateRequiredFields(type) {
-        // Define which types show which fields (based on x-show conditions)
-        const categoryTypes = ['parts', 'oil', 'scrap', 'services', 'filters', 'breakpad'];
-        const companyTypes = ['parts', 'battery', 'oil', 'filters', 'breakpad'];
-        const qualityTypes = ['parts']; // Quality shows only for parts
-        const unitTypes = ['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad'];
-        
-        // Category field - required when visible
-        const $category = $('#category');
-        if ($category.length) {
-            const $categoryContainer = $category.closest('.col-md-4');
-            const isVisible = type && categoryTypes.includes(type);
-            const isActuallyVisible = $categoryContainer.is(':visible') && !$categoryContainer.hasClass('d-none');
-            
-            if (isVisible && isActuallyVisible) {
-                $category.prop('required', true);
-                $category.attr('required', 'required');
-            } else {
-                $category.prop('required', false);
-                $category.removeAttr('required');
-            }
-        }
-        
-        // Company field - required when visible
-        const $company = $('#company_parts');
-        if ($company.length) {
-            const $companyContainer = $company.closest('.col-md-4');
-            const isVisible = type && companyTypes.includes(type);
-            const isActuallyVisible = $companyContainer.is(':visible') && !$companyContainer.hasClass('d-none');
-            
-            if (isVisible && isActuallyVisible) {
-                $company.prop('required', true);
-                $company.attr('required', 'required');
-            } else {
-                $company.prop('required', false);
-                $company.removeAttr('required');
-            }
-        }
-        
-        // Quality field - required when visible (only for parts)
-        const $quality = $('#quality');
-        if ($quality.length) {
-            const $qualityContainer = $quality.closest('.col-md-4');
-            const isVisible = type && qualityTypes.includes(type);
-            const isActuallyVisible = $qualityContainer.is(':visible') && !$qualityContainer.hasClass('d-none');
-            
-            if (isVisible && isActuallyVisible) {
-                $quality.prop('required', true);
-                $quality.attr('required', 'required');
-            } else {
-                $quality.prop('required', false);
-                $quality.removeAttr('required');
-            }
-        }
-        
-        // Unit field - required when visible
-        const $unit = $('#unit_parts');
-        if ($unit.length) {
-            const $unitContainer = $unit.closest('.col-12, .field-group').first();
-            const isVisible = type && unitTypes.includes(type);
-            const isActuallyVisible = $unitContainer.is(':visible') && !$unitContainer.hasClass('d-none');
-            
-            if (isVisible && isActuallyVisible) {
-                $unit.prop('required', true);
-                $unit.attr('required', 'required');
-            } else {
-                $unit.prop('required', false);
-                $unit.removeAttr('required');
-            }
-        }
-    }
 
     // Function to load items by type (with limit option)
     function loadItemsByType(type, loadAll = false) {
@@ -5429,66 +5199,22 @@
         loadAllItemsByType();
     });
 
-    // Function to update labels with selected type
-    function updateLabelsWithType(selectedType) {
-        // Capitalize first letter of type for display
-        const typeDisplay = selectedType ? selectedType.charAt(0).toUpperCase() + selectedType.slice(1) : '';
-        
-        // Update all labels with dynamic-label class
-        $('.dynamic-label').each(function() {
-            const $label = $(this);
-            const originalText = $label.data('original') || $label.text().replace(/^[A-Za-z]+\s+/, '');
-            
-            // Store original if not already stored
-            if (!$label.data('original')) {
-                $label.data('original', originalText);
-            }
-            
-            // Update label text
-            if (selectedType && typeDisplay) {
-                $label.text(typeDisplay + ' ' + originalText);
-            } else {
-                $label.text(originalText);
-            }
-        });
-    }
-    
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
-        console.log('Filtering dropdowns by type:', selectedType);
         
-        // List of all dropdowns that need filtering (using class selectors)
+        // List of all dropdowns that need filtering
         const dropdowns = [
             '.company-select',
             '.technology-select',
             '.quality-select',
             '.name-select',
             '.category-select',
-            '.part_number-select',
-            '.group-select',
-            '.plates-select',
-            '.amperes-select',
-            '.volt-select',
-            '.cca-select',
-            '.minus-pole-direction-select',
-            '.Warrenty-select',
-            '.made_in-select',
-            '.grade-select',
-            '.brand-select',
-            '.mileage-select',
-            '.level-select',
-            '.formulas-select',
-            '.Services-select',
-            '.car-manufacturer-select',
-            '.car-model-select',
-            '.car-engine-select',
-            '.car-country-select'
+            '.part_number-select'
         ];
 
         dropdowns.forEach(selector => {
             $(selector).each(function() {
                 const $select = $(this);
-                const selectId = $select.attr('id');
                 const currentValue = $select.val();
                 const isSelect2 = $select.hasClass('select2-hidden-accessible');
                 
@@ -5497,28 +5223,19 @@
                 
                 // Show/hide options based on type
                 let visibleCount = 0;
-                let hasVisibleOptions = false;
-                
                 $select.find('option').each(function() {
                     const $option = $(this);
                     const optionType = $option.data('type') || '';
-                    const optionValue = $option.val();
                     
                     // Show option if:
-                    // 1. It's the empty/default option (always show)
+                    // 1. It's the empty/default option
                     // 2. No type is selected (show all)
                     // 3. Option type matches selected type
-                    // 4. Option has no type (backward compatibility - show it)
-                    const shouldShow = optionValue === '' || !selectedType || optionType === selectedType || optionType === '';
-                    
-                    if (shouldShow) {
+                    // 4. Option has no type (backward compatibility)
+                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
                         $option.show().prop('disabled', false);
-                        if (optionValue !== '') {
-                            visibleCount++;
-                            hasVisibleOptions = true;
-                        }
+                        if ($option.val() !== '') visibleCount++;
                     } else {
-                        // Hide and disable options that don't match the type
                         $option.hide().prop('disabled', true);
                     }
                 });
@@ -5530,76 +5247,38 @@
                     $select.val('').trigger('change');
                 }
 
-                // For Select2, we need to properly refresh to show filtered options
+                // For Select2, we need to destroy and reinitialize to properly reflect changes
                 if (isSelect2) {
                     try {
-                        // Close Select2 if it's open
-                        if ($select.next('.select2-container').hasClass('select2-container--open')) {
-                            $select.select2('close');
-                        }
-                        
-                        // Destroy and reinitialize Select2 to reflect filtered options
+                        // Destroy Select2
                         $select.select2('destroy');
                         $select.removeClass('select2-hidden-accessible');
                         $select.next('.select2-container').remove();
                         
-                        // Reinitialize Select2 with same options and type filtering
+                        // Reinitialize Select2 with same options
                         setTimeout(() => {
-                            const select2Config = {
-                                placeholder: 'Please Select',
-                                allowClear: true,
-                                width: '100%',
-                                // Add matcher to filter by type during search
-                                matcher: function(params, data) {
-                                    // If no search term, show all visible options
-                                    if (!params.term || params.term.trim() === '') {
-                                        const $option = $(data.element);
-                                        const optionType = $option.data('type') || '';
-                                        // Show if no type selected, or type matches, or option has no type
-                                        if (!selectedType || optionType === selectedType || optionType === '') {
-                                            return data;
-                                        }
-                                        return null;
-                                    }
-                                    
-                                    // If there's a search term, filter by both text and type
-                                    const term = params.term.toLowerCase();
-                                    const text = data.text ? data.text.toLowerCase() : '';
-                                    const $option = $(data.element);
-                                    const optionType = $option.data('type') || '';
-                                    
-                                    // Check if text matches search term
-                                    const textMatches = text.indexOf(term) > -1;
-                                    
-                                    // Check if type matches (if type is selected)
-                                    const typeMatches = !selectedType || optionType === selectedType || optionType === '';
-                                    
-                                    // Return data only if both text and type match
-                                    if (textMatches && typeMatches) {
-                                        return data;
-                                    }
-                                    
-                                    return null;
-                                }
-                            };
-                            
                             // Special handling for part_number_id - force dropdown above
-                            if (selectId === 'part_number_id') {
-                                select2Config.dropdownPosition = 'above';
+                            if ($select.attr('id') === 'part_number_id') {
+                                $select.select2({
+                                    placeholder: 'Please Select',
+                                    allowClear: true,
+                                    width: '100%',
+                                    dropdownPosition: 'above'
+                                });
+                            } else {
+                                $select.select2({
+                                    placeholder: 'Please Select',
+                                    allowClear: true,
+                                    width: '100%'
+                                });
                             }
-                            
-                            $select.select2(select2Config);
                             
                             // Restore selection if it's still valid
-                            if (selectedValue) {
-                                const $optionToSelect = $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`);
-                                if ($optionToSelect.length) {
-                                    $select.val(selectedValue).trigger('change');
-                                }
+                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
+                                $select.val(selectedValue).trigger('change');
                             }
-                        }, 100);
+                        }, 50);
                     } catch(e) {
-                        console.error('Error refreshing Select2 for', selectId, e);
                         // Fallback: just trigger change
                         $select.trigger('change');
                     }
@@ -5609,192 +5288,7 @@
                 }
             });
         });
-        
     }
-    
-    // Function to clear all form fields when type changes
-    function clearAllFormFields() {
-        console.log('Clearing all form fields due to type change');
-        
-        // Clear all select/dropdown fields
-        const dropdowns = [
-            '.searchable-select',
-            'select[name="p_id"]',
-            'select[name="category_id"]',
-            'select[name="part_number_id"]',
-            'select[name="company_id"]',
-            'select[name="technology"]',
-            'select[name="quality_id"]',
-            'select[name="group"]',
-            'select[name="unit"]',
-            'select[name="vehical_id"]',
-            'select[name="car_manufacturer"]',
-            'select[name="car_model_name"]',
-            'select[name="engine_cc"]',
-            'select[name="car_manufactured_country"]',
-            'select[name="v_part_number_id"]'
-        ];
-        
-        dropdowns.forEach(selector => {
-            $(selector).each(function() {
-                const $select = $(this);
-                const isSelect2 = $select.hasClass('select2-hidden-accessible');
-                
-                // Clear the value
-                $select.val('').trigger('change');
-                
-                // If it's Select2, close it if open
-                if (isSelect2) {
-                    try {
-                        if ($select.next('.select2-container').hasClass('select2-container--open')) {
-                            $select.select2('close');
-                        }
-                    } catch(e) {
-                        // Ignore errors
-                    }
-                }
-            });
-        });
-        
-        // Clear all text inputs (except hidden inputs and specific fields that should persist)
-        $('input[type="text"], input[type="number"], textarea').each(function() {
-            const $input = $(this);
-            const inputName = $input.attr('name') || '';
-            const inputId = $input.attr('id') || '';
-            
-            // Skip hidden inputs, type input, and specific fields
-            if ($input.is(':hidden') || 
-                inputName === 'type' || 
-                inputName === 'user_id' ||
-                inputId === 'hidden_quality_id' ||
-                inputId === 'hidden_technology') {
-                return;
-            }
-            
-            // Clear the input
-            $input.val('').trigger('change').trigger('input');
-        });
-        
-        // Clear file inputs
-        $('input[type="file"]').each(function() {
-            $(this).val('');
-        });
-        
-        // Clear checkboxes (except specific ones)
-        $('input[type="checkbox"]').each(function() {
-            const $checkbox = $(this);
-            const checkboxName = $checkbox.attr('name') || '';
-            
-            // Skip if it's a specific checkbox that should persist
-            if (checkboxName === 'status' || checkboxName === 'is_active') {
-                return;
-            }
-            
-            $checkbox.prop('checked', false).trigger('change');
-        });
-        
-        // Clear radio buttons
-        $('input[type="radio"]').prop('checked', false).trigger('change');
-        
-        // Reset any custom form states
-        if (typeof window.activeSelectSearch !== 'undefined') {
-            window.activeSelectSearch = null;
-        }
-        if (typeof window.lastSearchTerm !== 'undefined') {
-            window.lastSearchTerm = {};
-        }
-    }
-    
-    // Helper function to get current selected type
-    function getCurrentSelectedType() {
-        try {
-            const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
-            if (alpineComponent && alpineComponent.selectedType) {
-                return alpineComponent.selectedType;
-            }
-        } catch(e) {
-            // Alpine might not be ready yet
-        }
-        
-        // Fallback: try to get from hidden input
-        const typeInput = document.querySelector('input[name="type"]');
-        if (typeInput) {
-            return typeInput.value;
-        }
-        
-        return localStorage.getItem('selectedType') || '';
-    }
-    
-    // Initialize Select2 with type filtering for all searchable-select dropdowns on page load
-    $(document).ready(function() {
-        // Wait a bit for Alpine.js to initialize
-        setTimeout(function() {
-            const selectedType = getCurrentSelectedType();
-            
-            // Initialize Select2 for all searchable-select dropdowns that aren't already initialized
-            $('.searchable-select').each(function() {
-                const $select = $(this);
-                const selectId = $select.attr('id');
-                
-                // Skip if already initialized
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    return;
-                }
-                
-                // Skip part_number_id and unit_parts as they have special initialization
-                if (selectId === 'part_number_id' || selectId === 'unit_parts') {
-                    return;
-                }
-                
-                // Initialize Select2 with type-based matcher
-                const select2Config = {
-                    placeholder: 'Please Select',
-                    allowClear: true,
-                    width: '100%',
-                    matcher: function(params, data) {
-                        const currentType = getCurrentSelectedType();
-                        
-                        // If no search term, show all visible options
-                        if (!params.term || params.term.trim() === '') {
-                            const $option = $(data.element);
-                            const optionType = $option.data('type') || '';
-                            // Show if no type selected, or type matches, or option has no type
-                            if (!currentType || optionType === currentType || optionType === '') {
-                                return data;
-                            }
-                            return null;
-                        }
-                        
-                        // If there's a search term, filter by both text and type
-                        const term = params.term.toLowerCase();
-                        const text = data.text ? data.text.toLowerCase() : '';
-                        const $option = $(data.element);
-                        const optionType = $option.data('type') || '';
-                        
-                        // Check if text matches search term
-                        const textMatches = text.indexOf(term) > -1;
-                        
-                        // Check if type matches (if type is selected)
-                        const typeMatches = !currentType || optionType === currentType || optionType === '';
-                        
-                        // Return data only if both text and type match
-                        if (textMatches && typeMatches) {
-                            return data;
-                        }
-                        
-                        return null;
-                    }
-                };
-                
-                // Special handling for part_number_id - force dropdown above
-                if (selectId === 'part_number_id') {
-                    select2Config.dropdownPosition = 'above';
-                }
-                
-                $select.select2(select2Config);
-            });
-        }, 1000);
-    });
 
     // Function to update the items table
     function updateItemsTable(items) {
@@ -5903,14 +5397,6 @@
     });
     $(document).ready(function() {
         feather.replace();
-        
-        // Update required fields on page load after Alpine initializes
-        setTimeout(function() {
-            const initialType = localStorage.getItem('selectedType') || '{{ old("type") }}' || '';
-            if (initialType) {
-                updateRequiredFields(initialType);
-            }
-        }, 1000);
         // Generate random barcode
         function generateRandomItemCode() {
             const digits = '0123456789';
@@ -6059,13 +5545,13 @@
                         if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
                             // Create and add the button inside Select2 results container
                             const buttonHtml = `
-                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd; pointer-events: none;">
+                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
                                     <button type="button" class="btn btn-success btn-sm w-100 add-new-part-number-btn open-universal-modal" 
                                             data-title="Add Part Number" 
                                             data-mode="add"
                                             data-route="{{ route('post.partnumber') }}"
                                             data-target-select=".part_number-select"
-                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2); pointer-events: auto;">
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
                                         <i data-feather="plus" class="feather-plus me-1"></i>
                                         Add "<span class="part-number-search-term fw-bold">${searchVal}</span>"
                                     </button>
@@ -6080,34 +5566,6 @@
                             
                             // Update search term in button
                             $resultsContainer.find('.part-number-search-term').text(searchVal);
-                            
-                            // Add event handlers to prevent Select2 from intercepting clicks
-                            const $newButton = $resultsContainer.find('.add-new-part-number-btn').last();
-                            const $parentDiv = $newButton.closest('.select2-results__option--add-new');
-                            
-                            if ($newButton.length) {
-                                // Prevent Select2 from handling clicks on parent div
-                                // CSS pointer-events: none on parent and pointer-events: auto on button should help
-                                // But also add event handlers as backup
-                                $parentDiv.on('mousedown click', function(e) {
-                                    // Always prevent Select2 from handling this div
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    return false;
-                                });
-                                
-                                // Prevent Select2 from intercepting button mousedown
-                                $newButton.on('mousedown', function(e) {
-                                    e.stopPropagation();
-                                    // Don't prevent default to allow click to fire
-                                });
-                                
-                                // The click event should now work normally because:
-                                // 1. CSS pointer-events prevents parent div from being clicked
-                                // 2. mousedown handler at line 6847 will close Select2 and store search term
-                                // 3. click handler at line 7040 will open the modal
-                                // No need for additional click handler here
-                            }
                         } else if ($addNewBtnInDropdown.length) {
                             // Update search term if button already exists
                             $resultsContainer.find('.part-number-search-term').text(searchVal);
@@ -6204,13 +5662,11 @@
                         }, 300);
                     });
                     
-                    // Handle Enter key press for Part Number - trigger Add New button or open modal
+                    // Handle Enter key press for Part Number - trigger Add New button
                     $searchInput.off('keydown.partNumberEnter').on('keydown.partNumberEnter', function(e) {
                         if (e.key === 'Enter' || e.keyCode === 13) {
                             e.preventDefault();
                             e.stopPropagation();
-                            
-                            const searchText = $(this).val().trim();
                             
                             // Check if Add New button exists
                             const $addNewBtn = $('.select2-container--open .add-new-part-number-btn');
@@ -6219,95 +5675,6 @@
                                 $addNewBtn.trigger('mousedown');
                                 $addNewBtn.trigger('click');
                                 return false;
-                            } else if (searchText) {
-                                // If button doesn't exist but there's search text, check for no results
-                                const $openSelect2 = $('.select2-container--open');
-                                const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
-                                const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
-                                                    ($results.length === 0 && searchText.length > 0);
-                                
-                                if (hasNoResults) {
-                                    // Close Select2 dropdown
-                                    $('#part_number_id').select2('close');
-                                    
-                                    // Store search term
-                                    if (!window.lastSearchTerm) {
-                                        window.lastSearchTerm = {};
-                                    }
-                                    window.lastSearchTerm['part_number_id'] = searchText;
-                                    window.activeSelectSearch = {
-                                        selectId: 'part_number_id',
-                                        searchTerm: searchText,
-                                        hasNoResults: true
-                                    };
-                                    window.partNumberSubtitle = 'PART NUMBER:';
-                                    
-                                    // Open universal modal
-                                    const $addButton = $('#part_number_id').closest('.input-group').find('.open-universal-modal[data-mode="add"]');
-                                    if ($addButton.length) {
-                                        $addButton.trigger('click');
-                                    } else {
-                                        // Fallback: manually configure and open modal for part number
-                                        const currentTargetSelect = '#part_number_id';
-                                        const $select = $(currentTargetSelect);
-                                        
-                                        // Set modal configuration
-                                        $('#universal-add-modal').attr('data-select-id', currentTargetSelect);
-                                        $('#universal-modal-title').text('Add Part Number');
-                                        $('#universal-subtitle').text('PART NUMBER:');
-                                        
-                                        // Set form action
-                                        const $form = $('#universal-form');
-                                        $form.attr('data-route', '{{ route("post.partnumber") }}');
-                                        $form.attr('data-target-select', '.part_number-select');
-                                        
-                                        // Pre-fill the name field with search text
-                                        $('#universal-name').val(searchText);
-                                        
-                                        // Set the type if available
-                                        const currentSelectedType = getCurrentSelectedType();
-                                        if (currentSelectedType) {
-                                            $('#universal-type').val(currentSelectedType);
-                                        }
-                                        
-                                        // Store current target select for form submission
-                                        window.currentTargetSelect = currentTargetSelect;
-                                        
-                                        // Open modal
-                                        $('#universal-add-modal').modal('show');
-                                        
-                                        // Focus input with multiple strategies
-                                        function focusUniversalInput() {
-                                            const $input = $('#universal-name');
-                                            if ($input.length) {
-                                                $input[0].focus();
-                                                if (searchText) {
-                                                    requestAnimationFrame(function() {
-                                                        $input[0].select();
-                                                        const len = $input.val().length;
-                                                        if ($input[0].setSelectionRange) {
-                                                            $input[0].setSelectionRange(len, len);
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        }
-                                        
-                                        setTimeout(focusUniversalInput, 100);
-                                        setTimeout(focusUniversalInput, 300);
-                                        setTimeout(focusUniversalInput, 500);
-                                        
-                                        $('#universal-add-modal').one('shown.bs.modal', function() {
-                                            requestAnimationFrame(function() {
-                                                requestAnimationFrame(function() {
-                                                    focusUniversalInput();
-                                                });
-                                            });
-                                        });
-                                    }
-                                    return false;
-                                }
                             }
                         }
                     });
@@ -6397,11 +5764,8 @@
                 if ($searchInput.length) {
                     $searchInput[0].focus();
                     $searchInput[0].select();
-                    
-                    // Note: Enter key handling is now done in the generic dropdown handler
-                    // This ensures consistent behavior across all dropdowns
-                }
-            }, 100);
+                        }
+                    }, 100);
         });
         
         // =========================
@@ -6411,38 +5775,27 @@
         // Generic function to check and show "Add New" button for any dropdown
         function checkAndShowAddNewButtonForDropdown(selectId, buttonConfig) {
             const $openSelect2 = $('.select2-container--open');
-            if (!$openSelect2.length) return;
-            
-            // Verify this is the correct dropdown
-            const $select = $('#' + selectId);
-            if (!$select.length) return;
-            
-            const $selectContainer = $select.next('.select2-container');
-            if (!$selectContainer.is($openSelect2)) {
-                return; // Not the correct dropdown
-            }
-            
-            const $noResultsMsg = $openSelect2.find('.select2-results__message');
-            const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
-            const $searchInput = $openSelect2.find('.select2-search__field');
-            const $resultsContainer = $openSelect2.find('.select2-results');
-            
-            if (!$buttonConfig) return;
-            
-            // Get search value - check input field first
-            let searchVal = '';
-            if ($searchInput.length) {
-                searchVal = ($searchInput.val() || '').trim();
-            }
-            
-            // Check if "NO RESULTS FOUND" message is visible
-            const hasNoResultsMsg = $noResultsMsg.length && $noResultsMsg.is(':visible');
-            const hasNoSelectableResults = $results.length === 0;
-            // Show button if: no results message visible OR (no selectable results AND search term exists)
-            const hasNoResults = hasNoResultsMsg || (hasNoSelectableResults && searchVal.length > 0);
-            
-            // Show button if no results and search term exists
-            if (hasNoResults && searchVal.length > 0) {
+            if ($openSelect2.length) {
+                // Verify this is the correct dropdown
+                const $select = $('#' + selectId);
+                if (!$select.length) return;
+                
+                const $selectContainer = $select.next('.select2-container');
+                if (!$selectContainer.is($openSelect2)) {
+                    return; // Not the correct dropdown
+                }
+                
+                const $noResultsMsg = $openSelect2.find('.select2-results__message');
+                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+                const $searchInput = $openSelect2.find('.select2-search__field');
+                const $resultsContainer = $openSelect2.find('.select2-results');
+                
+                if ($searchInput.length && $searchInput.val() && buttonConfig) {
+                    const searchVal = $searchInput.val().trim();
+                    const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
+                                        ($results.length === 0 && searchVal.length > 0);
+                    
+                    if (hasNoResults && searchVal.length > 0) {
                         // Hide the default "No results found" message
                         if ($noResultsMsg.length) {
                             $noResultsMsg.hide();
@@ -6454,7 +5807,7 @@
                         if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
                             // Create and add the button
                             const buttonHtml = `
-                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd; pointer-events: none;">
+                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
                                     <button type="button" class="btn btn-success btn-sm w-100 add-new-dropdown-btn open-universal-modal" 
                                             data-select-id="${selectId}"
                                             data-title="${buttonConfig.title}" 
@@ -6462,7 +5815,7 @@
                                             data-route="${buttonConfig.route}"
                                             data-target-select="${buttonConfig.targetSelect}"
                                             ${buttonConfig.hasImage ? 'data-has-image="1"' : ''}
-                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2); pointer-events: auto;">
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
                                         <i data-feather="plus" class="feather-plus me-1"></i>
                                         Add "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
                                     </button>
@@ -6477,31 +5830,6 @@
                             
                             // Update search term
                             $resultsContainer.find('.dropdown-search-term').text(searchVal);
-                            
-                            // Add event handlers to prevent Select2 from intercepting clicks
-                            const $newButton = $resultsContainer.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]').last();
-                            const $parentDiv = $newButton.closest('.select2-results__option--add-new');
-                            
-                            if ($newButton.length) {
-                                // Prevent Select2 from handling clicks on parent div
-                                $parentDiv.on('mousedown click', function(e) {
-                                    // Always prevent Select2 from handling this div
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    return false;
-                                });
-                                
-                                // Prevent Select2 from intercepting button mousedown
-                                $newButton.on('mousedown', function(e) {
-                                    e.stopPropagation();
-                                    // Don't prevent default to allow click to fire
-                                });
-                                
-                                // The click event should now work normally because:
-                                // 1. CSS pointer-events prevents parent div from being clicked
-                                // 2. mousedown handler at line 6847 will close Select2 and store search term
-                                // 3. click handler at line 7040 will open the modal
-                            }
                         } else if ($addNewBtnInDropdown.length) {
                             // Update search term if button already exists
                             $resultsContainer.find('.dropdown-search-term').text(searchVal);
@@ -6543,8 +5871,7 @@
         });
         
         // Generic handler for all dropdowns (Product Name, Category, Company, Quality, Unit, etc.)
-        // This handles all searchable-select dropdowns except part_number_id (which has its own handler)
-        $(document).on('select2:open', '.searchable-select:not(#part_number_id)', function(e) {
+        $(document).on('select2:open', '.input-group .searchable-select:not(#part_number_id), #unit_parts', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id');
             
@@ -6617,11 +5944,6 @@
                         route: '{{ route("post.product") }}',
                         targetSelect: '.name-select'
                     },
-                    'part_number_id': {
-                        title: 'Add Part Number',
-                        route: '{{ route("post.partnumber") }}',
-                        targetSelect: '.part_number-select'
-                    },
                     'category': {
                         title: 'Add Category',
                         route: '{{ route("post.item.category") }}',
@@ -6638,65 +5960,10 @@
                         route: '{{ route("post.qualities") }}',
                         targetSelect: '.quality-select'
                     },
-                    'quality_filters': {
-                        title: 'Add Quality',
-                        route: '{{ route("post.qualities") }}',
-                        targetSelect: '.quality-select'
-                    },
-                    'quality_breakpad': {
-                        title: 'Add Quality',
-                        route: '{{ route("post.qualities") }}',
-                        targetSelect: '.quality-select'
-                    },
                     'unit_parts': {
                         title: 'Add Unit',
                         route: '{{ route("post.units") }}',
                         targetSelect: '#unit_parts'
-                    },
-                    'vehicle_manufacturer_select': {
-                        title: 'Add Manufacturer',
-                        route: '{{ route("post.car.manufacturer") }}',
-                        targetSelect: '.car-manufacturer-select'
-                    },
-                    'vehicle_model_select': {
-                        title: 'Add Car Model',
-                        route: '{{ route("post.car.model") }}',
-                        targetSelect: '.car-model-select'
-                    },
-                    'vehicle_country_select': {
-                        title: 'Add Country',
-                        route: '{{ route("post.car.country") }}',
-                        targetSelect: '.car-country-select'
-                    },
-                    'vehicle_engine_select': {
-                        title: 'Add Engine CC',
-                        route: '{{ route("post.engine.cc") }}',
-                        targetSelect: '.car-engine-select'
-                    },
-                    'car_manufacturer': {
-                        title: 'Add Manufacturer',
-                        route: '{{ route("post.car.manufacturer") }}',
-                        targetSelect: '.car-manufacturer-select'
-                    },
-                    'car_model_name': {
-                        title: 'Add Car Model',
-                        route: '{{ route("post.car.model") }}',
-                        targetSelect: '.car-model-select'
-                    },
-                    'car_manufactured_country': {
-                        title: 'Add Country',
-                        route: '{{ route("post.car.country") }}',
-                        targetSelect: '.car-country-select'
-                    },
-                    'engine_cc': {
-                        title: 'Add Engine CC',
-                        route: '{{ route("post.engine.cc") }}',
-                        targetSelect: '.car-engine-select'
-                    },
-                    'part_number': {
-                        title: 'Add Part Number',
-                        route: '{{ route("post.partnumber") }}',
-                        targetSelect: '.part_number-select'
                     }
                 };
                 
@@ -6707,117 +5974,48 @@
             
             if (!buttonConfig) return;
             
-            // Initial check when dropdown opens - multiple attempts to catch it
-            setTimeout(function() {
-                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-            }, 50);
-            setTimeout(function() {
-                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-            }, 150);
-            setTimeout(function() {
-                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-            }, 300);
-            
             // Monitor for no results and show Add New button
             setTimeout(function() {
                 const $searchInput = $('.select2-container--open .select2-search__field');
                 if ($searchInput.length) {
-                    // Real-time check for no results - immediate check on input
+                    // Real-time check for no results
                     $searchInput.off('input.dropdownSearch').on('input.dropdownSearch', function() {
-                        // Check immediately
-                        checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                        // Also check after a delay to catch Select2's response
                         setTimeout(function() {
                             checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                        }, 200);
-                        setTimeout(function() {
-                            checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                        }, 400);
+                        }, 300);
                     });
                     
-                    // Handle Enter key press for ALL dropdowns - trigger Add New button or open modal
-                    // This works for all dropdowns that have buttonConfig (unit_parts, product_name_item, category, company_parts, quality, etc.)
+                    // Handle Enter key press for all dropdowns - trigger Add New button
                     $searchInput.off('keydown.dropdownEnter').on('keydown.dropdownEnter', function(e) {
-                        if (e.key === 'Enter' || e.keyCode === 13) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            
-                            const searchText = $(this).val().trim();
-                            
-                            // Check if Add New button exists in dropdown
-                            const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="' + selectId + '"]');
-                            if ($addNewBtn.length) {
-                                // Trigger the button click
-                                $addNewBtn.trigger('mousedown');
-                                $addNewBtn.trigger('click');
-                                return false;
-                            } else if (searchText && buttonConfig) {
-                                // If button doesn't exist but there's search text and buttonConfig, check for no results
-                                const $openSelect2 = $('.select2-container--open');
-                                const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
-                                const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
-                                                    ($results.length === 0 && searchText.length > 0);
+                            if (e.key === 'Enter' || e.keyCode === 13) {
+                                e.preventDefault();
+                                e.stopPropagation();
                                 
-                                if (hasNoResults) {
-                                    // Close Select2 dropdown
-                                    $('#' + selectId).select2('close');
-                                    
-                                    // Store search term
-                                    if (!window.lastSearchTerm) {
-                                        window.lastSearchTerm = {};
-                                    }
-                                    window.lastSearchTerm[selectId] = searchText;
-                                    window.activeSelectSearch = {
-                                        selectId: selectId,
-                                        searchTerm: searchText,
-                                        hasNoResults: true
-                                    };
-                                    
-                                    // Set specific subtitles for known dropdowns
-                                    if (selectId === 'product_name_item') {
-                                        window.productNameSubtitle = 'PRODUCT NAME:';
-                                    } else if (selectId === 'part_number_id') {
-                                        window.partNumberSubtitle = 'PART NUMBER:';
-                                    }
-                                    
-                                    // Open universal modal - try to find Add button first
-                                    const $addButton = $('#' + selectId).closest('.input-group').find('.open-universal-modal[data-mode="add"]');
-                                    if ($addButton.length) {
-                                        $addButton.trigger('click');
-                                    } else {
-                                        // Fallback: manually open modal with config
-                                        // The modal handlers will use activeSelectSearch to pre-fill the form
-                                        $('#universal-add-modal').modal('show');
-                                    }
+                            // Check if Add New button exists for this dropdown
+                            const $addNewBtn = $('.select2-container--open .add-new-dropdown-btn[data-select-id="' + selectId + '"]');
+                                if ($addNewBtn.length) {
+                                    // Trigger the button click
+                                    $addNewBtn.trigger('mousedown');
+                                    $addNewBtn.trigger('click');
                                     return false;
                                 }
                             }
-                        }
-                    });
+                        });
                     
-                    // Monitor Select2 results for "No results found" - check more frequently
+                    // Monitor Select2 results for "No results found" - check every 200ms
                     let checkNoResultsInterval = setInterval(function() {
-                        const $openSelect2 = $('.select2-container--open');
-                        if ($openSelect2.length) {
-                            // Verify it's still the correct dropdown
-                            const $select = $('#' + selectId);
-                            if ($select.length) {
-                                const $selectContainer = $select.next('.select2-container');
-                                if ($selectContainer.is($openSelect2)) {
-                                    // Always check and show button
-                                    checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                                }
-                            }
+                const $openSelect2 = $('.select2-container--open');
+                if ($openSelect2.length) {
+                            checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
                         } else {
                             clearInterval(checkNoResultsInterval);
                         }
-                    }, 100);
+                    }, 200);
                     
                     // Clear interval when dropdown closes
                     $(document).one('select2:close', '#' + selectId, function() {
                         clearInterval(checkNoResultsInterval);
-                        // Remove Enter key handler when dropdown closes (works for all dropdowns)
+                        // Remove Enter key handler when dropdown closes
                         $searchInput.off('keydown.dropdownEnter');
                         // Remove button from inside Select2 dropdown
                         const $selectContainer = $('#' + selectId).next('.select2-container');
@@ -6832,18 +6030,7 @@
                         }
                     });
                 }
-            }, 100);
-            
-            // Also listen to Select2 results update event for this specific dropdown
-            $(document).off('select2:results:message', '#' + selectId).on('select2:results:message', '#' + selectId, function(e) {
-                // Check immediately and after delays to catch the button
-                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                setTimeout(function() {
-                    checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
                 }, 100);
-                setTimeout(function() {
-                    checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                }, 300);
             });
         
         // Handle click on generic Add New buttons inside dropdowns
@@ -7128,37 +6315,11 @@
                 }
             }
             
-            // Handle generic dropdown buttons (Category, Company, Quality, etc.)
+            // Handle Product Name button
             if ($button.hasClass('add-new-dropdown-btn')) {
                 const selectId = $button.data('select-id');
-                const $searchTermSpan = $button.find('.dropdown-search-term');
-                
-                if ($searchTermSpan.length && selectId) {
-                    const searchText = $searchTermSpan.text().trim();
-                    if (searchText) {
-                        // Store search term for later use in the modal
-                        if (typeof lastSearchTerm === 'undefined') {
-                            window.lastSearchTerm = {};
-                        }
-                        lastSearchTerm[selectId] = searchText;
-                        
-                        // Also store in activeSelectSearch
-                        if (typeof activeSelectSearch === 'undefined') {
-                            window.activeSelectSearch = {};
-                        }
-                        activeSelectSearch.selectId = selectId;
-                        activeSelectSearch.searchTerm = searchText;
-                        activeSelectSearch.hasNoResults = true;
-                        
-                        // Set specific subtitles
-                        if (selectId === 'product_name_item') {
-                            window.productNameSubtitle = 'PRODUCT NAME:';
-                        } else if (selectId === 'category') {
-                            window.categorySubtitle = 'CATEGORY:';
-                        } else if (selectId === 'company_parts') {
-                            window.companySubtitle = 'COMPANY:';
-                        }
-                    }
+                if (selectId === 'product_name_item') {
+                    window.productNameSubtitle = 'PRODUCT NAME:';
                 }
             }
             
@@ -7306,22 +6467,6 @@
                 subtitle = window.productNameSubtitle;
                 // Clear the flag after using it
                 window.productNameSubtitle = null;
-            } else if (mode === 'add' && window.categorySubtitle) {
-                subtitle = window.categorySubtitle;
-                // Clear the flag after using it
-                window.categorySubtitle = null;
-            } else if (mode === 'add' && window.companySubtitle) {
-                subtitle = window.companySubtitle;
-                // Clear the flag after using it
-                window.companySubtitle = null;
-            } else if (mode === 'add' && window.categorySubtitle) {
-                subtitle = window.categorySubtitle;
-                // Clear the flag after using it
-                window.categorySubtitle = null;
-            } else if (mode === 'add' && window.qualitySubtitle) {
-                subtitle = window.qualitySubtitle;
-                // Clear the flag after using it
-                window.qualitySubtitle = null;
             } else if (mode !== 'add') {
                 subtitle = 'Update the details below';
             }
@@ -7430,41 +6575,8 @@
                     }
                 }
                 
-                // Open modal and focus input
+                // Open modal - focus will be handled by shown.bs.modal event
                 $('#universal-add-modal').modal('show');
-                
-                // Multiple strategies to ensure focus works
-                function focusInput() {
-                    const $input = $('#universal-name');
-                    if ($input.length) {
-                        $input[0].focus();
-                        // Select all text for easy editing if search term exists
-                        if (finalSearchTerm) {
-                            requestAnimationFrame(function() {
-                                $input[0].select();
-                                // Ensure cursor is at end for better UX
-                                if ($input[0].setSelectionRange) {
-                                    const len = $input.val().length;
-                                    $input[0].setSelectionRange(len, len);
-                                }
-                            });
-                        }
-                    }
-                }
-                
-                // Try multiple times with different delays to ensure focus works
-                setTimeout(focusInput, 100);
-                setTimeout(focusInput, 300);
-                setTimeout(focusInput, 500);
-                
-                // Also focus when modal is fully shown
-                $('#universal-add-modal').one('shown.bs.modal', function() {
-                    requestAnimationFrame(function() {
-                        requestAnimationFrame(function() {
-                            focusInput();
-                        });
-                    });
-                });
             }
             // =========================
             // EDIT MODE
@@ -7511,13 +6623,63 @@
                         $('#universal-image-preview').hide();
                         $('#universal-image-placeholder').show();
                     }
+                    // Open modal - focus will be handled by shown.bs.modal event
                     $('#universal-add-modal').modal('show');
-                    setTimeout(function() {
-                        $('#universal-name').focus();
-                    }, 300);
                 });
             }
         });
+        
+        // =========================
+        // AUTO FOCUS ON UNIVERSAL MODAL OPEN
+        // =========================
+        // Focus input field automatically when universal modal opens
+        $('#universal-add-modal').on('shown.bs.modal', function() {
+            // Multiple strategies to ensure focus works
+            function focusInput() {
+                const $input = $('#universal-name');
+                if ($input.length && $input.is(':visible')) {
+                    const inputElement = $input[0];
+                    if (inputElement) {
+                        // Remove readonly/disabled if any
+                        inputElement.removeAttribute('readonly');
+                        inputElement.removeAttribute('disabled');
+                        
+                        // Focus and select
+                        inputElement.focus();
+                        
+                        // Select all text if there's any value
+                        const currentValue = $input.val();
+                        if (currentValue && currentValue.trim() !== '') {
+                            requestAnimationFrame(function() {
+                                inputElement.select();
+                                // Ensure cursor is at end for better UX
+                                if (inputElement.setSelectionRange) {
+                                    const len = currentValue.length;
+                                    inputElement.setSelectionRange(len, len);
+                                }
+                            });
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // Try multiple times with different delays to ensure focus works
+            setTimeout(focusInput, 0);
+            setTimeout(focusInput, 50);
+            setTimeout(focusInput, 100);
+            setTimeout(focusInput, 200);
+            setTimeout(focusInput, 300);
+            
+            // Also use requestAnimationFrame for better timing
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    focusInput();
+                });
+            });
+        });
+        
         // =========================
         // KEYBOARD HANDLERS FOR UNIVERSAL MODAL
         // =========================
@@ -7821,63 +6983,7 @@
         // ENSURE quality_id AND technology ARE SUBMITTED ON FORM SUBMIT
         // This ensures they are sent even if fields are hidden by Alpine.js
         // =========================
-        // Function to reset form after successful save
-        function resetFormAfterSave() {
-            // Small delay to ensure success message is shown
-            setTimeout(function() {
-                // Clear all form fields
-                $('#mainItemForm')[0].reset();
-            
-            // Clear Select2 values
-            $('.searchable-select').val(null).trigger('change');
-            
-            // Clear vehicle checkboxes
-            $('.vehicle-checkbox').prop('checked', false);
-            $('#selectAllVehicles').prop('checked', false);
-            
-            // Clear year ranges in vehicle modal
-            $('#yearRangesContainer').html('');
-            $('#selectedYearRangesDisplay').html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
-            $('#selectedYearRangesDisplay').data('all-ranges', []);
-            
-            // Clear vehicle table filters
-            $('.car-manufacturer-select').val(null).trigger('change');
-            $('.car-model-select').val(null).trigger('change');
-            $('.car-engine-select').val(null).trigger('change');
-            $('.car-country-select').val(null).trigger('change');
-            
-            // Reset Alpine.js selected type - but don't clear if user wants to keep type selected
-            // Only clear type if explicitly needed, otherwise keep it for better UX
-            // Commenting out type reset so user doesn't lose type selection
-            /*
-            if (window.Alpine && document.querySelector('[x-data*="productForm"]')) {
-                try {
-                    const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
-                    if (alpineComponent && alpineComponent.selectType) {
-                        alpineComponent.selectType('');
-                    }
-                } catch(e) {
-                    localStorage.removeItem('selectedType');
-                }
-            }
-            */
-            
-            // Clear file inputs
-            $('input[type="file"]').val('');
-            
-            // Clear any images preview
-            $('.item-image-preview').remove();
-            
-            // Reset all hidden inputs (except type, token, and user_id)
-            $('input[type="hidden"]').not('[name="_token"]').not('[name="user_id"]').not('[name="type"]').val('');
-            
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
         $('#mainItemForm').on('submit', function(e) {
-            e.preventDefault(); // Prevent default form submission
-            
             // Extract unit ID from composite value (unit_id_base_unit_id format)
             const unitSelectVal = $('#unit_parts').val();
             if (unitSelectVal && unitSelectVal.includes('_')) {
@@ -7909,132 +7015,6 @@
             if (techVal) {
                 $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
             }
-            
-            // Collect checked vehicle IDs from vehicle table
-            const checkedVehicleIds = getCheckedVehicleIds();
-            
-            // Remove any existing hidden vehical_id inputs to avoid duplicates
-            $(this).find('input[type="hidden"][name="vehical_id[]"], input[type="hidden"][name="vehical_id"]').remove();
-            
-            // Add hidden inputs for each checked vehicle ID
-            if (checkedVehicleIds.length > 0) {
-                checkedVehicleIds.forEach(function(vehicleId) {
-                    $(this).append('<input type="hidden" name="vehical_id[]" value="' + vehicleId + '">');
-                }.bind(this));
-            }
-            
-            // Create FormData for AJAX submission
-            const formData = new FormData(this);
-            const submitBtn = $(this).find('button[type="submit"]');
-            const originalBtnText = submitBtn.html();
-            
-            // Disable submit button and show loading
-            submitBtn.prop('disabled', true).html('<i class="ti ti-loader spinner"></i> Saving...');
-            
-            // Submit via AJAX
-            $.ajax({
-                url: $(this).attr('action'),
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                success: function(response) {
-                    // Re-enable submit button
-                    submitBtn.prop('disabled', false).html(originalBtnText);
-                    
-                    // Check if response is JSON or HTML (redirect response)
-                    let isJson = false;
-                    let jsonResponse = null;
-                    
-                    try {
-                        // Try to parse as JSON if response is a string
-                        if (typeof response === 'string') {
-                            jsonResponse = JSON.parse(response);
-                            isJson = true;
-                        } else if (response && typeof response === 'object') {
-                            jsonResponse = response;
-                            isJson = true;
-                        }
-                    } catch(e) {
-                        // Not JSON, likely HTML redirect response
-                        isJson = false;
-                    }
-                    
-                    // Show success message and play sound
-                    if (isJson && jsonResponse) {
-                        if (jsonResponse.success || jsonResponse.message) {
-                            // Show success message with item count if available
-                            let message = jsonResponse.message || 'Item saved successfully!';
-                            if (jsonResponse.items_count && jsonResponse.items_count > 1) {
-                                message = jsonResponse.items_count + ' items saved successfully!';
-                            }
-                            toastr.success(message);
-                            
-                            // 🔊 Play save sound
-                            if (typeof playSaveSound === 'function') {
-                                playSaveSound();
-                            }
-                            
-                            // Always redirect back to create page for fresh form
-                            setTimeout(function() {
-                                window.location.href = "{{ route('all.items.create') }}";
-                            }, 1500);
-                        }
-                    } else {
-                        // HTML response - redirect to create page
-                        toastr.success('Item saved successfully!');
-                        // 🔊 Play save sound
-                        if (typeof playSaveSound === 'function') {
-                            playSaveSound();
-                        }
-                        
-                        // Redirect to create page
-                        setTimeout(function() {
-                            window.location.href = "{{ route('all.items.create') }}";
-                        }, 1500);
-                    }
-                },
-                error: function(xhr) {
-                    // Re-enable submit button
-                    submitBtn.prop('disabled', false).html(originalBtnText);
-                    
-                    // Handle validation errors
-                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                        const errors = xhr.responseJSON.errors;
-                        let errorMessages = [];
-                        
-                        $.each(errors, function(field, messages) {
-                            if (Array.isArray(messages)) {
-                                errorMessages = errorMessages.concat(messages);
-                            } else {
-                                errorMessages.push(messages);
-                            }
-                            
-                            // Highlight invalid fields
-                            const $field = $('[name="' + field + '"]');
-                            if ($field.length) {
-                                $field.addClass('is-invalid');
-                                const errorHtml = '<div class="invalid-feedback">' + (Array.isArray(messages) ? messages[0] : messages) + '</div>';
-                                $field.closest('.input-group, .form-group, .col-md-4, .col-md-6').find('.invalid-feedback').remove();
-                                $field.after(errorHtml);
-                            }
-                        });
-                        
-                        // Show first error message
-                        if (errorMessages.length > 0) {
-                            toastr.error(errorMessages[0]);
-                        }
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        toastr.error(xhr.responseJSON.message);
-                    } else {
-                        toastr.error('Error saving item. Please try again.');
-                    }
-                }
-            });
         });
     });
 </script>
