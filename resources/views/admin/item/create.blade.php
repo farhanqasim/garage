@@ -6443,7 +6443,7 @@
                         if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
                             // Create and add the button
                             const buttonHtml = `
-                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
+                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd; pointer-events: none;">
                                     <button type="button" class="btn btn-success btn-sm w-100 add-new-dropdown-btn open-universal-modal" 
                                             data-select-id="${selectId}"
                                             data-title="${buttonConfig.title}" 
@@ -6451,7 +6451,7 @@
                                             data-route="${buttonConfig.route}"
                                             data-target-select="${buttonConfig.targetSelect}"
                                             ${buttonConfig.hasImage ? 'data-has-image="1"' : ''}
-                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2); pointer-events: auto;">
                                         <i data-feather="plus" class="feather-plus me-1"></i>
                                         Add "<span class="dropdown-search-term fw-bold">${searchVal}</span>"
                                     </button>
@@ -6466,6 +6466,31 @@
                             
                             // Update search term
                             $resultsContainer.find('.dropdown-search-term').text(searchVal);
+                            
+                            // Add event handlers to prevent Select2 from intercepting clicks
+                            const $newButton = $resultsContainer.find('.add-new-dropdown-btn[data-select-id="' + selectId + '"]').last();
+                            const $parentDiv = $newButton.closest('.select2-results__option--add-new');
+                            
+                            if ($newButton.length) {
+                                // Prevent Select2 from handling clicks on parent div
+                                $parentDiv.on('mousedown click', function(e) {
+                                    // Always prevent Select2 from handling this div
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    return false;
+                                });
+                                
+                                // Prevent Select2 from intercepting button mousedown
+                                $newButton.on('mousedown', function(e) {
+                                    e.stopPropagation();
+                                    // Don't prevent default to allow click to fire
+                                });
+                                
+                                // The click event should now work normally because:
+                                // 1. CSS pointer-events prevents parent div from being clicked
+                                // 2. mousedown handler at line 6847 will close Select2 and store search term
+                                // 3. click handler at line 7040 will open the modal
+                            }
                         } else if ($addNewBtnInDropdown.length) {
                             // Update search term if button already exists
                             $resultsContainer.find('.dropdown-search-term').text(searchVal);
@@ -6671,6 +6696,11 @@
             
             if (!buttonConfig) return;
             
+            // Initial check when dropdown opens
+            setTimeout(function() {
+                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+            }, 100);
+            
             // Monitor for no results and show Add New button
             setTimeout(function() {
                 const $searchInput = $('.select2-container--open .select2-search__field');
@@ -6771,7 +6801,14 @@
                         }
                     });
                 }
+            }, 100);
+            
+            // Also listen to Select2 results update event for this specific dropdown
+            $(document).off('select2:results:message', '#' + selectId).on('select2:results:message', '#' + selectId, function(e) {
+                setTimeout(function() {
+                    checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
                 }, 100);
+            });
             });
         
         // Handle click on generic Add New buttons inside dropdowns
