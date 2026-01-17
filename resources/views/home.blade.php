@@ -4,7 +4,7 @@
 <div class="content">
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-2">
           <div class="mb-3">
-            <h1 class="mb-1">Welcome, {{ auth()->user()->name?? "Guest" }}</h1>
+            <h1 class="mb-1">Welcome, {{ auth()->user()->name?? "Guest" }} bhai</h1>
             <p class="fw-medium">You have <span class="text-primary fw-bold">200+</span> Orders, Today</p>
             <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
               <a href="{{ route('car.wash') }}" class="btn btn-primary btn-lg">
