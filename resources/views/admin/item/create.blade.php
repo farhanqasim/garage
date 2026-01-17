@@ -6411,27 +6411,36 @@
         // Generic function to check and show "Add New" button for any dropdown
         function checkAndShowAddNewButtonForDropdown(selectId, buttonConfig) {
             const $openSelect2 = $('.select2-container--open');
-            if ($openSelect2.length) {
-                // Verify this is the correct dropdown
-                const $select = $('#' + selectId);
-                if (!$select.length) return;
-                
-                const $selectContainer = $select.next('.select2-container');
-                if (!$selectContainer.is($openSelect2)) {
-                    return; // Not the correct dropdown
-                }
-                
-                const $noResultsMsg = $openSelect2.find('.select2-results__message');
-                const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
-                const $searchInput = $openSelect2.find('.select2-search__field');
-                const $resultsContainer = $openSelect2.find('.select2-results');
-                
-                if ($searchInput.length && $searchInput.val() && buttonConfig) {
-                    const searchVal = $searchInput.val().trim();
-                    const hasNoResults = ($noResultsMsg.length && $noResultsMsg.is(':visible')) || 
-                                        ($results.length === 0 && searchVal.length > 0);
-                    
-                    if (hasNoResults && searchVal.length > 0) {
+            if (!$openSelect2.length) return;
+            
+            // Verify this is the correct dropdown
+            const $select = $('#' + selectId);
+            if (!$select.length) return;
+            
+            const $selectContainer = $select.next('.select2-container');
+            if (!$selectContainer.is($openSelect2)) {
+                return; // Not the correct dropdown
+            }
+            
+            const $noResultsMsg = $openSelect2.find('.select2-results__message');
+            const $results = $openSelect2.find('.select2-results__option--selectable:not(.select2-results__option--loading)');
+            const $searchInput = $openSelect2.find('.select2-search__field');
+            const $resultsContainer = $openSelect2.find('.select2-results');
+            
+            if (!$buttonConfig) return;
+            
+            // Get search value - check input field first
+            let searchVal = '';
+            if ($searchInput.length && $searchInput.val()) {
+                searchVal = $searchInput.val().trim();
+            }
+            
+            // Check if "NO RESULTS FOUND" message is visible
+            const hasNoResultsMsg = $noResultsMsg.length && $noResultsMsg.is(':visible') && $noResultsMsg.text().toUpperCase().includes('NO RESULTS');
+            const hasNoSelectableResults = $results.length === 0;
+            const hasNoResults = hasNoResultsMsg || (hasNoSelectableResults && searchVal.length > 0);
+            
+            if (hasNoResults && searchVal.length > 0) {
                         // Hide the default "No results found" message
                         if ($noResultsMsg.length) {
                             $noResultsMsg.hide();
@@ -6696,20 +6705,32 @@
             
             if (!buttonConfig) return;
             
-            // Initial check when dropdown opens
+            // Initial check when dropdown opens - multiple attempts to catch it
             setTimeout(function() {
                 checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-            }, 100);
+            }, 50);
+            setTimeout(function() {
+                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+            }, 150);
+            setTimeout(function() {
+                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+            }, 300);
             
             // Monitor for no results and show Add New button
             setTimeout(function() {
                 const $searchInput = $('.select2-container--open .select2-search__field');
                 if ($searchInput.length) {
-                    // Real-time check for no results
+                    // Real-time check for no results - immediate check on input
                     $searchInput.off('input.dropdownSearch').on('input.dropdownSearch', function() {
+                        // Check immediately
+                        checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                        // Also check after a delay to catch Select2's response
                         setTimeout(function() {
                             checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
-                        }, 300);
+                        }, 200);
+                        setTimeout(function() {
+                            checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                        }, 400);
                     });
                     
                     // Handle Enter key press for ALL dropdowns - trigger Add New button or open modal
@@ -6773,15 +6794,22 @@
                         }
                     });
                     
-                    // Monitor Select2 results for "No results found" - check every 200ms
+                    // Monitor Select2 results for "No results found" - check more frequently
                     let checkNoResultsInterval = setInterval(function() {
-                const $openSelect2 = $('.select2-container--open');
-                if ($openSelect2.length) {
-                            checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                        const $openSelect2 = $('.select2-container--open');
+                        if ($openSelect2.length) {
+                            // Verify it's still the correct dropdown
+                            const $select = $('#' + selectId);
+                            if ($select.length) {
+                                const $selectContainer = $select.next('.select2-container');
+                                if ($selectContainer.is($openSelect2)) {
+                                    checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                                }
+                            }
                         } else {
                             clearInterval(checkNoResultsInterval);
                         }
-                    }, 200);
+                    }, 150);
                     
                     // Clear interval when dropdown closes
                     $(document).one('select2:close', '#' + selectId, function() {
@@ -6805,10 +6833,14 @@
             
             // Also listen to Select2 results update event for this specific dropdown
             $(document).off('select2:results:message', '#' + selectId).on('select2:results:message', '#' + selectId, function(e) {
+                // Check immediately and after delays to catch the button
+                checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
                 setTimeout(function() {
                     checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
                 }, 100);
-            });
+                setTimeout(function() {
+                    checkAndShowAddNewButtonForDropdown(selectId, buttonConfig);
+                }, 300);
             });
         
         // Handle click on generic Add New buttons inside dropdowns
@@ -7093,11 +7125,37 @@
                 }
             }
             
-            // Handle Product Name button
+            // Handle generic dropdown buttons (Category, Company, Quality, etc.)
             if ($button.hasClass('add-new-dropdown-btn')) {
                 const selectId = $button.data('select-id');
-                if (selectId === 'product_name_item') {
-                    window.productNameSubtitle = 'PRODUCT NAME:';
+                const $searchTermSpan = $button.find('.dropdown-search-term');
+                
+                if ($searchTermSpan.length && selectId) {
+                    const searchText = $searchTermSpan.text().trim();
+                    if (searchText) {
+                        // Store search term for later use in the modal
+                        if (typeof lastSearchTerm === 'undefined') {
+                            window.lastSearchTerm = {};
+                        }
+                        lastSearchTerm[selectId] = searchText;
+                        
+                        // Also store in activeSelectSearch
+                        if (typeof activeSelectSearch === 'undefined') {
+                            window.activeSelectSearch = {};
+                        }
+                        activeSelectSearch.selectId = selectId;
+                        activeSelectSearch.searchTerm = searchText;
+                        activeSelectSearch.hasNoResults = true;
+                        
+                        // Set specific subtitles
+                        if (selectId === 'product_name_item') {
+                            window.productNameSubtitle = 'PRODUCT NAME:';
+                        } else if (selectId === 'category') {
+                            window.categorySubtitle = 'CATEGORY:';
+                        } else if (selectId === 'company_parts') {
+                            window.companySubtitle = 'COMPANY:';
+                        }
+                    }
                 }
             }
             
@@ -7245,6 +7303,14 @@
                 subtitle = window.productNameSubtitle;
                 // Clear the flag after using it
                 window.productNameSubtitle = null;
+            } else if (mode === 'add' && window.categorySubtitle) {
+                subtitle = window.categorySubtitle;
+                // Clear the flag after using it
+                window.categorySubtitle = null;
+            } else if (mode === 'add' && window.companySubtitle) {
+                subtitle = window.companySubtitle;
+                // Clear the flag after using it
+                window.companySubtitle = null;
             } else if (mode !== 'add') {
                 subtitle = 'Update the details below';
             }
