@@ -6058,13 +6058,13 @@
                         if (!$addNewBtnInDropdown.length && $resultsContainer.length) {
                             // Create and add the button inside Select2 results container
                             const buttonHtml = `
-                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd;">
+                                <div class="select2-results__option select2-results__option--add-new" style="padding: 10px; text-align: center; border-top: 1px solid #ddd; pointer-events: none;">
                                     <button type="button" class="btn btn-success btn-sm w-100 add-new-part-number-btn open-universal-modal" 
                                             data-title="Add Part Number" 
                                             data-mode="add"
                                             data-route="{{ route('post.partnumber') }}"
                                             data-target-select=".part_number-select"
-                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2);">
+                                            style="background: #f97316; border: none; box-shadow: 0 4px 14px 0 rgba(249, 115, 22, 0.2); pointer-events: auto;">
                                         <i data-feather="plus" class="feather-plus me-1"></i>
                                         Add "<span class="part-number-search-term fw-bold">${searchVal}</span>"
                                     </button>
@@ -6079,6 +6079,132 @@
                             
                             // Update search term in button
                             $resultsContainer.find('.part-number-search-term').text(searchVal);
+                            
+                            // Add click handler to prevent Select2 from intercepting the click
+                            const $newButton = $resultsContainer.find('.add-new-part-number-btn').last();
+                            const $parentDiv = $newButton.closest('.select2-results__option--add-new');
+                            
+                            if ($newButton.length) {
+                                // Prevent Select2 from handling clicks on the parent div and button
+                                $parentDiv.on('mousedown click', function(e) {
+                                    // Always prevent Select2 from handling clicks on this div
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    // Don't allow Select2 to select this option
+                                    return false;
+                                });
+                                
+                                // Ensure button clicks are not intercepted by Select2
+                                $newButton.on('mousedown', function(e) {
+                                    e.stopPropagation();
+                                    // Don't prevent default to allow click to fire
+                                });
+                                
+                                // Handle the actual click - open modal directly
+                                $newButton.on('click', function(e) {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    
+                                    // Close Select2 dropdown immediately
+                                    $('#part_number_id').select2('close');
+                                    
+                                    // Get search term
+                                    const $searchTermSpan = $(this).find('.part-number-search-term');
+                                    const searchText = $searchTermSpan.length ? $searchTermSpan.text().trim() : '';
+                                    
+                                    // Store search term
+                                    if (!window.lastSearchTerm) {
+                                        window.lastSearchTerm = {};
+                                    }
+                                    if (searchText) {
+                                        window.lastSearchTerm['part_number_id'] = searchText;
+                                        window.activeSelectSearch = {
+                                            selectId: 'part_number_id',
+                                            searchTerm: searchText,
+                                            hasNoResults: true
+                                        };
+                                        window.partNumberSubtitle = 'PART NUMBER:';
+                                    }
+                                    
+                                    // Get button data
+                                    const mode = $newButton.data('mode') || 'add';
+                                    const title = $newButton.data('title') || 'Add Part Number';
+                                    const route = $newButton.data('route') || '{{ route("post.partnumber") }}';
+                                    const targetSelect = $newButton.data('target-select') || '.part_number-select';
+                                    
+                                    // Set form action
+                                    $('#universal-form')
+                                        .attr('action', route)
+                                        .attr('method', 'POST')
+                                        .attr('data-target-select', targetSelect);
+                                    
+                                    // Set modal title and subtitle
+                                    $('#universal-modal-title').text(mode === 'add' ? 'ADD NEW ENTRY' : title);
+                                    $('#universal-modal-subtitle').text(window.partNumberSubtitle || 'PART NUMBER:');
+                                    
+                                    // Reset form
+                                    $('#universal-name').val(searchText || '').removeClass('is-invalid');
+                                    $('#universal-name-error').text('');
+                                    $('#universal-image').val('');
+                                    $('#universal-image-preview').hide().attr('src', '');
+                                    $('#universal-image-placeholder').show();
+                                    $('#universal-delete-btn').addClass('d-none');
+                                    $('#universal-save-btn').html('<i class="ti ti-check me-2"></i><span>SAVE ENTRY</span>');
+                                    
+                                    // Get selected type
+                                    let selectedType = '';
+                                    try {
+                                        const alpineComponent = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                                        if (alpineComponent && alpineComponent.selectedType) {
+                                            selectedType = alpineComponent.selectedType;
+                                        } else {
+                                            const typeInput = document.querySelector('input[name="type"]');
+                                            if (typeInput) {
+                                                selectedType = typeInput.value;
+                                            }
+                                        }
+                                    } catch (e) {
+                                        const typeInput = document.querySelector('input[name="type"]');
+                                        if (typeInput) {
+                                            selectedType = typeInput.value;
+                                        }
+                                    }
+                                    
+                                    // Set type in universal form
+                                    $('#universal-type-selection').show();
+                                    $('.universal-type-checkbox').prop('checked', false).closest('label').css({
+                                        'background': 'white',
+                                        'border-color': '#e9ecef'
+                                    });
+                                    if (selectedType) {
+                                        $(`.universal-type-checkbox[value="${selectedType}"]`).prop('checked', true);
+                                        $(`.universal-type-checkbox[value="${selectedType}"]`).closest('label').css({
+                                            'background': '#fff4f0',
+                                            'border-color': '#ff6b35'
+                                        });
+                                        $('#universal-type').val(selectedType);
+                                    } else {
+                                        $('#universal-type').val('');
+                                    }
+                                    
+                                    // Store current target select
+                                    window.currentTargetSelect = '#part_number_id';
+                                    
+                                    // Open modal
+                                    $('#universal-add-modal').modal('show');
+                                    
+                                    // Focus input
+                                    setTimeout(function() {
+                                        const $input = $('#universal-name');
+                                        if ($input.length) {
+                                            $input[0].focus();
+                                            if (searchText) {
+                                                $input[0].select();
+                                            }
+                                        }
+                                    }, 300);
+                                });
+                            }
                         } else if ($addNewBtnInDropdown.length) {
                             // Update search term if button already exists
                             $resultsContainer.find('.part-number-search-term').text(searchVal);
