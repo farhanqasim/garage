@@ -1505,7 +1505,6 @@
                                                 </div>
                                             </div>
                                         </div>
-
                                         <!-- Sale Price Management -->
                                         <div id="salePriceManagement" class="col-12 col-md-6 mb-0 mb-md-0">
                                             <h6 class="text-warning fw-bold mb-3 text-uppercase">Sale Price Management</h6>
