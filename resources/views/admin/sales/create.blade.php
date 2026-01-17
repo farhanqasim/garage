@@ -378,14 +378,74 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
                     <div class="position-relative">
-                        <input type="text" id="item-search" class="form-control" placeholder="Search by product name, barcode, category, part number..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <input type="text" id="item-search" class="form-control" placeholder="Search by product name, barcode, category, part number, vehicle, model..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
                         <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
+                        <!-- Advanced Filters Toggle -->
+                        <button type="button" id="advanced-filters-toggle" class="btn btn-sm btn-outline-secondary position-absolute" style="right: 45px; top: 50%; transform: translateY(-50%); padding: 2px 8px; font-size: 10px;">
+                            <i class="ti ti-filter me-1"></i>Filters
+                        </button>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
                         </div>
                     </div>
                     <input type="hidden" id="selected-item-id">
                     <input type="hidden" id="selected-warehouse-id">
+                    
+                    <!-- Advanced Filters Panel -->
+                    <div id="advanced-filters-panel" class="mt-3 p-3 border rounded" style="background-color: #f8f9fa; display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0 fw-bold">Advanced Filters</h6>
+                            <button type="button" id="clear-all-filters" class="btn btn-sm btn-link text-danger p-0" style="font-size: 11px;">Clear All</button>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Item Type</label>
+                                <select class="form-select form-select-sm" id="filter-item-type">
+                                    <option value="">All Types</option>
+                                    <option value="parts">Parts</option>
+                                    <option value="filters">Filters</option>
+                                    <option value="breakpad">Break Pad</option>
+                                    <option value="oil">Oil</option>
+                                    <option value="battery">Battery</option>
+                                    <option value="scrap">Scrap</option>
+                                    <option value="services">Services</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Category</label>
+                                <select class="form-select form-select-sm" id="filter-category">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Part Number</label>
+                                <input type="text" class="form-control form-control-sm" id="filter-part-number" placeholder="Filter by part number...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Manufacturer</label>
+                                <input type="text" class="form-control form-control-sm" id="filter-manufacturer" placeholder="Filter by manufacturer...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Vehicle Model</label>
+                                <input type="text" class="form-control form-control-sm" id="filter-vehicle-model" placeholder="Filter by vehicle model...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Barcode</label>
+                                <input type="text" class="form-control form-control-sm" id="filter-barcode" placeholder="Filter by barcode...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Min Price</label>
+                                <input type="number" class="form-control form-control-sm" id="filter-min-price" placeholder="0.00" step="0.01">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted mb-1">Max Price</label>
+                                <input type="number" class="form-control form-control-sm" id="filter-max-price" placeholder="0.00" step="0.01">
+                            </div>
+                        </div>
+                        <!-- Active Filter Chips -->
+                        <div id="active-filters-chips" class="mt-3 d-flex flex-wrap gap-2" style="min-height: 30px;">
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- STOCK STATUS Section (Shows when item is selected) -->
@@ -1128,25 +1188,137 @@ $(document).ready(function() {
     
     // Product name search with dropdown (Only Items)
     let itemSearchTimeout = null;
-    $('#item-search').on('input', function() {
-        const query = $(this).val().trim();
+    let activeFilters = {};
+    
+    // Advanced Filters Toggle
+    $('#advanced-filters-toggle').on('click', function() {
+        $('#advanced-filters-panel').slideToggle(200);
+        $(this).toggleClass('active');
+    });
+    
+    // Clear All Filters
+    $('#clear-all-filters').on('click', function() {
+        $('#filter-item-type').val('');
+        $('#filter-category').val('');
+        $('#filter-part-number').val('');
+        $('#filter-manufacturer').val('');
+        $('#filter-vehicle-model').val('');
+        $('#filter-barcode').val('');
+        $('#filter-min-price').val('');
+        $('#filter-max-price').val('');
+        activeFilters = {};
+        updateActiveFiltersChips();
+        performSearch();
+    });
+    
+    // Filter change handlers
+    $('#filter-item-type, #filter-category, #filter-part-number, #filter-manufacturer, #filter-vehicle-model, #filter-barcode, #filter-min-price, #filter-max-price').on('change input', function() {
+        updateActiveFilters();
+        performSearch();
+    });
+    
+    // Update active filters object
+    function updateActiveFilters() {
+        activeFilters = {};
+        const itemType = $('#filter-item-type').val();
+        const category = $('#filter-category').val();
+        const partNumber = $('#filter-part-number').val().trim();
+        const manufacturer = $('#filter-manufacturer').val().trim();
+        const vehicleModel = $('#filter-vehicle-model').val().trim();
+        const barcode = $('#filter-barcode').val().trim();
+        const minPrice = $('#filter-min-price').val();
+        const maxPrice = $('#filter-max-price').val();
+        
+        if (itemType) activeFilters.item_type = itemType;
+        if (category) activeFilters.category = category;
+        if (partNumber) activeFilters.part_number = partNumber;
+        if (manufacturer) activeFilters.manufacturer = manufacturer;
+        if (vehicleModel) activeFilters.vehicle_model = vehicleModel;
+        if (barcode) activeFilters.barcode = barcode;
+        if (minPrice) activeFilters.min_price = parseFloat(minPrice);
+        if (maxPrice) activeFilters.max_price = parseFloat(maxPrice);
+        
+        updateActiveFiltersChips();
+    }
+    
+    // Update active filter chips display
+    function updateActiveFiltersChips() {
+        const chipsContainer = $('#active-filters-chips');
+        chipsContainer.empty();
+        
+        Object.keys(activeFilters).forEach(key => {
+            const value = activeFilters[key];
+            const label = {
+                'item_type': 'Type',
+                'category': 'Category',
+                'part_number': 'Part Number',
+                'manufacturer': 'Manufacturer',
+                'vehicle_model': 'Vehicle Model',
+                'barcode': 'Barcode',
+                'min_price': 'Min Price',
+                'max_price': 'Max Price'
+            }[key] || key;
+            
+            chipsContainer.append(`
+                <span class="badge bg-primary d-inline-flex align-items-center gap-1" style="font-size: 10px;">
+                    ${label}: ${value}
+                    <button type="button" class="btn-close btn-close-white" style="font-size: 8px;" data-filter="${key}"></button>
+                </span>
+            `);
+        });
+    }
+    
+    // Remove individual filter chip
+    $(document).on('click', '.badge .btn-close', function(e) {
+        e.stopPropagation();
+        const filterKey = $(this).data('filter');
+        delete activeFilters[filterKey];
+        
+        // Map filter keys to input IDs
+        const filterIdMap = {
+            'item_type': 'filter-item-type',
+            'category': 'filter-category',
+            'part_number': 'filter-part-number',
+            'manufacturer': 'filter-manufacturer',
+            'vehicle_model': 'filter-vehicle-model',
+            'barcode': 'filter-barcode',
+            'min_price': 'filter-min-price',
+            'max_price': 'filter-max-price'
+        };
+        
+        const inputId = filterIdMap[filterKey];
+        if (inputId) {
+            $(`#${inputId}`).val('');
+        }
+        
+        updateActiveFiltersChips();
+        performSearch();
+    });
+    
+    // Perform search with filters
+    function performSearch() {
+        const query = $('#item-search').val().trim();
         const branchId = $('#salesBranchId').val();
         const resultsDiv = $('#item-search-results');
         
         // Clear previous timeout
         clearTimeout(itemSearchTimeout);
         
-        // Minimum 1 character to search
-        if (query.length < 1) {
-            resultsDiv.hide();
-            $('#selected-item-id').val('');
+        // Check if branch is selected
+        if (!branchId) {
+            if (query.length > 0 || Object.keys(activeFilters).length > 0) {
+                resultsDiv.html('<div class="p-3 text-warning text-center"><i class="ti ti-alert-circle me-1"></i> Please select a branch first</div>');
+                resultsDiv.show();
+            } else {
+                resultsDiv.hide();
+            }
             return;
         }
         
-        // Check if branch is selected
-        if (!branchId) {
-            resultsDiv.html('<div class="p-3 text-warning text-center"><i class="ti ti-alert-circle me-1"></i> Please select a branch first</div>');
-            resultsDiv.show();
+        // If no query and no filters, hide results
+        if (query.length < 1 && Object.keys(activeFilters).length === 0) {
+            resultsDiv.hide();
+            $('#selected-item-id').val('');
             return;
         }
         
@@ -1158,7 +1330,8 @@ $(document).ready(function() {
                 data: {
                     q: query,
                     branch_id: branchId,
-                    limit: 50
+                    limit: 50,
+                    ...activeFilters
                 },
                 success: function(results) {
                     console.log('Search results:', results);

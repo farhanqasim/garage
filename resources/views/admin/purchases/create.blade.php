@@ -30,58 +30,15 @@
                                 <span class="fw-bold me-2 text-uppercase" style="font-size: 12px;">ACTIVE BRANCH:</span>
                                 <div class="dropdown">
                                     <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle fw-bold" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 14px;">
-                                        @php
-                                            $defaultBranchName = session('selected_branch_name');
-                                            $defaultBranchCode = session('selected_branch_code');
-                                            
-                                            // If no branch in session, get logged-in user's branch
-                                            if (!$defaultBranchName && auth()->check()) {
-                                                $userBranch = \App\Models\Branch::where('user_id', auth()->id())
-                                                    ->where('status', 'active')
-                                                    ->first();
-                                                if ($userBranch) {
-                                                    $defaultBranchName = $userBranch->branch_name;
-                                                    $defaultBranchCode = $userBranch->branch_code;
-                                                }
-                                            }
-                                        @endphp
-                                        <span id="selectedBranchName">{{ $defaultBranchName ?? 'Select Branch' }}</span>
-                                        @if($defaultBranchCode)
-                                            <span id="selectedBranchCode"> ({{ $defaultBranchCode }})</span>
+                                        <span id="selectedBranchName">{{ session('selected_branch_name', 'Select Branch') }}</span>
+                                        @if(session('selected_branch_code'))
+                                            <span id="selectedBranchCode"> ({{ session('selected_branch_code') }})</span>
                                         @endif
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="branchDropdown">
                                         @php
-                                            // Filter branches based on user role
-                                            if (auth()->check() && auth()->user()->role === 'admin') {
-                                                // Admin can see all active branches
-                                                $branches = \App\Models\Branch::where('status', 'active')->get();
-                                            } else {
-                                                // Regular users can only see their own branch
-                                                $branches = \App\Models\Branch::where('user_id', auth()->id())
-                                                    ->where('status', 'active')
-                                                    ->get();
-                                            }
-                                            
+                                            $branches = \App\Models\Branch::where('status', 'active')->get();
                                             $currentBranchId = session('selected_branch_id');
-                                            
-                                            // If no branch in session, get logged-in user's branch
-                                            if (!$currentBranchId && auth()->check()) {
-                                                $userBranch = \App\Models\Branch::where('user_id', auth()->id())
-                                                    ->where('status', 'active')
-                                                    ->first();
-                                                if ($userBranch) {
-                                                    $currentBranchId = $userBranch->id;
-                                                    // Set in session for display
-                                                    if (!session('selected_branch_id')) {
-                                                        session([
-                                                            'selected_branch_id' => $userBranch->id,
-                                                            'selected_branch_name' => $userBranch->branch_name,
-                                                            'selected_branch_code' => $userBranch->branch_code
-                                                        ]);
-                                                    }
-                                                }
-                                            }
                                         @endphp
                                         @foreach($branches as $branch)
                                         <li>
@@ -94,7 +51,7 @@
                                     </ul>
                                 </div>
                             </div>
-                            <input type="hidden" name="branch_id" id="purchaseBranchId" value="{{ session('selected_branch_id', $currentBranchId ?? '') }}" required>
+                            <input type="hidden" name="branch_id" id="purchaseBranchId" value="{{ session('selected_branch_id') }}" required>
                         </div>
 
                         <!-- Business Information Panel (Like Gemini Design) -->
@@ -422,7 +379,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
                     <div class="position-relative">
-                        <input type="text" id="item-search" class="form-control" placeholder="Search by barcode, part number, vehicle, manufacturer, model, year, type, category, company, or any column..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <input type="text" id="item-search" class="form-control" placeholder="Search or select product..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
                         <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
@@ -430,79 +387,6 @@
                     </div>
                     <input type="hidden" id="selected-item-id">
                     <input type="hidden" id="selected-warehouse-id">
-                    
-                    <!-- Advanced Filters (Collapsible) -->
-                    <div class="mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="item-advanced-filters-toggle" style="border-radius: 6px;">
-                            <i class="ti ti-filter me-1"></i> Advanced Filters
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger d-none" id="item-clear-filters" style="border-radius: 6px;">
-                            <i class="ti ti-x me-1"></i> Clear Filters
-                        </button>
-                    </div>
-                    
-                    <!-- Advanced Filters Panel -->
-                    <div class="collapse mt-2" id="itemAdvancedFiltersPanel">
-                        <div class="card border" style="background-color: #f8f9fa;">
-                            <div class="card-body p-3">
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Manufacturer</label>
-                                        <select class="form-select form-select-sm" id="item-filter-manufacturer">
-                                            <option value="">All Manufacturers</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Model</label>
-                                        <select class="form-select form-select-sm" id="item-filter-model">
-                                            <option value="">All Models</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Country</label>
-                                        <select class="form-select form-select-sm" id="item-filter-country">
-                                            <option value="">All Countries</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Engine CC</label>
-                                        <select class="form-select form-select-sm" id="item-filter-engine">
-                                            <option value="">All Engines</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Category</label>
-                                        <select class="form-select form-select-sm" id="item-filter-category">
-                                            <option value="">All Categories</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Part Number</label>
-                                        <select class="form-select form-select-sm" id="item-filter-part-number">
-                                            <option value="">All Part Numbers</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Type</label>
-                                        <select class="form-select form-select-sm" id="item-filter-type">
-                                            <option value="">All Types</option>
-                                            <option value="parts">Parts</option>
-                                            <option value="battery">Battery</option>
-                                            <option value="oil">Oil</option>
-                                            <option value="scrap">Scrap</option>
-                                            <option value="services">Services</option>
-                                            <option value="filters">Filters</option>
-                                            <option value="breakpad">Break Pad</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-bold mb-1">Year Range</label>
-                                        <input type="text" class="form-control form-control-sm" id="item-filter-year" placeholder="e.g., 2020 or 2020-2025">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 
                 <!-- STOCK STATUS Section (Shows when item is selected) -->
@@ -1090,25 +974,6 @@ $(document).ready(function() {
         }, 500); // Wait 500ms after user stops typing
     });
 
-    // Auto-select logged-in user's branch on page load if not already selected
-    $(document).ready(function() {
-        const currentBranchId = $('#purchaseBranchId').val();
-        const currentBranchName = $('#selectedBranchName').text().trim();
-        
-        // If no branch is selected, try to get user's branch from PHP
-        @if(auth()->check() && !session('selected_branch_id'))
-            @php
-                $userBranch = \App\Models\Branch::where('user_id', auth()->id())
-                    ->where('status', 'active')
-                    ->first();
-            @endphp
-            @if($userBranch)
-                // Auto-select user's branch
-                selectPurchaseBranch({{ $userBranch->id }}, '{{ $userBranch->branch_name }}', '{{ $userBranch->branch_code ?? '' }}');
-            @endif
-        @endif
-    });
-    
     // Branch selection for purchase
     function selectPurchaseBranch(branchId, branchName, branchCode) {
         // Update UI immediately
@@ -1236,159 +1101,6 @@ $(document).ready(function() {
         $('#add-item-modal').modal('show');
     });
     
-    // Toggle Advanced Filters Panel
-    $('#item-advanced-filters-toggle').on('click', function() {
-        $('#itemAdvancedFiltersPanel').collapse('toggle');
-        $(this).find('i').toggleClass('ti-filter ti-filter-off');
-    });
-    
-    // Clear Advanced Filters
-    $('#item-clear-filters').on('click', function() {
-        $('#item-filter-manufacturer').val('');
-        $('#item-filter-model').val('');
-        $('#item-filter-country').val('');
-        $('#item-filter-engine').val('');
-        $('#item-filter-category').val('');
-        $('#item-filter-part-number').val('');
-        $('#item-filter-type').val('');
-        $('#item-filter-year').val('');
-        
-        // Trigger search again if there's a query
-        const query = $('#item-search').val().trim();
-        if (query.length >= 2) {
-            $('#item-search').trigger('input');
-        }
-        
-        $('#item-clear-filters').addClass('d-none');
-        toastr.success('Filters cleared');
-    });
-    
-    // Watch for filter changes and trigger search
-    $('#item-filter-manufacturer, #item-filter-model, #item-filter-country, #item-filter-engine, #item-filter-category, #item-filter-part-number, #item-filter-type, #item-filter-year').on('change', function() {
-        const query = $('#item-search').val().trim();
-        if (query.length >= 2) {
-            $('#item-search').trigger('input');
-        }
-        
-        // Show clear button if any filter is set
-        const hasFilters = $('#item-filter-manufacturer').val() || 
-                          $('#item-filter-model').val() || 
-                          $('#item-filter-country').val() || 
-                          $('#item-filter-engine').val() || 
-                          $('#item-filter-category').val() || 
-                          $('#item-filter-part-number').val() || 
-                          $('#item-filter-type').val() || 
-                          $('#item-filter-year').val();
-        
-        if (hasFilters) {
-            $('#item-clear-filters').removeClass('d-none');
-        } else {
-            $('#item-clear-filters').addClass('d-none');
-        }
-    });
-    
-    // Load filter dropdowns data from search results
-    function loadAdvancedFilterOptions() {
-        const branchId = $('#purchaseBranchId').val();
-        if (!branchId) return;
-        
-        // Get all items to extract unique filter values
-        $.ajax({
-            url: "{{ route('purchases.items.ajax.search') }}",
-            method: 'GET',
-            data: {
-                q: '', // Empty query to get all items
-                branch_id: branchId,
-                limit: 1000 // Get more items to populate filters
-            },
-            success: function(results) {
-                const manufacturers = {};
-                const models = {};
-                const countries = {};
-                const engines = {};
-                const categories = {};
-                const partNumbers = {};
-                
-                results.forEach(function(result) {
-                    if (result.type === 'item' && result.item) {
-                        const item = result.item;
-                        const vehicle = item.vehical_item;
-                        
-                        // Extract manufacturers
-                        if (vehicle && vehicle.manutacturer_vehical) {
-                            const m = vehicle.manutacturer_vehical;
-                            if (!manufacturers[m.id]) {
-                                manufacturers[m.id] = m.name;
-                            }
-                        }
-                        
-                        // Extract models
-                        if (vehicle && vehicle.model_vehical) {
-                            const m = vehicle.model_vehical;
-                            if (!models[m.id]) {
-                                models[m.id] = m.name;
-                            }
-                        }
-                        
-                        // Extract countries
-                        if (vehicle && vehicle.country_vehical) {
-                            const c = vehicle.country_vehical;
-                            if (!countries[c.id]) {
-                                countries[c.id] = c.name;
-                            }
-                        }
-                        
-                        // Extract engines
-                        if (vehicle && vehicle.engine_vehical) {
-                            const e = vehicle.engine_vehical;
-                            if (!engines[e.id]) {
-                                engines[e.id] = e.name;
-                            }
-                        }
-                        
-                        // Extract categories
-                        if (item.category) {
-                            const c = item.category;
-                            if (!categories[c.id]) {
-                                categories[c.id] = c.name;
-                            }
-                        }
-                        
-                        // Extract part numbers
-                        if (item.partnumber_item) {
-                            const pn = item.partnumber_item;
-                            if (!partNumbers[pn.id]) {
-                                partNumbers[pn.id] = pn.name;
-                            }
-                        }
-                    }
-                });
-                
-                // Populate dropdowns
-                populateDropdown('#item-filter-manufacturer', manufacturers, 'All Manufacturers');
-                populateDropdown('#item-filter-model', models, 'All Models');
-                populateDropdown('#item-filter-country', countries, 'All Countries');
-                populateDropdown('#item-filter-engine', engines, 'All Engines');
-                populateDropdown('#item-filter-category', categories, 'All Categories');
-                populateDropdown('#item-filter-part-number', partNumbers, 'All Part Numbers');
-            }
-        });
-    }
-    
-    function populateDropdown(selector, data, defaultText) {
-        let html = `<option value="">${defaultText}</option>`;
-        const sorted = Object.keys(data).sort((a, b) => data[a].localeCompare(data[b]));
-        sorted.forEach(function(id) {
-            html += `<option value="${id}">${data[id]}</option>`;
-        });
-        $(selector).html(html);
-    }
-    
-    // Load filter options when modal opens
-    $('#add-item-modal').on('shown.bs.modal', function() {
-        loadAdvancedFilterOptions();
-    });
-    
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
         const branchId = $('#purchaseBranchId').val();
@@ -1406,18 +1118,6 @@ $(document).ready(function() {
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
-        
-        // Reset advanced filters
-        $('#item-filter-manufacturer').val('');
-        $('#item-filter-model').val('');
-        $('#item-filter-country').val('');
-        $('#item-filter-engine').val('');
-        $('#item-filter-category').val('');
-        $('#item-filter-part-number').val('');
-        $('#item-filter-type').val('');
-        $('#item-filter-year').val('');
-        $('#item-clear-filters').addClass('d-none');
-        $('#itemAdvancedFiltersPanel').collapse('hide');
         
         // Focus on search input
         setTimeout(function() {
@@ -1443,26 +1143,13 @@ $(document).ready(function() {
         
         // Debounce search
         itemSearchTimeout = setTimeout(function() {
-            // Get advanced filter values
-            const advancedFilters = {
-                manufacturer_id: $('#item-filter-manufacturer').val() || '',
-                model_id: $('#item-filter-model').val() || '',
-                country_id: $('#item-filter-country').val() || '',
-                engine_id: $('#item-filter-engine').val() || '',
-                category_id: $('#item-filter-category').val() || '',
-                part_number_id: $('#item-filter-part-number').val() || '',
-                type: $('#item-filter-type').val() || '',
-                year: $('#item-filter-year').val() || ''
-            };
-            
             $.ajax({
                 url: "{{ route('purchases.items.ajax.search') }}",
                 method: 'GET',
                 data: {
                     q: query,
                     branch_id: branchId,
-                    limit: 10,
-                    ...advancedFilters
+                    limit: 10
                 },
                 success: function(results) {
                     if (results.length === 0) {
