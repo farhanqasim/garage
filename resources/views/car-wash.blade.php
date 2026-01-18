@@ -612,18 +612,52 @@
         .image-preview {
             margin-top: 12px;
             display: none;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
         }
         
         .image-preview.show {
-            display: block;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         .image-preview img {
             width: 100%;
-            max-height: 200px;
-            object-fit: cover;
-            border-radius: 16px;
+            max-height: 250px;
+            object-fit: contain;
+            border-radius: 12px;
             border: 2px solid #e2e8f0;
+            background: #f8fafc;
+            padding: 8px;
+            display: block;
+        }
+        
+        .image-preview .remove-image-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .image-preview .remove-image-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
         }
         
         textarea.category-form-input {
@@ -631,12 +665,136 @@
             resize: vertical;
             font-family: inherit;
         }
+        
+        /* Print Styles */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #jobDetailPrint, #jobDetailPrint * {
+                visibility: visible;
+            }
+            #jobDetailPrint {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                max-width: 100%;
+                box-shadow: none;
+                border: none;
+                margin: 0;
+                padding: 20px;
+            }
+            button {
+                display: none !important;
+            }
+        }
+        /* Accessibility improvements */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        .focus\:not-sr-only:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            padding: inherit;
+            margin: inherit;
+            overflow: visible;
+            clip: auto;
+            white-space: normal;
+        }
+        /* Keyboard focus styles */
+        *:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .bg-slate-950 {
+                background-color: #000000;
+            }
+            .text-white {
+                color: #ffffff;
+            }
+            .border-slate-200 {
+                border-color: #000000;
+            }
+        }
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+        /* Loading states */
+        .loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #3b82f6;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Mobile responsive improvements */
+        @media (max-width: 640px) {
+            header {
+                padding: 1rem !important;
+            }
+            .category-modal {
+                width: 95% !important;
+                max-width: 95% !important;
+                margin: 1rem auto !important;
+                max-height: 90vh !important;
+            }
+            .grid-cols-3 {
+                grid-template-columns: repeat(1, minmax(0, 1fr));
+            }
+            
+            .text-2xl {
+                font-size: 1.5rem;
+            }
+            
+            .gap-3 {
+                gap: 0.75rem;
+            }
+        }
+        /* Touch target sizes for mobile */
+        button, a, [role="button"] {
+            min-height: 44px;
+            min-width: 44px;
+        }
     </style>
 </head>
 <body>
     <div class="settings-menu-container">
         <div class="settings-dropdown" id="settingsDropdown">
-            <a href="#" class="settings-dropdown-item" id="addNewCategoryBtn">
+            <a href="{{ route('car.wash.services') }}" class="settings-dropdown-item" id="addNewCategoryBtn">
                 <div class="settings-dropdown-icon" style="background: #3b82f6; border-color: #3b82f6;">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
@@ -646,7 +804,7 @@
                     <div class="settings-dropdown-title">Add New Service</div>
                 </div>
             </a>
-            <a href="#" class="settings-dropdown-item" id="addNewWorkerBtn">
+            <a href="{{ route('car.wash.staff') }}" class="settings-dropdown-item" id="addNewWorkerBtn">
                 <div class="settings-dropdown-icon" style="background: #8b5cf6; border-color: #8b5cf6;">
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -668,7 +826,6 @@
             </a>
         </div>
     </div>
-    
     <!-- Add Category Modal -->
     <div class="category-modal-overlay" id="categoryModalOverlay">
         <div class="category-modal">
@@ -1030,6 +1187,7 @@
                     
                     <div class="category-form-actions">
                         <button type="submit" id="workerSubmitBtn" class="category-btn category-btn-submit">CONFIRM & SAVE</button>
+                        <button type="button" id="deleteWorkerBtn" class="category-btn category-btn-delete" style="display: none;">DELETE WORKER</button>
                     </div>
                 </form>
             </div>
@@ -1085,6 +1243,50 @@
         const branchName = @json(isset($branchName) ? $branchName : 'No Branch');
         const userName = @json(isset($userName) ? $userName : 'Guest');
         
+        // Get data from backend (passed from controller)
+        const initialServices = @json(isset($services) ? $services : []);
+        const initialWorkers = @json(isset($workers) ? $workers : []);
+        const initialActiveJobs = @json(isset($activeJobs) ? $activeJobs : []);
+        const initialCompletedJobs = @json(isset($completedJobs) ? $completedJobs : []);
+        
+        // API Routes for car wash
+        const API_ROUTES = {
+            services: {
+                index: '{{ route("car-wash.services.index") }}',
+                store: '{{ route("car-wash.services.store") }}',
+                update: (id) => `/car-wash/services/${id}`,
+                destroy: (id) => `/car-wash/services/${id}`,
+            },
+            workers: {
+                index: '{{ route("car-wash.workers.index") }}',
+                store: '{{ route("car-wash.workers.store") }}',
+                update: (id) => `/car-wash/workers/${id}`,
+                destroy: (id) => `/car-wash/workers/${id}`,
+            },
+            jobs: {
+                index: '{{ route("car-wash.jobs.index") }}',
+                active: '{{ route("car-wash.jobs.active") }}',
+                completed: '{{ route("car-wash.jobs.completed") }}',
+                todayStats: '{{ route("car-wash.jobs.today-stats") }}',
+                store: '{{ route("car-wash.jobs.store") }}',
+                update: (id) => `/car-wash/jobs/${id}`,
+                complete: (id) => `/car-wash/jobs/${id}/complete`,
+                cancel: (id) => `/car-wash/jobs/${id}/cancel`,
+                destroy: (id) => `/car-wash/jobs/${id}`,
+            },
+            inspections: {
+                show: (jobId) => `/car-wash/inspections/${jobId}`,
+                store: (jobId) => `/car-wash/inspections/${jobId}`,
+            },
+            expenses: {
+                show: (jobId) => `/car-wash/expenses/${jobId}`,
+                store: (jobId) => `/car-wash/expenses/${jobId}`,
+            }
+        };
+        
+        // CSRF Token for API calls
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
         // Simplified App Component (UI structure without Firebase)
         const App = () => {
             const [view, setView] = useState('dashboard');
@@ -1105,8 +1307,13 @@
                 }
                 return { todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0 };
             });
+            // Load categories from backend (passed from controller) with localStorage fallback
             const [categories, setCategories] = useState(() => {
-                // Load categories from localStorage
+                // First try to use backend services
+                if (initialServices && initialServices.length > 0) {
+                    return initialServices;
+                }
+                // Fallback to localStorage for backward compatibility
                 const saved = localStorage.getItem('eliteStation_categories');
                 return saved ? JSON.parse(saved) : [];
             });
@@ -1120,11 +1327,16 @@
                 price: 0
             });
             
-            // Default workers (fallback if no workers in localStorage)
+            // Default workers (fallback if no workers in backend or localStorage)
             const DEFAULT_WORKERS = ['AHMED ALI', 'ZUBAIR KHAN', 'IRFAN SHEIKH', 'BILAL JUTT'];
             
-            // Load workers from localStorage
+            // Load workers from backend first, then localStorage fallback
             const [workers, setWorkers] = useState(() => {
+                // First try backend workers
+                if (initialWorkers && initialWorkers.length > 0) {
+                    return initialWorkers.map(w => w.name || w);
+                }
+                // Fallback to localStorage
                 try {
                     const saved = localStorage.getItem('eliteStation_workers');
                     if (saved) {
@@ -1190,25 +1402,33 @@
                     return [];
                 }
             });
-            const [showSaleDetailsModal, setShowSaleDetailsModal] = useState(false);
+            const [showCompletedJobsModal, setShowCompletedJobsModal] = useState(false);
+            const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
+            const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
             const [completedJobs, setCompletedJobs] = useState(() => {
-                // Load ALL completed jobs from localStorage (not just today's)
+                // Ensure we always return an array
+                // First try backend completed jobs
+                if (initialCompletedJobs && Array.isArray(initialCompletedJobs) && initialCompletedJobs.length > 0) {
+                    return initialCompletedJobs;
+                }
+                // Fallback to localStorage (for backward compatibility)
                 try {
                     const saved = localStorage.getItem('eliteStation_completedJobs');
                     if (saved) {
                         const parsed = JSON.parse(saved);
-                        // Show all completed jobs, or jobs with status completed, or jobs with endTime
-                        const allCompletedJobs = parsed.filter(job => {
-                            // Include if status is completed
-                            if (job.status === 'completed') return true;
-                            // Include if it has endTime (means it was completed)
-                            if (job.endTime) return true;
-                            // Include if it has price and no active status (likely completed)
-                            if (job.price && !job.status) return true;
-                            return false;
-                        });
-                        // console.log('Loaded ALL completed jobs:', allCompletedJobs.length, 'out of', parsed.length, 'total in storage');
-                        return allCompletedJobs;
+                        if (Array.isArray(parsed)) {
+                            // Show all completed jobs, or jobs with status completed, or jobs with endTime
+                            const allCompletedJobs = parsed.filter(job => {
+                                // Include if status is completed
+                                if (job.status === 'completed') return true;
+                                // Include if it has endTime (means it was completed)
+                                if (job.endTime) return true;
+                                // Include if it has price and no active status (likely completed)
+                                if (job.price && !job.status) return true;
+                                return false;
+                            });
+                            return allCompletedJobs || [];
+                        }
                     }
                     return [];
                 } catch (error) {
@@ -1229,7 +1449,11 @@
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
             const [activeJobs, setActiveJobs] = useState(() => {
-                // Load active jobs from localStorage
+                // First try backend active jobs
+                if (initialActiveJobs && initialActiveJobs.length > 0) {
+                    return initialActiveJobs;
+                }
+                // Fallback to localStorage
                 try {
                     const saved = localStorage.getItem('eliteStation_activeJobs');
                     return saved ? JSON.parse(saved) : [];
@@ -1468,35 +1692,69 @@
                 localStorage.setItem('eliteStation_completedJobs', JSON.stringify(completedJobs));
             }, [completedJobs]);
             
-            // Refresh completed jobs when sale details modal opens - show ALL completed jobs
+            // Refresh completed jobs when completed jobs modal opens - fetch from API first
             useEffect(() => {
-                if (showSaleDetailsModal) {
-                    // Reload ALL completed jobs from localStorage when modal opens (not just today's)
-                    try {
-                        const saved = localStorage.getItem('eliteStation_completedJobs');
-                        if (saved) {
-                            const parsed = JSON.parse(saved);
-                            // Show all completed jobs, or jobs with status completed
-                            const allCompletedJobs = parsed.filter(job => {
-                                // Include if status is completed
-                                if (job.status === 'completed') return true;
-                                // Include if it has endTime (means it was completed)
-                                if (job.endTime) return true;
-                                // Include if it has price and no active status
-                                if (job.price && !job.status) return true;
-                                return false;
-                            });
-                            setCompletedJobs(allCompletedJobs);
-                            // console.log('Refreshed ALL completed jobs on modal open:', allCompletedJobs.length, 'Total in storage:', parsed.length);
-                        } else {
-                            // If no completed jobs in storage, check if we can show stats total
-                            // console.log('No completed jobs in localStorage');
-                        }
-                    } catch (error) {
-                        console.error('Error refreshing completed jobs:', error);
-                    }
+                if (showCompletedJobsModal) {
+                    // First, try to fetch from API (this will get ALL completed jobs, not just today's)
+                    fetch(API_ROUTES.jobs.completed)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.jobs && Array.isArray(data.jobs)) {
+                                // Update completed jobs from API
+                                setCompletedJobs(data.jobs);
+                                // Also update localStorage for offline access
+                                localStorage.setItem('eliteStation_completedJobs', JSON.stringify(data.jobs));
+                            } else {
+                                // If API fails, try localStorage as fallback
+                                try {
+                                    const saved = localStorage.getItem('eliteStation_completedJobs');
+                                    if (saved) {
+                                        const parsed = JSON.parse(saved);
+                                        // Show all completed jobs, or jobs with status completed
+                                        const allCompletedJobs = parsed.filter(job => {
+                                            // Include if status is completed
+                                            if (job.status === 'completed') return true;
+                                            // Include if it has endTime (means it was completed)
+                                            if (job.endTime) return true;
+                                            // Include if it has price and no active status
+                                            if (job.price && !job.status) return true;
+                                            return false;
+                                        });
+                                        setCompletedJobs(allCompletedJobs);
+                                    } else {
+                                        // No data in localStorage either, set empty array
+                                        setCompletedJobs([]);
+                                    }
+                                } catch (error) {
+                                    console.error('Error loading from localStorage:', error);
+                                    setCompletedJobs([]);
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching completed jobs from API:', error);
+                            // Fallback to localStorage if API fails
+                            try {
+                                const saved = localStorage.getItem('eliteStation_completedJobs');
+                                if (saved) {
+                                    const parsed = JSON.parse(saved);
+                                    const allCompletedJobs = parsed.filter(job => {
+                                        if (job.status === 'completed') return true;
+                                        if (job.endTime) return true;
+                                        if (job.price && !job.status) return true;
+                                        return false;
+                                    });
+                                    setCompletedJobs(allCompletedJobs);
+                                } else {
+                                    setCompletedJobs([]);
+                                }
+                            } catch (err) {
+                                console.error('Error loading from localStorage:', err);
+                                setCompletedJobs([]);
+                            }
+                        });
                 }
-            }, [showSaleDetailsModal]);
+            }, [showCompletedJobsModal]);
             
             // Update staff list when All Staff modal opens
             useEffect(() => {
@@ -2084,13 +2342,23 @@
             }, [showAllStaffModal]);
             
             return (
-                <div className="min-h-screen bg-slate-50 font-sans pb-28 text-slate-900 overflow-x-hidden">
+                <div className="min-h-screen bg-slate-50 font-sans pb-28 text-slate-900 overflow-x-hidden" role="application" aria-label="Elite Car Wash Service Station">
+                    {/* Skip to main content link for accessibility */}
+                    <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:shadow-lg">
+                        Skip to main content
+                    </a>
+                    
                     {/* Header */}
-                    <header className="bg-slate-950 text-white p-6 rounded-b-[45px] shadow-2xl relative z-50">
-                        <div className="flex justify-between items-center mb-8">
+                    <header className="bg-slate-950 text-white p-6 rounded-b-[45px] shadow-2xl relative z-50" role="banner">
+                        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
                             <div className="flex items-center gap-4">
-                                <a href={homeRoute} className="text-white hover:text-blue-400 transition-colors" title="Back to Dashboard">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <a 
+                                    href={homeRoute} 
+                                    className="text-white hover:text-blue-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg p-2" 
+                                    title="Back to Dashboard"
+                                    aria-label="Back to Dashboard"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                     </svg>
                                 </a>
@@ -2098,12 +2366,12 @@
                                     <h1 className="text-2xl font-black italic tracking-tighter uppercase leading-none text-blue-400">
                                         Elite Car Wash
                                     </h1>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] opacity-70 font-bold uppercase">
+                                    <div className="flex items-center gap-2 mt-1" aria-label="Branch and user information">
+                                        <span className="text-[10px] opacity-70 font-bold uppercase" aria-label="Branch name">
                                             {branchName}
                                         </span>
-                                        <span className="text-[10px] opacity-50">•</span>
-                                        <span className="text-[10px] opacity-70 font-semibold">
+                                        <span className="text-[10px] opacity-50" aria-hidden="true">•</span>
+                                        <span className="text-[10px] opacity-70 font-semibold" aria-label="User name">
                                             {userName}
                                         </span>
                                     </div>
@@ -2111,23 +2379,35 @@
                             </div>
                             <div className="flex items-center gap-3 relative">
                                 <button 
-                                    className="text-white hover:text-blue-400 transition-colors p-2 relative" 
+                                    className="text-white hover:text-blue-400 transition-colors p-2 relative focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg" 
                                     title="Settings"
                                     id="reactSettingsBtn"
+                                    aria-label="Open settings menu"
+                                    aria-expanded={showServicesDropdown}
+                                    aria-haspopup="true"
                                     onClick={(e) => {
                                         if (e && e.preventDefault) e.preventDefault();
                                         if (e && e.stopPropagation) e.stopPropagation();
                                         setShowServicesDropdown(!showServicesDropdown);
                                     }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Escape') {
+                                            setShowServicesDropdown(false);
+                                        }
+                                    }}
                                 >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
                                     
                                     {/* Settings Dropdown Menu */}
                                     {showServicesDropdown && (
-                                        <div className="absolute top-full right-0 mt-3 w-64 bg-white rounded-3xl shadow-2xl border-2 border-slate-100 z-50 overflow-hidden">
+                                        <div 
+                                            className="absolute top-full right-0 mt-3 w-64 bg-white rounded-3xl shadow-2xl border-2 border-slate-100 z-50 overflow-hidden" 
+                                            role="menu"
+                                            aria-label="Settings menu"
+                                        >
                                             {/* ALL SERVICES - Show all services list */}
                                             <button
                                                 onClick={() => {
@@ -2136,7 +2416,18 @@
                                                         setShowAllServicesModal(true);
                                                     }, 200);
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        setTimeout(() => {
+                                                            setShowAllServicesModal(true);
+                                                        }, 200);
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500 rounded-t-3xl"
+                                                role="menuitem"
+                                                aria-label="View all services"
                                             >
                                                 <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center flex-shrink-0">
                                                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2150,11 +2441,18 @@
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
-                                                    setTimeout(() => {
-                                                        setShowAllStaffModal(true);
-                                                    }, 200);
+                                                    window.location.href = '{{ route("car.wash.staff") }}';
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        window.location.href = '{{ route("car.wash.staff") }}';
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="View all staff members"
                                             >
                                                 <div className="w-12 h-12 rounded-2xl bg-purple-600 flex items-center justify-center flex-shrink-0">
                                                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2164,13 +2462,47 @@
                                                 <span className="text-base font-black text-slate-900 uppercase tracking-wide">All Staff</span>
                                             </button>
                                             
+                                            {/* COMPLETED JOBS */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    window.location.href = '{{ route("car.wash.completed-jobs") }}';
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        window.location.href = '{{ route("car.wash.completed-jobs") }}';
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="View completed jobs"
+                                            >
+                                                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-base font-black text-slate-900 uppercase tracking-wide">Completed Jobs</span>
+                                            </button>
+                                            
                                             {/* ADD EXPENSE */}
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
                                                     alert('Add Expense feature coming soon!');
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        alert('Add Expense feature coming soon!');
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="Add expense (coming soon)"
                                             >
                                                 <div className="w-12 h-12 rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
                                                     <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2178,40 +2510,6 @@
                                                     </svg>
                                                 </div>
                                                 <span className="text-base font-black text-slate-900 uppercase tracking-wide">Add Expense</span>
-                                            </button>
-                                            
-                                            {/* CLEAR ALL DATA */}
-                                            <button
-                                                onClick={() => {
-                                                    setShowServicesDropdown(false);
-                                                    // Confirm before clearing
-                                                    const confirmed = window.confirm('⚠️ WARNING: Are you sure you want to clear ALL data?\n\nThis will delete:\n• All completed jobs\n• All active jobs\n• All categories/services\n• All workers\n• All expenses\n• All statistics\n\nThis action CANNOT be undone!');
-                                                    if (confirmed) {
-                                                        // Clear all localStorage data
-                                                        localStorage.removeItem('eliteStation_stats');
-                                                        localStorage.removeItem('eliteStation_categories');
-                                                        localStorage.removeItem('eliteStation_workers');
-                                                        localStorage.removeItem('eliteStation_expenseHistory');
-                                                        localStorage.removeItem('eliteStation_completedJobs');
-                                                        localStorage.removeItem('eliteStation_activeJobs');
-                                                        localStorage.removeItem('eliteStation_deletedDefaults');
-                                                        localStorage.removeItem('eliteStation_view');
-                                                        
-                                                        // Show success message
-                                                        alert('✅ All data cleared successfully!\n\nThe page will now reload.');
-                                                        
-                                                        // Reload the page to reset all state
-                                                        window.location.reload();
-                                                    }
-                                                }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-red-50 transition-colors border-t-2 border-red-200"
-                                            >
-                                                <div className="w-12 h-12 rounded-2xl bg-red-500 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </div>
-                                                <span className="text-base font-black text-red-600 uppercase tracking-wide">Clear All Data</span>
                                             </button>
                                         </div>
                                     )}
@@ -2227,9 +2525,10 @@
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-3">
-                            <div 
-                                className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors"
+                        <div className="grid grid-cols-3 gap-3" role="group" aria-label="Today's statistics">
+                            <button
+                                type="button"
+                                className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
                                 onMouseDown={(e) => {
                                     const startTime = Date.now();
                                     const handleMouseUp = () => {
@@ -2252,15 +2551,24 @@
                                     };
                                     document.addEventListener('touchend', handleTouchEnd, { once: true });
                                 }}
-                                title="Long press to view today's sale details"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setShowCompletedJobsModal(true);
+                                    }
+                                }}
+                                onClick={() => setShowCompletedJobsModal(true)}
+                                title="Click or long press to view completed jobs"
+                                aria-label="Total revenue today. Click to view details"
                             >
                                 <p className="text-[8px] opacity-50 font-black uppercase mb-1">Total</p>
-                                <p className="text-sm font-black text-emerald-400 font-mono">
+                                <p className="text-sm font-black text-emerald-400 font-mono" aria-label="Total revenue amount">
                                     Rs.{stats && typeof stats.todayRevenue !== 'undefined' ? stats.todayRevenue : 0}
                                 </p>
-                            </div>
-                            <div 
-                                className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors"
+                            </button>
+                            <button
+                                type="button"
+                                className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
                                 onMouseDown={(e) => {
                                     const startTime = Date.now();
                                     const handleMouseUp = () => {
@@ -2283,39 +2591,64 @@
                                     };
                                     document.addEventListener('touchend', handleTouchEnd, { once: true });
                                 }}
-                                title="Long press to view expense details"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setShowExpenseDetailsModal(true);
+                                    }
+                                }}
+                                onClick={() => setShowExpenseDetailsModal(true)}
+                                title="Click or long press to view expense details"
+                                aria-label="Total expenses today. Click to view details"
                             >
                                 <p className="text-[8px] opacity-50 font-black uppercase mb-1">Exp.</p>
-                                <p className="text-sm font-black text-rose-400 font-mono">
+                                <p className="text-sm font-black text-rose-400 font-mono" aria-label="Total expenses amount">
                                     Rs.{stats && typeof stats.todayExpensesTotal !== 'undefined' ? stats.todayExpensesTotal : 0}
                                 </p>
-                            </div>
-                            <div className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center">
+                            </button>
+                            <div className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center" role="status" aria-label="Grand total today">
                                 <p className="text-[8px] opacity-50 font-black uppercase mb-1">G. Total</p>
-                                <p className="text-sm font-black text-blue-400 font-mono">
+                                <p className="text-sm font-black text-blue-400 font-mono" aria-label="Grand total amount">
                                     Rs.{stats && typeof stats.todayGrandTotal !== 'undefined' ? stats.todayGrandTotal : 0}
                                 </p>
                             </div>
                         </div>
                     </header>
                     
-                    <main className="p-5">
+                    <main id="main-content" className="p-5" role="main" aria-label="Main content">
                         {view === 'dashboard' && (
-                            <div className="space-y-8 animate-in fade-in duration-500">
+                            <div className="space-y-8 animate-in fade-in duration-500" role="region" aria-label="Dashboard">
                                 {/* Services Modal - Full Screen Overlay */}
                                 {showAllServicesModal && (
-                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowAllServicesModal(false)}>
-                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                    <div 
+                                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" 
+                                        onClick={() => setShowAllServicesModal(false)}
+                                        role="dialog"
+                                        aria-modal="true"
+                                        aria-labelledby="services-modal-title"
+                                        aria-describedby="services-modal-description"
+                                    >
+                                        <div 
+                                            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" 
+                                            onClick={(e) => e.stopPropagation()}
+                                            role="document"
+                                        >
                                             {/* Header */}
                                             <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                                                 <div className="flex items-center justify-between">
                                                     <div>
-                                                        <h2 className="text-2xl font-black uppercase tracking-tighter">All Services</h2>
-                                                        <p className="text-sm opacity-90 mt-1">{modalServices.length} services available</p>
+                                                        <h2 id="services-modal-title" className="text-2xl font-black uppercase tracking-tighter">All Services</h2>
+                                                        <p id="services-modal-description" className="text-sm opacity-90 mt-1">{modalServices.length} services available</p>
                                                     </div>
                                                     <button
                                                         onClick={() => setShowAllServicesModal(false)}
-                                                        className="text-white hover:text-slate-200 transition-colors p-2"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Escape') {
+                                                                setShowAllServicesModal(false);
+                                                            }
+                                                        }}
+                                                        className="text-white hover:text-slate-200 transition-colors p-2 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-700 rounded-lg"
+                                                        aria-label="Close services modal"
                                                     >
                                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2684,6 +3017,10 @@
                                     const job = activeJobs.find(j => j.id === completeModalJobId);
                                     if (!job) return null;
                                     
+                                    // Get expense items for this job (from expenseItems state or from backend)
+                                    const currentJobExpenseItems = expenseItems || {};
+                                    const currentJobCustomExpenses = customExpenses || [];
+                                    
                                     // Define required inspection items
                                     const requiredInspectionItems = [
                                         'engine_oil', 'gear_oil', 'brake_oil', 'air_filter', 
@@ -2852,27 +3189,128 @@
                                                 {/* Footer */}
                                                 <div className="p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
-                                                        onClick={() => {
+                                                        onClick={async () => {
                                                             // Check if all inspection items are rated
                                                             if (!allItemsRated) {
                                                                 alert('Please complete all inspection items before completing the job. All inspection comments must be passed.');
                                                                 return;
                                                             }
                                                             
-                                                            // Create completed job object with updated status
-                                                            const completedJob = {
-                                                                ...job,
-                                                                status: 'completed',
-                                                                endTime: new Date().toISOString(),
-                                                                rating: selectedRating,
-                                                                comment: jobComment
-                                                            };
-                                                            
-                                                            // Complete job - remove from active jobs
-                                                            setActiveJobs(prev => prev.filter(j => j.id !== job.id));
-                                                            
-                                                            // Save completed job to completedJobs
-                                                            setCompletedJobs(prev => {
+                                                            try {
+                                                                // Save inspection to backend if not already saved
+                                                                if (inspectionData && Object.keys(inspectionData).length > 0) {
+                                                                    const inspectionResponse = await fetch(API_ROUTES.inspections.store(job.id), {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                            'Accept': 'application/json'
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            inspection_items: inspectionData,
+                                                                            is_completed: true
+                                                                        })
+                                                                    });
+                                                                    
+                                                                    const inspectionResult = await inspectionResponse.json();
+                                                                    if (!inspectionResult.success) {
+                                                                        console.error('Error saving inspection:', inspectionResult.message);
+                                                                    }
+                                                                }
+                                                                
+                                                                // Save expense to backend if exists
+                                                                const expenseItemsArray = [];
+                                                                let totalExpenseAmount = 0;
+                                                                
+                                                                // Get expense items from expenseItems state
+                                                                Object.keys(currentJobExpenseItems).forEach(itemName => {
+                                                                    const item = currentJobExpenseItems[itemName];
+                                                                    if (item && item.quantity > 0 && item.price !== '' && parseFloat(item.price) > 0) {
+                                                                        const priceValue = parseFloat(item.price) || 0;
+                                                                        const total = item.quantity * priceValue;
+                                                                        totalExpenseAmount += total;
+                                                                        
+                                                                        expenseItemsArray.push({
+                                                                            name: itemName,
+                                                                            quantity: item.quantity,
+                                                                            price: priceValue,
+                                                                            total: total
+                                                                        });
+                                                                    }
+                                                                });
+                                                                
+                                                                // Add custom expenses
+                                                                currentJobCustomExpenses.forEach(customItem => {
+                                                                    const item = currentJobExpenseItems[customItem.id];
+                                                                    if (item && item.quantity > 0 && item.price !== '' && parseFloat(item.price) > 0) {
+                                                                        const priceValue = parseFloat(item.price) || 0;
+                                                                        const total = item.quantity * priceValue;
+                                                                        totalExpenseAmount += total;
+                                                                        
+                                                                        expenseItemsArray.push({
+                                                                            name: customItem.name,
+                                                                            quantity: item.quantity,
+                                                                            price: priceValue,
+                                                                            total: total
+                                                                        });
+                                                                    }
+                                                                });
+                                                                
+                                                                if (expenseItemsArray.length > 0) {
+                                                                    const expenseResponse = await fetch(API_ROUTES.expenses.store(job.id), {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                            'Accept': 'application/json'
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            expense_items: expenseItemsArray,
+                                                                            total_amount: totalExpenseAmount
+                                                                        })
+                                                                    });
+                                                                    
+                                                                    const expenseResult = await expenseResponse.json();
+                                                                    if (!expenseResult.success) {
+                                                                        console.error('Error saving expense:', expenseResult.message);
+                                                                    }
+                                                                }
+                                                                
+                                                                // Complete job on backend
+                                                                const completeResponse = await fetch(API_ROUTES.jobs.complete(job.id), {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        rating: selectedRating,
+                                                                        notes: jobComment || ''
+                                                                    })
+                                                                });
+                                                                
+                                                                const completeResult = await completeResponse.json();
+                                                                
+                                                                if (!completeResult.success) {
+                                                                    alert('Error completing job: ' + (completeResult.message || 'Unknown error'));
+                                                                    return;
+                                                                }
+                                                                
+                                                                // Create completed job object with updated status
+                                                                const completedJob = {
+                                                                    ...job,
+                                                                    status: 'completed',
+                                                                    endTime: new Date().toISOString(),
+                                                                    rating: selectedRating,
+                                                                    comment: jobComment
+                                                                };
+                                                                
+                                                                // Complete job - remove from active jobs
+                                                                setActiveJobs(prev => prev.filter(j => j.id !== job.id));
+                                                                
+                                                                // Save completed job to completedJobs
+                                                                setCompletedJobs(prev => {
                                                                 // Load all jobs from localStorage first to ensure we don't lose any
                                                                 let allJobs = [];
                                                                 try {
@@ -2914,7 +3352,11 @@
                                                             setCompleteModalJobId(null);
                                                             setSelectedRating('');
                                                             setJobComment('');
-                                                        }}
+                                                        } catch (error) {
+                                                            console.error('Error completing job:', error);
+                                                            alert('Error completing job. Please try again.');
+                                                        }
+                                                    }}
                                                         className={`w-full px-6 py-4 rounded-2xl text-sm font-black uppercase transition-all shadow-lg ${
                                                             allItemsRated 
                                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700' 
@@ -3052,18 +3494,60 @@
                                                 {/* Footer */}
                                                 <div className="p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
-                                                        onClick={() => {
+                                                        onClick={async () => {
                                                             console.log('Inspection completed:', {
                                                                 jobId: inspectionModalJobId,
                                                                 inspectionData
                                                             });
                                                             
-                                                            // Mark inspection as completed
-                                                            setCompletedInspections(prev => new Set([...prev, inspectionModalJobId]));
+                                                            // Check if all items are rated
+                                                            const requiredInspectionItems = [
+                                                                'engine_oil', 'gear_oil', 'brake_oil', 'air_filter', 
+                                                                'radiator_water', 'shower_water', 'power_oil', 'horn', 
+                                                                'head_lights', 'indicator', 'brake_pad', 'ac_filter'
+                                                            ];
                                                             
-                                                            alert('Car inspection saved successfully!');
-                                                            setInspectionModalJobId(null);
-                                                            setInspectionData({});
+                                                            const allItemsRated = requiredInspectionItems.every(itemId => {
+                                                                const itemData = inspectionData[itemId];
+                                                                return itemData && itemData.status && itemData.status !== '';
+                                                            });
+                                                            
+                                                            if (!allItemsRated) {
+                                                                alert('Please rate all inspection items before saving.');
+                                                                return;
+                                                            }
+                                                            
+                                                            // Save inspection to backend
+                                                            try {
+                                                                const response = await fetch(API_ROUTES.inspections.store(inspectionModalJobId), {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        inspection_items: inspectionData,
+                                                                        is_completed: true
+                                                                    })
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (result.success) {
+                                                                    // Mark inspection as completed
+                                                                    setCompletedInspections(prev => new Set([...prev, inspectionModalJobId]));
+                                                                    
+                                                                    alert('Car inspection saved successfully!');
+                                                                    setInspectionModalJobId(null);
+                                                                    setInspectionData({});
+                                                                } else {
+                                                                    alert('Error saving inspection: ' + (result.message || 'Unknown error'));
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error saving inspection:', error);
+                                                                alert('Error saving inspection. Please try again.');
+                                                            }
                                                         }}
                                                         className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl text-sm font-black uppercase hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg"
                                                     >
@@ -3416,11 +3900,18 @@
                                             {/* Footer */}
                                             <div className="p-6 border-t border-slate-200 bg-slate-50">
                                                 <button
-                                                    onClick={() => {
+                                                    onClick={async () => {
+                                                        // Prepare expense items array
+                                                        const expenseItemsArray = [];
                                                         let totalAmount = 0;
+                                                        
+                                                        // Process default expense items
                                                         Object.keys(expenseItems).forEach((key) => {
                                                             const item = expenseItems[key];
                                                             if (!item) return;
+                                                            
+                                                            // Skip custom expense items (they have custom_ prefix)
+                                                            if (key.startsWith('custom_')) return;
                                                             
                                                             // Get quantity
                                                             const qty = Number(item.quantity) || 0;
@@ -3437,72 +3928,117 @@
                                                                 }
                                                             }
                                                             
-                                                            totalAmount += qty * price;
+                                                            if (qty > 0 && price > 0) {
+                                                                const total = qty * price;
+                                                                totalAmount += total;
+                                                                
+                                                                expenseItemsArray.push({
+                                                                    name: key,
+                                                                    quantity: qty,
+                                                                    price: price,
+                                                                    total: total
+                                                                });
+                                                            }
                                                         });
                                                         
-                                                        if (totalAmount > 0) {
-                                                            // Get job reference
-                                                            const job = activeJobs.find(j => j.id === expenseModalJobId);
-                                                            const reference = job ? `${job.vehicleNo} - ${job.customerName}` : `Job #${expenseModalJobId}`;
-                                                            
-                                                            // Create expense record
-                                                            const expenseRecord = {
-                                                                id: Date.now().toString(),
-                                                                reference: reference,
-                                                                jobId: expenseModalJobId,
-                                                                vehicleNo: job ? job.vehicleNo : '',
-                                                                customerName: job ? job.customerName : '',
-                                                                mobile: job ? job.mobile : '',
-                                                                date: new Date().toISOString(),
-                                                                items: Object.keys(expenseItems)
-                                                                    .filter(key => {
-                                                                        const item = expenseItems[key];
-                                                                        const qty = Number(item.quantity) || 0;
-                                                                        const price = Number(item.price) || 0;
-                                                                        return qty > 0 && price > 0;
+                                                        // Process custom expenses
+                                                        customExpenses.forEach(customItem => {
+                                                            const item = expenseItems[customItem.id];
+                                                            if (item) {
+                                                                const qty = Number(item.quantity) || 0;
+                                                                let price = 0;
+                                                                if (item.price !== undefined && item.price !== null && item.price !== '') {
+                                                                    if (typeof item.price === 'number') {
+                                                                        price = item.price;
+                                                                    } else if (typeof item.price === 'string') {
+                                                                        price = parseFloat(item.price) || 0;
+                                                                    } else {
+                                                                        price = Number(item.price) || 0;
+                                                                    }
+                                                                }
+                                                                
+                                                                if (qty > 0 && price > 0) {
+                                                                    const total = qty * price;
+                                                                    totalAmount += total;
+                                                                    
+                                                                    expenseItemsArray.push({
+                                                                        name: customItem.name,
+                                                                        quantity: qty,
+                                                                        price: price,
+                                                                        total: total
+                                                                    });
+                                                                }
+                                                            }
+                                                        });
+                                                        
+                                                        // Save expense to backend if there are items
+                                                        if (expenseItemsArray.length > 0) {
+                                                            try {
+                                                                const response = await fetch(API_ROUTES.expenses.store(expenseModalJobId), {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        expense_items: expenseItemsArray,
+                                                                        total_amount: totalAmount
                                                                     })
-                                                                    .map(key => {
-                                                                        const item = expenseItems[key];
-                                                                        const qty = Number(item.quantity) || 1;
-                                                                        const price = Number(item.price) || 0;
-                                                                        // Check if it's a custom expense
-                                                                        const customExpense = customExpenses.find(ce => ce.id === key);
-                                                                        const itemName = customExpense ? customExpense.name : key;
-                                                                        return {
-                                                                            name: itemName,
-                                                                            quantity: qty,
-                                                                            price: price,
-                                                                            subtotal: qty * price
-                                                                        };
-                                                                    }),
-                                                                debit: totalAmount,
-                                                                credit: 0,
-                                                                subtotal: totalAmount
-                                                            };
-                                                            
-                                                            // Add to expense history
-                                                            setExpenseHistory(prev => [...prev, expenseRecord]);
-                                                            
-                                                            // Update stats with expense
-                                                            setStats(prev => ({
-                                                                ...prev,
-                                                                todayExpensesTotal: (prev.todayExpensesTotal || 0) + totalAmount,
-                                                                todayGrandTotal: (prev.todayGrandTotal || 0) - totalAmount
-                                                            }));
-                                                            
-                                                            console.log('Refreshment expense added:', expenseRecord);
-                                                            
-                                                            alert(`Refreshment expense of Rs.${totalAmount} added successfully!`);
-                                                            setExpenseModalJobId(null);
-                                                            setExpenseItems({});
-                                                            setCustomExpenses([]);
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (result.success) {
+                                                                    // Get job reference
+                                                                    const job = activeJobs.find(j => j.id === expenseModalJobId);
+                                                                    const reference = job ? `${job.vehicleNo} - ${job.customerName}` : `Job #${expenseModalJobId}`;
+                                                                    
+                                                                    // Create expense record for localStorage history
+                                                                    const expenseRecord = {
+                                                                        id: Date.now().toString(),
+                                                                        reference: reference,
+                                                                        jobId: expenseModalJobId,
+                                                                        vehicleNo: job ? job.vehicleNo : '',
+                                                                        customerName: job ? job.customerName : '',
+                                                                        mobile: job ? job.mobile : '',
+                                                                        date: new Date().toISOString(),
+                                                                        items: expenseItemsArray,
+                                                                        debit: totalAmount,
+                                                                        credit: 0,
+                                                                        subtotal: totalAmount
+                                                                    };
+                                                                    
+                                                                    // Add to expense history
+                                                                    setExpenseHistory(prev => [...prev, expenseRecord]);
+                                                                    
+                                                                    // Update stats with expense
+                                                                    setStats(prev => ({
+                                                                        ...prev,
+                                                                        todayExpensesTotal: (prev.todayExpensesTotal || 0) + totalAmount,
+                                                                        todayGrandTotal: (prev.todayGrandTotal || 0) - totalAmount
+                                                                    }));
+                                                                    
+                                                                    console.log('Refreshment expense saved to backend:', result);
+                                                                    
+                                                                    alert(`Refreshment expense of Rs.${totalAmount} saved successfully!`);
+                                                                    setExpenseModalJobId(null);
+                                                                    setExpenseItems({});
+                                                                    setCustomExpenses([]);
+                                                                } else {
+                                                                    alert('Error saving expense: ' + (result.message || 'Unknown error'));
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error saving expense:', error);
+                                                                alert('Error saving expense. Please try again.');
+                                                            }
                                                         } else {
-                                                            alert('Please select at least one item.');
+                                                            alert('Please add at least one expense item with quantity and price.');
                                                         }
                                                     }}
                                                     className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl text-sm font-black uppercase hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg"
                                                 >
-                                                    Add Expense
+                                                    Save Expense
                                                 </button>
                                             </div>
                                         </div>
@@ -3681,12 +4217,12 @@
                                     </div>
                                 )}
                                 
-                                {/* Sale Details Modal - Ultra Advanced Premium Design */}
-                                {showSaleDetailsModal && (
-                                    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-3 sm:p-4" onClick={() => setShowSaleDetailsModal(false)}>
-                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-[60px] sm:rounded-[70px] shadow-[0_25px_100px_-12px_rgba(0,0,0,0.5)] w-full max-w-7xl max-h-[98vh] overflow-hidden flex flex-col border-[6px] border-emerald-300/60 relative" onClick={(e) => e.stopPropagation()}>
-                                            {/* Ultra Premium Header with 3D Effect */}
-                                            <div className="relative p-8 sm:p-10 bg-gradient-to-br from-emerald-600 via-green-600 via-teal-600 to-cyan-600 text-white overflow-hidden">
+                                {/* Completed Jobs Modal - Table View with Edit/Delete/Detail */}
+                                {showCompletedJobsModal && (
+                                    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-3 sm:p-4" onClick={() => setShowCompletedJobsModal(false)}>
+                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-[60px] sm:rounded-[70px] shadow-[0_25px_100px_-12px_rgba(0,0,0,0.5)] w-full max-w-7xl max-h-[98vh] overflow-hidden flex flex-col border-[6px] border-blue-300/60 relative" onClick={(e) => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="relative p-8 sm:p-10 bg-gradient-to-br from-blue-600 via-indigo-600 via-purple-600 to-blue-600 text-white overflow-hidden">
                                                 {/* Animated Background Elements */}
                                                 <div className="absolute inset-0">
                                                     <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-48 -mt-48 animate-pulse"></div>
@@ -3708,8 +4244,8 @@
                                                             <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full border-2 border-white shadow-lg animate-ping"></div>
                                                         </div>
                                                         <div>
-                                                            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter drop-shadow-2xl bg-gradient-to-r from-white to-emerald-100 bg-clip-text text-transparent">
-                                                                SALES REPORT
+                                                            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter drop-shadow-2xl bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                                                                COMPLETED JOBS
                                                             </h2>
                                                             <div className="flex items-center justify-center gap-3 mt-3">
                                                                 <div className="w-3 h-3 bg-emerald-300 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
@@ -3720,8 +4256,9 @@
                                                         </div>
                                                     </div>
                                                     <button
-                                                        onClick={() => setShowSaleDetailsModal(false)}
+                                                        onClick={() => setShowCompletedJobsModal(false)}
                                                         className="absolute top-4 right-4 w-14 h-14 bg-white/25 hover:bg-white/35 rounded-2xl flex items-center justify-center transition-all backdrop-blur-xl border-[3px] border-white/50 flex-shrink-0 hover:scale-110 hover:rotate-90 shadow-xl"
+                                                        aria-label="Close completed jobs modal"
                                                     >
                                                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
@@ -3731,7 +4268,7 @@
                                             </div>
                                             
                                             {/* Ultra Premium Statistics Cards with Glass Morphism */}
-                                            {completedJobs.length > 0 && (
+                                            {completedJobs && Array.isArray(completedJobs) && completedJobs.length > 0 && (
                                                 <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-100 via-white to-slate-50 border-b-[4px] border-slate-300 relative z-0">
                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[50%] mx-auto">
                                                         {/* Total Revenue Card - 3D Effect */}
@@ -3748,7 +4285,7 @@
                                                                 </div>
                                                                 <p className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] mb-2">TOTAL REVENUE</p>
                                                                 <p className="text-2xl sm:text-3xl font-black text-white font-mono leading-tight">
-                                                                    Rs.{completedJobs.reduce((sum, job) => sum + (job.price || 0), 0).toFixed(2)}
+                                                                    Rs.{(completedJobs && Array.isArray(completedJobs) ? completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) : 0).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -3767,7 +4304,7 @@
                                                                 </div>
                                                                 <p className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] mb-2">TOTAL JOBS</p>
                                                                 <p className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                                                                    {completedJobs.length}
+                                                                    {completedJobs && Array.isArray(completedJobs) ? completedJobs.length : 0}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -3786,7 +4323,7 @@
                                                                 </div>
                                                                 <p className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] mb-2">AVERAGE AMOUNT</p>
                                                                 <p className="text-2xl sm:text-3xl font-black text-white font-mono leading-tight">
-                                                                    Rs.{(completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) / completedJobs.length).toFixed(2)}
+                                                                    Rs.{(completedJobs && Array.isArray(completedJobs) && completedJobs.length > 0 ? (completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) / completedJobs.length) : 0).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -3794,246 +4331,174 @@
                                                 </div>
                                             )}
                                             
-                                            {/* Content - Ultra Premium Scrollable Area */}
+                                            {/* Content - Table View */}
                                             <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-gradient-to-b from-slate-100 via-white to-slate-50">
-                                                {completedJobs.length === 0 ? (
+                                                {!completedJobs || !Array.isArray(completedJobs) || completedJobs.length === 0 ? (
                                                     <div className="text-center py-24">
-                                                        <div className="relative w-40 h-40 bg-gradient-to-br from-emerald-300 via-green-300 to-teal-300 rounded-full flex items-center justify-center mx-auto mb-10 shadow-[0_20px_60px_rgba(16,185,129,0.4)]">
-                                                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full opacity-30 animate-pulse"></div>
-                                                            <svg className="w-20 h-20 text-emerald-700 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        <div className="relative w-40 h-40 bg-gradient-to-br from-blue-300 via-indigo-300 to-purple-300 rounded-full flex items-center justify-center mx-auto mb-10 shadow-[0_20px_60px_rgba(59,130,246,0.4)]">
+                                                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full opacity-30 animate-pulse"></div>
+                                                            <svg className="w-20 h-20 text-blue-700 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                             </svg>
                                                         </div>
-                                                        <p className="text-3xl font-black text-slate-800 uppercase tracking-tight mb-3">No Job Records Found</p>
-                                                        {stats && stats.todayRevenue > 0 ? (
-                                                            <div className="mt-10 max-w-xl mx-auto">
-                                                                <div className="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 rounded-[50px] p-10 border-[6px] border-emerald-300 shadow-[0_25px_100px_-12px_rgba(16,185,129,0.5)] relative overflow-hidden">
-                                                                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-                                                                    <div className="relative">
-                                                                        <p className="text-xs font-black text-white/90 uppercase tracking-[0.3em] mb-4">Total Revenue (From Stats)</p>
-                                                                        <p className="text-6xl font-black text-white font-mono mb-6">
-                                                                            Rs.{stats.todayRevenue.toFixed(2)}
-                                                                        </p>
-                                                                        <div className="h-2 bg-white/30 rounded-full overflow-hidden mb-6">
-                                                                            <div className="h-full bg-white rounded-full animate-pulse w-full"></div>
-                                                                        </div>
-                                                                        <p className="text-sm text-white/90 mt-4 leading-relaxed">Note: Individual job details are not available. Future completed jobs will show detailed breakdown with customer information.</p>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <p className="text-lg text-slate-500 mt-6 font-bold">Completed jobs will appear here once you complete them</p>
-                                                        )}
+                                                        <p className="text-3xl font-black text-slate-800 uppercase tracking-tight mb-3">No Completed Jobs Found</p>
+                                                        <p className="text-lg text-slate-500 mt-6 font-bold">Completed jobs will appear here once you complete them</p>
                                                     </div>
                                                 ) : (
-                                                    <div className="space-y-6">
-                                                        {completedJobs.map((job, jobIdx) => {
-                                                            const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                                                            const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                                                            const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-                                                            
-                                                            return (
-                                                            <div key={job.id || jobIdx} className="group relative bg-white rounded-[50px] border-[4px] border-slate-200 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.15)] hover:shadow-[0_25px_80px_-12px_rgba(16,185,129,0.3)] transition-all overflow-hidden hover:border-emerald-400 hover:scale-[1.02] hover:-translate-y-1">
-                                                                {/* Ultra Premium Job Header with 3D Gradient */}
-                                                                <div className="relative bg-gradient-to-br from-slate-50 via-white to-slate-100 p-7 sm:p-8 border-b-[4px] border-slate-300 overflow-hidden">
-                                                                    {/* Decorative Background */}
-                                                                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-transparent to-blue-50/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                                    
-                                                                    <div className="relative flex items-start justify-between mb-5">
-                                                                        <div className="flex items-center gap-5">
-                                                                            <div className="relative">
-                                                                                <div className="w-16 sm:w-20 h-16 sm:h-20 bg-gradient-to-br from-emerald-500 via-green-500 to-emerald-600 rounded-3xl flex items-center justify-center text-white font-black text-xl sm:text-2xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] border-[3px] border-emerald-400/50 flex-shrink-0 transform group-hover:scale-110 group-hover:rotate-6 transition-all">
-                                                                                    #{jobIdx + 1}
-                                                                                </div>
-                                                                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full border-2 border-white shadow-lg"></div>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-2">JOB #{jobIdx + 1}</p>
-                                                                                <p className="text-xl sm:text-2xl font-black text-slate-900">{jobDate}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="text-right bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl px-6 py-4 shadow-xl border-[3px] border-emerald-400/50">
-                                                                            <p className="text-xs font-black text-white/90 uppercase tracking-[0.2em] mb-2">AMOUNT</p>
-                                                                            <p className="text-3xl sm:text-4xl font-black text-white font-mono">Rs.{job.price || 0}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                    
-                                                                    {/* Customer Info Grid - Ultra Premium Cards */}
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                                        <div className="bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 rounded-3xl p-5 border-[3px] border-blue-300 shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-                                                                            <div className="flex items-center gap-3 mb-3">
-                                                                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-blue-400/50">
-                                                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[10px] font-black text-blue-700 uppercase tracking-[0.2em]">VEHICLE</p>
-                                                                            </div>
-                                                                            <p className="text-lg font-black text-slate-900 ml-14 truncate">{job.vehicleNo || 'N/A'}</p>
-                                                                        </div>
-                                                                        <div className="bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-50 rounded-3xl p-5 border-[3px] border-emerald-300 shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-                                                                            <div className="flex items-center gap-3 mb-3">
-                                                                                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-emerald-400/50">
-                                                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[10px] font-black text-emerald-700 uppercase tracking-[0.2em]">CUSTOMER</p>
-                                                                            </div>
-                                                                            <p className="text-lg font-black text-slate-900 ml-14 truncate">{job.customerName || 'N/A'}</p>
-                                                                        </div>
-                                                                        <div className="bg-gradient-to-br from-purple-50 via-purple-100 to-purple-50 rounded-3xl p-5 border-[3px] border-purple-300 shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-                                                                            <div className="flex items-center gap-3 mb-3">
-                                                                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-purple-400/50">
-                                                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[10px] font-black text-purple-700 uppercase tracking-[0.2em]">MOBILE</p>
-                                                                            </div>
-                                                                            <p className="text-lg font-black text-slate-900 ml-14 truncate">{job.mobile || 'N/A'}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                {/* Job Details - Ultra Premium Layout */}
-                                                                <div className="p-7 sm:p-8 bg-gradient-to-b from-white via-slate-50 to-white">
-                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                                                                        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-5 border-[3px] border-slate-200 shadow-md hover:shadow-lg transition-all">
-                                                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3">SERVICE</p>
-                                                                            <p className="text-base font-black text-slate-900">{job.service || 'N/A'}</p>
-                                                                        </div>
-                                                                        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-5 border-[3px] border-slate-200 shadow-md hover:shadow-lg transition-all">
-                                                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3">WORKER</p>
-                                                                            <p className="text-base font-black text-slate-900">{job.worker || 'N/A'}</p>
-                                                                        </div>
-                                                                        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-5 border-[3px] border-slate-200 shadow-md hover:shadow-lg transition-all">
-                                                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3">START TIME</p>
-                                                                            <p className="text-base font-black text-slate-900">{startTime}</p>
-                                                                        </div>
-                                                                        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-5 border-[3px] border-slate-200 shadow-md hover:shadow-lg transition-all">
-                                                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-3">END TIME</p>
-                                                                            <p className="text-base font-black text-slate-900">{endTime}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                    
-                                                                    {/* Amount & Rating - Ultra Premium Card */}
-                                                                    <div className="bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 rounded-3xl p-7 border-[4px] border-emerald-400/60 shadow-2xl relative overflow-hidden">
-                                                                        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-20 -mt-20"></div>
-                                                                        <div className="relative flex items-center justify-between">
-                                                                            <div>
-                                                                                <p className="text-xs font-black text-white/90 uppercase tracking-[0.3em] mb-3">PAYMENT AMOUNT</p>
-                                                                                <p className="text-4xl sm:text-5xl font-black text-white font-mono">Rs.{(job.price || 0).toFixed(2)}</p>
-                                                                            </div>
-                                                                            {job.rating && (
-                                                                                <div className="text-right bg-white/25 backdrop-blur-md rounded-2xl px-6 py-4 border-[3px] border-white/40 shadow-xl">
-                                                                                    <p className="text-xs font-black text-white/90 uppercase tracking-[0.3em] mb-2">RATING</p>
-                                                                                    <p className="text-3xl font-black text-white">{job.rating} ⭐</p>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            );
-                                                        })}
-                                                        
-                                                        {/* Ultra Premium Breakdown Summary */}
-                                                        {completedJobs.length > 0 && (
-                                                            <div className="mt-10 pt-10 border-t-[6px] border-slate-400">
-                                                                <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-[50px] border-[6px] border-slate-300 shadow-[0_25px_100px_-12px_rgba(0,0,0,0.2)] p-10 relative overflow-hidden">
-                                                                    {/* Decorative Elements */}
-                                                                    <div className="absolute top-0 right-0 w-60 h-60 bg-emerald-100/40 rounded-full blur-3xl -mr-30 -mt-30"></div>
-                                                                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-100/40 rounded-full blur-3xl -ml-24 -mb-24"></div>
-                                                                    <div className="absolute top-1/2 left-1/2 w-40 h-40 bg-purple-100/30 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
-                                                                    
-                                                                    <div className="relative">
-                                                                        <div className="flex items-center gap-5 mb-8">
-                                                                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 rounded-3xl flex items-center justify-center shadow-2xl border-[4px] border-indigo-400/50">
-                                                                                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                                                                </svg>
-                                                                            </div>
-                                                                            <div>
-                                                                                <h3 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">Amount Breakdown</h3>
-                                                                                <p className="text-base text-slate-600 font-bold mt-2">Detailed transaction list with customer information</p>
-                                                                            </div>
-                                                                        </div>
+                                                    <div className="bg-white rounded-3xl shadow-xl border-2 border-slate-200 overflow-hidden">
+                                                        {/* Table */}
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full">
+                                                                <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
+                                                                    <tr>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Vehicle No</th>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Customer</th>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Service</th>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Worker</th>
+                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
+                                                                        <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="bg-white divide-y divide-slate-200">
+                                                                    {completedJobs && Array.isArray(completedJobs) && completedJobs.map((job, jobIdx) => {
+                                                                        const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                                                                        const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                                                                        const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                                                                        const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
                                                                         
-                                                                        <div className="space-y-4 max-h-96 overflow-y-auto pr-3 custom-scrollbar">
-                                                                            {completedJobs.map((job, idx) => {
-                                                                                const jobAmount = job.price || 0;
-                                                                                return (
-                                                                                    <div key={job.id || idx} className="group bg-gradient-to-r from-white via-slate-50 to-white rounded-3xl p-6 border-[4px] border-slate-200 hover:border-emerald-400 hover:shadow-2xl transition-all transform hover:scale-[1.02] hover:-translate-y-1">
-                                                                                        <div className="flex items-center justify-between">
-                                                                                            <div className="flex items-center gap-5 flex-1 min-w-0">
-                                                                                                <div className="relative">
-                                                                                                    <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-xl border-[3px] border-emerald-300/50 flex-shrink-0 group-hover:scale-125 group-hover:rotate-12 transition-all">
-                                                                                                        {idx + 1}
-                                                                                                    </div>
-                                                                                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full border-2 border-white shadow-lg"></div>
-                                                                                                </div>
-                                                                                                <div className="flex-1 min-w-0">
-                                                                                                    <p className="text-lg font-black text-slate-900 truncate mb-2">{job.customerName || 'N/A'}</p>
-                                                                                                    <div className="flex items-center gap-4">
-                                                                                                        <div className="flex items-center gap-2">
-                                                                                                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                                                                            </svg>
-                                                                                                            <p className="text-sm text-slate-600 font-bold truncate">{job.vehicleNo || 'N/A'}</p>
-                                                                                                        </div>
-                                                                                                        <span className="text-slate-300 text-xl">•</span>
-                                                                                                        <p className="text-sm text-slate-600 font-bold">{job.service || 'N/A'}</p>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                            <div className="text-right ml-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl px-6 py-4 shadow-xl border-[3px] border-emerald-400/50">
-                                                                                                <p className="text-2xl sm:text-3xl font-black text-white font-mono">Rs.{jobAmount.toFixed(2)}</p>
-                                                                                                {idx < completedJobs.length - 1 && (
-                                                                                                    <div className="flex items-center justify-end gap-2 mt-3">
-                                                                                                        <div className="w-8 h-1 bg-white/30 rounded-full"></div>
-                                                                                                        <svg className="w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-                                                                        </svg>
-                                                                    </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                        
-                                                                        {/* Ultra Premium Grand Total Section */}
-                                                                        <div className="mt-10 pt-8 border-t-[6px] border-slate-400">
-                                                                            <div className="bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-[50px] p-8 shadow-[0_25px_100px_-12px_rgba(16,185,129,0.5)] border-[6px] border-emerald-400/60 relative overflow-hidden">
-                                                                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
-                                                                                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-24 -mt-24"></div>
-                                                                                <div className="relative flex items-center justify-between">
-                                                                                    <div className="flex items-center gap-6">
-                                                                                        <div className="w-20 h-20 bg-white/25 backdrop-blur-xl rounded-3xl flex items-center justify-center border-[4px] border-white/40 shadow-2xl">
-                                                                                            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                                            </svg>
-                                                                                        </div>
-                                                                                        <div>
-                                                                                            <p className="text-xs font-black text-white/90 uppercase tracking-[0.4em] mb-2">GRAND TOTAL</p>
-                                                                                            <p className="text-5xl sm:text-6xl font-black text-white font-mono">
-                                                                                                Rs.{completedJobs.reduce((sum, job) => sum + (job.price || 0), 0).toFixed(2)}
-                                                                                            </p>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="text-right bg-white/25 backdrop-blur-xl rounded-3xl px-8 py-6 border-[4px] border-white/40 shadow-2xl">
-                                                                                        <p className="text-xs font-black text-white/90 uppercase tracking-[0.3em] mb-2">TOTAL JOBS</p>
-                                                                                        <p className="text-4xl sm:text-5xl font-black text-white">{completedJobs.length}</p>
+                                                                        return (
+                                                                        <tr key={job.id || jobIdx} className="hover:bg-slate-50 transition-colors">
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="flex items-center">
+                                                                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-lg">
+                                                                                        {jobIdx + 1}
                                                                                     </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="text-sm font-black text-slate-900">{jobDateTime}</div>
+                                                                                <div className="text-xs text-slate-500">{startTime} - {endTime}</div>
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="text-sm font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="text-sm font-black text-slate-900">{job.customerName || job.customer_name || 'N/A'}</div>
+                                                                                {job.mobile && <div className="text-xs text-slate-500">{job.mobile}</div>}
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="text-sm font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="text-sm font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                                <div className="text-sm font-black text-blue-600">Rs.{(job.price || 0).toFixed(2)}</div>
+                                                                            </td>
+                                                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                                                <div className="flex items-center justify-center gap-2">
+                                                                                    <button
+                                                                                        onClick={async () => {
+                                                                                            // Load job details including inspections and expenses
+                                                                                            try {
+                                                                                                const jobResponse = await fetch(API_ROUTES.jobs.index);
+                                                                                                const jobData = await jobResponse.json();
+                                                                                                const fullJob = jobData.jobs?.find(j => j.id === job.id) || job;
+                                                                                                
+                                                                                                // Load inspection
+                                                                                                let inspection = null;
+                                                                                                try {
+                                                                                                    const inspResponse = await fetch(API_ROUTES.inspections.show(job.id));
+                                                                                                    if (inspResponse.ok) {
+                                                                                                        const inspData = await inspResponse.json();
+                                                                                                        if (inspData.success) inspection = inspData.inspection;
+                                                                                                    }
+                                                                                                } catch (e) {
+                                                                                                    console.log('No inspection found');
+                                                                                                }
+                                                                                                
+                                                                                                // Load expense
+                                                                                                let expense = null;
+                                                                                                try {
+                                                                                                    const expResponse = await fetch(API_ROUTES.expenses.show(job.id));
+                                                                                                    if (expResponse.ok) {
+                                                                                                        const expData = await expResponse.json();
+                                                                                                        if (expData.success) expense = expData.expense;
+                                                                                                    }
+                                                                                                } catch (e) {
+                                                                                                    console.log('No expense found');
+                                                                                                }
+                                                                                                
+                                                                                                setSelectedJobForDetail({ ...fullJob, inspection, expense });
+                                                                                            } catch (error) {
+                                                                                                console.error('Error loading job details:', error);
+                                                                                                setSelectedJobForDetail(job);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-600 transition-colors shadow-md"
+                                                                                        title="View Details"
+                                                                                    >
+                                                                                        Detail
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => {
+                                                                                            setSelectedJobForEdit(job);
+                                                                                        }}
+                                                                                        className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-xs font-black uppercase hover:bg-emerald-600 transition-colors shadow-md"
+                                                                                        title="Edit Job"
+                                                                                    >
+                                                                                        Edit
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={async () => {
+                                                                                            if (confirm(`Are you sure you want to delete job #${jobIdx + 1}?`)) {
+                                                                                                try {
+                                                                                                    const response = await fetch(API_ROUTES.jobs.destroy(job.id), {
+                                                                                                        method: 'DELETE',
+                                                                                                        headers: {
+                                                                                                            'Content-Type': 'application/json',
+                                                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                                                            'Accept': 'application/json'
+                                                                                                        }
+                                                                                                    });
+                                                                                                    
+                                                                                                    const result = await response.json();
+                                                                                                    
+                                                                                                    if (result.success) {
+                                                                                                        // Remove from completed jobs
+                                                                                                        setCompletedJobs(prev => prev.filter(j => j.id !== job.id));
+                                                                                                        alert('Job deleted successfully!');
+                                                                                                        
+                                                                                                        // Reload completed jobs from backend
+                                                                                                        const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                                                        const reloadData = await reloadResponse.json();
+                                                                                                        if (reloadData.success && reloadData.jobs) {
+                                                                                                            setCompletedJobs(reloadData.jobs);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        alert('Error deleting job: ' + (result.message || 'Unknown error'));
+                                                                                                    }
+                                                                                                } catch (error) {
+                                                                                                    console.error('Error deleting job:', error);
+                                                                                                    alert('Error deleting job. Please try again.');
+                                                                                                }
+                                                                                            }
+                                                                                        }}
+                                                                                        className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-black uppercase hover:bg-red-600 transition-colors shadow-md"
+                                                                                        title="Delete Job"
+                                                                                    >
+                                                                                        Delete
+                                                                                    </button>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -4042,26 +4507,336 @@
                                             <div className="p-8 sm:p-10 border-t-[6px] border-slate-300 bg-gradient-to-r from-slate-100 via-white to-slate-100">
                                                 <div className="flex flex-col sm:flex-row gap-5">
                                                     <button
-                                                        onClick={() => setShowSaleDetailsModal(false)}
+                                                        onClick={() => setShowCompletedJobsModal(false)}
                                                         className="flex-1 px-10 py-5 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white rounded-3xl text-base font-black uppercase tracking-wide hover:from-slate-800 hover:via-slate-900 hover:to-black transition-all shadow-2xl hover:shadow-[0_20px_60px_-12px_rgba(0,0,0,0.5)] transform hover:scale-[1.03] border-[4px] border-slate-600/50"
                                                     >
-                                                        Close Report
+                                                        Close
                                                     </button>
-                                                    {completedJobs.length > 0 && (
-                                                        <button
-                                                            onClick={() => {
-                                                                window.print();
-                                                            }}
-                                                            className="px-10 py-5 bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 text-white rounded-3xl text-base font-black uppercase tracking-wide hover:from-emerald-700 hover:via-green-700 hover:to-emerald-800 transition-all shadow-2xl hover:shadow-[0_20px_60px_-12px_rgba(16,185,129,0.5)] transform hover:scale-[1.03] border-[4px] border-emerald-500/50"
-                                                        >
-                                                            <div className="flex items-center justify-center gap-3">
-                                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                                                </svg>
-                                                                Print Report
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Job Detail Modal with Print */}
+                                {selectedJobForDetail && (
+                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex items-center justify-center p-4" onClick={() => setSelectedJobForDetail(null)}>
+                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()} id="jobDetailPrint">
+                                            {/* Header */}
+                                            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h2 className="text-2xl font-black uppercase tracking-tighter">Job Details</h2>
+                                                        <p className="text-sm opacity-90 mt-1">Complete job information with inspections and expenses</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setSelectedJobForDetail(null)}
+                                                        className="text-white hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-white/20"
+                                                        aria-label="Close job details"
+                                                    >
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Job Info */}
+                                            <div className="flex-1 overflow-y-auto p-6">
+                                                <div className="space-y-6">
+                                                    {/* Customer & Vehicle Info */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Vehicle No</p>
+                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.vehicleNo || selectedJobForDetail.vehicle_no || 'N/A'}</p>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Customer</p>
+                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.customerName || selectedJobForDetail.customer_name || 'N/A'}</p>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Mobile</p>
+                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.mobile || 'N/A'}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Service & Worker */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Service</p>
+                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.serviceName || selectedJobForDetail.service_name || selectedJobForDetail.service || 'N/A'}</p>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Worker</p>
+                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.workerName || selectedJobForDetail.worker_name || selectedJobForDetail.worker || 'N/A'}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Time & Amount */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Start Time</p>
+                                                            <p className="text-lg font-black text-slate-900">
+                                                                {selectedJobForDetail.startTime ? new Date(selectedJobForDetail.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">End Time</p>
+                                                            <p className="text-lg font-black text-slate-900">
+                                                                {selectedJobForDetail.endTime ? new Date(selectedJobForDetail.endTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl border-2 border-blue-400">
+                                                            <p className="text-xs font-black text-white/90 uppercase mb-2">Amount</p>
+                                                            <p className="text-2xl font-black text-white">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Inspection Details */}
+                                                    {selectedJobForDetail.inspection && selectedJobForDetail.inspection.inspectionItems && (
+                                                        <div className="bg-purple-50 p-6 rounded-xl border-2 border-purple-200">
+                                                            <h3 className="text-lg font-black text-purple-900 uppercase mb-4">Inspection Details</h3>
+                                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                                {Object.keys(selectedJobForDetail.inspection.inspectionItems).map(itemId => {
+                                                                    const item = selectedJobForDetail.inspection.inspectionItems[itemId];
+                                                                    const itemNames = {
+                                                                        'engine_oil': 'Engine Oil',
+                                                                        'gear_oil': 'Gear Oil',
+                                                                        'brake_oil': 'Brake Oil',
+                                                                        'air_filter': 'Air Filter',
+                                                                        'radiator_water': 'Radiator Water',
+                                                                        'shower_water': 'Shower Water',
+                                                                        'power_oil': 'Power Oil',
+                                                                        'horn': 'Horn',
+                                                                        'head_lights': 'Head Lights',
+                                                                        'indicator': 'Indicator',
+                                                                        'brake_pad': 'Brake Pad',
+                                                                        'ac_filter': 'AC Filter'
+                                                                    };
+                                                                    const statusIcons = {
+                                                                        'excellent': '⭐',
+                                                                        'good': '✅',
+                                                                        'average': '⚠️',
+                                                                        'poor': '❌'
+                                                                    };
+                                                                    return (
+                                                                        <div key={itemId} className="bg-white p-3 rounded-lg border border-purple-200">
+                                                                            <p className="text-xs font-black text-slate-600 uppercase mb-1">{itemNames[itemId] || itemId}</p>
+                                                                            <p className="text-sm font-black text-purple-700">{statusIcons[item.status] || '⚪'} {item.status || 'N/A'}</p>
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                        </button>
+                                                        </div>
                                                     )}
+                                                    
+                                                    {/* Expense Details */}
+                                                    {selectedJobForDetail.expense && selectedJobForDetail.expense.expenseItems && selectedJobForDetail.expense.expenseItems.length > 0 && (
+                                                        <div className="bg-orange-50 p-6 rounded-xl border-2 border-orange-200">
+                                                            <h3 className="text-lg font-black text-orange-900 uppercase mb-4">Expense Details</h3>
+                                                            <div className="space-y-2">
+                                                                {selectedJobForDetail.expense.expenseItems.map((item, idx) => (
+                                                                    <div key={idx} className="bg-white p-3 rounded-lg border border-orange-200 flex justify-between items-center">
+                                                                        <div>
+                                                                            <p className="text-sm font-black text-slate-900">{item.name}</p>
+                                                                            <p className="text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
+                                                                        </div>
+                                                                        <p className="text-sm font-black text-orange-600">Rs.{item.total || (item.quantity * item.price)}</p>
+                                                                    </div>
+                                                                ))}
+                                                                <div className="bg-orange-200 p-3 rounded-lg border-2 border-orange-300 flex justify-between items-center mt-4">
+                                                                    <p className="text-sm font-black text-orange-900 uppercase">Total Expense</p>
+                                                                    <p className="text-lg font-black text-orange-900">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Notes/Comments */}
+                                                    {selectedJobForDetail.notes && (
+                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Notes</p>
+                                                            <p className="text-sm text-slate-900">{selectedJobForDetail.notes}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Footer with Print Button */}
+                                            <div className="p-6 border-t border-slate-200 bg-slate-50">
+                                                <div className="flex gap-4">
+                                                    <button
+                                                        onClick={() => setSelectedJobForDetail(null)}
+                                                        className="flex-1 px-6 py-3 bg-slate-700 text-white rounded-xl text-sm font-black uppercase hover:bg-slate-800 transition-colors"
+                                                    >
+                                                        Close
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            window.print();
+                                                        }}
+                                                        className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                                        </svg>
+                                                        Print
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Job Edit Modal */}
+                                {selectedJobForEdit && (
+                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex items-center justify-center p-4" onClick={() => setSelectedJobForEdit(null)}>
+                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-green-600 text-white">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h2 className="text-2xl font-black uppercase tracking-tighter">Edit Job</h2>
+                                                        <p className="text-sm opacity-90 mt-1">Update job information</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setSelectedJobForEdit(null)}
+                                                        className="text-white hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-white/20"
+                                                    >
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Edit Form */}
+                                            <div className="flex-1 overflow-y-auto p-6">
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Customer Name</label>
+                                                        <input
+                                                            type="text"
+                                                            id="editCustomerName"
+                                                            defaultValue={selectedJobForEdit.customerName || selectedJobForEdit.customer_name || ''}
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Vehicle No</label>
+                                                        <input
+                                                            type="text"
+                                                            id="editVehicleNo"
+                                                            defaultValue={selectedJobForEdit.vehicleNo || selectedJobForEdit.vehicle_no || ''}
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Mobile</label>
+                                                        <input
+                                                            type="tel"
+                                                            id="editMobile"
+                                                            defaultValue={selectedJobForEdit.mobile || ''}
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Service</label>
+                                                        <input
+                                                            type="text"
+                                                            id="editService"
+                                                            defaultValue={selectedJobForEdit.serviceName || selectedJobForEdit.service_name || selectedJobForEdit.service || ''}
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Worker</label>
+                                                        <input
+                                                            type="text"
+                                                            id="editWorker"
+                                                            defaultValue={selectedJobForEdit.workerName || selectedJobForEdit.worker_name || selectedJobForEdit.worker || ''}
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Amount (Rs.)</label>
+                                                        <input
+                                                            type="number"
+                                                            id="editAmount"
+                                                            defaultValue={selectedJobForEdit.price || 0}
+                                                            min="0"
+                                                            step="1"
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Notes</label>
+                                                        <textarea
+                                                            id="editNotes"
+                                                            defaultValue={selectedJobForEdit.notes || ''}
+                                                            rows="3"
+                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Footer */}
+                                            <div className="p-6 border-t border-slate-200 bg-slate-50">
+                                                <div className="flex gap-4">
+                                                    <button
+                                                        onClick={() => setSelectedJobForEdit(null)}
+                                                        className="flex-1 px-6 py-3 bg-slate-700 text-white rounded-xl text-sm font-black uppercase hover:bg-slate-800 transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const updateData = {
+                                                                customer_name: document.getElementById('editCustomerName').value.trim().toUpperCase(),
+                                                                vehicle_no: document.getElementById('editVehicleNo').value.trim().toUpperCase(),
+                                                                mobile: document.getElementById('editMobile').value.trim(),
+                                                                service_name: document.getElementById('editService').value.trim().toUpperCase(),
+                                                                worker_name: document.getElementById('editWorker').value.trim().toUpperCase(),
+                                                                price: parseFloat(document.getElementById('editAmount').value) || 0,
+                                                                notes: document.getElementById('editNotes').value.trim()
+                                                            };
+                                                            
+                                                            try {
+                                                                const response = await fetch(API_ROUTES.jobs.update(selectedJobForEdit.id), {
+                                                                    method: 'PUT',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify(updateData)
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (result.success) {
+                                                                    alert('Job updated successfully!');
+                                                                    setSelectedJobForEdit(null);
+                                                                    
+                                                                    // Reload completed jobs
+                                                                    const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                    const reloadData = await reloadResponse.json();
+                                                                    if (reloadData.success && reloadData.jobs) {
+                                                                        setCompletedJobs(reloadData.jobs);
+                                                                    }
+                                                                } else {
+                                                                    alert('Error updating job: ' + (result.message || 'Unknown error'));
+                                                                }
+                                                            } catch (error) {
+                                                                console.error('Error updating job:', error);
+                                                                alert('Error updating job. Please try again.');
+                                                            }
+                                                        }}
+                                                        className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-black uppercase hover:bg-emerald-700 transition-colors"
+                                                    >
+                                                        Update Job
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -4155,20 +4930,28 @@
                                         <div className="space-y-3">
                                             {activeJobs.map((job) => {
                                                 const serviceColorVal = allServices.find(s => s.label === job.service)?.colorValue || '#3b82f6';
-                                                const startTime = new Date(job.startTime);
-                                                const timeString = startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                                                // Fix timer calculation - handle null/invalid startTime
+                                                let timeString = 'N/A';
+                                                let timerString = '0:00';
                                                 
-                                                // Calculate elapsed time from start
-                                                const elapsed = Math.max(0, currentTime - startTime);
-                                                const totalSeconds = Math.floor(elapsed / 1000);
-                                                const hours = Math.floor(totalSeconds / 3600);
-                                                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                                                const seconds = totalSeconds % 60;
-                                                
-                                                // Format timer starting from 0:00
-                                                const timerString = hours > 0 
-                                                    ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-                                                    : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                                                if (job.startTime) {
+                                                    const startTime = new Date(job.startTime);
+                                                    if (!isNaN(startTime.getTime())) {
+                                                        timeString = startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                                                        
+                                                        // Calculate elapsed time from start
+                                                        const elapsed = Math.max(0, currentTime.getTime() - startTime.getTime());
+                                                        const totalSeconds = Math.floor(elapsed / 1000);
+                                                        const hours = Math.floor(totalSeconds / 3600);
+                                                        const minutes = Math.floor((totalSeconds % 3600) / 60);
+                                                        const seconds = totalSeconds % 60;
+                                                        
+                                                        // Format timer starting from 0:00
+                                                        timerString = hours > 0 
+                                                            ? `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+                                                            : `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                                                    }
+                                                }
                                                 
                                                 const styleObj = { backgroundColor: serviceColorVal };
                                                 
@@ -4201,7 +4984,7 @@
                                                             </div>
                                                             <div className="text-right">
                                                                 <p className="text-xs font-black text-emerald-600 font-mono">
-                                                                    Rs.{job.price}
+                                                                    Rs.{typeof job.price === 'number' ? job.price.toFixed(2) : job.price}
                                                                 </p>
                                                                 <div className="mt-1">
                                                                     <p className="text-[8px] text-slate-400 uppercase font-bold">Timer</p>
@@ -4329,22 +5112,90 @@
                                         });
                                     }
                                     
-                                    // Create new active job
-                                    const newJob = {
-                                        id: Date.now().toString(),
-                                        vehicleNo: formData.vehicleNo,
-                                        customerName: formData.customerName,
-                                        mobile: formData.mobile,
-                                        worker: formData.worker,
-                                        service: selectedService ? selectedService.label : 'Unknown Service',
-                                        price: formData.price,
-                                        startTime: new Date().toISOString(),
-                                        status: 'active',
-                                        voiceRecording: audioBase64
+                                    // Find service_id and worker_id
+                                    let serviceId = null;
+                                    let workerId = null;
+                                    
+                                    if (selectedService) {
+                                        // Check if selectedService has an id (from database)
+                                        if (selectedService.id) {
+                                            serviceId = selectedService.id;
+                                        } else {
+                                            // Try to find in allServices by label
+                                            const foundService = allServices.find(s => s.label === selectedService.label);
+                                            if (foundService && foundService.id) {
+                                                serviceId = foundService.id;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Find worker_id by name
+                                    if (formData.worker) {
+                                        const foundWorker = WORKERS.find(w => {
+                                            const workerName = typeof w === 'string' ? w : (w.name || '');
+                                            return workerName === formData.worker.trim();
+                                        });
+                                        if (foundWorker && typeof foundWorker !== 'string' && foundWorker.id) {
+                                            workerId = foundWorker.id;
+                                        }
+                                    }
+                                    
+                                    // Prepare job data for backend
+                                    const jobData = {
+                                        service_id: serviceId,
+                                        worker_id: workerId,
+                                        customer_name: formData.customerName || null,
+                                        vehicle_no: formData.vehicleNo || null,
+                                        mobile: formData.mobile || null,
+                                        service_name: selectedService ? selectedService.label : 'Unknown Service',
+                                        price: formData.price || 0,
+                                        additional_prices: selectedService?.additionalPrices || [],
+                                        worker_name: formData.worker || null,
                                     };
                                     
-                                    // Add to active jobs
-                                    setActiveJobs(prev => [...prev, newJob]);
+                                    try {
+                                        // Save job to database
+                                        const response = await fetch(API_ROUTES.jobs.store, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': csrfToken,
+                                                'Accept': 'application/json',
+                                            },
+                                            body: JSON.stringify(jobData),
+                                        });
+                                        
+                                        const result = await response.json();
+                                        
+                                        if (!response.ok) {
+                                            throw new Error(result.message || 'Failed to create job');
+                                        }
+                                        
+                                        // Create job object with database ID (match the format from HomeController)
+                                        const newJob = {
+                                            id: result.job?.id || Date.now().toString(),
+                                            serviceId: result.job?.serviceId || serviceId,
+                                            workerId: result.job?.workerId || workerId,
+                                            customerName: result.job?.customerName || formData.customerName || 'N/A',
+                                            vehicleNo: result.job?.vehicleNo || formData.vehicleNo || 'N/A',
+                                            mobile: result.job?.mobile || formData.mobile || '',
+                                            service: result.job?.serviceName || (selectedService ? selectedService.label : 'Unknown Service'),
+                                            price: result.job?.price || formData.price || 0,
+                                            worker: result.job?.workerName || formData.worker || '',
+                                            startTime: result.job?.startTime || new Date().toISOString(),
+                                            status: 'active',
+                                            voiceRecording: audioBase64
+                                        };
+                                        
+                                        // Add to active jobs
+                                        setActiveJobs(prev => [...prev, newJob]);
+                                        
+                                        console.log('Job created successfully:', result);
+                                    } catch (error) {
+                                        console.error('Error creating job:', error);
+                                        alert('Error creating job: ' + error.message);
+                                        return; // Don't reset form if there was an error
+                                    }
                                     
                                     // Reset form and go back to dashboard
                                     setView('dashboard');
@@ -4358,8 +5209,6 @@
                                     setIsRecording(false);
                                     setMediaRecorder(null);
                                     setRecognition(null);
-                                    
-                                    console.log('Job started:', newJob);
                                 }} className="space-y-6">
                                     <div className="p-6 rounded-[35px] bg-slate-50 shadow-inner text-center">
                                         <input
@@ -4819,8 +5668,20 @@
             );
         };
         
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        // Check if React 18 createRoot is available, otherwise use legacy render
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            if (ReactDOM.createRoot) {
+                // React 18+
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(<App />);
+            } else {
+                // React 17 and below (legacy)
+                ReactDOM.render(<App />, rootElement);
+            }
+        } else {
+            console.error('Root element not found!');
+        }
     </script>
     
     <!-- Settings Dropdown JavaScript -->
@@ -4959,12 +5820,32 @@
                         e.preventDefault();
                         settingsDropdown.classList.remove('show');
                         
+                        // Reset worker modal for new worker
+                        closeWorkerModal();
+                        
                         // Show worker modal
-                        const workerModal = document.getElementById('workerModalOverlay');
-                        if (workerModal) {
-                            workerModal.style.display = 'block'; // Ensure it's visible
-                            workerModal.classList.add('show');
-                        }
+                        setTimeout(() => {
+                            const workerModal = document.getElementById('workerModalOverlay');
+                            if (workerModal) {
+                                // Reset modal title
+                                const workerModalTitle = workerModal.querySelector('.category-modal-title');
+                                const workerModalSubtitle = workerModal.querySelector('.category-modal-subtitle');
+                                if (workerModalTitle) workerModalTitle.textContent = 'NEW WORKER';
+                                if (workerModalSubtitle) workerModalSubtitle.textContent = 'ADD A NEW WORKER TO STATION';
+                                
+                                // Hide delete button
+                                const deleteWorkerBtn = document.getElementById('deleteWorkerBtn');
+                                if (deleteWorkerBtn) deleteWorkerBtn.style.display = 'none';
+                                
+                                // Remove editing ID if any
+                                workerModal.removeAttribute('data-editing-worker-id');
+                                
+                                // Show modal
+                                workerModal.style.display = 'block';
+                                workerModal.classList.add('show');
+                                document.body.style.overflow = 'hidden';
+                            }
+                        }, 100);
                     });
                 }
                 
@@ -4993,53 +5874,523 @@
             function loadWorkersList() {
                 if (!workerDetailsList) return;
                 
-                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                // Fetch workers from backend API
+                fetch(API_ROUTES.workers.index, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.workers) {
+                        const workers = data.workers;
+                        
+                        // Also update localStorage for backward compatibility
+                        localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
+                        
+                        if (workers.length === 0) {
+                            workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
+                            return;
+                        }
+                        
+                        workerDetailsList.innerHTML = workers.map(worker => {
+                            const imagesHtml = `
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                                    ${worker.idCardFront ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">ID Card Front</p><img src="${worker.idCardFront}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
+                                    ${worker.idCardBack ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">ID Card Back</p><img src="${worker.idCardBack}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
+                                    ${worker.fatherCardFront ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">Father Card Front</p><img src="${worker.fatherCardFront}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
+                                    ${worker.fatherCardBack ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">Father Card Back</p><img src="${worker.fatherCardBack}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
+                                </div>
+                            `;
+                            
+                            return `
+                                <div style="background: #f8fafc; border-radius: 24px; padding: 24px; border: 2px solid #e2e8f0; margin-bottom: 16px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                                        <div style="flex: 1;">
+                                            <h3 style="font-size: 18px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0;">${worker.name || 'N/A'}</h3>
+                                            <p style="font-size: 12px; color: #64748b; margin: 0;">${worker.mobile || 'N/A'}</p>
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button 
+                                                type="button" 
+                                                class="edit-worker-btn" 
+                                                data-worker-id="${worker.id}"
+                                                style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; transition: all 0.2s;"
+                                                onmouseover="this.style.background='#2563eb'"
+                                                onmouseout="this.style.background='#3b82f6'"
+                                            >
+                                                EDIT
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                class="delete-worker-btn" 
+                                                data-worker-id="${worker.id}"
+                                                data-worker-name="${worker.name}"
+                                                style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px; transition: all 0.2s;"
+                                                onmouseover="this.style.background='#dc2626'"
+                                                onmouseout="this.style.background='#ef4444'"
+                                            >
+                                                DELETE
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div style="display: grid; gap: 16px;">
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                            <div>
+                                                <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Father Name</p>
+                                                <p style="font-size: 16px; font-weight: 700; color: #1e293b;">${worker.fatherName || 'N/A'}</p>
+                                            </div>
+                                            <div>
+                                                <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Commission</p>
+                                                <p style="font-size: 16px; font-weight: 700; color: #1e293b;">${worker.commission || 0}%</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Location / Address</p>
+                                            <p style="font-size: 14px; font-weight: 600; color: #475569; line-height: 1.6;">${worker.location || 'N/A'}</p>
+                                        </div>
+                                        ${imagesHtml}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        // Add event listeners for edit and delete buttons
+                        attachWorkerActionListeners();
+                    } else {
+                        // Fallback to localStorage
+                        const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                        if (workers.length === 0) {
+                            workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
+                            return;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading workers from API:', error);
+                    // Fallback to localStorage
+                    const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                    if (workers.length === 0) {
+                        workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
+                    }
+                });
+            }
+            
+            // Function to attach event listeners for edit and delete buttons
+            function attachWorkerActionListeners() {
+                // Edit button handlers
+                document.querySelectorAll('.edit-worker-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const workerId = this.getAttribute('data-worker-id');
+                        editWorker(workerId);
+                    });
+                });
                 
-                if (workers.length === 0) {
-                    workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
+                // Delete button handlers
+                document.querySelectorAll('.delete-worker-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const workerId = this.getAttribute('data-worker-id');
+                        const workerName = this.getAttribute('data-worker-name');
+                        deleteWorker(workerId, workerName);
+                    });
+                });
+            }
+            
+            // Function to open worker modal in edit mode
+            function editWorker(workerId) {
+                // Fetch worker data from backend
+                fetch(API_ROUTES.workers.index, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    console.log('Fetching worker data, response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Worker data received:', data);
+                    if (data.success && data.workers) {
+                        const worker = data.workers.find(w => w.id == workerId || w.id === workerId);
+                        console.log('Found worker:', worker);
+                        if (worker) {
+                            console.log('Worker images:', {
+                                idCardFront: worker.idCardFront,
+                                idCardBack: worker.idCardBack,
+                                fatherCardFront: worker.fatherCardFront,
+                                fatherCardBack: worker.fatherCardBack
+                            });
+                            // Populate form with worker data
+                            const workerModal = document.getElementById('workerModalOverlay');
+                            const workerModalTitle = workerModal.querySelector('.category-modal-title');
+                            const workerModalSubtitle = workerModal.querySelector('.category-modal-subtitle');
+                            const workerSubmitBtn = document.getElementById('workerSubmitBtn');
+                            const deleteWorkerBtn = document.getElementById('deleteWorkerBtn');
+                            
+                            // Update modal title
+                            if (workerModalTitle) workerModalTitle.textContent = 'EDIT WORKER';
+                            if (workerModalSubtitle) workerModalSubtitle.textContent = 'UPDATE WORKER INFORMATION';
+                            
+                            // Set editing ID
+                            workerModal.setAttribute('data-editing-worker-id', worker.id);
+                            
+                            // Show delete button
+                            if (deleteWorkerBtn) deleteWorkerBtn.style.display = 'block';
+                            
+                            // Update button text
+                            if (workerSubmitBtn) workerSubmitBtn.textContent = 'UPDATE & SAVE';
+                            
+                            // Fill form fields
+                            document.getElementById('workerName').value = worker.name || '';
+                            document.getElementById('workerMobile').value = worker.mobile || '';
+                            document.getElementById('workerFatherName').value = worker.fatherName || '';
+                            document.getElementById('workerFatherMobile').value = worker.fatherMobile || '';
+                            document.getElementById('workerLocation').value = worker.location || '';
+                            document.getElementById('workerCommission').value = worker.commission || 0;
+                            
+                            // Load additional mobiles
+                            const workerMobileContainer = document.getElementById('workerMobileNumbersContainer');
+                            if (workerMobileContainer && worker.additionalMobiles && worker.additionalMobiles.length > 0) {
+                                workerMobileContainer.style.display = 'block';
+                                workerMobileContainer.innerHTML = worker.additionalMobiles.map((item, index) => `
+                                    <div class="additional-mobile-item" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; background: #f8fafc;">
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <input type="text" class="category-form-input" placeholder="Contact Name" value="${item.name || ''}" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; text-transform: uppercase;" />
+                                            <button type="button" class="remove-mobile-btn" style="padding: 10px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 14px;" onclick="this.parentElement.parentElement.remove()">×</button>
+                                        </div>
+                                        <input type="tel" class="category-form-input" placeholder="e.g. 0300-1234567" value="${item.mobile || ''}" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;" />
+                                    </div>
+                                `).join('');
+                            }
+                            
+                            // Load father additional mobiles
+                            const fatherMobileContainer = document.getElementById('workerFatherMobileNumbersContainer');
+                            if (fatherMobileContainer && worker.fatherAdditionalMobiles && worker.fatherAdditionalMobiles.length > 0) {
+                                fatherMobileContainer.style.display = 'block';
+                                fatherMobileContainer.innerHTML = worker.fatherAdditionalMobiles.map((item, index) => `
+                                    <div class="additional-mobile-item" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; background: #f8fafc;">
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <input type="text" class="category-form-input" placeholder="Contact Name" value="${item.name || ''}" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; text-transform: uppercase;" />
+                                            <button type="button" class="remove-mobile-btn" style="padding: 10px 16px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 14px;" onclick="this.parentElement.parentElement.remove()">×</button>
+                                        </div>
+                                        <input type="tel" class="category-form-input" placeholder="e.g. 0300-1234567" value="${item.mobile || ''}" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;" />
+                                    </div>
+                                `).join('');
+                            }
+                            
+                            // Clear all image previews first
+                            const workerIdCardFrontPreview = document.getElementById('workerIdCardFrontPreview');
+                            const workerIdCardBackPreview = document.getElementById('workerIdCardBackPreview');
+                            const workerFatherCardFrontPreview = document.getElementById('workerFatherCardFrontPreview');
+                            const workerFatherCardBackPreview = document.getElementById('workerFatherCardBackPreview');
+                            const workerIdCardFrontLabel = document.getElementById('workerIdCardFrontLabel');
+                            const workerIdCardBackLabel = document.getElementById('workerIdCardBackLabel');
+                            const workerFatherCardFrontLabel = document.getElementById('workerFatherCardFrontLabel');
+                            const workerFatherCardBackLabel = document.getElementById('workerFatherCardBackLabel');
+                            const workerIdCardFrontInput = document.getElementById('workerIdCardFront');
+                            const workerIdCardBackInput = document.getElementById('workerIdCardBack');
+                            const workerFatherCardFrontInput = document.getElementById('workerFatherCardFront');
+                            const workerFatherCardBackInput = document.getElementById('workerFatherCardBack');
+                            
+                            // Load images if they exist - with remove buttons
+                            if (worker.idCardFront) {
+                                if (workerIdCardFrontPreview) {
+                                    workerIdCardFrontPreview.innerHTML = `
+                                        <div style="position: relative; width: 100%; margin-top: 12px;">
+                                            <img src="${worker.idCardFront}" alt="Front ID Card" 
+                                                 style="width: 100%; max-height: 250px; object-fit: contain; border-radius: 12px; border: 2px solid #e2e8f0; display: block; background: #f8fafc; padding: 8px;"
+                                                 onerror="console.error('Error loading ID Card Front image:', '${worker.idCardFront}'); this.style.display='none';"
+                                                 onload="console.log('ID Card Front image loaded successfully');"
+                                            />
+                                            <button type="button" 
+                                                    class="remove-image-btn" 
+                                                    onclick="removeExistingImage('workerIdCardFrontPreview', 'workerIdCardFront')"
+                                                    style="position: absolute; top: 8px; right: 8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: all 0.2s;"
+                                                    onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
+                                                    onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
+                                                    title="Remove Image">
+                                                ×
+                                            </button>
+                                        </div>
+                                    `;
+                                    workerIdCardFrontPreview.classList.add('show');
+                                    workerIdCardFrontPreview.style.display = 'block';
+                                    workerIdCardFrontPreview.style.marginTop = '12px';
+                                    workerIdCardFrontPreview.setAttribute('data-existing-image', worker.idCardFront);
+                                }
+                                if (workerIdCardFrontLabel) {
+                                    workerIdCardFrontLabel.textContent = 'Change Front Image';
+                                }
+                            } else {
+                                if (workerIdCardFrontPreview) {
+                                    workerIdCardFrontPreview.innerHTML = '';
+                                    workerIdCardFrontPreview.classList.remove('show');
+                                    workerIdCardFrontPreview.style.display = 'none';
+                                }
+                                if (workerIdCardFrontLabel) {
+                                    workerIdCardFrontLabel.textContent = 'Choose Front Image';
+                                }
+                            }
+                            
+                            if (worker.idCardBack) {
+                                if (workerIdCardBackPreview) {
+                                    workerIdCardBackPreview.innerHTML = `
+                                        <div style="position: relative; width: 100%; margin-top: 12px;">
+                                            <img src="${worker.idCardBack}" alt="Back ID Card" 
+                                                 style="width: 100%; max-height: 250px; object-fit: contain; border-radius: 12px; border: 2px solid #e2e8f0; display: block; background: #f8fafc; padding: 8px;"
+                                                 onerror="console.error('Error loading ID Card Back image:', '${worker.idCardBack}'); this.style.display='none';"
+                                                 onload="console.log('ID Card Back image loaded successfully');"
+                                            />
+                                            <button type="button" 
+                                                    class="remove-image-btn" 
+                                                    onclick="removeExistingImage('workerIdCardBackPreview', 'workerIdCardBack')"
+                                                    style="position: absolute; top: 8px; right: 8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: all 0.2s;"
+                                                    onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
+                                                    onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
+                                                    title="Remove Image">
+                                                ×
+                                            </button>
+                                        </div>
+                                    `;
+                                    workerIdCardBackPreview.classList.add('show');
+                                    workerIdCardBackPreview.style.display = 'block';
+                                    workerIdCardBackPreview.style.marginTop = '12px';
+                                    workerIdCardBackPreview.setAttribute('data-existing-image', worker.idCardBack);
+                                }
+                                if (workerIdCardBackLabel) {
+                                    workerIdCardBackLabel.textContent = 'Change Back Image';
+                                }
+                            } else {
+                                if (workerIdCardBackPreview) {
+                                    workerIdCardBackPreview.innerHTML = '';
+                                    workerIdCardBackPreview.classList.remove('show');
+                                    workerIdCardBackPreview.style.display = 'none';
+                                }
+                                if (workerIdCardBackLabel) {
+                                    workerIdCardBackLabel.textContent = 'Choose Back Image';
+                                }
+                            }
+                            
+                            if (worker.fatherCardFront) {
+                                if (workerFatherCardFrontPreview) {
+                                    workerFatherCardFrontPreview.innerHTML = `
+                                        <div style="position: relative; width: 100%; margin-top: 12px;">
+                                            <img src="${worker.fatherCardFront}" alt="Father Card Front" 
+                                                 style="width: 100%; max-height: 250px; object-fit: contain; border-radius: 12px; border: 2px solid #e2e8f0; display: block; background: #f8fafc; padding: 8px;"
+                                                 onerror="console.error('Error loading Father Card Front image:', '${worker.fatherCardFront}'); this.style.display='none';"
+                                                 onload="console.log('Father Card Front image loaded successfully');"
+                                            />
+                                            <button type="button" 
+                                                    class="remove-image-btn" 
+                                                    onclick="removeExistingImage('workerFatherCardFrontPreview', 'workerFatherCardFront')"
+                                                    style="position: absolute; top: 8px; right: 8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: all 0.2s;"
+                                                    onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
+                                                    onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
+                                                    title="Remove Image">
+                                                ×
+                                            </button>
+                                        </div>
+                                    `;
+                                    workerFatherCardFrontPreview.classList.add('show');
+                                    workerFatherCardFrontPreview.style.display = 'block';
+                                    workerFatherCardFrontPreview.style.marginTop = '12px';
+                                    workerFatherCardFrontPreview.setAttribute('data-existing-image', worker.fatherCardFront);
+                                }
+                                if (workerFatherCardFrontLabel) {
+                                    workerFatherCardFrontLabel.textContent = 'Change Father Card Front';
+                                }
+                            } else {
+                                if (workerFatherCardFrontPreview) {
+                                    workerFatherCardFrontPreview.innerHTML = '';
+                                    workerFatherCardFrontPreview.classList.remove('show');
+                                    workerFatherCardFrontPreview.style.display = 'none';
+                                }
+                                if (workerFatherCardFrontLabel) {
+                                    workerFatherCardFrontLabel.textContent = 'Choose Front Image';
+                                }
+                            }
+                            
+                            if (worker.fatherCardBack) {
+                                if (workerFatherCardBackPreview) {
+                                    workerFatherCardBackPreview.innerHTML = `
+                                        <div style="position: relative; width: 100%; margin-top: 12px;">
+                                            <img src="${worker.fatherCardBack}" alt="Father Card Back" 
+                                                 style="width: 100%; max-height: 250px; object-fit: contain; border-radius: 12px; border: 2px solid #e2e8f0; display: block; background: #f8fafc; padding: 8px;"
+                                                 onerror="console.error('Error loading Father Card Back image:', '${worker.fatherCardBack}'); this.style.display='none';"
+                                                 onload="console.log('Father Card Back image loaded successfully');"
+                                            />
+                                            <button type="button" 
+                                                    class="remove-image-btn" 
+                                                    onclick="removeExistingImage('workerFatherCardBackPreview', 'workerFatherCardBack')"
+                                                    style="position: absolute; top: 8px; right: 8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-weight: bold; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: all 0.2s;"
+                                                    onmouseover="this.style.background='#dc2626'; this.style.transform='scale(1.1)'"
+                                                    onmouseout="this.style.background='#ef4444'; this.style.transform='scale(1)'"
+                                                    title="Remove Image">
+                                                ×
+                                            </button>
+                                        </div>
+                                    `;
+                                    workerFatherCardBackPreview.classList.add('show');
+                                    workerFatherCardBackPreview.style.display = 'block';
+                                    workerFatherCardBackPreview.style.marginTop = '12px';
+                                    workerFatherCardBackPreview.setAttribute('data-existing-image', worker.fatherCardBack);
+                                }
+                                if (workerFatherCardBackLabel) {
+                                    workerFatherCardBackLabel.textContent = 'Change Father Card Back';
+                                }
+                            } else {
+                                if (workerFatherCardBackPreview) {
+                                    workerFatherCardBackPreview.innerHTML = '';
+                                    workerFatherCardBackPreview.classList.remove('show');
+                                    workerFatherCardBackPreview.style.display = 'none';
+                                }
+                                if (workerFatherCardBackLabel) {
+                                    workerFatherCardBackLabel.textContent = 'Choose Back Image';
+                                }
+                            }
+                            
+                            // Clear file inputs so new uploads replace existing images
+                            if (workerIdCardFrontInput) workerIdCardFrontInput.value = '';
+                            if (workerIdCardBackInput) workerIdCardBackInput.value = '';
+                            if (workerFatherCardFrontInput) workerFatherCardFrontInput.value = '';
+                            if (workerFatherCardBackInput) workerFatherCardBackInput.value = '';
+                            
+                            console.log('Loaded worker images:', {
+                                idCardFront: worker.idCardFront,
+                                idCardBack: worker.idCardBack,
+                                fatherCardFront: worker.fatherCardFront,
+                                fatherCardBack: worker.fatherCardBack
+                            });
+                            
+                            // Show modal first
+                            workerModal.style.display = 'block';
+                            workerModal.classList.add('show');
+                            document.body.style.overflow = 'hidden';
+                            
+                            // Force images to display after modal is visible (using setTimeout to ensure DOM is ready)
+                            setTimeout(() => {
+                                // Re-apply image display after a small delay to ensure modal is fully rendered
+                                if (worker.idCardFront && workerIdCardFrontPreview) {
+                                    workerIdCardFrontPreview.style.display = 'block';
+                                    workerIdCardFrontPreview.style.visibility = 'visible';
+                                    workerIdCardFrontPreview.style.opacity = '1';
+                                    // Force a reflow to ensure images render
+                                    workerIdCardFrontPreview.offsetHeight;
+                                }
+                                if (worker.idCardBack && workerIdCardBackPreview) {
+                                    workerIdCardBackPreview.style.display = 'block';
+                                    workerIdCardBackPreview.style.visibility = 'visible';
+                                    workerIdCardBackPreview.style.opacity = '1';
+                                    workerIdCardBackPreview.offsetHeight;
+                                }
+                                if (worker.fatherCardFront && workerFatherCardFrontPreview) {
+                                    workerFatherCardFrontPreview.style.display = 'block';
+                                    workerFatherCardFrontPreview.style.visibility = 'visible';
+                                    workerFatherCardFrontPreview.style.opacity = '1';
+                                    workerFatherCardFrontPreview.offsetHeight;
+                                }
+                                if (worker.fatherCardBack && workerFatherCardBackPreview) {
+                                    workerFatherCardBackPreview.style.display = 'block';
+                                    workerFatherCardBackPreview.style.visibility = 'visible';
+                                    workerFatherCardBackPreview.style.opacity = '1';
+                                    workerFatherCardBackPreview.offsetHeight;
+                                }
+                                
+                                console.log('Images should now be visible. Check browser console for any loading errors.');
+                            }, 150);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching worker data:', error);
+                    alert('Error loading worker data. Please try again.');
+                });
+            }
+            
+            // Function to remove existing image when X button is clicked
+            window.removeExistingImage = function(previewId, inputId) {
+                if (!confirm('Are you sure you want to remove this image?')) {
                     return;
                 }
                 
-                workerDetailsList.innerHTML = workers.map(worker => {
-                    const imagesHtml = `
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-                            ${worker.idCardFront ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">ID Card Front</p><img src="${worker.idCardFront}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
-                            ${worker.idCardBack ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">ID Card Back</p><img src="${worker.idCardBack}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
-                            ${worker.fatherCardFront ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">Father Card Front</p><img src="${worker.fatherCardFront}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
-                            ${worker.fatherCardBack ? `<div><p style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">Father Card Back</p><img src="${worker.fatherCardBack}" style="width: 100%; border-radius: 12px; border: 2px solid #e2e8f0;" /></div>` : ''}
-                        </div>
-                    `;
+                const preview = document.getElementById(previewId);
+                const input = document.getElementById(inputId);
+                const label = document.getElementById(inputId.replace('Input', 'Label') || previewId.replace('Preview', 'Label'));
+                
+                if (preview) {
+                    preview.innerHTML = '';
+                    preview.classList.remove('show');
+                    preview.style.display = 'none';
+                    preview.removeAttribute('data-existing-image');
+                    preview.setAttribute('data-deleted', 'true');
+                }
+                
+                if (input) {
+                    input.value = '';
+                }
+                
+                // Reset label
+                if (previewId === 'workerIdCardFrontPreview' && workerIdCardFrontLabel) {
+                    workerIdCardFrontLabel.textContent = 'Choose Front Image';
+                } else if (previewId === 'workerIdCardBackPreview' && workerIdCardBackLabel) {
+                    workerIdCardBackLabel.textContent = 'Choose Back Image';
+                } else if (previewId === 'workerFatherCardFrontPreview' && workerFatherCardFrontLabel) {
+                    workerFatherCardFrontLabel.textContent = 'Choose Front Image';
+                } else if (previewId === 'workerFatherCardBackPreview' && workerFatherCardBackLabel) {
+                    workerFatherCardBackLabel.textContent = 'Choose Back Image';
+                }
+            };
+            
+            // Function to delete a worker
+            function deleteWorker(workerId, workerName) {
+                if (!confirm(`Are you sure you want to delete worker "${workerName}"? This action cannot be undone.`)) {
+                    return;
+                }
+                
+                // Delete from backend via API
+                fetch(API_ROUTES.workers.destroy(workerId), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Worker deleted from backend:', workerId);
+                        
+                        // Also remove from localStorage
+                        const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                        const filteredWorkers = workers.filter(w => w.id != workerId);
+                        localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
+                        
+                        // Refresh the list
+                        loadWorkersList();
+                        
+                        // Dispatch event to notify React component
+                        window.dispatchEvent(new CustomEvent('workersUpdated'));
+                    } else {
+                        console.error('Error deleting worker:', data.message);
+                        alert('Error deleting worker: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('API Error during delete:', error);
+                    // Fallback to localStorage only deletion
+                    const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                    const filteredWorkers = workers.filter(w => w.id !== workerId);
+                    localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
                     
-                    return `
-                        <div style="background: #f8fafc; border-radius: 24px; padding: 24px; border: 2px solid #e2e8f0;">
-                            <div style="display: grid; gap: 16px;">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                                    <div>
-                                        <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Worker Name</p>
-                                        <p style="font-size: 16px; font-weight: 700; color: #1e293b;">${worker.name || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                        <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Mobile</p>
-                                        <p style="font-size: 16px; font-weight: 700; color: #1e293b;">${worker.mobile || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                        <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Father Name</p>
-                                        <p style="font-size: 16px; font-weight: 700; color: #1e293b;">${worker.fatherName || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                        <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Commission</p>
-                                        <p style="font-size: 16px; font-weight: 700; color: #1e293b;">${worker.commission || 0}%</p>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p style="font-size: 10px; font-weight: 800; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em;">Location / Address</p>
-                                    <p style="font-size: 14px; font-weight: 600; color: #475569; line-height: 1.6;">${worker.location || 'N/A'}</p>
-                                </div>
-                                ${imagesHtml}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                    // Refresh the list
+                    loadWorkersList();
+                    window.dispatchEvent(new CustomEvent('workersUpdated'));
+                });
             }
             
             if (workerDetailsModalClose) {
@@ -5348,35 +6699,94 @@
                     // Check if we're editing an existing category
                     const editingId = categoryModalOverlay ? categoryModalOverlay.getAttribute('data-editing-id') : null;
                     
-                    // Save to localStorage
-                    const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                    // Prepare data for API
+                    const serviceData = {
+                        label: categoryName,
+                        base_price: categoryPrice,
+                        additional_prices: additionalPrices,
+                        icon: selectedIcon,
+                        color: selectedColorClass,
+                        color_value: selectedColor
+                    };
                     
-                    if (editingId) {
-                        // Update existing category
-                        const categoryIndex = categories.findIndex(cat => cat.id === editingId);
-                        if (categoryIndex !== -1) {
-                            categories[categoryIndex] = {
-                                ...categories[categoryIndex],
-                                label: categoryName,
-                                basePrice: categoryPrice,
-                                additionalPrices: additionalPrices,
-                                color: selectedColorClass,
-                                colorValue: selectedColor,
-                                icon: selectedIcon,
-                                updatedAt: Date.now()
-                            };
-                            console.log('Category updated:', categories[categoryIndex]);
+                    // Determine API URL and method
+                    const apiUrl = editingId ? API_ROUTES.services.update(editingId) : API_ROUTES.services.store;
+                    const method = editingId ? 'PUT' : 'POST';
+                    
+                    // Save to backend via API
+                    fetch(apiUrl, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(serviceData)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Service saved to backend:', data.service);
+                            
+                            // Also save to localStorage for backward compatibility
+                            const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                            
+                            if (editingId) {
+                                // Update existing category in localStorage
+                                const categoryIndex = categories.findIndex(cat => cat.id == editingId || cat.id === editingId);
+                                if (categoryIndex !== -1) {
+                                    categories[categoryIndex] = {
+                                        ...categories[categoryIndex],
+                                        id: data.service.id,
+                                        label: data.service.label,
+                                        basePrice: parseFloat(data.service.base_price),
+                                        additionalPrices: data.service.additional_prices || [],
+                                        color: data.service.color,
+                                        colorValue: data.service.color_value,
+                                        icon: data.service.icon,
+                                        updatedAt: Date.now()
+                                    };
+                                } else {
+                                    // If not found by editingId, add as new
+                                    categories.push({
+                                        id: data.service.id,
+                                        label: data.service.label,
+                                        basePrice: parseFloat(data.service.base_price),
+                                        additionalPrices: data.service.additional_prices || [],
+                                        icon: data.service.icon,
+                                        color: data.service.color,
+                                        colorValue: data.service.color_value,
+                                        createdAt: Date.now()
+                                    });
+                                }
+                            } else {
+                                // Add new category to localStorage
+                                categories.push({
+                                    id: data.service.id,
+                                    label: data.service.label,
+                                    basePrice: parseFloat(data.service.base_price),
+                                    additionalPrices: data.service.additional_prices || [],
+                                    icon: data.service.icon,
+                                    color: data.service.color,
+                                    colorValue: data.service.color_value,
+                                    createdAt: Date.now()
+                                });
+                            }
+                            
+                            localStorage.setItem('eliteStation_categories', JSON.stringify(categories));
+                            console.log('All categories:', categories);
+                            
+                            // Dispatch custom event to notify React component
+                            window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+                        } else {
+                            console.error('Error saving service:', data.message);
+                            alert('Error saving service: ' + (data.message || 'Unknown error'));
                         }
-                        // Remove editing attribute
-                        if (categoryModalOverlay) {
-                            categoryModalOverlay.removeAttribute('data-editing-id');
-                        }
-                        
-                        // Reset button text to SAVE
-                        const submitBtn = document.getElementById('categorySubmitBtn');
-                        if (submitBtn) submitBtn.textContent = 'SAVE';
-                    } else {
-                        // Create new category
+                    })
+                    .catch(error => {
+                        console.error('API Error:', error);
+                        // Fallback to localStorage only
+                        const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
                         const newCategory = {
                             id: Date.now().toString(),
                             label: categoryName,
@@ -5388,11 +6798,19 @@
                             createdAt: Date.now()
                         };
                         categories.push(newCategory);
-                        console.log('Category saved:', newCategory);
+                        localStorage.setItem('eliteStation_categories', JSON.stringify(categories));
+                        window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+                    });
+                    
+                    // Remove editing attribute
+                    if (categoryModalOverlay) {
+                        categoryModalOverlay.removeAttribute('data-editing-id');
                     }
                     
-                    localStorage.setItem('eliteStation_categories', JSON.stringify(categories));
-                    console.log('All categories:', categories);
+                    // Reset button text to SAVE
+                    const submitBtn = document.getElementById('categorySubmitBtn');
+                    if (submitBtn) submitBtn.textContent = 'SAVE';
+                    
                     console.log('Selected color saved:', selectedColor);
                     console.log('Selected color class saved:', selectedColorClass);
                     
@@ -5499,26 +6917,52 @@
                     }
                     
                     if (confirm('Are you sure you want to delete this service? This action cannot be undone.')) {
-                        // Get categories from localStorage
-                        const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                        console.log('Categories before deletion:', categories);
-                        console.log('Deleting category with ID:', editingId);
-                        
-                        // Remove the category
-                        const filteredCategories = categories.filter(cat => cat.id !== editingId);
-                        localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
-                        
-                        console.log('Categories after deletion:', filteredCategories);
-                        console.log('Category deleted:', editingId);
-                        
-                        // Close modal
-                        closeCategoryModal();
-                        
-                        // Dispatch custom event to notify React component
-                        setTimeout(function() {
-                            window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                            console.log('categoriesUpdated event dispatched after deletion');
-                        }, 100);
+                        // Delete from backend via API
+                        fetch(API_ROUTES.services.destroy(editingId), {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Service deleted from backend:', editingId);
+                                
+                                // Also remove from localStorage for backward compatibility
+                                const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                                const filteredCategories = categories.filter(cat => cat.id != editingId);
+                                localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
+                                
+                                console.log('Categories after deletion:', filteredCategories);
+                                
+                                // Close modal
+                                closeCategoryModal();
+                                
+                                // Dispatch custom event to notify React component
+                                setTimeout(function() {
+                                    window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+                                    console.log('categoriesUpdated event dispatched after deletion');
+                                }, 100);
+                            } else {
+                                console.error('Error deleting service:', data.message);
+                                alert('Error deleting service: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('API Error during delete:', error);
+                            // Fallback to localStorage only deletion
+                            const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                            const filteredCategories = categories.filter(cat => cat.id !== editingId);
+                            localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
+                            
+                            closeCategoryModal();
+                            setTimeout(function() {
+                                window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+                            }, 100);
+                        });
                     }
                     
                     return false;
@@ -5591,17 +7035,46 @@
                     }
                     
                     if (confirm('Are you sure you want to delete this service? This action cannot be undone.')) {
-                        const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                        const filteredCategories = categories.filter(cat => cat.id !== editingId);
-                        localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
-                        
-                        console.log('Category deleted:', editingId);
-                        
-                        closeCategoryModal();
-                        
-                        setTimeout(function() {
-                            window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                        }, 100);
+                        // Delete from backend via API
+                        fetch(API_ROUTES.services.destroy(editingId), {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Also remove from localStorage
+                                const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                                const filteredCategories = categories.filter(cat => cat.id != editingId);
+                                localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
+                                
+                                console.log('Category deleted:', editingId);
+                                
+                                closeCategoryModal();
+                                
+                                setTimeout(function() {
+                                    window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+                                }, 100);
+                            } else {
+                                alert('Error deleting service: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('API Error:', error);
+                            // Fallback to localStorage deletion
+                            const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                            const filteredCategories = categories.filter(cat => cat.id !== editingId);
+                            localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
+                            
+                            closeCategoryModal();
+                            setTimeout(function() {
+                                window.dispatchEvent(new CustomEvent('categoriesUpdated'));
+                            }, 100);
+                        });
                     }
                     
                     return false;
@@ -5756,11 +7229,24 @@
                         if (workerFatherCardFrontLabel) workerFatherCardFrontLabel.textContent = 'Choose Front Image';
                         if (workerFatherCardBackLabel) workerFatherCardBackLabel.textContent = 'Choose Back Image';
                     }
+                    // Reset modal title and subtitle
+                    const workerModalTitle = workerModalOverlay.querySelector('.category-modal-title');
+                    const workerModalSubtitle = workerModalOverlay.querySelector('.category-modal-subtitle');
+                    if (workerModalTitle) workerModalTitle.textContent = 'NEW WORKER';
+                    if (workerModalSubtitle) workerModalSubtitle.textContent = 'ADD A NEW WORKER TO STATION';
+                    
                     // Reset button text to CONFIRM & SAVE
                     const workerSubmitBtn = document.getElementById('workerSubmitBtn');
                     if (workerSubmitBtn) {
                         workerSubmitBtn.textContent = 'CONFIRM & SAVE';
                     }
+                    
+                    // Hide delete button
+                    const deleteWorkerBtn = document.getElementById('deleteWorkerBtn');
+                    if (deleteWorkerBtn) {
+                        deleteWorkerBtn.style.display = 'none';
+                    }
+                    
                     // Remove editing attribute
                     workerModalOverlay.removeAttribute('data-editing-worker-id');
                     // Clear additional mobile numbers containers
@@ -6025,11 +7511,13 @@
                         // Collect additional worker mobile numbers (with names)
                         const workerAdditionalMobiles = [];
                         const workerMobileItems = document.querySelectorAll('#workerMobileNumbersContainer .additional-mobile-item');
-                        workerMobileItems.forEach(item => {
+                        console.log('Found additional mobile items:', workerMobileItems.length);
+                        workerMobileItems.forEach((item, index) => {
                             const nameInput = item.querySelector('input[type="text"]');
                             const mobileInput = item.querySelector('input[type="tel"]');
                             const name = nameInput ? nameInput.value.trim().toUpperCase() : '';
                             const mobile = mobileInput ? mobileInput.value.trim() : '';
+                            console.log(`Additional mobile ${index + 1}:`, { name, mobile });
                             if (name || mobile) {
                                 workerAdditionalMobiles.push({
                                     name: name,
@@ -6037,6 +7525,7 @@
                                 });
                             }
                         });
+                        console.log('All additional mobiles collected:', workerAdditionalMobiles);
                         
                         // Collect additional father mobile numbers (with names)
                         const fatherAdditionalMobiles = [];
@@ -6057,44 +7546,160 @@
                         // Check if we're editing an existing worker (reuse existing variable)
                         const editingWorkerId = workerModalOverlay ? workerModalOverlay.getAttribute('data-editing-worker-id') : null;
                         
-                        // Save to localStorage
-                        const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                        // Check if images were deleted (have data-deleted attribute)
+                        const idCardFrontPreview = document.getElementById('workerIdCardFrontPreview');
+                        const idCardBackPreview = document.getElementById('workerIdCardBackPreview');
+                        const fatherCardFrontPreview = document.getElementById('workerFatherCardFrontPreview');
+                        const fatherCardBackPreview = document.getElementById('workerFatherCardBackPreview');
+                        
+                        // Get main mobile number
+                        const mainMobile = workerMobileInput ? workerMobileInput.value.trim() : '';
+                        console.log('Main mobile number:', mainMobile);
+                        console.log('Additional mobiles:', workerAdditionalMobiles);
+                        
+                        // Prepare worker data for API - only include image fields when they're being changed
+                        const workerData = {
+                            name: workerName,
+                            mobile: mainMobile,
+                            additional_mobiles: workerAdditionalMobiles,
+                            father_name: workerFatherNameInput ? workerFatherNameInput.value.trim().toUpperCase() : '',
+                            father_mobile: workerFatherMobileInput ? workerFatherMobileInput.value.trim() : '',
+                            father_additional_mobiles: fatherAdditionalMobiles,
+                            location: workerLocationInput ? workerLocationInput.value.trim() : '',
+                            commission: workerCommissionInput ? parseInt(workerCommissionInput.value) || 0 : 0
+                        };
+                        
+                        // Only include image fields if:
+                        // 1. New image uploaded (base64 data exists)
+                        // 2. Image was deleted (data-deleted attribute is true) - send null
+                        // Don't include if editing and want to preserve existing (no new file, not deleted)
                         
                         if (editingWorkerId) {
-                            // Update existing worker
-                            const workerIndex = workers.findIndex(w => w.id === editingWorkerId);
-                            if (workerIndex !== -1) {
-                                // Preserve existing images if new ones are not uploaded, but check if deleted
-                                const existingWorker = workers[workerIndex];
-                                const workerIdCardFrontPreview = document.getElementById('workerIdCardFrontPreview');
-                                const workerIdCardBackPreview = document.getElementById('workerIdCardBackPreview');
-                                const workerFatherCardFrontPreview = document.getElementById('workerFatherCardFrontPreview');
-                                const workerFatherCardBackPreview = document.getElementById('workerFatherCardBackPreview');
-                                
-                                workers[workerIndex] = {
-                                    ...existingWorker,
-                                    name: workerName,
-                                    mobile: workerMobileInput ? workerMobileInput.value.trim() : '',
-                                    additionalMobiles: workerAdditionalMobiles,
-                                    fatherName: workerFatherNameInput ? workerFatherNameInput.value.trim().toUpperCase() : '',
-                                    fatherMobile: workerFatherMobileInput ? workerFatherMobileInput.value.trim() : '',
-                                    fatherAdditionalMobiles: fatherAdditionalMobiles,
-                                    location: workerLocationInput ? workerLocationInput.value.trim() : '',
-                                    commission: workerCommissionInput ? parseInt(workerCommissionInput.value) || 0 : 0,
-                                    idCardFront: (workerIdCardFrontPreview && workerIdCardFrontPreview.getAttribute('data-deleted') === 'true') ? null : (idCardFront || existingWorker.idCardFront || null),
-                                    idCardBack: (workerIdCardBackPreview && workerIdCardBackPreview.getAttribute('data-deleted') === 'true') ? null : (idCardBack || existingWorker.idCardBack || null),
-                                    fatherCardFront: (workerFatherCardFrontPreview && workerFatherCardFrontPreview.getAttribute('data-deleted') === 'true') ? null : (fatherCardFront || existingWorker.fatherCardFront || null),
-                                    fatherCardBack: (workerFatherCardBackPreview && workerFatherCardBackPreview.getAttribute('data-deleted') === 'true') ? null : (fatherCardBack || existingWorker.fatherCardBack || null),
-                                    updatedAt: Date.now()
-                                };
-                                console.log('Worker updated:', workers[workerIndex]);
+                            // Editing mode - only send images if changed
+                            if (idCardFrontPreview && idCardFrontPreview.getAttribute('data-deleted') === 'true') {
+                                workerData.id_card_front = null; // Delete image
+                            } else if (idCardFront) {
+                                workerData.id_card_front = idCardFront; // New image uploaded
                             }
-                            // Remove editing attribute
-                            if (workerModalOverlay) {
-                                workerModalOverlay.removeAttribute('data-editing-worker-id');
+                            // If neither condition, don't include field (preserve existing)
+                            
+                            if (idCardBackPreview && idCardBackPreview.getAttribute('data-deleted') === 'true') {
+                                workerData.id_card_back = null;
+                            } else if (idCardBack) {
+                                workerData.id_card_back = idCardBack;
+                            }
+                            
+                            if (fatherCardFrontPreview && fatherCardFrontPreview.getAttribute('data-deleted') === 'true') {
+                                workerData.father_card_front = null;
+                            } else if (fatherCardFront) {
+                                workerData.father_card_front = fatherCardFront;
+                            }
+                            
+                            if (fatherCardBackPreview && fatherCardBackPreview.getAttribute('data-deleted') === 'true') {
+                                workerData.father_card_back = null;
+                            } else if (fatherCardBack) {
+                                workerData.father_card_back = fatherCardBack;
                             }
                         } else {
-                            // Create new worker
+                            // Creating new worker - include all images
+                            workerData.id_card_front = idCardFront || null;
+                            workerData.id_card_back = idCardBack || null;
+                            workerData.father_card_front = fatherCardFront || null;
+                            workerData.father_card_back = fatherCardBack || null;
+                        }
+                        
+                        console.log('Image status:', {
+                            idCardFront: workerData.id_card_front ? (typeof workerData.id_card_front === 'string' && workerData.id_card_front.startsWith('data:') ? 'new file' : 'preserved') : 'deleted/null',
+                            idCardBack: workerData.id_card_back ? (typeof workerData.id_card_back === 'string' && workerData.id_card_back.startsWith('data:') ? 'new file' : 'preserved') : 'deleted/null',
+                            fatherCardFront: workerData.father_card_front ? (typeof workerData.father_card_front === 'string' && workerData.father_card_front.startsWith('data:') ? 'new file' : 'preserved') : 'deleted/null',
+                            fatherCardBack: workerData.father_card_back ? (typeof workerData.father_card_back === 'string' && workerData.father_card_back.startsWith('data:') ? 'new file' : 'preserved') : 'deleted/null'
+                        });
+                        
+                        console.log('Worker data being sent to API:', JSON.stringify(workerData, null, 2));
+                        
+                        // Determine API URL and method
+                        const apiUrl = editingWorkerId ? API_ROUTES.workers.update(editingWorkerId) : API_ROUTES.workers.store;
+                        const method = editingWorkerId ? 'PUT' : 'POST';
+                        
+                        // Save to backend via API
+                        fetch(apiUrl, {
+                            method: method,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify(workerData)
+                        })
+                        .then(response => {
+                            console.log('API Response status:', response.status);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('API Response data:', data);
+                            if (data.success) {
+                                console.log('Worker saved to backend:', data.worker);
+                                console.log('Saved mobile:', data.worker.mobile);
+                                console.log('Saved additional mobiles:', data.worker.additionalMobiles);
+                                
+                                // Also save to localStorage for backward compatibility
+                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                                
+                                if (editingWorkerId) {
+                                    // Update existing worker in localStorage
+                                    const workerIndex = workers.findIndex(w => w.id == editingWorkerId || w.id === editingWorkerId);
+                                    if (workerIndex !== -1) {
+                                        workers[workerIndex] = {
+                                            ...workers[workerIndex],
+                                            id: data.worker.id,
+                                            name: data.worker.name,
+                                            mobile: data.worker.mobile,
+                                            additionalMobiles: data.worker.additionalMobiles || [],
+                                            fatherName: data.worker.fatherName,
+                                            fatherMobile: data.worker.fatherMobile,
+                                            fatherAdditionalMobiles: data.worker.fatherAdditionalMobiles || [],
+                                            location: data.worker.location,
+                                            commission: data.worker.commission,
+                                            idCardFront: data.worker.idCardFront,
+                                            idCardBack: data.worker.idCardBack,
+                                            fatherCardFront: data.worker.fatherCardFront,
+                                            fatherCardBack: data.worker.fatherCardBack,
+                                            updatedAt: Date.now()
+                                        };
+                                    }
+                                } else {
+                                    // Add new worker to localStorage
+                                    workers.push({
+                                        id: data.worker.id,
+                                        name: data.worker.name,
+                                        mobile: data.worker.mobile,
+                                        additionalMobiles: data.worker.additionalMobiles || [],
+                                        fatherName: data.worker.fatherName,
+                                        fatherMobile: data.worker.fatherMobile,
+                                        fatherAdditionalMobiles: data.worker.fatherAdditionalMobiles || [],
+                                        location: data.worker.location,
+                                        commission: data.worker.commission,
+                                        idCardFront: data.worker.idCardFront,
+                                        idCardBack: data.worker.idCardBack,
+                                        fatherCardFront: data.worker.fatherCardFront,
+                                        fatherCardBack: data.worker.fatherCardBack,
+                                        createdAt: Date.now()
+                                    });
+                                }
+                                
+                                localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
+                                
+                                // Dispatch custom event to notify React component
+                                window.dispatchEvent(new CustomEvent('workersUpdated'));
+                            } else {
+                                console.error('Error saving worker:', data.message);
+                                alert('Error saving worker: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('API Error:', error);
+                            // Fallback to localStorage only
+                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
                             const newWorker = {
                                 id: Date.now().toString(),
                                 name: workerName,
@@ -6112,10 +7717,14 @@
                                 createdAt: Date.now()
                             };
                             workers.push(newWorker);
-                            console.log('Worker saved:', newWorker);
-                        }
+                            localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
+                            window.dispatchEvent(new CustomEvent('workersUpdated'));
+                        });
                         
-                        localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
+                        // Remove editing attribute
+                        if (workerModalOverlay) {
+                            workerModalOverlay.removeAttribute('data-editing-worker-id');
+                        }
                         console.log('Worker saved successfully');
                         
                         // Ensure modal is closed (in case it wasn't closed earlier) - FORCE CLOSE
@@ -6163,6 +7772,138 @@
                     });
                 });
             }
+            
+            // Delete Worker Button Handler
+            const deleteWorkerBtn = document.getElementById('deleteWorkerBtn');
+            if (deleteWorkerBtn) {
+                deleteWorkerBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const workerModalOverlay = document.getElementById('workerModalOverlay');
+                    const editingWorkerId = workerModalOverlay ? workerModalOverlay.getAttribute('data-editing-worker-id') : null;
+                    const workerNameInput = document.getElementById('workerName');
+                    const workerName = workerNameInput ? workerNameInput.value.trim().toUpperCase() : '';
+                    
+                    if (!editingWorkerId) {
+                        alert('No worker selected for deletion. Please edit an existing worker first.');
+                        return false;
+                    }
+                    
+                    if (confirm(`Are you sure you want to delete worker "${workerName}"? This action cannot be undone.`)) {
+                        // Delete from backend via API
+                        fetch(API_ROUTES.workers.destroy(editingWorkerId), {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Worker deleted from backend:', editingWorkerId);
+                                
+                                // Also remove from localStorage
+                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                                const filteredWorkers = workers.filter(w => w.id != editingWorkerId);
+                                localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
+                                
+                                // Close modal
+                                closeWorkerModal();
+                                
+                                // Dispatch custom event to notify React component
+                                setTimeout(() => {
+                                    window.dispatchEvent(new CustomEvent('workersUpdated'));
+                                    
+                                    // Refresh worker details list if modal is open
+                                    const workerDetailsModal = document.getElementById('workerDetailsModalOverlay');
+                                    if (workerDetailsModal && workerDetailsModal.classList.contains('show')) {
+                                        loadWorkersList();
+                                    }
+                                }, 100);
+                            } else {
+                                console.error('Error deleting worker:', data.message);
+                                alert('Error deleting worker: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('API Error during delete:', error);
+                            // Fallback to localStorage only deletion
+                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                            const filteredWorkers = workers.filter(w => w.id !== editingWorkerId);
+                            localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
+                            
+                            closeWorkerModal();
+                            setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent('workersUpdated'));
+                            }, 100);
+                        });
+                    }
+                    
+                    return false;
+                }, true); // Use capture phase to ensure it fires
+            }
+            
+            // Also use document-level event delegation as backup for delete button
+            document.addEventListener('click', function(e) {
+                const deleteBtn = e.target.closest('#deleteWorkerBtn');
+                if (deleteBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const workerModalOverlay = document.getElementById('workerModalOverlay');
+                    const editingWorkerId = workerModalOverlay ? workerModalOverlay.getAttribute('data-editing-worker-id') : null;
+                    const workerNameInput = document.getElementById('workerName');
+                    const workerName = workerNameInput ? workerNameInput.value.trim().toUpperCase() : '';
+                    
+                    if (!editingWorkerId) {
+                        alert('No worker selected for deletion. Please edit an existing worker first.');
+                        return false;
+                    }
+                    
+                    if (confirm(`Are you sure you want to delete worker "${workerName}"? This action cannot be undone.`)) {
+                        // Delete from backend via API
+                        fetch(API_ROUTES.workers.destroy(editingWorkerId), {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                                const filteredWorkers = workers.filter(w => w.id != editingWorkerId);
+                                localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
+                                
+                                closeWorkerModal();
+                                setTimeout(() => {
+                                    window.dispatchEvent(new CustomEvent('workersUpdated'));
+                                }, 100);
+                            } else {
+                                alert('Error deleting worker: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('API Error:', error);
+                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
+                            const filteredWorkers = workers.filter(w => w.id !== editingWorkerId);
+                            localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
+                            
+                            closeWorkerModal();
+                            setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent('workersUpdated'));
+                            }, 100);
+                        });
+                    }
+                    
+                    return false;
+                }
+            }, true);
         });
     </script>
 </body>
