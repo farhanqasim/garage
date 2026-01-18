@@ -68,7 +68,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/branch/select/complete', [LoginController::class, 'completeBranchSelection'])
         ->name('branch.select.complete');
 });
-
+     
 // Normal user dashboard
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
