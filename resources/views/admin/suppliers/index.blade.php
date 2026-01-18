@@ -55,16 +55,59 @@
         cursor: default !important;
     }
     
+    /* Modal Dialog Desktop Alignment */
+    #addSupplierModal .modal-dialog {
+        max-width: 1140px !important;
+        width: 90% !important;
+        margin: 1.75rem auto !important;
+    }
+    
+    @media (min-width: 1200px) {
+        #addSupplierModal .modal-dialog {
+            max-width: 1140px !important;
+            width: 85% !important;
+        }
+    }
+    
+    @media (min-width: 992px) and (max-width: 1199px) {
+        #addSupplierModal .modal-dialog {
+            max-width: 900px !important;
+            width: 90% !important;
+        }
+    }
+    
+    @media (min-width: 768px) and (max-width: 991px) {
+        #addSupplierModal .modal-dialog {
+            max-width: 700px !important;
+            width: 90% !important;
+        }
+    }
+    
     /* Overall Modal Form Alignment */
     #addSupplierModal .modal-body .row {
         margin-left: 0;
         margin-right: 0;
+        display: flex;
+        flex-wrap: wrap;
     }
     
     #addSupplierModal .modal-body .row > [class*="col-"] {
         padding-left: 15px;
         padding-right: 15px;
         margin-bottom: 1rem;
+    }
+    
+    /* Desktop: Ensure proper column spacing */
+    @media (min-width: 768px) {
+        #addSupplierModal .modal-body .row > [class*="col-md-"] {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+        
+        #addSupplierModal .modal-body .row.g-3 > [class*="col-"] {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
     }
     
     /* Form Labels Alignment */
@@ -85,16 +128,61 @@
     /* Input Groups Alignment */
     #addSupplierModal .input-group {
         width: 100%;
-        display: flex;
+        display: flex !important;
         align-items: stretch;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     #addSupplierModal .input-group .form-control {
         flex: 1 1 auto;
+        display: block !important;
+        visibility: visible !important;
+        min-width: 100px !important;
+    }
+    
+    #addSupplierModal .input-group .form-select {
+        display: block !important;
+        visibility: visible !important;
+        flex: 0 0 auto;
     }
     
     #addSupplierModal .input-group .btn {
         flex: 0 0 auto;
+        display: block !important;
+        visibility: visible !important;
+        flex-shrink: 0;
+    }
+    
+    /* Country code select2 width control - now in separate div above input-group */
+    #addSupplierModal .phone-country-code,
+    #addSupplierModal .phone-country-code + .select2-container {
+        max-width: 200px !important;
+        width: 200px !important;
+    }
+    
+    /* Ensure phone number input has proper width when country code is above */
+    #addSupplierModal .name-phone-row .col-md-6:nth-child(2) .input-group .phone-number-input {
+        flex: 1 1 auto !important;
+        min-width: 200px !important;
+        width: auto !important;
+    }
+    
+    /* Ensure phone number input has proper width */
+    #addSupplierModal .input-group .phone-number-input {
+        flex: 1 1 auto !important;
+        min-width: 150px !important;
+        width: auto !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure WhatsApp number input group is visible */
+    #addSupplierModal .name-phone-row .col-md-6:nth-child(2) .input-group {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
     }
     
     /* Name Phone Row Alignment */
@@ -107,14 +195,45 @@
         display: flex;
         flex-direction: column;
         margin-bottom: 0;
+        width: 100%;
+    }
+    
+    /* Ensure WhatsApp Number column is visible on desktop */
+    @media (min-width: 768px) {
+        .name-phone-row .col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+            width: 50%;
+            display: flex !important;
+            flex-direction: column;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .name-phone-row .col-md-6:nth-child(2) {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
     }
     
     .name-phone-row .form-label {
         margin-bottom: 0.5rem;
+        display: block !important;
     }
     
     .name-phone-row .input-group {
         width: 100%;
+        display: flex !important;
+        visibility: visible !important;
+    }
+    
+    /* Ensure phone number input is visible */
+    .name-phone-row .phone-number-input {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
     }
     
     .name-phone-row .remove-row {
@@ -207,11 +326,127 @@
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     }
     
+    /* Business Detail Tag Input Styling */
+    .business-detail-tag-container {
+        position: relative;
+    }
+    
+    .business-detail-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 1000;
+        margin-top: 2px;
+        display: none;
+    }
+    
+    .business-detail-suggestions.show {
+        display: block;
+    }
+    
+    .business-detail-suggestion-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 0.75rem;
+        transition: background 0.1s;
+    }
+    
+    .business-detail-suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .business-detail-suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .business-detail-suggestion-item.selected {
+        background-color: #e7f3ff;
+    }
+    
+    .business-detail-suggestion-text {
+        flex: 1;
+        font-size: 0.9rem;
+    }
+    
+    .business-detail-suggestion-text .highlight {
+        font-weight: 600;
+        color: #0d6efd;
+    }
+    
+    .business-detail-suggestion-loading {
+        padding: 0.5rem 0.75rem;
+        text-align: center;
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    
+    .business-detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        min-height: 40px;
+    }
+    
+    .business-detail-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        background-color: #0d6efd;
+        color: white;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        gap: 0.5rem;
+    }
+    
+    .business-detail-tag .tag-remove {
+        cursor: pointer;
+        font-weight: bold;
+        opacity: 0.8;
+        font-size: 16px;
+        line-height: 1;
+        transition: opacity 0.2s;
+    }
+    
+    .business-detail-tag .tag-remove:hover {
+        opacity: 1;
+    }
+    
     /* Consistent Spacing */
     #addSupplierModal .col-md-6,
     #addSupplierModal .col-md-12,
     #addSupplierModal .col-12 {
         margin-bottom: 1rem;
+    }
+    
+    /* Desktop: Better spacing for columns */
+    @media (min-width: 768px) {
+        #addSupplierModal .col-md-6 {
+            margin-bottom: 1.25rem;
+        }
+        
+        #addSupplierModal .col-md-12 {
+            margin-bottom: 1.25rem;
+        }
+        
+        #addSupplierModal .col-12 {
+            margin-bottom: 1.25rem;
+        }
+        
+        /* Ensure equal column heights for side-by-side fields */
+        #addSupplierModal .row > .col-md-6 {
+            display: flex;
+            flex-direction: column;
+        }
     }
     
     /* Group field specific styling */
@@ -226,6 +461,14 @@
     #addSupplierModal .row.g-3 {
         --bs-gutter-x: 1rem;
         --bs-gutter-y: 1rem;
+    }
+    
+    /* Desktop: Optimize gutter spacing */
+    @media (min-width: 768px) {
+        #addSupplierModal .row.g-3 {
+            --bs-gutter-x: 1.25rem;
+            --bs-gutter-y: 1rem;
+        }
     }
     
     /* Ensure proper height for upload boxes */
@@ -266,6 +509,21 @@
     #addSupplierModal .modal-body {
         background-color: #ffffff !important;
         padding: 25px !important;
+        max-height: calc(100vh - 200px);
+        overflow-y: auto;
+    }
+    
+    /* Desktop: Better padding for modal body */
+    @media (min-width: 768px) {
+        #addSupplierModal .modal-body {
+            padding: 30px !important;
+        }
+    }
+    
+    @media (min-width: 992px) {
+        #addSupplierModal .modal-body {
+            padding: 35px !important;
+        }
     }
     
     #addSupplierModal .modal-footer {
@@ -783,6 +1041,8 @@
         function resetRecordingUI(inputField, controlBtn, nameCol) {
             // Reset input field
             if (inputField) {
+                inputField.readOnly = false; // Remove readonly to allow editing
+                inputField.removeAttribute('readonly');
                 inputField.style.removeProperty('color');
                 inputField.style.removeProperty('textShadow');
                 inputField.style.removeProperty('backgroundColor');
@@ -838,20 +1098,20 @@
                 newRow.className = 'row g-3 mb-3 name-phone-row';
                 newRow.innerHTML = `
                     <div class="col-md-6">
+                        <label class="form-label">Record Voice NAME <span class="text-danger">*</span></label>
                         <div class="mb-2">
-                            <button type="button" class="btn btn-danger remove-row w-100">
-                                <i class="fas fa-trash me-2"></i>Remove
+                            <button type="button" class="btn btn-outline-secondary mic-btn w-100">
+                                <i class="fas fa-microphone me-2"></i>Record Voice
                             </button>
                         </div>
-                        <label class="form-label">Name</label>
                         <div class="input-group">
                             <input type="text" name="names[]" class="form-control speech-input" placeholder="Enter name or use mic">
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">WhatsApp Number</label>
-                        <div class="input-group">
-                            <select name="country_codes[]" class="form-select phone-country-code" style="max-width: 150px;">
+                        <label class="form-label">Other Number</label>
+                        <div class="mb-2">
+                            <select name="country_codes[]" class="form-select phone-country-code w-100" style="max-width: 200px;">
                                 <option value="1">🇺🇸 +1 (US/CA)</option>
                                 <option value="44">🇬🇧 +44 (UK)</option>
                                 <option value="91">🇮🇳 +91 (India)</option>
@@ -887,6 +1147,8 @@
                                 <option value="95">🇲🇲 +95 (Myanmar)</option>
                                 <option value="977">🇳🇵 +977 (Nepal)</option>
                             </select>
+                        </div>
+                        <div class="input-group">
                             <input type="text" name="phones[]" class="form-control phone-number-input" placeholder="Enter phone number">
                             <button type="button" class="btn btn-success phone-whatsapp-btn" title="Open WhatsApp">
                                 <i class="fab fa-whatsapp"></i>
@@ -895,10 +1157,51 @@
                                 <i class="fas fa-phone"></i>
                             </button>
                         </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-danger remove-row w-100">
+                                <i class="fas fa-trash me-2"></i>Remove
+                            </button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(newRow);
                 updateRemoveButtons(container.id);
+                
+                // Initialize Select2 for the new country code dropdown
+                const newSelect = newRow.querySelector('.phone-country-code');
+                if (newSelect && !$(newSelect).hasClass('select2-hidden-accessible')) {
+                    const selectMaxWidth = newSelect.style.maxWidth || '200px';
+                    const fixedWidth = selectMaxWidth.replace('px', '') + 'px';
+                    
+                    $(newSelect).select2({
+                        placeholder: 'Select Country Code',
+                        allowClear: false,
+                        width: fixedWidth,
+                        minimumResultsForSearch: 0,
+                        matcher: function(params, data) {
+                            if (!params.term || params.term === '') {
+                                return data;
+                            }
+                            const searchTerm = params.term.toUpperCase();
+                            const optionText = data.text.toUpperCase();
+                            const optionValue = data.id.toString();
+                            if (optionValue.includes(searchTerm) || optionText.includes(searchTerm)) {
+                                return data;
+                            }
+                            return null;
+                        }
+                    });
+                    
+                    // Auto-focus search input when dropdown opens
+                    $(newSelect).on('select2:open', function() {
+                        setTimeout(function() {
+                            const searchInput = $('.select2-container--open .select2-search__field');
+                            if (searchInput.length) {
+                                searchInput.focus();
+                            }
+                        }, 100);
+                    });
+                }
             }
 
             // Remove Row
@@ -930,6 +1233,14 @@
                     
                     // Remove the audio container first
                     audioContainer.remove();
+                    
+                    // Make name input editable again when recording is removed
+                    if (inputField) {
+                        inputField.readOnly = false;
+                        inputField.removeAttribute('readonly');
+                        inputField.style.backgroundColor = '';
+                        inputField.style.cursor = '';
+                    }
                     
                     // Remove the hidden file input
                     const form = document.getElementById('supplierForm');
@@ -1303,8 +1614,9 @@
 
             let recognition = new SpeechRecognition();
             recognition.continuous = true; // Changed to true for continuous recording
-            recognition.interimResults = false;
+            recognition.interimResults = true; // Enable interim results for real-time transcription
             recognition.lang = 'en-US';
+            recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
 
             let mediaRecorder = null;
             let audioChunks = [];
@@ -1312,7 +1624,7 @@
             let recordingTimer = null;
             let recordingStartTime = null;
             let actualRecordingDuration = 0; // Track actual recording duration
-            let timeRemaining = 30; // 30 seconds
+            let timeRemaining = 7; // 7 seconds
             let isRecording = false;
 
             if (playPauseBtn) {
@@ -1332,9 +1644,11 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 inputField.value = '';
-                inputField.style.color = 'transparent';
-                inputField.style.textShadow = '0 0 8px rgba(0,0,0,0.5)';
-                inputField.placeholder = 'Listening... Speak now (0:30 remaining)';
+                inputField.readOnly = false; // Allow editing during recording
+                inputField.removeAttribute('readonly');
+                inputField.style.color = ''; // Make text visible for real-time transcription
+                inputField.style.textShadow = '';
+                inputField.placeholder = 'Listening... Speak now (0:07 remaining)';
                 const existingAudio = nameCol.querySelector('.audio-player-container');
                 if (existingAudio) existingAudio.remove();
                 const existingHiddenInput = document.querySelector('input[name="voice_note"]');
@@ -1431,10 +1745,48 @@
                     if (form) form.appendChild(fileInput);
                     
                     inputField.style.removeProperty('textShadow');
-                    inputField.style.color = 'transparent';
-                    inputField.style.backgroundColor = 'lightgreen';
-                    inputField.placeholder = `Voice transcribed (${durationText} recorded)`;
-                    if (transcript.trim()) inputField.value = transcript.trim();
+                    inputField.style.color = '#212529'; // Keep text visible after recording
+                    inputField.placeholder = `✅ Voice transcribed (verified spelling) - ${durationText} recorded`;
+                    // Ensure final transcript is set with proper formatting (verified and cleaned)
+                    if (transcript.trim()) {
+                        let finalText = transcript.trim()
+                            .replace(/\s+/g, ' ') // Clean multiple spaces
+                            .replace(/\b\w/g, (char) => char.toUpperCase()); // Capitalize for names
+                        inputField.value = finalText;
+                    }
+                    // Make input readonly after recording to prevent manual changes (ALWAYS, regardless of transcript)
+                    inputField.setAttribute('readonly', 'readonly');
+                    inputField.readOnly = true;
+                    inputField.style.backgroundColor = '#f8f9fa';
+                    inputField.style.cursor = 'not-allowed';
+                    // Add event listeners to prevent any changes
+                    inputField.addEventListener('keydown', function(e) {
+                        e.preventDefault();
+                        return false;
+                    }, true);
+                    inputField.addEventListener('input', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }, true);
+                    inputField.addEventListener('paste', function(e) {
+                        e.preventDefault();
+                        return false;
+                    }, true);
+                    // Store original value to restore if someone tries to change it
+                    const originalValue = inputField.value;
+                    // Use setInterval to continuously enforce readonly (as a safety measure)
+                    const readonlyEnforcer = setInterval(() => {
+                        if (inputField.readOnly !== true) {
+                            inputField.readOnly = true;
+                            inputField.setAttribute('readonly', 'readonly');
+                        }
+                        if (inputField.value !== originalValue) {
+                            inputField.value = originalValue;
+                        }
+                    }, 100);
+                    // Store the interval ID on the input field so we can clear it later
+                    inputField.dataset.readonlyEnforcer = readonlyEnforcer;
                     
                     controlBtn.innerHTML = '<i class="fas fa-play"></i>';
                     controlBtn.classList.remove('mic-btn');
@@ -1446,7 +1798,7 @@
                 isRecording = true;
                 recordingStartTime = Date.now();
                 actualRecordingDuration = 0;
-                timeRemaining = 30;
+                timeRemaining = 7;
                 
                 // Start media recorder first - this will record for the full duration
                 mediaRecorder.start(1000); // Request data every 1 second
@@ -1483,15 +1835,17 @@
                     inputField.placeholder = `🔴 Recording... (${elapsedString} / ${timeString} remaining)`;
                     
                     // Visual feedback - change background color based on remaining time
+                    // Ensure text color remains visible for real-time transcription
+                    inputField.style.color = '#212529'; // Dark color for visibility
                     if (timeRemaining <= 5) {
                         inputField.style.backgroundColor = '#ffebee';
-                        inputField.style.textShadow = '0 0 8px rgba(255,0,0,0.8)';
+                        inputField.style.textShadow = 'none'; // Remove shadow for better readability
                     } else if (timeRemaining <= 10) {
                         inputField.style.backgroundColor = '#fff3e0';
-                        inputField.style.textShadow = '0 0 8px rgba(255,152,0,0.6)';
+                        inputField.style.textShadow = 'none'; // Remove shadow for better readability
                     } else {
                         inputField.style.backgroundColor = '#e3f2fd';
-                        inputField.style.textShadow = '0 0 8px rgba(33,150,243,0.5)';
+                        inputField.style.textShadow = 'none'; // Remove shadow for better readability
                     }
                     
                     // Ensure mediaRecorder is still recording
@@ -1514,7 +1868,7 @@
                         }
                     }
                     
-                    // Stop recording after exactly 30 seconds
+                    // Stop recording after exactly 7 seconds
                     if (timeRemaining <= 0) {
                         clearInterval(recordingTimer);
                         stopRecording();
@@ -1526,6 +1880,7 @@
                             : `0:${finalSeconds.toString().padStart(2, '0')}`;
                         inputField.placeholder = `✅ Recording completed (${finalDurationText} recorded)`;
                         inputField.style.backgroundColor = 'lightgreen';
+                        inputField.style.color = '#212529'; // Ensure text is visible
                         inputField.style.textShadow = 'none';
                         controlBtn.style.backgroundColor = '';
                         controlBtn.style.color = '';
@@ -1533,15 +1888,74 @@
                 }, 1000);
                 
                 recognition.onresult = (event) => { 
-                    // Accumulate all results for continuous recognition
+                    // Accumulate all results for continuous recognition with accuracy verification
                     let interimTranscript = '';
+                    let finalTranscript = transcript;
+                    
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         const result = event.results[i];
+                        const transcriptObj = result[0];
+                        const confidence = transcriptObj.confidence || 0;
+                        
+                        // Only use results with confidence for better accuracy verification
+                        // For final results, use best alternative (highest confidence) if available
                         if (result.isFinal) {
-                            transcript += result[0].transcript + ' ';
+                            let bestTranscript = transcriptObj.transcript;
+                            let bestConfidence = confidence;
+                            
+                            // Check alternatives if available (maxAlternatives is set)
+                            // Note: Some browsers may not support alternatives
+                            try {
+                                if (result.length && result.length > 1) {
+                                    for (let alt = 0; alt < Math.min(result.length, 3); alt++) {
+                                        if (result[alt] && result[alt].transcript) {
+                                            const altConfidence = result[alt].confidence || 0;
+                                            if (altConfidence > bestConfidence) {
+                                                bestTranscript = result[alt].transcript;
+                                                bestConfidence = altConfidence;
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                // Fallback if alternatives not supported
+                                console.log('Alternatives check:', e);
+                            }
+                            
+                            // Only add if confidence is acceptable (>= 0.3) for verified spelling
+                            // Lower threshold for names as they might have lower confidence but still be correct
+                            if (bestConfidence >= 0.3) {
+                                // Clean and format the transcript for better spelling (verified)
+                                let cleanedText = bestTranscript.trim();
+                                // Remove extra punctuation and clean
+                                cleanedText = cleanedText.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+                                // Capitalize first letter of each word for proper name formatting
+                                cleanedText = cleanedText.replace(/\b\w/g, (char) => char.toUpperCase());
+                                finalTranscript += cleanedText + ' ';
+                                transcript = finalTranscript;
+                            }
                         } else {
-                            interimTranscript += result[0].transcript;
+                            // For interim results, show only if confidence is decent
+                            if (confidence >= 0.5) {
+                                interimTranscript += transcriptObj.transcript;
+                            }
                         }
+                    }
+                    
+                    // Update input field in real-time with both final and interim results
+                    const displayText = (finalTranscript + interimTranscript).trim();
+                    if (displayText) {
+                        // Format text: capitalize first letter of each word for proper name formatting
+                        // Also clean extra spaces and normalize text
+                        let formattedText = displayText
+                            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+                            .trim();
+                        
+                        // Capitalize first letter of each word for names (verified spelling)
+                        formattedText = formattedText.replace(/\b\w/g, (char) => char.toUpperCase());
+                        
+                        inputField.value = formattedText;
+                        inputField.style.color = '#212529'; // Ensure text is visible
                     }
                 };
                 
@@ -1868,9 +2282,32 @@
         });
 
 
-        // Form Submission Spinner (delegated for all forms)
+        // Form Submission Spinner and Validation (delegated for all forms)
         document.addEventListener('submit', function(e) {
             if (e.target.id === 'supplierForm') {
+                // Check if voice recording is required and validate it exists
+                const voiceNoteRequired = e.target.querySelector('#voiceNoteRequired');
+                if (voiceNoteRequired && voiceNoteRequired.value === '1') {
+                    const voiceNoteInput = e.target.querySelector('input[name="voice_note"]');
+                    const firstRow = e.target.querySelector('.name-phone-row');
+                    const audioContainer = firstRow ? firstRow.querySelector('.audio-player-container') : null;
+                    
+                    // Check if voice recording exists (either file input with file or audio container)
+                    const hasVoiceNoteFile = voiceNoteInput && voiceNoteInput.files && voiceNoteInput.files.length > 0;
+                    const hasAudioContainer = audioContainer !== null;
+                    
+                    if (!hasVoiceNoteFile && !hasAudioContainer) {
+                        e.preventDefault();
+                        alert('⚠️ Please record voice for NAME. Voice recording is required!');
+                        const firstMicBtn = firstRow ? firstRow.querySelector('.mic-btn') : null;
+                        if (firstMicBtn) {
+                            firstMicBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            firstMicBtn.focus();
+                        }
+                        return false;
+                    }
+                }
+                
                 const submitBtn = e.target.querySelector('button[type="submit"]');
                 const spinner = submitBtn ? submitBtn.querySelector('.spinner-border') : null;
                 if (spinner) spinner.classList.remove('d-none');
@@ -2170,10 +2607,14 @@
         // Initialize existing dropdowns
         document.querySelectorAll('.phone-country-code').forEach(function(select) {
             if (!$(select).hasClass('select2-hidden-accessible')) {
+                // Get max-width from select element or use default
+                const selectMaxWidth = select.style.maxWidth || '120px';
+                const fixedWidth = selectMaxWidth.replace('px', '') + 'px';
+                
                 $(select).select2({
                     placeholder: 'Select Country Code',
                     allowClear: false,
-                    width: '100%',
+                    width: fixedWidth, // Use fixed width based on max-width
                     minimumResultsForSearch: 0, // Always show search box
                     matcher: function(params, data) {
                         // If no search term, show all options
@@ -3135,6 +3576,380 @@
             if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger text-center">Error loading edit history. Please try again.</div>';
         });
     }
+    
+    // Business Detail Tag Input with Spelling Suggestions
+    (function() {
+        let businessDetailTags = [];
+        let suggestionTimeout = null;
+        let currentSuggestions = [];
+        let selectedSuggestionIndex = -1;
+        
+        function initializeBusinessDetailInput() {
+            const input = document.getElementById('business_detail_input');
+            const suggestions = document.getElementById('business_detail_suggestions');
+            const tagsContainer = document.getElementById('business_detail_tags');
+            const hiddenInput = document.getElementById('business_detail');
+            
+            if (!input || !tagsContainer || !hiddenInput) return;
+            
+            // Load existing tags from hidden input
+            if (hiddenInput.value) {
+                try {
+                    const existing = JSON.parse(hiddenInput.value);
+                    if (Array.isArray(existing)) {
+                        businessDetailTags = existing;
+                        renderTags();
+                    }
+                } catch (e) {
+                    // If not JSON, treat as comma-separated
+                    const tags = hiddenInput.value.split(',').map(t => t.trim()).filter(t => t);
+                    businessDetailTags = tags;
+                    renderTags();
+                }
+            }
+            
+            // Input handler for suggestions
+            input.addEventListener('input', function(e) {
+                const query = e.target.value.trim();
+                
+                if (suggestionTimeout) clearTimeout(suggestionTimeout);
+                
+                if (query.length < 2) {
+                    suggestions.classList.remove('show');
+                    selectedSuggestionIndex = -1;
+                    return;
+                }
+                
+                suggestionTimeout = setTimeout(() => {
+                    fetchSpellingSuggestions(query, suggestions);
+                }, 300);
+            });
+            
+            // Keydown handler
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.target.value.trim();
+                    
+                    if (selectedSuggestionIndex >= 0 && currentSuggestions[selectedSuggestionIndex]) {
+                        // Add selected suggestion
+                        addTag(currentSuggestions[selectedSuggestionIndex].name);
+                        input.value = '';
+                        suggestions.classList.remove('show');
+                        selectedSuggestionIndex = -1;
+                    } else if (value) {
+                        // Add typed value
+                        addTag(value);
+                        input.value = '';
+                        suggestions.classList.remove('show');
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateSuggestions(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateSuggestions(-1);
+                } else if (e.key === 'Escape') {
+                    suggestions.classList.remove('show');
+                    selectedSuggestionIndex = -1;
+                }
+            });
+            
+            // Click outside to close suggestions
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+                    suggestions.classList.remove('show');
+                    selectedSuggestionIndex = -1;
+                }
+            });
+            
+            // Click on suggestion
+            suggestions.addEventListener('click', function(e) {
+                const item = e.target.closest('.business-detail-suggestion-item');
+                if (item) {
+                    const value = item.dataset.value;
+                    if (value) {
+                        addTag(value);
+                        input.value = '';
+                        suggestions.classList.remove('show');
+                        selectedSuggestionIndex = -1;
+                    }
+                }
+            });
+        }
+        
+        async function fetchSpellingSuggestions(query, suggestionsEl) {
+            suggestionsEl.innerHTML = '<div class="business-detail-suggestion-loading">Searching...</div>';
+            suggestionsEl.classList.add('show');
+            
+            try {
+                // Progressive search - as user types, filter suggestions
+                const queryLower = query.toLowerCase().trim();
+                
+                // Comprehensive product list for progressive filtering
+                const allProducts = [
+                    'Books', 'Book', 'Bookstore', 'Bookshop', 'Bookbinding',
+                    'Electronics', 'Electronic Items', 'Electronic Devices', 'Electronic Accessories',
+                    'Clothing', 'Clothes', 'Cloth', 'Clothing Store', 'Clothing Accessories',
+                    'Groceries', 'Grocery', 'Grocery Store', 'Grocery Items',
+                    'Furniture', 'Furniture Store', 'Furniture Items', 'Office Furniture',
+                    'Appliances', 'Home Appliances', 'Kitchen Appliances', 'Electronic Appliances',
+                    'Toys', 'Toy Store', 'Toy Items', 'Children Toys',
+                    'Sports Equipment', 'Sports Items', 'Sports Goods', 'Sports Accessories',
+                    'Jewelry', 'Jewellery', 'Jewelry Store', 'Jewelry Items',
+                    'Cosmetics', 'Cosmetic Products', 'Cosmetic Items', 'Beauty Products',
+                    'Automotive Parts', 'Auto Parts', 'Car Parts', 'Vehicle Parts',
+                    'Hardware', 'Hardware Store', 'Hardware Items', 'Hardware Tools',
+                    'Software', 'Software Products', 'Software Solutions', 'Computer Software',
+                    'Food', 'Food Items', 'Food Products', 'Food Store',
+                    'Beverages', 'Beverage', 'Drinks', 'Beverage Store',
+                    'Stationery', 'Stationary', 'Stationery Items', 'Office Stationery',
+                    'Medicines', 'Medicine', 'Pharmaceuticals', 'Medical Supplies',
+                    'Home Decor', 'Home Decoration', 'Decorative Items', 'Home Accessories',
+                    'Garden Supplies', 'Garden Tools', 'Garden Items', 'Gardening Supplies',
+                    'Pet Supplies', 'Pet Food', 'Pet Accessories', 'Pet Items',
+                    'Baby Products', 'Baby Items', 'Baby Care', 'Baby Accessories',
+                    'Art Supplies', 'Art Materials', 'Art Items', 'Artistic Supplies',
+                    'Mobile Phones', 'Mobile', 'Smartphones', 'Mobile Accessories',
+                    'Laptops', 'Laptop', 'Laptop Accessories', 'Computer Laptops',
+                    'Tablets', 'Tablet', 'Tablet Accessories', 'Digital Tablets',
+                    'Headphones', 'Headphone', 'Earphones', 'Audio Headphones',
+                    'Cameras', 'Camera', 'Camera Accessories', 'Digital Cameras',
+                    'Watches', 'Watch', 'Wristwatch', 'Watch Accessories',
+                    'Shoes', 'Shoe', 'Footwear', 'Shoe Store',
+                    'Bags', 'Bag', 'Handbags', 'Bag Accessories',
+                    'Wallets', 'Wallet', 'Leather Wallets', 'Wallet Store',
+                    'Sunglasses', 'Sunglass', 'Eye Glasses', 'Sunglass Store',
+                    'Perfumes', 'Perfume', 'Fragrances', 'Perfume Store',
+                    'Skincare Products', 'Skincare', 'Skin Care', 'Beauty Skincare',
+                    'Computer Accessories', 'Computer Parts', 'PC Accessories', 'Computer Items',
+                    'Office Supplies', 'Office Items', 'Office Products', 'Office Equipment',
+                    'Kitchen Items', 'Kitchenware', 'Kitchen Products', 'Kitchen Accessories',
+                    'Bedding', 'Bed Sheets', 'Bedding Items', 'Bedroom Accessories',
+                    'Towels', 'Towel', 'Bath Towels', 'Towel Store'
+                ];
+                
+                // Progressive filtering - find ALL matching products
+                // As user types, filter products that contain the query anywhere
+                let filteredProducts = [];
+                
+                if (queryLower.length === 1) {
+                    // Single letter: show all products starting with that letter
+                    filteredProducts = allProducts.filter(product => 
+                        product.toLowerCase().startsWith(queryLower)
+                    );
+                } else {
+                    // Multiple letters: flexible matching - search in entire product name
+                    const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
+                    
+                    filteredProducts = allProducts.filter(product => {
+                        const productLower = product.toLowerCase();
+                        const productWords = productLower.split(/\s+/);
+                        
+                        // Method 1: Product starts with query (highest priority)
+                        if (productLower.startsWith(queryLower)) {
+                            return true;
+                        }
+                        
+                        // Method 2: Any word in product starts with query
+                        for (let word of productWords) {
+                            if (word.startsWith(queryLower)) {
+                                return true;
+                            }
+                        }
+                        
+                        // Method 3: Product contains query anywhere (more flexible)
+                        if (productLower.includes(queryLower)) {
+                            return true;
+                        }
+                        
+                        // Method 4: Check if query words appear in product (for multi-word queries)
+                        if (queryWords.length > 1) {
+                            // Check if all query words appear in product (in any order)
+                            const allWordsFound = queryWords.every(qWord => 
+                                productLower.includes(qWord)
+                            );
+                            if (allWordsFound) {
+                                return true;
+                            }
+                        }
+                        
+                        // Method 5: Check if any word in query matches any word in product (starts with)
+                        for (let qWord of queryWords) {
+                            if (productWords.some(pWord => pWord.startsWith(qWord))) {
+                                return true;
+                            }
+                        }
+                        
+                        return false;
+                    });
+                }
+                
+                // Remove already added tags
+                filteredProducts = filteredProducts.filter(p => 
+                    !businessDetailTags.includes(p) && p.toLowerCase() !== queryLower
+                );
+                
+                // Fetch Google suggestions for additional options
+                let googleSuggestions = [];
+                try {
+                    const googleUrl = `https://www.google.com/complete/search?client=firefox&q=${encodeURIComponent(query)}`;
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(googleUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    const data = await response.json();
+                    
+                    if (data && data.contents) {
+                        const content = JSON.parse(data.contents);
+                        if (content && content[1] && Array.isArray(content[1])) {
+                            googleSuggestions = content[1].slice(0, 10).map(item => item[0])
+                                .filter(s => !businessDetailTags.includes(s) && s.toLowerCase() !== queryLower);
+                        }
+                    }
+                } catch (e) {
+                    console.log('Error fetching Google suggestions:', e);
+                }
+                
+                // Combine filtered products with Google suggestions
+                let allSuggestions = [...new Set([...filteredProducts, ...googleSuggestions])];
+                
+                // If no suggestions found at all, show "No suggestions found"
+                if (allSuggestions.length === 0) {
+                    displaySuggestions([], suggestionsEl, query);
+                    return;
+                }
+                
+                // Sort by relevance (exact start match first, then contains)
+                allSuggestions.sort((a, b) => {
+                    const aLower = a.toLowerCase();
+                    const bLower = b.toLowerCase();
+                    
+                    const aStarts = aLower.startsWith(queryLower) ? 1 : 0;
+                    const bStarts = bLower.startsWith(queryLower) ? 1 : 0;
+                    
+                    if (aStarts !== bStarts) return bStarts - aStarts;
+                    
+                    const aIndex = aLower.indexOf(queryLower);
+                    const bIndex = bLower.indexOf(queryLower);
+                    
+                    return aIndex - bIndex;
+                });
+                
+                // Limit to exactly 5 suggestions
+                currentSuggestions = allSuggestions.slice(0, 5).map(name => ({ name }));
+                displaySuggestions(currentSuggestions, suggestionsEl, query);
+                
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+                suggestionsEl.innerHTML = '<div class="business-detail-suggestion-loading">Error loading suggestions</div>';
+            }
+        }
+        
+        function displaySuggestions(suggestions, suggestionsEl, query) {
+            if (suggestions.length === 0) {
+                // Show "No suggestions found" message
+                suggestionsEl.innerHTML = '<div class="business-detail-suggestion-loading">No suggestions found</div>';
+                suggestionsEl.classList.add('show');
+                return;
+            }
+            
+            const highlightText = (text, query) => {
+                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return text.replace(regex, '<span class="highlight">$1</span>');
+            };
+            
+            suggestionsEl.innerHTML = suggestions.map((suggestion, index) => {
+                return `
+                    <div class="business-detail-suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}" 
+                         data-value="${suggestion.name}" data-index="${index}">
+                        <div class="business-detail-suggestion-text">${highlightText(suggestion.name, query)}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            suggestionsEl.classList.add('show');
+        }
+        
+        function navigateSuggestions(direction) {
+            const items = document.querySelectorAll('.business-detail-suggestion-item');
+            if (items.length === 0) return;
+            
+            // Remove previous selection
+            items.forEach(item => item.classList.remove('selected'));
+            
+            // Update index
+            selectedSuggestionIndex += direction;
+            if (selectedSuggestionIndex < 0) {
+                selectedSuggestionIndex = items.length - 1;
+            } else if (selectedSuggestionIndex >= items.length) {
+                selectedSuggestionIndex = 0;
+            }
+            
+            // Add selection
+            if (items[selectedSuggestionIndex]) {
+                items[selectedSuggestionIndex].classList.add('selected');
+                items[selectedSuggestionIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+        
+        function addTag(tagName) {
+            if (tagName && !businessDetailTags.includes(tagName)) {
+                businessDetailTags.push(tagName);
+                renderTags();
+                updateHiddenInput();
+            }
+        }
+        
+        function removeTag(tagName) {
+            businessDetailTags = businessDetailTags.filter(t => t !== tagName);
+            renderTags();
+            updateHiddenInput();
+        }
+        
+        function renderTags() {
+            const tagsContainer = document.getElementById('business_detail_tags');
+            if (!tagsContainer) return;
+            
+            if (businessDetailTags.length === 0) {
+                tagsContainer.innerHTML = '';
+                return;
+            }
+            
+            tagsContainer.innerHTML = businessDetailTags.map(tag => `
+                <span class="business-detail-tag">
+                    ${tag}
+                    <span class="tag-remove" data-tag="${tag}" title="Remove">×</span>
+                </span>
+            `).join('');
+            
+            // Add remove handlers
+            tagsContainer.querySelectorAll('.tag-remove').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tagToRemove = this.dataset.tag;
+                    removeTag(tagToRemove);
+                });
+            });
+        }
+        
+        function updateHiddenInput() {
+            const hiddenInput = document.getElementById('business_detail');
+            if (hiddenInput) {
+                hiddenInput.value = JSON.stringify(businessDetailTags);
+            }
+        }
+        
+        // Initialize on modal shown
+        const addSupplierModal = document.getElementById('addSupplierModal');
+        if (addSupplierModal) {
+            addSupplierModal.addEventListener('shown.bs.modal', function() {
+                setTimeout(initializeBusinessDetailInput, 100);
+            });
+        }
+        
+        // Also initialize on page load
+        if (document.getElementById('business_detail_input')) {
+            initializeBusinessDetailInput();
+        }
+    })();
 </script>
 
 @endpush
