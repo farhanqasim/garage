@@ -2,27 +2,6 @@
     @csrf
     <div class="modal-body">
         <div class="row g-3">
-            <!-- Visiting Document -->
-            <div class="col-md-6">
-                <label for="visiting_doc" class="form-label">Visiting Document</label>
-                <div class="position-relative">
-                    <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
-                </div>
-                <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
-                <div id="visiting_preview" style="display: none; margin-top: 10px; position: relative;">
-                    <button type="button" id="cancelVisitingDoc" class="btn btn-danger btn-sm position-absolute" style="top: 5px; right: 5px; z-index: 10;" title="Remove">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    <div id="visiting_img_container" style="display: none;">
-                        <img id="visiting_img" src="" alt="Visiting Doc Preview" class="img-fluid rounded" style="max-height: 200px;">
-                    </div>
-                    <div id="visiting_file_info" style="display: none; text-center p-3 bg-light rounded">
-                        <i class="fas fa-file fa-3x text-muted mb-2"></i>
-                        <p class="text-muted mb-0" id="visiting_filename"></p>
-                    </div>
-                </div>
-            </div>
-
             <!-- Profile Image -->
             <div class="col-md-6">
                 <label for="profile_img" class="form-label">Profile Image</label>
@@ -47,20 +26,21 @@
                 <div id="namePhoneContainer">
                     <div class="row g-3 mb-3 name-phone-row">
                         <div class="col-md-6">
+                            <label class="form-label">Record Voice NAME <span class="text-danger">*</span></label>
                             <div class="mb-2">
                                 <button type="button" class="btn btn-outline-secondary mic-btn w-100">
                                     <i class="fas fa-microphone me-2"></i>Record Voice
                                 </button>
                             </div>
-                            <label class="form-label">Name <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <input type="text" name="names[]" value="{{ old('names.0') }}" class="form-control speech-input" placeholder="Enter name or use mic" required>
                             </div>
+                            <input type="hidden" name="voice_note_required" value="1" id="voiceNoteRequired">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">WhatsApp Number</label>
-                            <div class="input-group">
-                                <select name="country_codes[]" class="form-select phone-country-code" style="max-width: 150px;" data-index="0">
+                            <div class="mb-2">
+                                <select name="country_codes[]" class="form-select phone-country-code w-100" style="max-width: 200px;" data-index="0">
                                     <option value="1">🇺🇸 +1 (US/CA)</option>
                                     <option value="44">🇬🇧 +44 (UK)</option>
                                     <option value="91">🇮🇳 +91 (India)</option>
@@ -97,6 +77,8 @@
                                     <option value="977">🇳🇵 +977 (Nepal)</option>
                                     <option value="880">🇧🇩 +880 (Bangladesh)</option>
                                 </select>
+                            </div>
+                            <div class="input-group">
                                 <input type="text" name="phones[]" value="{{ old('phones.0') }}" class="form-control phone-number-input" placeholder="Enter phone number" data-index="0">
                                 <button type="button" class="btn btn-success phone-whatsapp-btn" data-index="0" title="Open WhatsApp">
                                     <i class="fab fa-whatsapp"></i>
@@ -119,6 +101,16 @@
             <div class="col-md-6">
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ old('company') }}" class="form-control">
+            </div>
+            <div class="col-md-6">
+                <label for="business_detail" class="form-label">Products / Business Detail</label>
+                <div class="business-detail-tag-container position-relative">
+                    <input type="text" id="business_detail_input" class="form-control" placeholder="Type product name and press Enter" autocomplete="off" spellcheck="false">
+                    <div id="business_detail_suggestions" class="business-detail-suggestions"></div>
+                    <div id="business_detail_tags" class="business-detail-tags mt-2"></div>
+                    <input type="hidden" name="business_detail" id="business_detail" value="{{ old('business_detail') }}">
+                </div>
+                <small class="form-text text-muted">Type product name, get spelling suggestions, and press Enter to add as tag.</small>
             </div>
             <div class="col-md-6">
                 <label for="group_id" class="form-label">Group</label>
@@ -176,12 +168,12 @@
                         <input type="number" step="0.01" name="credit_limit" value="{{ old('credit_limit') }}" class="form-control" placeholder="Enter credit limit">
                     </div>
                     <div class="form-check mt-3">
-                        <input class="form-check-input" type="radio" name="credit_limit_type" value="custom">
-                        <label class="form-check-label">Custom</label>
+                        <input class="form-check-input" type="radio" name="credit_limit_type" id="custom" value="custom">
+                        <label class="form-check-label" for="custom">Custom</label>
                     </div>
                     <div class="form-check mt-2">
-                        <input class="form-check-input" type="radio" name="credit_limit_type" value="no_limit" checked>
-                        <label class="form-check-label">No Limit</label>
+                        <input class="form-check-input" type="radio" name="credit_limit_type" id="no_limit" value="no_limit" checked>
+                        <label class="form-check-label" for="no_limit">No Limit</label>
                     </div>
                     <div class="mt-3">
                         <small><a href="#" id="hideCreditLimitOptions" class="text-muted">Cancel</a></small>
@@ -213,6 +205,27 @@
                     <button type="button" id="clearLocation" class="btn btn-sm btn-outline-danger ms-2">
                         <i class="fas fa-times me-1"></i>Clear
                     </button>
+                </div>
+            </div>
+
+            <!-- Visiting Document -->
+            <div class="col-md-6">
+                <label for="visiting_doc" class="form-label">Visiting Document</label>
+                <div class="position-relative">
+                    <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                </div>
+                <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
+                <div id="visiting_preview" style="display: none; margin-top: 10px; position: relative;">
+                    <button type="button" id="cancelVisitingDoc" class="btn btn-danger btn-sm position-absolute" style="top: 5px; right: 5px; z-index: 10;" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div id="visiting_img_container" style="display: none;">
+                        <img id="visiting_img" src="" alt="Visiting Doc Preview" class="img-fluid rounded" style="max-height: 200px;">
+                    </div>
+                    <div id="visiting_file_info" style="display: none; text-center p-3 bg-light rounded">
+                        <i class="fas fa-file fa-3x text-muted mb-2"></i>
+                        <p class="text-muted mb-0" id="visiting_filename"></p>
+                    </div>
                 </div>
             </div>
 
