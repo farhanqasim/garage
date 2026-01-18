@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\CarWashService;
+use App\Models\CarWashWorker;
+use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Hash;
 class HomeController extends Controller
 {
@@ -73,5 +76,218 @@ public function verifyOldPassword(Request $request)
         return response()->json(['success' => true]);
     }
     return response()->json(['success' => false, 'message' => 'Old password is incorrect.']);
+}
+
+/**
+ * Show the Elite Car Wash page.
+ *
+ * @return \Illuminate\Contracts\Support\Renderable
+ */
+public function carWash()
+{
+    $user = auth()->user();
+    $userName = $user->name ?? 'Guest';
+    $branchId = null;
+    
+    // Check if user has created a branch (Branch table has user_id)
+    // Using 'branches' relationship which is hasOne based on user_id in Branch table
+    if ($user->branches) {
+        $branchName = $user->branches->branch_name;
+        $branchId = $user->branches->id;
+    } else {
+        $branchName = 'Guest';
+    }
+    
+    // Get services for this branch or global services (direct models for Blade loops)
+    $services = CarWashService::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->where('status', true)
+    ->orderBy('created_at', 'desc')
+    ->get();
+    
+    // Get workers for this branch (direct models for Blade loops)
+    $workers = CarWashWorker::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->where('status', true)
+    ->orderBy('name', 'asc')
+    ->get();
+    
+    // Get active jobs for this branch (map to array format for React)
+    $activeJobs = CarWashJob::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->active()
+    ->orderBy('start_time', 'asc')
+    ->get()
+    ->map(function($job) {
+        return [
+            'id' => $job->id,
+            'serviceId' => $job->service_id,
+            'workerId' => $job->worker_id,
+            'customerName' => $job->customer_name ?? 'N/A',
+            'vehicleNo' => $job->vehicle_no ?? 'N/A',
+            'mobile' => $job->mobile ?? '',
+            'service' => $job->service_name ?? 'N/A',
+            'price' => (float) $job->price,
+            'worker' => $job->worker_name ?? '',
+            'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+        ];
+    });
+    
+    // Get today's completed jobs (direct models for Blade loops)
+    $completedJobs = CarWashJob::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->completed()
+    ->whereDate('created_at', today())
+    ->orderBy('end_time', 'desc')
+    ->get();
+    
+    return view('car-wash', compact('branchName', 'userName', 'services', 'workers', 'activeJobs', 'completedJobs'));
+}
+
+/**
+ * Show the Completed Jobs page.
+ *
+ * @return \Illuminate\Contracts\Support\Renderable
+ */
+public function completedJobs()
+{
+    $user = auth()->user();
+    $userName = $user->name ?? 'Guest';
+    $branchId = null;
+    
+    // Check if user has created a branch
+    if ($user->branches) {
+        $branchName = $user->branches->branch_name;
+        $branchId = $user->branches->id;
+    } else {
+        $branchName = 'Guest';
+    }
+    
+    // Get ALL completed jobs (not just today's)
+    $completedJobs = CarWashJob::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->completed()
+    ->orderBy('end_time', 'desc')
+    ->get()
+    ->map(function($job) {
+        return [
+            'id' => $job->id,
+            'serviceId' => $job->service_id,
+            'workerId' => $job->worker_id,
+            'customerName' => $job->customer_name,
+            'vehicleNo' => $job->vehicle_no,
+            'mobile' => $job->mobile,
+            'serviceName' => $job->service_name,
+            'price' => (float) $job->price,
+            'additionalPrices' => $job->additional_prices ?? [],
+            'workerName' => $job->worker_name,
+            'status' => $job->status,
+            'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+            'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
+            'durationSeconds' => $job->duration_seconds,
+            'notes' => $job->notes,
+        ];
+    });
+    
+    return view('car-wash-completed-jobs', compact('branchName', 'userName', 'completedJobs'));
+}
+
+/**
+ * Show the Services Management page.
+ *
+ * @return \Illuminate\Contracts\Support\Renderable
+ */
+public function carWashServices()
+{
+    $user = auth()->user();
+    $userName = $user->name ?? 'Guest';
+    $branchId = null;
+    
+    if ($user->branches) {
+        $branchName = $user->branches->branch_name;
+        $branchId = $user->branches->id;
+    } else {
+        $branchName = 'Guest';
+    }
+    
+    // Get ALL services (both active and inactive)
+    $services = CarWashService::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->orderBy('created_at', 'desc')
+    ->get()
+    ->map(function($service) {
+        return [
+            'id' => $service->id,
+            'label' => $service->label,
+            'basePrice' => (float) $service->base_price,
+            'additionalPrices' => $service->additional_prices ?? [],
+            'icon' => $service->icon ?? null,
+            'color' => $service->color ?? null,
+            'colorValue' => $service->color_value ?? '#3b82f6',
+            'isDefault' => $service->is_default ?? false,
+            'status' => $service->status ?? true,
+        ];
+    });
+    
+    return view('car-wash-services', compact('branchName', 'userName', 'services'));
+}
+
+/**
+ * Show the Staff Management page.
+ *
+ * @return \Illuminate\Contracts\Support\Renderable
+ */
+public function carWashStaff()
+{
+    $user = auth()->user();
+    $userName = $user->name ?? 'Guest';
+    $branchId = null;
+    
+    if ($user->branches) {
+        $branchName = $user->branches->branch_name;
+        $branchId = $user->branches->id;
+    } else {
+        $branchName = 'Guest';
+    }
+    
+    // Get ALL workers (both active and inactive)
+    $workers = CarWashWorker::where(function($query) use ($branchId) {
+        $query->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+    })
+    ->orderBy('name', 'asc')
+    ->get()
+    ->map(function($worker) {
+        return [
+            'id' => $worker->id,
+            'name' => $worker->name,
+            'mobile' => $worker->mobile,
+            'additional_mobiles' => $worker->additional_mobiles ?? [],
+            'father_name' => $worker->father_name,
+            'father_mobile' => $worker->father_mobile,
+            'father_additional_mobiles' => $worker->father_additional_mobiles ?? [],
+            'location' => $worker->location,
+            'commission' => $worker->commission,
+            'id_card_front' => $worker->id_card_front,
+            'id_card_back' => $worker->id_card_back,
+            'father_card_front' => $worker->father_card_front,
+            'father_card_back' => $worker->father_card_back,
+            'status' => $worker->status,
+        ];
+    });
+    
+    return view('car-wash-staff', compact('branchName', 'userName', 'workers'));
 }
 }

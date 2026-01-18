@@ -73,6 +73,63 @@ Route::middleware('auth')->group(function () {
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
+Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
+Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
+Route::get('/car-wash/staff', [HomeController::class, 'carWashStaff'])->name('car.wash.staff')->middleware('auth');
+
+// Car Wash Web Form Routes (for standard Laravel forms)
+Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function () {
+    // Service form routes
+    Route::post('/services/create', [\App\Http\Controllers\CarWashServiceController::class, 'store'])->name('services.store');
+    Route::put('/services/{id}/update', [\App\Http\Controllers\CarWashServiceController::class, 'update'])->name('services.update');
+    Route::delete('/services/{id}/delete', [\App\Http\Controllers\CarWashServiceController::class, 'destroy'])->name('services.destroy');
+    
+    // Worker form routes
+    Route::post('/workers/create', [\App\Http\Controllers\CarWashWorkerController::class, 'store'])->name('workers.store');
+    Route::put('/workers/{id}/update', [\App\Http\Controllers\CarWashWorkerController::class, 'update'])->name('workers.update');
+    Route::delete('/workers/{id}/delete', [\App\Http\Controllers\CarWashWorkerController::class, 'destroy'])->name('workers.destroy');
+    
+    // Job form routes
+    Route::post('/jobs/create', [\App\Http\Controllers\CarWashJobController::class, 'store'])->name('jobs.store');
+    Route::put('/jobs/{id}/update', [\App\Http\Controllers\CarWashJobController::class, 'update'])->name('jobs.update');
+    Route::put('/jobs/{id}/complete', [\App\Http\Controllers\CarWashJobController::class, 'complete'])->name('jobs.complete');
+    Route::delete('/jobs/{id}/delete', [\App\Http\Controllers\CarWashJobController::class, 'destroy'])->name('jobs.destroy');
+});
+
+// Car Wash API Routes
+Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function () {
+    // Services Routes - API GET route at different path to avoid conflict with page route
+    Route::get('/api/services', [\App\Http\Controllers\CarWashServiceController::class, 'index'])->name('services.index');
+    Route::post('/services', [\App\Http\Controllers\CarWashServiceController::class, 'store'])->name('services.store');
+    Route::put('/services/{id}', [\App\Http\Controllers\CarWashServiceController::class, 'update'])->name('services.update');
+    Route::delete('/services/{id}', [\App\Http\Controllers\CarWashServiceController::class, 'destroy'])->name('services.destroy');
+    Route::post('/services/{id}/toggle-status', [\App\Http\Controllers\CarWashServiceController::class, 'toggleStatus'])->name('services.toggle-status');
+    
+    // Workers Routes
+    Route::get('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'index'])->name('workers.index');
+    Route::post('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'store'])->name('workers.store');
+    Route::put('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'update'])->name('workers.update');
+    Route::delete('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'destroy'])->name('workers.destroy');
+    
+    // Jobs Routes
+    Route::get('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'index'])->name('jobs.index');
+    Route::get('/jobs/active', [\App\Http\Controllers\CarWashJobController::class, 'activeJobs'])->name('jobs.active');
+    Route::get('/jobs/completed', [\App\Http\Controllers\CarWashJobController::class, 'completedJobs'])->name('jobs.completed');
+    Route::get('/jobs/today-stats', [\App\Http\Controllers\CarWashJobController::class, 'todayStats'])->name('jobs.today-stats');
+    Route::post('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'store'])->name('jobs.store');
+    Route::put('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'update'])->name('jobs.update');
+    Route::post('/jobs/{id}/complete', [\App\Http\Controllers\CarWashJobController::class, 'complete'])->name('jobs.complete');
+    Route::post('/jobs/{id}/cancel', [\App\Http\Controllers\CarWashJobController::class, 'cancel'])->name('jobs.cancel');
+    Route::delete('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'destroy'])->name('jobs.destroy');
+    
+    // Inspections Routes
+    Route::get('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'show'])->name('inspections.show');
+    Route::post('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'store'])->name('inspections.store');
+    
+    // Expenses Routes
+    Route::get('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'show'])->name('expenses.show');
+    Route::post('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'store'])->name('expenses.store');
+});
 
 // ==============================
 // 🧩 ADMIN ROUTES (No Middleware)
