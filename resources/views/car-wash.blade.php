@@ -1254,14 +1254,14 @@
             services: {
                 index: '{{ route("car-wash.services.index") }}',
                 store: '{{ route("car-wash.services.store") }}',
-                update: (id) => `/car-wash/services/${id}`,
-                destroy: (id) => `/car-wash/services/${id}`,
+                update: (id) => `{{ url('/car-wash/services') }}/${id}`,
+                destroy: (id) => `{{ url('/car-wash/services') }}/${id}`,
             },
             workers: {
                 index: '{{ route("car-wash.workers.index") }}',
                 store: '{{ route("car-wash.workers.store") }}',
-                update: (id) => `/car-wash/workers/${id}`,
-                destroy: (id) => `/car-wash/workers/${id}`,
+                update: (id) => `{{ url('/car-wash/workers') }}/${id}`,
+                destroy: (id) => `{{ url('/car-wash/workers') }}/${id}`,
             },
             jobs: {
                 index: '{{ route("car-wash.jobs.index") }}',
@@ -1269,53 +1269,109 @@
                 completed: '{{ route("car-wash.jobs.completed") }}',
                 todayStats: '{{ route("car-wash.jobs.today-stats") }}',
                 store: '{{ route("car-wash.jobs.store") }}',
-                update: (id) => `/car-wash/jobs/${id}`,
-                complete: (id) => `/car-wash/jobs/${id}/complete`,
-                cancel: (id) => `/car-wash/jobs/${id}/cancel`,
-                destroy: (id) => `/car-wash/jobs/${id}`,
+                update: (id) => `{{ url('/car-wash/jobs') }}/${id}`,
+                complete: (id) => `{{ url('/car-wash/jobs') }}/${id}/complete`,
+                cancel: (id) => `{{ url('/car-wash/jobs') }}/${id}/cancel`,
+                destroy: (id) => `{{ url('/car-wash/jobs') }}/${id}`,
             },
             inspections: {
-                show: (jobId) => `/car-wash/inspections/${jobId}`,
-                store: (jobId) => `/car-wash/inspections/${jobId}`,
+                show: (jobId) => `{{ url('/car-wash/inspections') }}/${jobId}`,
+                store: (jobId) => `{{ url('/car-wash/inspections') }}/${jobId}`,
             },
             expenses: {
-                show: (jobId) => `/car-wash/expenses/${jobId}`,
-                store: (jobId) => `/car-wash/expenses/${jobId}`,
+                show: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
+                store: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
             }
         };
         
         // CSRF Token for API calls
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
         
         // Simplified App Component (UI structure without Firebase)
         const App = () => {
             const [view, setView] = useState('dashboard');
-            const [stats, setStats] = useState(() => {
-                // Load stats from localStorage with error handling
-                try {
-                    const saved = localStorage.getItem('eliteStation_stats');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        return {
-                            todayRevenue: parsed.todayRevenue || 0,
-                            todayExpensesTotal: parsed.todayExpensesTotal || 0,
-                            todayGrandTotal: parsed.todayGrandTotal || 0
-                        };
-                    }
-                } catch (error) {
-                    console.error('Error loading stats from localStorage:', error);
-                }
-                return { todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0 };
-            });
-            // Load categories from backend (passed from controller) with localStorage fallback
+            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0 });
+            
+            // Load stats from API on mount - simplified to avoid errors
+            useEffect(() => {
+                // Calculate stats from completed jobs
+                fetch(API_ROUTES.jobs.completed)
+                    .then(res => res.json())
+                    .then(completedData => {
+                        if (completedData.success && completedData.jobs) {
+                            const today = new Date().toDateString();
+                            const todayJobs = completedData.jobs.filter(job => {
+                                if (!job.endTime) return false;
+                                try {
+                                    const jobDate = new Date(job.endTime).toDateString();
+                                    return jobDate === today;
+                                } catch (e) {
+                                    return false;
+                                }
+                            });
+                            const todayRevenue = todayJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
+                            
+                            // Try to get expenses from todayStats API if available
+                            if (API_ROUTES.jobs.todayStats) {
+                                fetch(API_ROUTES.jobs.todayStats)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.success && data.stats) {
+                                            setStats({
+                                                todayRevenue: todayRevenue,
+                                                todayExpensesTotal: data.stats.todayExpensesTotal || 0,
+                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0)
+                                            });
+                                        } else {
+                                            // Fallback: calculate without expenses
+                                            setStats({
+                                                todayRevenue: todayRevenue,
+                                                todayExpensesTotal: 0,
+                                                todayGrandTotal: todayRevenue
+                                            });
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.error('Error loading stats from API:', err);
+                                        // Fallback: calculate without expenses
+                                        setStats({
+                                            todayRevenue: todayRevenue,
+                                            todayExpensesTotal: 0,
+                                            todayGrandTotal: todayRevenue
+                                        });
+                                    });
+                            } else {
+                                // No todayStats API, just use revenue
+                                setStats({
+                                    todayRevenue: todayRevenue,
+                                    todayExpensesTotal: 0,
+                                    todayGrandTotal: todayRevenue
+                                });
+                            }
+                        } else {
+                            // No jobs, set default stats
+                            setStats({
+                                todayRevenue: 0,
+                                todayExpensesTotal: 0,
+                                todayGrandTotal: 0
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error loading completed jobs for stats:', err);
+                        // Set default stats on error
+                        setStats({
+                            todayRevenue: 0,
+                            todayExpensesTotal: 0,
+                            todayGrandTotal: 0
+                        });
+                    });
+            }, []);
+            // Load categories from backend (passed from controller) - database only
             const [categories, setCategories] = useState(() => {
-                // First try to use backend services
-                if (initialServices && initialServices.length > 0) {
-                    return initialServices;
-                }
-                // Fallback to localStorage for backward compatibility
-                const saved = localStorage.getItem('eliteStation_categories');
-                return saved ? JSON.parse(saved) : [];
+                // Use backend services from database
+                return initialServices && Array.isArray(initialServices) ? initialServices : [];
             });
             const [selectedService, setSelectedService] = useState(null);
             const [selectedAdditionalPrices, setSelectedAdditionalPrices] = useState(new Set());
@@ -1327,56 +1383,35 @@
                 price: 0
             });
             
-            // Default workers (fallback if no workers in backend or localStorage)
-            const DEFAULT_WORKERS = ['AHMED ALI', 'ZUBAIR KHAN', 'IRFAN SHEIKH', 'BILAL JUTT'];
-            
-            // Load workers from backend first, then localStorage fallback
+            // Load workers from backend - database only
             const [workers, setWorkers] = useState(() => {
-                // First try backend workers
-                if (initialWorkers && initialWorkers.length > 0) {
-                    return initialWorkers.map(w => w.name || w);
+                // Use backend workers from database
+                if (initialWorkers && Array.isArray(initialWorkers) && initialWorkers.length > 0) {
+                    return initialWorkers.map(w => typeof w === 'string' ? w : (w.name || w));
                 }
-                // Fallback to localStorage
-                try {
-                    const saved = localStorage.getItem('eliteStation_workers');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        // Extract worker names from the array
-                        return parsed.length > 0 ? parsed.map(w => w.name || w) : DEFAULT_WORKERS;
-                    }
-                } catch (error) {
-                    console.error('Error loading workers:', error);
-                }
-                return DEFAULT_WORKERS;
+                return [];
             });
             
-            // Listen for worker updates
+            // Listen for worker updates - fetch from API
             useEffect(() => {
-                const handleWorkersUpdate = () => {
+                const handleWorkersUpdate = async () => {
                     try {
-                        const saved = localStorage.getItem('eliteStation_workers');
-                        if (saved) {
-                            const parsed = JSON.parse(saved);
-                            setWorkers(parsed.length > 0 ? parsed.map(w => w.name || w) : DEFAULT_WORKERS);
-                        } else {
-                            setWorkers(DEFAULT_WORKERS);
+                        const response = await fetch(API_ROUTES.workers.index);
+                        const data = await response.json();
+                        if (data.success && data.workers) {
+                            setWorkers(data.workers.map(w => typeof w === 'string' ? w : (w.name || w)));
                         }
                     } catch (error) {
-                        console.error('Error loading workers:', error);
-                        setWorkers(DEFAULT_WORKERS);
+                        console.error('Error loading workers from API:', error);
                     }
                 };
                 
                 window.addEventListener('workersUpdated', handleWorkersUpdate);
                 window.addEventListener('refreshStaffList', handleWorkersUpdate);
                 
-                // Check for updates periodically
-                const interval = setInterval(handleWorkersUpdate, 500);
-                
                 return () => {
                     window.removeEventListener('workersUpdated', handleWorkersUpdate);
                     window.removeEventListener('refreshStaffList', handleWorkersUpdate);
-                    clearInterval(interval);
                 };
             }, []);
             
@@ -1392,49 +1427,13 @@
             const [showAddCustomExpense, setShowAddCustomExpense] = useState(false);
             const [newCustomExpenseName, setNewCustomExpenseName] = useState('');
             const [showExpenseDetailsModal, setShowExpenseDetailsModal] = useState(false);
-            const [expenseHistory, setExpenseHistory] = useState(() => {
-                // Load expense history from localStorage
-                try {
-                    const saved = localStorage.getItem('eliteStation_expenseHistory');
-                    return saved ? JSON.parse(saved) : [];
-                } catch (error) {
-                    console.error('Error loading expense history:', error);
-                    return [];
-                }
-            });
+            const [expenseHistory, setExpenseHistory] = useState([]);
             const [showCompletedJobsModal, setShowCompletedJobsModal] = useState(false);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
             const [completedJobs, setCompletedJobs] = useState(() => {
-                // Ensure we always return an array
-                // First try backend completed jobs
-                if (initialCompletedJobs && Array.isArray(initialCompletedJobs) && initialCompletedJobs.length > 0) {
-                    return initialCompletedJobs;
-                }
-                // Fallback to localStorage (for backward compatibility)
-                try {
-                    const saved = localStorage.getItem('eliteStation_completedJobs');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        if (Array.isArray(parsed)) {
-                            // Show all completed jobs, or jobs with status completed, or jobs with endTime
-                            const allCompletedJobs = parsed.filter(job => {
-                                // Include if status is completed
-                                if (job.status === 'completed') return true;
-                                // Include if it has endTime (means it was completed)
-                                if (job.endTime) return true;
-                                // Include if it has price and no active status (likely completed)
-                                if (job.price && !job.status) return true;
-                                return false;
-                            });
-                            return allCompletedJobs || [];
-                        }
-                    }
-                    return [];
-                } catch (error) {
-                    console.error('Error loading completed jobs:', error);
-                    return [];
-                }
+                // Use backend completed jobs from database only
+                return initialCompletedJobs && Array.isArray(initialCompletedJobs) ? initialCompletedJobs : [];
             });
             const [completeModalJobId, setCompleteModalJobId] = useState(null);
             const [selectedRating, setSelectedRating] = useState('');
@@ -1449,18 +1448,8 @@
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
             const [activeJobs, setActiveJobs] = useState(() => {
-                // First try backend active jobs
-                if (initialActiveJobs && initialActiveJobs.length > 0) {
-                    return initialActiveJobs;
-                }
-                // Fallback to localStorage
-                try {
-                    const saved = localStorage.getItem('eliteStation_activeJobs');
-                    return saved ? JSON.parse(saved) : [];
-                } catch (error) {
-                    console.error('Error loading active jobs:', error);
-                    return [];
-                }
+                // Use backend active jobs from database only
+                return initialActiveJobs && Array.isArray(initialActiveJobs) ? initialActiveJobs : [];
             });
             
             // Default services
@@ -1469,11 +1458,8 @@
                 { label: 'Full Service', basePrice: 1500, color: '#10b981' }
             ];
             
-            // Get deleted default services from localStorage
-            const deletedDefaultServices = JSON.parse(localStorage.getItem('eliteStation_deletedDefaults') || '[]');
-            
-            // Filter out deleted default services
-            const activeDefaultServices = defaultServices.filter(s => !deletedDefaultServices.includes(s.label));
+            // Show all default services (no deletion tracking via localStorage)
+            const activeDefaultServices = defaultServices;
             
             // Combine default services and categories for dashboard
             const allServices = [...activeDefaultServices, ...categories];
@@ -1512,46 +1498,32 @@
                 return colorMap[colorClass] || '#3b82f6';
             };
             
-            // Listen for category updates - Enhanced with immediate refresh
+            // Listen for category updates - fetch from API
             useEffect(() => {
-                const handleStorageChange = (event) => {
+                const handleCategoriesUpdate = async () => {
                     try {
-                        const saved = localStorage.getItem('eliteStation_categories');
-                        if (saved) {
-                            const parsed = JSON.parse(saved);
-                            // Force update by creating new array reference to trigger re-render
-                            setCategories([...parsed]);
-                        } else {
-                            setCategories([]);
+                        const response = await fetch(API_ROUTES.services.index);
+                        const data = await response.json();
+                        if (data.success && data.services) {
+                            setCategories(data.services);
                         }
                     } catch (error) {
-                        console.error('Error updating categories:', error);
+                        console.error('Error loading categories from API:', error);
                     }
                 };
                 
-                // Listen to storage events (for cross-tab updates)
-                window.addEventListener('storage', handleStorageChange);
+                // Listen to custom event for same-window updates
+                window.addEventListener('categoriesUpdated', handleCategoriesUpdate);
                 
-                // Also listen to custom event for same-window updates
-                window.addEventListener('categoriesUpdated', handleStorageChange);
-                
-                // Check for updates more frequently to catch changes
-                const interval = setInterval(handleStorageChange, 200);
-                
-                // Also check immediately on mount
-                handleStorageChange();
+                // Fetch on mount
+                handleCategoriesUpdate();
                 
                 return () => {
-                    window.removeEventListener('storage', handleStorageChange);
-                    window.removeEventListener('categoriesUpdated', handleStorageChange);
-                    clearInterval(interval);
+                    window.removeEventListener('categoriesUpdated', handleCategoriesUpdate);
                 };
             }, []);
             
-            // Save view to localStorage when it changes
-            useEffect(() => {
-                localStorage.setItem('eliteStation_view', view);
-            }, [view]);
+            // View state - no need to save to localStorage
             
             // Listen for navigate to dashboard event
             useEffect(() => {
@@ -1567,15 +1539,9 @@
                 };
             }, []);
             
-            // Save stats to localStorage when they change
-            useEffect(() => {
-                localStorage.setItem('eliteStation_stats', JSON.stringify(stats));
-            }, [stats]);
+            // Stats are calculated from database, no need to save to localStorage
             
-            // Save expense history to localStorage when it changes
-            useEffect(() => {
-                localStorage.setItem('eliteStation_expenseHistory', JSON.stringify(expenseHistory));
-            }, [expenseHistory]);
+            // Expense history stored in database, no need to save to localStorage
             
             // Initialize expense items with quantity 1 when modal opens
             useEffect(() => {
@@ -1682,15 +1648,9 @@
                 };
             }, [activeJobs, currentTime, completedInspections]);
             
-            // Save active jobs to localStorage when they change
-            useEffect(() => {
-                localStorage.setItem('eliteStation_activeJobs', JSON.stringify(activeJobs));
-            }, [activeJobs]);
+            // Active jobs stored in database, no need to save to localStorage
             
-            // Save completed jobs to localStorage when they change
-            useEffect(() => {
-                localStorage.setItem('eliteStation_completedJobs', JSON.stringify(completedJobs));
-            }, [completedJobs]);
+            // Completed jobs stored in database, no need to save to localStorage
             
             // Refresh completed jobs when completed jobs modal opens - fetch from API first
             useEffect(() => {
@@ -1702,76 +1662,38 @@
                             if (data.success && data.jobs && Array.isArray(data.jobs)) {
                                 // Update completed jobs from API
                                 setCompletedJobs(data.jobs);
-                                // Also update localStorage for offline access
-                                localStorage.setItem('eliteStation_completedJobs', JSON.stringify(data.jobs));
                             } else {
-                                // If API fails, try localStorage as fallback
-                                try {
-                                    const saved = localStorage.getItem('eliteStation_completedJobs');
-                                    if (saved) {
-                                        const parsed = JSON.parse(saved);
-                                        // Show all completed jobs, or jobs with status completed
-                                        const allCompletedJobs = parsed.filter(job => {
-                                            // Include if status is completed
-                                            if (job.status === 'completed') return true;
-                                            // Include if it has endTime (means it was completed)
-                                            if (job.endTime) return true;
-                                            // Include if it has price and no active status
-                                            if (job.price && !job.status) return true;
-                                            return false;
-                                        });
-                                        setCompletedJobs(allCompletedJobs);
-                                    } else {
-                                        // No data in localStorage either, set empty array
-                                        setCompletedJobs([]);
-                                    }
-                                } catch (error) {
-                                    console.error('Error loading from localStorage:', error);
-                                    setCompletedJobs([]);
-                                }
+                                // If API fails, set empty array
+                                setCompletedJobs([]);
                             }
                         })
                         .catch(error => {
                             console.error('Error fetching completed jobs from API:', error);
-                            // Fallback to localStorage if API fails
-                            try {
-                                const saved = localStorage.getItem('eliteStation_completedJobs');
-                                if (saved) {
-                                    const parsed = JSON.parse(saved);
-                                    const allCompletedJobs = parsed.filter(job => {
-                                        if (job.status === 'completed') return true;
-                                        if (job.endTime) return true;
-                                        if (job.price && !job.status) return true;
-                                        return false;
-                                    });
-                                    setCompletedJobs(allCompletedJobs);
-                                } else {
-                                    setCompletedJobs([]);
-                                }
-                            } catch (err) {
-                                console.error('Error loading from localStorage:', err);
-                                setCompletedJobs([]);
-                            }
+                            // Set empty array if API fails
+                            setCompletedJobs([]);
                         });
                 }
             }, [showCompletedJobsModal]);
             
-            // Update staff list when All Staff modal opens
+            // Update staff list when All Staff modal opens - fetch from API
             useEffect(() => {
                 if (showAllStaffModal) {
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         const staffListContainer = document.getElementById('staffListContainer');
                         if (staffListContainer) {
-                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                            
-                            if (workers.length === 0) {
-                                staffListContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><p>No staff members found</p></div>';
-                                return;
-                            }
-                            
-                            staffListContainer.innerHTML = workers.map(worker => {
-                                const workerId = worker.id || '';
-                                return `
+                            try {
+                                const response = await fetch(API_ROUTES.workers.index);
+                                const data = await response.json();
+                                const workers = (data.success && data.workers) ? data.workers : [];
+                                
+                                if (workers.length === 0) {
+                                    staffListContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><p>No staff members found</p></div>';
+                                    return;
+                                }
+                                
+                                staffListContainer.innerHTML = workers.map(worker => {
+                                    const workerId = worker.id || '';
+                                    return `
                                     <div 
                                         class="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-purple-200 hover:bg-slate-50 transition-colors cursor-pointer select-none"
                                         data-worker-id="${workerId}"
@@ -1787,10 +1709,10 @@
                                         <p class="text-xs text-slate-400">Hold to Edit</p>
                                     </div>
                                 `;
-                            }).join('');
-                            
-                            // Attach event listeners after rendering
-                            workers.forEach(worker => {
+                                }).join('');
+                                
+                                // Attach event listeners after rendering
+                                workers.forEach(worker => {
                                 const workerId = worker.id || '';
                                 const workerElement = staffListContainer.querySelector(`[data-worker-id="${workerId}"]`);
                                 if (workerElement) {
@@ -2139,28 +2061,37 @@
                                     workerElement.addEventListener('mouseleave', handlePressEnd);
                                     workerElement.addEventListener('touchstart', handlePressStart);
                                     workerElement.addEventListener('touchend', handlePressEnd);
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('Error loading workers from API:', error);
+                                if (staffListContainer) {
+                                    staffListContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><p>Error loading staff</p></div>';
                                 }
-                            });
+                            }
                         }
                     }, 100);
                 }
             }, [showAllStaffModal]);
             
-            // Listen for staff updates
+            // Listen for staff updates - fetch from API
             useEffect(() => {
-                const handleStaffUpdate = () => {
+                const handleStaffUpdate = async () => {
                     if (showAllStaffModal) {
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             const staffListContainer = document.getElementById('staffListContainer');
                             if (staffListContainer) {
-                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                                
-                                if (workers.length === 0) {
-                                    staffListContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><p>No staff members found</p></div>';
-                                    return;
-                                }
-                                
-                                staffListContainer.innerHTML = workers.map(worker => {
+                                try {
+                                    const response = await fetch(API_ROUTES.workers.index);
+                                    const data = await response.json();
+                                    const workers = (data.success && data.workers) ? data.workers : [];
+                                    
+                                    if (workers.length === 0) {
+                                        staffListContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><p>No staff members found</p></div>';
+                                        return;
+                                    }
+                                    
+                                    staffListContainer.innerHTML = workers.map(worker => {
                                     const workerId = worker.id || '';
                                     return `
                                         <div 
@@ -2178,10 +2109,10 @@
                                             <p class="text-xs text-slate-400">Hold to Edit</p>
                                         </div>
                                     `;
-                                }).join('');
-                                
-                                // Re-attach event listeners
-                                workers.forEach(worker => {
+                                    }).join('');
+                                    
+                                    // Re-attach event listeners
+                                    workers.forEach(worker => {
                                     const workerId = worker.id || '';
                                     const workerElement = staffListContainer.querySelector(`[data-worker-id="${workerId}"]`);
                                     if (workerElement) {
@@ -2326,8 +2257,14 @@
                                         workerElement.addEventListener('touchstart', handlePressStart);
                                         workerElement.addEventListener('touchend', handlePressEnd);
                                     }
-                                });
+                                    });
+                                } catch (error) {
+                                console.error('Error loading workers from API:', error);
+                                if (staffListContainer) {
+                                    staffListContainer.innerHTML = '<div class="text-center py-8 text-slate-400"><p>Error loading staff</p></div>';
+                                }
                             }
+                        }
                         }, 100);
                     }
                 };
@@ -2694,22 +2631,22 @@
                                                                 setTimeout(() => {
                                                                     const modal = document.getElementById('categoryModalOverlay');
                                                                     if (modal) {
-                                                                        // Check if service exists in categories (has id or matches by label - case insensitive)
-                                                                        const savedCategories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
+                                                                        // Check if service exists in categories from database
+                                                                        // Use current categories state instead of localStorage
                                                                         console.log('Checking service:', service);
-                                                                        console.log('Saved categories:', savedCategories);
+                                                                        console.log('Current categories:', categories);
                                                                         
                                                                         let existingCategory = null;
                                                                         if (service.id) {
                                                                             // First try to find by ID
-                                                                            existingCategory = savedCategories.find(cat => cat.id === service.id);
+                                                                            existingCategory = categories.find(cat => cat.id === service.id);
                                                                             console.log('Found by ID:', existingCategory);
                                                                         }
                                                                         
                                                                         // If not found by ID, try to find by label (case-insensitive)
                                                                         if (!existingCategory && service.label) {
                                                                             const serviceLabelUpper = service.label.toUpperCase().trim();
-                                                                            existingCategory = savedCategories.find(cat => {
+                                                                            existingCategory = categories.find(cat => {
                                                                                 const catLabelUpper = (cat.label || '').toUpperCase().trim();
                                                                                 return catLabelUpper === serviceLabelUpper;
                                                                             });
@@ -3309,36 +3246,21 @@
                                                                 // Complete job - remove from active jobs
                                                                 setActiveJobs(prev => prev.filter(j => j.id !== job.id));
                                                                 
-                                                                // Save completed job to completedJobs
+                                                                // Add completed job to state (will be saved to database via API)
                                                                 setCompletedJobs(prev => {
-                                                                // Load all jobs from localStorage first to ensure we don't lose any
-                                                                let allJobs = [];
-                                                                try {
-                                                                    const saved = localStorage.getItem('eliteStation_completedJobs');
-                                                                    if (saved) {
-                                                                        allJobs = JSON.parse(saved);
-                                                                    }
-                                                                } catch (e) {
-                                                                    console.error('Error loading from localStorage:', e);
-                                                                }
-                                                                
-                                                                // Filter to only today's jobs and add new one
-                                                                const today = new Date().toDateString();
-                                                                const todayJobs = allJobs.filter(j => {
-                                                                    if (!j.endTime && !j.startTime) return false;
-                                                                    try {
-                                                                        const jobDate = new Date(j.endTime || j.startTime).toDateString();
-                                                                        return jobDate === today;
-                                                                    } catch (e) {
-                                                                        return false;
-                                                                    }
+                                                                    // Add new job to existing list
+                                                                    return [...prev, completedJob];
                                                                 });
                                                                 
-                                                                // Add the new completed job
-                                                                const updatedJobs = [...todayJobs, completedJob];
-                                                                console.log('Saving completed job. Total today:', updatedJobs.length);
-                                                                return updatedJobs;
-                                                            });
+                                                                // Reload completed jobs from API to get updated list
+                                                                fetch(API_ROUTES.jobs.completed)
+                                                                    .then(res => res.json())
+                                                                    .then(data => {
+                                                                        if (data.success && data.jobs) {
+                                                                            setCompletedJobs(data.jobs);
+                                                                        }
+                                                                    })
+                                                                    .catch(err => console.error('Error reloading completed jobs:', err));
                                                             
                                                             // Update stats
                                                             setStats(prev => ({
@@ -5887,8 +5809,7 @@
                     if (data.success && data.workers) {
                         const workers = data.workers;
                         
-                        // Also update localStorage for backward compatibility
-                        localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
+                        // Workers saved to database via API, no localStorage needed
                         
                         if (workers.length === 0) {
                             workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
@@ -5960,21 +5881,13 @@
                         // Add event listeners for edit and delete buttons
                         attachWorkerActionListeners();
                     } else {
-                        // Fallback to localStorage
-                        const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                        if (workers.length === 0) {
-                            workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
-                            return;
-                        }
+                        // No workers found
+                        workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading workers from API:', error);
-                    // Fallback to localStorage
-                    const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                    if (workers.length === 0) {
-                        workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">No workers found</p><p style="font-size: 14px; margin-top: 8px;">Add a new worker to get started</p></div>';
-                    }
+                    workerDetailsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><p style="font-weight: 600; font-size: 16px;">Error loading workers</p><p style="font-size: 14px; margin-top: 8px;">Please try again</p></div>';
                 });
             }
             
@@ -6365,12 +6278,7 @@
                     if (data.success) {
                         console.log('Worker deleted from backend:', workerId);
                         
-                        // Also remove from localStorage
-                        const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                        const filteredWorkers = workers.filter(w => w.id != workerId);
-                        localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
-                        
-                        // Refresh the list
+                        // Refresh the list from API
                         loadWorkersList();
                         
                         // Dispatch event to notify React component
@@ -6382,14 +6290,7 @@
                 })
                 .catch(error => {
                     console.error('API Error during delete:', error);
-                    // Fallback to localStorage only deletion
-                    const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                    const filteredWorkers = workers.filter(w => w.id !== workerId);
-                    localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
-                    
-                    // Refresh the list
-                    loadWorkersList();
-                    window.dispatchEvent(new CustomEvent('workersUpdated'));
+                    alert('Error deleting worker. Please try again.');
                 });
             }
             
@@ -6728,79 +6629,17 @@
                         if (data.success) {
                             console.log('Service saved to backend:', data.service);
                             
-                            // Also save to localStorage for backward compatibility
-                            const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                            
-                            if (editingId) {
-                                // Update existing category in localStorage
-                                const categoryIndex = categories.findIndex(cat => cat.id == editingId || cat.id === editingId);
-                                if (categoryIndex !== -1) {
-                                    categories[categoryIndex] = {
-                                        ...categories[categoryIndex],
-                                        id: data.service.id,
-                                        label: data.service.label,
-                                        basePrice: parseFloat(data.service.base_price),
-                                        additionalPrices: data.service.additional_prices || [],
-                                        color: data.service.color,
-                                        colorValue: data.service.color_value,
-                                        icon: data.service.icon,
-                                        updatedAt: Date.now()
-                                    };
-                                } else {
-                                    // If not found by editingId, add as new
-                                    categories.push({
-                                        id: data.service.id,
-                                        label: data.service.label,
-                                        basePrice: parseFloat(data.service.base_price),
-                                        additionalPrices: data.service.additional_prices || [],
-                                        icon: data.service.icon,
-                                        color: data.service.color,
-                                        colorValue: data.service.color_value,
-                                        createdAt: Date.now()
-                                    });
-                                }
-                            } else {
-                                // Add new category to localStorage
-                                categories.push({
-                                    id: data.service.id,
-                                    label: data.service.label,
-                                    basePrice: parseFloat(data.service.base_price),
-                                    additionalPrices: data.service.additional_prices || [],
-                                    icon: data.service.icon,
-                                    color: data.service.color,
-                                    colorValue: data.service.color_value,
-                                    createdAt: Date.now()
-                                });
-                            }
-                            
-                            localStorage.setItem('eliteStation_categories', JSON.stringify(categories));
-                            console.log('All categories:', categories);
-                            
-                            // Dispatch custom event to notify React component
+                            // Dispatch custom event to notify React component to reload from API
                             window.dispatchEvent(new CustomEvent('categoriesUpdated'));
                         } else {
                             console.error('Error saving service:', data.message);
                             alert('Error saving service: ' + (data.message || 'Unknown error'));
                         }
                     })
-                    .catch(error => {
-                        console.error('API Error:', error);
-                        // Fallback to localStorage only
-                        const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                        const newCategory = {
-                            id: Date.now().toString(),
-                            label: categoryName,
-                            basePrice: categoryPrice,
-                            additionalPrices: additionalPrices,
-                            icon: selectedIcon,
-                            color: selectedColorClass,
-                            colorValue: selectedColor,
-                            createdAt: Date.now()
-                        };
-                        categories.push(newCategory);
-                        localStorage.setItem('eliteStation_categories', JSON.stringify(categories));
-                        window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                    });
+                        .catch(error => {
+                            console.error('API Error:', error);
+                            alert('Error saving service. Please try again.');
+                        });
                     
                     // Remove editing attribute
                     if (categoryModalOverlay) {
@@ -6833,9 +6672,6 @@
                     window.dispatchEvent(new CustomEvent('categoriesUpdated'));
                     setTimeout(function() {
                         window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                        // Force another check
-                        const checkCategories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                        window.dispatchEvent(new CustomEvent('categoriesUpdated', { detail: checkCategories }));
                     }, 100);
                 });
             } else {
@@ -6861,53 +6697,34 @@
                     console.log('Editing ID from attribute:', editingId);
                     console.log('Category name from input:', categoryName);
                     
-                    // If no editing ID but we have a category name, try to find it by name
+                    // If no editing ID but we have a category name, try to find it from API
                     if (!editingId && categoryName) {
-                        const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                        console.log('Searching for category by name:', categoryName);
-                        console.log('Available categories:', categories);
-                        
-                        const foundCategory = categories.find(cat => {
-                            const catLabel = (cat.label || '').toUpperCase().trim();
-                            const match = catLabel === categoryName;
-                            console.log('Comparing:', catLabel, '===', categoryName, '?', match);
-                            return match;
-                        });
-                        
-                        if (foundCategory) {
-                            editingId = foundCategory.id;
-                            console.log('Found category by name, ID:', editingId, 'Category:', foundCategory);
-                        } else {
-                            console.log('Category not found in localStorage by name:', categoryName);
-                            // Check if it's a default service
-                            const defaultServices = [
-                                { label: 'Mini Car Wash', basePrice: 300 },
-                                { label: 'Full Service', basePrice: 1500 }
-                            ];
-                            const isDefault = defaultServices.some(s => s.label.toUpperCase().trim() === categoryName);
-                            if (isDefault) {
-                                // Delete default service by adding to deleted list
-                                if (confirm('Are you sure you want to delete this default service? It will be hidden from the list.')) {
-                                    const deletedDefaults = JSON.parse(localStorage.getItem('eliteStation_deletedDefaults') || '[]');
-                                    const serviceLabel = defaultServices.find(s => s.label.toUpperCase().trim() === categoryName)?.label;
-                                    
-                                    if (serviceLabel && !deletedDefaults.includes(serviceLabel)) {
-                                        deletedDefaults.push(serviceLabel);
-                                        localStorage.setItem('eliteStation_deletedDefaults', JSON.stringify(deletedDefaults));
-                                        console.log('Default service marked as deleted:', serviceLabel);
-                                        
-                                        // Close modal
-                                        closeCategoryModal();
-                                        
-                                        // Dispatch custom event to notify React component
-                                        setTimeout(function() {
-                                            window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                                            console.log('categoriesUpdated event dispatched after default service deletion');
-                                        }, 100);
+                        // Fetch categories from API to find by name
+                        fetch(API_ROUTES.services.index)
+                            .then(res => res.json())
+                            .then(apiData => {
+                                if (apiData.success && apiData.services) {
+                                    const foundCategory = apiData.services.find(cat => {
+                                        const catLabel = (cat.label || '').toUpperCase().trim();
+                                        return catLabel === categoryName;
+                                    });
+                                    if (foundCategory) {
+                                        editingId = foundCategory.id;
+                                        console.log('Found category by name from API, ID:', editingId);
                                     }
                                 }
-                                return false;
-                            }
+                            })
+                            .catch(err => console.error('Error fetching categories:', err));
+                        
+                        // Check if it's a default service (cannot delete defaults, they're hardcoded)
+                        const defaultServices = [
+                            { label: 'Mini Car Wash', basePrice: 300 },
+                            { label: 'Full Service', basePrice: 1500 }
+                        ];
+                        const isDefault = defaultServices.some(s => s.label.toUpperCase().trim() === categoryName);
+                        if (isDefault) {
+                            alert('Default services cannot be deleted. They are always available.');
+                            return false;
                         }
                     }
                     
@@ -6931,17 +6748,10 @@
                             if (data.success) {
                                 console.log('Service deleted from backend:', editingId);
                                 
-                                // Also remove from localStorage for backward compatibility
-                                const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                                const filteredCategories = categories.filter(cat => cat.id != editingId);
-                                localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
-                                
-                                console.log('Categories after deletion:', filteredCategories);
-                                
                                 // Close modal
                                 closeCategoryModal();
                                 
-                                // Dispatch custom event to notify React component
+                                // Dispatch custom event to notify React component to reload from API
                                 setTimeout(function() {
                                     window.dispatchEvent(new CustomEvent('categoriesUpdated'));
                                     console.log('categoriesUpdated event dispatched after deletion');
@@ -6953,15 +6763,7 @@
                         })
                         .catch(error => {
                             console.error('API Error during delete:', error);
-                            // Fallback to localStorage only deletion
-                            const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                            const filteredCategories = categories.filter(cat => cat.id !== editingId);
-                            localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
-                            
-                            closeCategoryModal();
-                            setTimeout(function() {
-                                window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                            }, 100);
+                            alert('Error deleting service. Please try again.');
                         });
                     }
                     
@@ -6986,46 +6788,33 @@
                     
                     let editingId = categoryModalOverlay ? categoryModalOverlay.getAttribute('data-editing-id') : null;
                     
-                    // If no editing ID but we have a category name, try to find it by name
+                    // If no editing ID but we have a category name, try to find it from API
                     if (!editingId && categoryName) {
-                        const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                        const foundCategory = categories.find(cat => {
-                            const catLabel = (cat.label || '').toUpperCase().trim();
-                            return catLabel === categoryName;
-                        });
-                        
-                        if (foundCategory) {
-                            editingId = foundCategory.id;
-                        } else {
-                            // Check if it's a default service
-                            const defaultServices = [
-                                { label: 'Mini Car Wash', basePrice: 300 },
-                                { label: 'Full Service', basePrice: 1500 }
-                            ];
-                            const isDefault = defaultServices.some(s => s.label.toUpperCase().trim() === categoryName);
-                            if (isDefault) {
-                                // Delete default service by adding to deleted list
-                                if (confirm('Are you sure you want to delete this default service? It will be hidden from the list.')) {
-                                    const deletedDefaults = JSON.parse(localStorage.getItem('eliteStation_deletedDefaults') || '[]');
-                                    const serviceLabel = defaultServices.find(s => s.label.toUpperCase().trim() === categoryName)?.label;
-                                    
-                                    if (serviceLabel && !deletedDefaults.includes(serviceLabel)) {
-                                        deletedDefaults.push(serviceLabel);
-                                        localStorage.setItem('eliteStation_deletedDefaults', JSON.stringify(deletedDefaults));
-                                        console.log('Default service marked as deleted:', serviceLabel);
-                                        
-                                        // Close modal
-                                        closeCategoryModal();
-                                        
-                                        // Dispatch custom event to notify React component
-                                        setTimeout(function() {
-                                            window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                                            console.log('categoriesUpdated event dispatched after default service deletion');
-                                        }, 100);
+                        // Fetch from API to find by name
+                        fetch(API_ROUTES.services.index)
+                            .then(res => res.json())
+                            .then(apiData => {
+                                if (apiData.success && apiData.services) {
+                                    const foundCategory = apiData.services.find(cat => {
+                                        const catLabel = (cat.label || '').toUpperCase().trim();
+                                        return catLabel === categoryName;
+                                    });
+                                    if (foundCategory) {
+                                        editingId = foundCategory.id;
                                     }
                                 }
-                                return false;
-                            }
+                            })
+                            .catch(err => console.error('Error fetching categories:', err));
+                        
+                        // Check if it's a default service (cannot delete defaults)
+                        const defaultServices = [
+                            { label: 'Mini Car Wash', basePrice: 300 },
+                            { label: 'Full Service', basePrice: 1500 }
+                        ];
+                        const isDefault = defaultServices.some(s => s.label.toUpperCase().trim() === categoryName);
+                        if (isDefault) {
+                            alert('Default services cannot be deleted. They are always available.');
+                            return false;
                         }
                     }
                     
@@ -7047,11 +6836,6 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                // Also remove from localStorage
-                                const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                                const filteredCategories = categories.filter(cat => cat.id != editingId);
-                                localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
-                                
                                 console.log('Category deleted:', editingId);
                                 
                                 closeCategoryModal();
@@ -7065,15 +6849,7 @@
                         })
                         .catch(error => {
                             console.error('API Error:', error);
-                            // Fallback to localStorage deletion
-                            const categories = JSON.parse(localStorage.getItem('eliteStation_categories') || '[]');
-                            const filteredCategories = categories.filter(cat => cat.id !== editingId);
-                            localStorage.setItem('eliteStation_categories', JSON.stringify(filteredCategories));
-                            
-                            closeCategoryModal();
-                            setTimeout(function() {
-                                window.dispatchEvent(new CustomEvent('categoriesUpdated'));
-                            }, 100);
+                            alert('Error deleting service. Please try again.');
                         });
                     }
                     
@@ -7642,54 +7418,7 @@
                                 console.log('Saved mobile:', data.worker.mobile);
                                 console.log('Saved additional mobiles:', data.worker.additionalMobiles);
                                 
-                                // Also save to localStorage for backward compatibility
-                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                                
-                                if (editingWorkerId) {
-                                    // Update existing worker in localStorage
-                                    const workerIndex = workers.findIndex(w => w.id == editingWorkerId || w.id === editingWorkerId);
-                                    if (workerIndex !== -1) {
-                                        workers[workerIndex] = {
-                                            ...workers[workerIndex],
-                                            id: data.worker.id,
-                                            name: data.worker.name,
-                                            mobile: data.worker.mobile,
-                                            additionalMobiles: data.worker.additionalMobiles || [],
-                                            fatherName: data.worker.fatherName,
-                                            fatherMobile: data.worker.fatherMobile,
-                                            fatherAdditionalMobiles: data.worker.fatherAdditionalMobiles || [],
-                                            location: data.worker.location,
-                                            commission: data.worker.commission,
-                                            idCardFront: data.worker.idCardFront,
-                                            idCardBack: data.worker.idCardBack,
-                                            fatherCardFront: data.worker.fatherCardFront,
-                                            fatherCardBack: data.worker.fatherCardBack,
-                                            updatedAt: Date.now()
-                                        };
-                                    }
-                                } else {
-                                    // Add new worker to localStorage
-                                    workers.push({
-                                        id: data.worker.id,
-                                        name: data.worker.name,
-                                        mobile: data.worker.mobile,
-                                        additionalMobiles: data.worker.additionalMobiles || [],
-                                        fatherName: data.worker.fatherName,
-                                        fatherMobile: data.worker.fatherMobile,
-                                        fatherAdditionalMobiles: data.worker.fatherAdditionalMobiles || [],
-                                        location: data.worker.location,
-                                        commission: data.worker.commission,
-                                        idCardFront: data.worker.idCardFront,
-                                        idCardBack: data.worker.idCardBack,
-                                        fatherCardFront: data.worker.fatherCardFront,
-                                        fatherCardBack: data.worker.fatherCardBack,
-                                        createdAt: Date.now()
-                                    });
-                                }
-                                
-                                localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
-                                
-                                // Dispatch custom event to notify React component
+                                // Dispatch custom event to notify React component to reload from API
                                 window.dispatchEvent(new CustomEvent('workersUpdated'));
                             } else {
                                 console.error('Error saving worker:', data.message);
@@ -7698,27 +7427,7 @@
                         })
                         .catch(error => {
                             console.error('API Error:', error);
-                            // Fallback to localStorage only
-                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                            const newWorker = {
-                                id: Date.now().toString(),
-                                name: workerName,
-                                mobile: workerMobileInput ? workerMobileInput.value.trim() : '',
-                                additionalMobiles: workerAdditionalMobiles,
-                                fatherName: workerFatherNameInput ? workerFatherNameInput.value.trim().toUpperCase() : '',
-                                fatherMobile: workerFatherMobileInput ? workerFatherMobileInput.value.trim() : '',
-                                fatherAdditionalMobiles: fatherAdditionalMobiles,
-                                location: workerLocationInput ? workerLocationInput.value.trim() : '',
-                                commission: workerCommissionInput ? parseInt(workerCommissionInput.value) || 0 : 0,
-                                idCardFront: idCardFront || null,
-                                idCardBack: idCardBack || null,
-                                fatherCardFront: fatherCardFront || null,
-                                fatherCardBack: fatherCardBack || null,
-                                createdAt: Date.now()
-                            };
-                            workers.push(newWorker);
-                            localStorage.setItem('eliteStation_workers', JSON.stringify(workers));
-                            window.dispatchEvent(new CustomEvent('workersUpdated'));
+                            alert('Error saving worker. Please try again.');
                         });
                         
                         // Remove editing attribute
@@ -7805,10 +7514,7 @@
                             if (data.success) {
                                 console.log('Worker deleted from backend:', editingWorkerId);
                                 
-                                // Also remove from localStorage
-                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                                const filteredWorkers = workers.filter(w => w.id != editingWorkerId);
-                                localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
+                                // Worker deleted from database via API, no localStorage needed
                                 
                                 // Close modal
                                 closeWorkerModal();
@@ -7830,15 +7536,7 @@
                         })
                         .catch(error => {
                             console.error('API Error during delete:', error);
-                            // Fallback to localStorage only deletion
-                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                            const filteredWorkers = workers.filter(w => w.id !== editingWorkerId);
-                            localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
-                            
-                            closeWorkerModal();
-                            setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent('workersUpdated'));
-                            }, 100);
+                            alert('Error deleting worker. Please try again.');
                         });
                     }
                     
@@ -7876,10 +7574,6 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                                const filteredWorkers = workers.filter(w => w.id != editingWorkerId);
-                                localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
-                                
                                 closeWorkerModal();
                                 setTimeout(() => {
                                     window.dispatchEvent(new CustomEvent('workersUpdated'));
@@ -7890,14 +7584,7 @@
                         })
                         .catch(error => {
                             console.error('API Error:', error);
-                            const workers = JSON.parse(localStorage.getItem('eliteStation_workers') || '[]');
-                            const filteredWorkers = workers.filter(w => w.id !== editingWorkerId);
-                            localStorage.setItem('eliteStation_workers', JSON.stringify(filteredWorkers));
-                            
-                            closeWorkerModal();
-                            setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent('workersUpdated'));
-                            }, 100);
+                            alert('Error deleting worker. Please try again.');
                         });
                     }
                     
