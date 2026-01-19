@@ -88,7 +88,7 @@ class CarWashJob extends Model
      */
     public function inspection()
     {
-        return $this->hasOne(CarWashInspection::class);
+        return $this->hasOne(CarWashInspection::class, 'job_id');
     }
 
     /**
@@ -96,6 +96,6 @@ class CarWashJob extends Model
      */
     public function expense()
     {
-        return $this->hasOne(CarWashExpense::class);
+        return $this->hasOne(CarWashExpense::class, 'job_id');
     }
 }
