@@ -26,6 +26,10 @@
         }
         
         @media print {
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
             body * {
                 visibility: hidden;
             }
@@ -41,13 +45,54 @@
                 box-shadow: none;
                 border: none;
                 margin: 0;
+                padding: 0;
+                background: white;
+                page-break-after: avoid;
+            }
+            #jobDetailPrint .print-header {
+                background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: white !important;
                 padding: 20px;
+                margin-bottom: 20px;
+            }
+            #jobDetailPrint .print-section {
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+            }
+            #jobDetailPrint .print-card {
+                background: #f8fafc !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                border: 2px solid #e2e8f0 !important;
+                padding: 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+            }
+            #jobDetailPrint .print-amount {
+                background: linear-gradient(to bottom right, #3b82f6, #4f46e5) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: white !important;
+            }
+            #jobDetailPrint .print-commission {
+                background: linear-gradient(to bottom right, #10b981, #059669) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: white !important;
             }
             button {
                 display: none !important;
             }
+            .no-print {
+                display: none !important;
+            }
         }
     </style>
+    
+    <!-- html2pdf library for PDF download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
     <div id="root"></div>
@@ -137,6 +182,7 @@
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Service</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Worker</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
                                                 <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
@@ -175,6 +221,16 @@
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-black text-blue-600">Rs.{(job.price || 0).toFixed(2)}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {job.workerCommission > 0 ? (
+                                                            <div>
+                                                                <div className="text-sm font-black text-emerald-600 font-mono">Rs.{(job.commissionAmount || 0).toFixed(2)}</div>
+                                                                <div className="text-xs text-slate-500">({job.workerCommission}%)</div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-sm text-slate-400">-</div>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                                         <div className="flex items-center justify-center gap-2">
@@ -274,83 +330,110 @@
                         </div>
                     </main>
 
-                    {/* Job Detail Modal with Print */}
+                    {/* Job Detail Modal with Print - Full Screen */}
                     {selectedJobForDetail && (
-                        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-4" onClick={() => setSelectedJobForDetail(null)}>
-                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()} id="jobDetailPrint">
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-2" onClick={() => setSelectedJobForDetail(null)}>
+                            <div className="bg-white rounded-2xl shadow-2xl w-full h-full max-w-[98vw] max-h-[98vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()} id="jobDetailPrint">
                                 {/* Header */}
-                                <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                                <div className="print-header p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <h2 className="text-2xl font-black uppercase tracking-tighter">Job Details</h2>
                                             <p className="text-sm opacity-90 mt-1">Complete job information with inspections and expenses</p>
+                                            <p className="text-xs opacity-80 mt-2">
+                                                {selectedJobForDetail.endTime ? new Date(selectedJobForDetail.endTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                                            </p>
                                         </div>
-                                        <button
-                                            onClick={() => setSelectedJobForDetail(null)}
-                                            className="text-white hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-white/20"
-                                            aria-label="Close job details"
-                                        >
-                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
+                                        <div className="no-print flex items-center gap-3">
+                                            <a
+                                                href={`/car-wash/jobs/${selectedJobForDetail.id}`}
+                                                target="_blank"
+                                                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-black uppercase transition-colors backdrop-blur-sm flex items-center gap-2"
+                                                title="Open in New Page"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                </svg>
+                                                New Page
+                                            </a>
+                                            <button
+                                                onClick={() => setSelectedJobForDetail(null)}
+                                                className="text-white hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-white/20"
+                                                aria-label="Close job details"
+                                            >
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                {/* Job Info */}
-                                <div className="flex-1 overflow-y-auto p-6">
-                                    <div className="space-y-6">
+                                {/* Job Info - Full Scrollable */}
+                                <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-50 to-white">
+                                    <div className="space-y-4 max-w-7xl mx-auto">
                                         {/* Customer & Vehicle Info */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                        <div className="print-section grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Vehicle No</p>
                                                 <p className="text-lg font-black text-slate-900">{selectedJobForDetail.vehicleNo || selectedJobForDetail.vehicle_no || 'N/A'}</p>
                                             </div>
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Customer</p>
                                                 <p className="text-lg font-black text-slate-900">{selectedJobForDetail.customerName || selectedJobForDetail.customer_name || 'N/A'}</p>
                                             </div>
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Mobile</p>
                                                 <p className="text-lg font-black text-slate-900">{selectedJobForDetail.mobile || 'N/A'}</p>
                                             </div>
                                         </div>
                                         
                                         {/* Service & Worker */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                        <div className="print-section grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Service</p>
                                                 <p className="text-lg font-black text-slate-900">{selectedJobForDetail.serviceName || selectedJobForDetail.service_name || selectedJobForDetail.service || 'N/A'}</p>
                                             </div>
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Worker</p>
                                                 <p className="text-lg font-black text-slate-900">{selectedJobForDetail.workerName || selectedJobForDetail.worker_name || selectedJobForDetail.worker || 'N/A'}</p>
                                             </div>
                                         </div>
                                         
-                                        {/* Time & Amount */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                        {/* Time, Amount & Commission */}
+                                        <div className="print-section grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Start Time</p>
                                                 <p className="text-lg font-black text-slate-900">
                                                     {selectedJobForDetail.startTime ? new Date(selectedJobForDetail.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                                                 </p>
                                             </div>
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                            <div className="print-card bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">End Time</p>
                                                 <p className="text-lg font-black text-slate-900">
                                                     {selectedJobForDetail.endTime ? new Date(selectedJobForDetail.endTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                                                 </p>
                                             </div>
-                                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl border-2 border-blue-400">
+                                            <div className="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl border-2 border-blue-400">
                                                 <p className="text-xs font-black text-white/90 uppercase mb-2">Amount</p>
                                                 <p className="text-2xl font-black text-white">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                            </div>
+                                            <div className="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-4 rounded-xl border-2 border-emerald-400">
+                                                <p className="text-xs font-black text-white/90 uppercase mb-2">Commission</p>
+                                                {selectedJobForDetail.workerCommission > 0 ? (
+                                                    <div>
+                                                        <p className="text-2xl font-black text-white font-mono">Rs.{(selectedJobForDetail.commissionAmount || 0).toFixed(2)}</p>
+                                                        <p className="text-xs text-white/80 mt-1">({selectedJobForDetail.workerCommission}%)</p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-lg font-black text-white/70">-</p>
+                                                )}
                                             </div>
                                         </div>
                                         
                                         {/* Inspection Details */}
                                         {selectedJobForDetail.inspection && selectedJobForDetail.inspection.inspectionItems && (
-                                            <div className="bg-purple-50 p-6 rounded-xl border-2 border-purple-200">
+                                            <div className="print-section bg-purple-50 p-6 rounded-xl border-2 border-purple-200">
                                                 <h3 className="text-lg font-black text-purple-900 uppercase mb-4">Inspection Details</h3>
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                                     {Object.keys(selectedJobForDetail.inspection.inspectionItems).map(itemId => {
@@ -388,7 +471,7 @@
                                         
                                         {/* Expense Details */}
                                         {selectedJobForDetail.expense && selectedJobForDetail.expense.expenseItems && selectedJobForDetail.expense.expenseItems.length > 0 && (
-                                            <div className="bg-orange-50 p-6 rounded-xl border-2 border-orange-200">
+                                            <div className="print-section bg-orange-50 p-6 rounded-xl border-2 border-orange-200">
                                                 <h3 className="text-lg font-black text-orange-900 uppercase mb-4">Expense Details</h3>
                                                 <div className="space-y-2">
                                                     {selectedJobForDetail.expense.expenseItems.map((item, idx) => (
@@ -397,7 +480,7 @@
                                                                 <p className="text-sm font-black text-slate-900">{item.name}</p>
                                                                 <p className="text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
                                                             </div>
-                                                            <p className="text-sm font-black text-orange-600">Rs.{item.total || (item.quantity * item.price)}</p>
+                                                            <p className="text-sm font-black text-orange-600">Rs.{(item.total || (item.quantity * item.price)).toFixed(2)}</p>
                                                         </div>
                                                     ))}
                                                     <div className="bg-orange-200 p-3 rounded-lg border-2 border-orange-300 flex justify-between items-center mt-4">
@@ -408,9 +491,38 @@
                                             </div>
                                         )}
                                         
+                                        {/* Summary Section */}
+                                        <div className="print-section bg-gradient-to-br from-slate-100 to-slate-200 p-6 rounded-xl border-2 border-slate-300">
+                                            <h3 className="text-lg font-black text-slate-900 uppercase mb-4">Summary</h3>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center bg-white p-3 rounded-lg">
+                                                    <p className="text-sm font-black text-slate-700">Total Amount:</p>
+                                                    <p className="text-lg font-black text-blue-600 font-mono">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                </div>
+                                                {selectedJobForDetail.workerCommission > 0 && (
+                                                    <div className="flex justify-between items-center bg-white p-3 rounded-lg">
+                                                        <p className="text-sm font-black text-slate-700">Worker Commission ({selectedJobForDetail.workerCommission}%):</p>
+                                                        <p className="text-lg font-black text-emerald-600 font-mono">Rs.{(selectedJobForDetail.commissionAmount || 0).toFixed(2)}</p>
+                                                    </div>
+                                                )}
+                                                {selectedJobForDetail.expense && selectedJobForDetail.expense.totalAmount > 0 && (
+                                                    <div className="flex justify-between items-center bg-white p-3 rounded-lg">
+                                                        <p className="text-sm font-black text-slate-700">Total Expenses:</p>
+                                                        <p className="text-lg font-black text-orange-600 font-mono">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-lg mt-4">
+                                                    <p className="text-base font-black text-white uppercase">Net Amount:</p>
+                                                    <p className="text-xl font-black text-white font-mono">
+                                                        Rs.{((selectedJobForDetail.price || 0) - (selectedJobForDetail.commissionAmount || 0) - (selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
                                         {/* Notes/Comments */}
                                         {selectedJobForDetail.notes && (
-                                            <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                                            <div className="print-section bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                                                 <p className="text-xs font-black text-slate-500 uppercase mb-2">Notes</p>
                                                 <p className="text-sm text-slate-900">{selectedJobForDetail.notes}</p>
                                             </div>
@@ -418,8 +530,8 @@
                                     </div>
                                 </div>
                                 
-                                {/* Footer with Print Button */}
-                                <div className="p-6 border-t border-slate-200 bg-slate-50">
+                                {/* Footer with Print & PDF Buttons */}
+                                <div className="no-print p-6 border-t border-slate-200 bg-slate-50">
                                     <div className="flex gap-4">
                                         <button
                                             onClick={() => setSelectedJobForDetail(null)}
@@ -428,13 +540,35 @@
                                             Close
                                         </button>
                                         <button
-                                            onClick={() => window.print()}
+                                            onClick={() => {
+                                                window.print();
+                                            }}
                                             className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                                             </svg>
                                             Print
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const element = document.getElementById('jobDetailPrint');
+                                                const opt = {
+                                                    margin: [10, 10, 10, 10],
+                                                    filename: `job-${selectedJobForDetail.id || 'detail'}-${new Date().toISOString().split('T')[0]}.pdf`,
+                                                    image: { type: 'jpeg', quality: 0.98 },
+                                                    html2canvas: { scale: 2, useCORS: true },
+                                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                                };
+                                                
+                                                html2pdf().set(opt).from(element).save();
+                                            }}
+                                            className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-black uppercase hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            Download PDF
                                         </button>
                                     </div>
                                 </div>
