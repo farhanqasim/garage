@@ -1505,7 +1505,12 @@
                         const response = await fetch(API_ROUTES.services.index);
                         const data = await response.json();
                         if (data.success && data.services) {
-                            setCategories(data.services);
+                            // Map services to convert base_price to basePrice for frontend compatibility
+                            const mappedServices = data.services.map(service => ({
+                                ...service,
+                                basePrice: service.base_price || service.basePrice || 0
+                            }));
+                            setCategories(mappedServices);
                         }
                     } catch (error) {
                         console.error('Error loading categories from API:', error);
@@ -2667,7 +2672,7 @@
                                                                         const previewPrice = previewCard ? previewCard.querySelector('.price') : null;
                                                                         
                                                                         if (categoryNameInput) categoryNameInput.value = service.label || '';
-                                                                        if (categoryPriceInput) categoryPriceInput.value = service.basePrice || 0;
+                                                                        if (categoryPriceInput) categoryPriceInput.value = service.basePrice || service.base_price || 0;
                                                                         
                                                                         // Use existing category values if editing, otherwise use service values
                                                                         const colorValue = existingCategory?.colorValue || service.colorValue;
@@ -2703,7 +2708,7 @@
                                                                         });
                                                                         
                                                                         if (previewLabel) previewLabel.textContent = (service.label || 'SERVICE LABEL').toUpperCase();
-                                                                        if (previewPrice) previewPrice.textContent = '· RS.' + (service.basePrice || 0);
+                                                                        if (previewPrice) previewPrice.textContent = '· RS.' + (service.basePrice || service.base_price || 0);
                                                                         if (previewCard && colorValue) {
                                                                             previewCard.style.background = colorValue;
                                                                         }
@@ -2852,7 +2857,7 @@
                                                                     </div>
                                                                     <div className="flex-1">
                                                                         <p className="text-base font-black text-slate-900 uppercase">{service.label}</p>
-                                                                        <p className="text-sm text-slate-500 font-mono mt-1">Rs. {service.basePrice || 0}</p>
+                                                                        <p className="text-sm text-slate-500 font-mono mt-1">Rs. {service.basePrice || service.base_price || 0}</p>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-xs text-slate-400 font-bold">Click to Edit</span>
@@ -4821,7 +4826,7 @@
                                                     onClick={() => {
                                                         setSelectedService(category);
                                                         setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                        setFormData({ ...formData, price: category.basePrice || 0 });
+                                                        setFormData({ ...formData, price: category.basePrice || category.base_price || 0 });
                                                         setView('entry');
                                                     }}
                                                 >
@@ -4830,7 +4835,7 @@
                                                     </div>
                                                     <div className="text-center">
                                                         <p className="font-black text-[11px] uppercase tracking-tighter">{category.label}</p>
-                                                        <p className="text-[10px] opacity-90 mt-1 font-bold">Rs.{category.basePrice || 0}</p>
+                                                        <p className="text-[10px] opacity-90 mt-1 font-bold">Rs.{category.basePrice || category.base_price || 0}</p>
                                                     </div>
                                                 </button>
                                             );
@@ -5463,7 +5468,7 @@
                                                             </div>
                                                         </div>
                                                         <span className="text-xl font-black text-slate-900 font-mono bg-slate-50 px-4 py-2 rounded-xl border-2 border-slate-200">
-                                                            Rs. {selectedService.basePrice || 0}
+                                                            Rs. {selectedService.basePrice || selectedService.base_price || 0}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -5527,7 +5532,7 @@
                                                                             setSelectedAdditionalPrices(newSelected);
                                                                             
                                                                             // Update total price
-                                                                            let total = selectedService.basePrice || 0;
+                                                                            let total = selectedService.basePrice || selectedService.base_price || 0;
                                                                             newSelected.forEach(selectedIndex => {
                                                                                 const ap = selectedService.additionalPrices[selectedIndex];
                                                                                 if (ap && ap.amount) {
@@ -6327,7 +6332,7 @@
                     const categoryNameInput = document.getElementById('categoryName');
                     const categoryPriceInput = document.getElementById('categoryPrice');
                     if (categoryNameInput) categoryNameInput.value = categoryData.label || '';
-                    if (categoryPriceInput) categoryPriceInput.value = categoryData.basePrice || 0;
+                    if (categoryPriceInput) categoryPriceInput.value = categoryData.basePrice || categoryData.base_price || 0;
                     categoryModal.classList.add('show');
                 }
             });
