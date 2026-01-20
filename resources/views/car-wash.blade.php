@@ -1486,6 +1486,9 @@
             const [inspectionModalJobId, setInspectionModalJobId] = useState(null);
             const [inspectionData, setInspectionData] = useState({});
             const [completedInspections, setCompletedInspections] = useState(new Set());
+            const pendingInspectionAlertsRef = React.useRef(new Set()); // Track jobs that have shown alerts (using ref for synchronous access)
+            const userInteractionRef = React.useRef(false); // Track if user has interacted with page (required for speech)
+            const [inspectionNotification, setInspectionNotification] = useState(null); // Custom notification state
             const [isRecording, setIsRecording] = useState(false);
             const [audioBlob, setAudioBlob] = useState(null);
             const [audioUrl, setAudioUrl] = useState(null);
@@ -1639,19 +1642,74 @@
                 return () => clearInterval(timer);
             }, []);
             
-            // Check for pending inspections every 30 seconds
+            // Initialize speech synthesis voices and track user interaction
             useEffect(() => {
-                // If no active jobs, stop all voice alerts and return
+                if ('speechSynthesis' in window) {
+                    // Load voices on component mount (some browsers need this)
+                    const loadVoices = () => {
+                        const voices = window.speechSynthesis.getVoices();
+                        console.log('Available voices:', voices.length);
+                    };
+                    loadVoices();
+                    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                        window.speechSynthesis.onvoiceschanged = loadVoices;
+                    }
+                }
+                
+                // Track user interactions to enable speech synthesis
+                const enableSpeech = () => {
+                    userInteractionRef.current = true;
+                    // Test speech synthesis on first interaction to enable it
+                    if ('speechSynthesis' in window) {
+                        try {
+                            const testUtterance = new SpeechSynthesisUtterance('');
+                            testUtterance.volume = 0; // Silent test
+                            window.speechSynthesis.speak(testUtterance);
+                            window.speechSynthesis.cancel(); // Cancel immediately
+                            console.log('✅ Speech synthesis enabled after user interaction');
+                        } catch (e) {
+                            console.log('Speech test:', e);
+                        }
+                    }
+                };
+                
+                // Listen for any user interaction (persistent, not once)
+                document.addEventListener('click', enableSpeech, { passive: true });
+                document.addEventListener('touchstart', enableSpeech, { passive: true });
+                document.addEventListener('keydown', enableSpeech, { passive: true });
+                
+                return () => {
+                    document.removeEventListener('click', enableSpeech);
+                    document.removeEventListener('touchstart', enableSpeech);
+                    document.removeEventListener('keydown', enableSpeech);
+                };
+            }, []);
+            
+            // Check for pending inspections and show alerts
+            useEffect(() => {
+                // If no active jobs, clear all alerts and stop voice
                 if (activeJobs.length === 0) {
+                    pendingInspectionAlertsRef.current.clear();
                     if ('speechSynthesis' in window) {
                         window.speechSynthesis.cancel();
                     }
                     return;
                 }
                 
+                // Remove alerts for jobs that are no longer active
+                const activeJobIds = new Set(activeJobs.map(j => j.id));
+                const filtered = new Set();
+                pendingInspectionAlertsRef.current.forEach(jobId => {
+                    if (activeJobIds.has(jobId)) {
+                        filtered.add(jobId);
+                    }
+                });
+                pendingInspectionAlertsRef.current = filtered;
+                
                 const inspectionCheckInterval = setInterval(() => {
                     // Check again if activeJobs is empty, stop voice if so
                     if (activeJobs.length === 0) {
+                        pendingInspectionAlertsRef.current.clear();
                         if ('speechSynthesis' in window) {
                             window.speechSynthesis.cancel();
                         }
@@ -1659,6 +1717,13 @@
                     }
                     
                     activeJobs.forEach((job) => {
+                        // Skip if inspection already completed
+                        if (completedInspections.has(job.id)) {
+                            // Remove from pending alerts if it was there
+                            pendingInspectionAlertsRef.current.delete(job.id);
+                            return;
+                        }
+                        
                         // Check if job is older than 30 seconds
                         const jobStartTime = new Date(job.startTime);
                         const elapsed = currentTime - jobStartTime;
@@ -1666,42 +1731,116 @@
                         
                         // If 30 seconds passed and inspection not completed
                         if (elapsed >= thirtySeconds && !completedInspections.has(job.id)) {
-                            // Show alert with vehicle number
-                            alert(`${job.vehicleNo} - Inspection Pending`);
+                            // Get vehicle number (job name) - this is what shows in the DOM
+                            const vehicleNumber = job.vehicleNo || job.vehicle_no || 'Unknown';
                             
-                            // Voice announcement
-                            try {
-                                if ('speechSynthesis' in window) {
+                            // Function to speak the inspection pending message
+                            const speakMessage = () => {
+                                if (!('speechSynthesis' in window)) {
+                                    return;
+                                }
+                                
+                                try {
                                     // Cancel any ongoing speech
                                     window.speechSynthesis.cancel();
                                     
-                                    // Wait a bit then speak
-                                    setTimeout(() => {
-                                        const utterance = new SpeechSynthesisUtterance(`${job.vehicleNo} inspection pending`);
-                                        utterance.lang = 'en-US';
-                                        utterance.rate = 1;
-                                        utterance.pitch = 1;
-                                        utterance.volume = 1;
-                                        
-                                        // Handle speech errors (ignore "interrupted" errors as they're normal when cancelling)
-                                        utterance.onerror = (e) => {
-                                            // Only log non-interrupted errors
-                                            if (e.error !== 'interrupted' && e.error !== 'canceled') {
-                                                console.error('Speech error:', e);
-                                            }
-                                        };
-                                        
-                                        window.speechSynthesis.speak(utterance);
-                                    }, 100);
-                                } else {
-                                    console.log('Speech synthesis not supported');
+                                    // Get voices
+                                    let voices = window.speechSynthesis.getVoices();
+                                    
+                                    // If no voices, wait a bit for them to load
+                                    if (voices.length === 0) {
+                                        setTimeout(() => {
+                                            voices = window.speechSynthesis.getVoices();
+                                            attemptSpeak(voices);
+                                        }, 200);
+                                    } else {
+                                        attemptSpeak(voices);
+                                    }
+                                } catch (error) {
+                                    console.error('Error in speakMessage:', error);
                                 }
-                            } catch (error) {
-                                console.error('Error with speech synthesis:', error);
+                            };
+                            
+                            const attemptSpeak = (voices) => {
+                                try {
+                                    const textToSpeak = `${vehicleNumber} inspection pending`;
+                                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                                    utterance.lang = 'en-US';
+                                    utterance.rate = 0.9;
+                                    utterance.pitch = 1;
+                                    utterance.volume = 1;
+                                    
+                                    // Try to select English voice
+                                    if (voices && voices.length > 0) {
+                                        const englishVoice = voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
+                                        if (englishVoice) {
+                                            utterance.voice = englishVoice;
+                                        }
+                                    }
+                                    
+                                    // Event handlers
+                                    utterance.onstart = () => {
+                                        console.log('🔊 VOICE STARTED:', textToSpeak);
+                                    };
+                                    
+                                    utterance.onend = () => {
+                                        console.log('✅ VOICE COMPLETED');
+                                    };
+                                    
+                                    utterance.onerror = (e) => {
+                                        // Log all errors for debugging
+                                        console.error('VOICE ERROR:', e.error, 'for', vehicleNumber);
+                                    };
+                                    
+                                    // Speak it
+                                    window.speechSynthesis.speak(utterance);
+                                    console.log('📢 SPEAKING:', textToSpeak);
+                                } catch (speakErr) {
+                                    console.error('Error in attemptSpeak:', speakErr);
+                                }
+                            };
+                            
+                            // Show custom notification (non-blocking)
+                            setInspectionNotification({
+                                jobId: job.id,
+                                vehicleNumber: vehicleNumber,
+                                message: `${vehicleNumber} - Inspection Pending`
+                            });
+                            
+                            // Try to speak automatically (will work if user has already interacted)
+                            if ('speechSynthesis' in window && userInteractionRef.current) {
+                                try {
+                                    window.speechSynthesis.cancel();
+                                    const textToSpeak = `${vehicleNumber} inspection pending`;
+                                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                                    utterance.lang = 'en-US';
+                                    utterance.rate = 0.9;
+                                    utterance.pitch = 1;
+                                    utterance.volume = 1;
+                                    
+                                    let voices = window.speechSynthesis.getVoices();
+                                    if (voices.length > 0) {
+                                        const englishVoice = voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
+                                        if (englishVoice) utterance.voice = englishVoice;
+                                    }
+                                    
+                                    utterance.onstart = () => console.log('🔊 VOICE STARTED');
+                                    utterance.onend = () => console.log('✅ VOICE COMPLETED');
+                                    utterance.onerror = (e) => {
+                                        if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                                            console.error('❌ VOICE ERROR:', e.error);
+                                        }
+                                    };
+                                    
+                                    window.speechSynthesis.speak(utterance);
+                                    console.log('📢 SPEAKING:', textToSpeak);
+                                } catch (error) {
+                                    console.error('Error speaking:', error);
+                                }
                             }
                         }
                     });
-                }, 30000); // Check and alert every 30 seconds
+                }, 5000); // Check every 5 seconds for faster response
                 
                 return () => {
                     clearInterval(inspectionCheckInterval);
@@ -1711,6 +1850,14 @@
                     }
                 };
             }, [activeJobs, currentTime, completedInspections]);
+            
+            // Remove alert and stop speech when inspection is completed
+            useEffect(() => {
+                // When inspection is completed, stop any ongoing speech immediately
+                if (completedInspections.size > 0 && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+            }, [completedInspections]);
             
             // Active jobs stored in database, no need to save to localStorage
             
