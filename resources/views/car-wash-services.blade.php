@@ -751,22 +751,37 @@
                                                                     onClick={async () => {
                                                                         const serviceLabel = service.label || 'N/A';
                                                                         if (confirm('Are you sure you want to delete service: ' + serviceLabel + '?')) {
+                                                                            // Optimistically update UI first
+                                                                            setServices(prev => prev.filter(s => s.id !== service.id));
+                                                                            
                                                                             try {
+                                                                                // Create AbortController for timeout
+                                                                                const controller = new AbortController();
+                                                                                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                                                                                
                                                                                 const response = await fetch(API_ROUTES.services.destroy(service.id), {
                                                                                     method: 'DELETE',
                                                                                     headers: {
                                                                                         'Content-Type': 'application/json',
                                                                                         'X-CSRF-TOKEN': csrfToken,
                                                                                         'Accept': 'application/json'
-                                                                                    }
+                                                                                    },
+                                                                                    signal: controller.signal
                                                                                 });
+                                                                                
+                                                                                clearTimeout(timeoutId);
+                                                                                
+                                                                                if (!response.ok) {
+                                                                                    throw new Error('Delete request failed');
+                                                                                }
                                                                                 
                                                                                 const result = await response.json();
                                                                                 
                                                                                 if (result.success) {
-                                                                                    setServices(prev => prev.filter(s => s.id !== service.id));
+                                                                                    // Service already removed from UI, no need to reload
                                                                                     alert('Service deleted successfully!');
-                                                                                    
+                                                                                } else {
+                                                                                    // Revert the optimistic update on error
                                                                                     const reloadResponse = await fetch(API_ROUTES.services.index);
                                                                                     const reloadData = await reloadResponse.json();
                                                                                     if (reloadData.success && reloadData.services) {
@@ -782,12 +797,32 @@
                                                                                             status: s.status,
                                                                                         })));
                                                                                     }
-                                                                                } else {
                                                                                     alert('Error deleting service: ' + (result.message || 'Unknown error'));
                                                                                 }
                                                                             } catch (error) {
-                                                                                console.error('Error deleting service:', error);
-                                                                                alert('Error deleting service. Please try again.');
+                                                                                // Revert optimistic update on error
+                                                                                const reloadResponse = await fetch(API_ROUTES.services.index);
+                                                                                const reloadData = await reloadResponse.json();
+                                                                                if (reloadData.success && reloadData.services) {
+                                                                                    setServices(reloadData.services.map(s => ({
+                                                                                        id: s.id,
+                                                                                        label: s.label,
+                                                                                        basePrice: parseFloat(s.base_price),
+                                                                                        additionalPrices: s.additional_prices ?? [],
+                                                                                        icon: s.icon,
+                                                                                        color: s.color,
+                                                                                        colorValue: s.color_value || '#3b82f6',
+                                                                                        isDefault: s.is_default,
+                                                                                        status: s.status,
+                                                                                    })));
+                                                                                }
+                                                                                
+                                                                                if (error.name === 'AbortError') {
+                                                                                    alert('Request timed out. Please check if the service was deleted and refresh the page.');
+                                                                                } else {
+                                                                                    console.error('Error deleting service:', error);
+                                                                                    alert('Error deleting service. Please try again.');
+                                                                                }
                                                                             }
                                                                         }
                                                                     }}
@@ -876,22 +911,37 @@
                                                                 onClick={async () => {
                                                                     const serviceLabel = service.label || 'N/A';
                                                                     if (confirm('Are you sure you want to delete service: ' + serviceLabel + '?')) {
+                                                                        // Optimistically update UI first
+                                                                        setServices(prev => prev.filter(s => s.id !== service.id));
+                                                                        
                                                                         try {
+                                                                            // Create AbortController for timeout
+                                                                            const controller = new AbortController();
+                                                                            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                                                                            
                                                                             const response = await fetch(API_ROUTES.services.destroy(service.id), {
                                                                                 method: 'DELETE',
                                                                                 headers: {
                                                                                     'Content-Type': 'application/json',
                                                                                     'X-CSRF-TOKEN': csrfToken,
                                                                                     'Accept': 'application/json'
-                                                                                }
+                                                                                },
+                                                                                signal: controller.signal
                                                                             });
+                                                                            
+                                                                            clearTimeout(timeoutId);
+                                                                            
+                                                                            if (!response.ok) {
+                                                                                throw new Error('Delete request failed');
+                                                                            }
                                                                             
                                                                             const result = await response.json();
                                                                             
                                                                             if (result.success) {
-                                                                                setServices(prev => prev.filter(s => s.id !== service.id));
+                                                                                // Service already removed from UI, no need to reload
                                                                                 alert('Service deleted successfully!');
-                                                                                
+                                                                            } else {
+                                                                                // Revert the optimistic update on error
                                                                                 const reloadResponse = await fetch(API_ROUTES.services.index);
                                                                                 const reloadData = await reloadResponse.json();
                                                                                 if (reloadData.success && reloadData.services) {
@@ -907,12 +957,32 @@
                                                                                         status: s.status,
                                                                                     })));
                                                                                 }
-                                                                            } else {
                                                                                 alert('Error deleting service: ' + (result.message || 'Unknown error'));
                                                                             }
                                                                         } catch (error) {
-                                                                            console.error('Error deleting service:', error);
-                                                                            alert('Error deleting service. Please try again.');
+                                                                            // Revert optimistic update on error
+                                                                            const reloadResponse = await fetch(API_ROUTES.services.index);
+                                                                            const reloadData = await reloadResponse.json();
+                                                                            if (reloadData.success && reloadData.services) {
+                                                                                setServices(reloadData.services.map(s => ({
+                                                                                    id: s.id,
+                                                                                    label: s.label,
+                                                                                    basePrice: parseFloat(s.base_price),
+                                                                                    additionalPrices: s.additional_prices ?? [],
+                                                                                    icon: s.icon,
+                                                                                    color: s.color,
+                                                                                    colorValue: s.color_value || '#3b82f6',
+                                                                                    isDefault: s.is_default,
+                                                                                    status: s.status,
+                                                                                })));
+                                                                            }
+                                                                            
+                                                                            if (error.name === 'AbortError') {
+                                                                                alert('Request timed out. Please check if the service was deleted and refresh the page.');
+                                                                            } else {
+                                                                                console.error('Error deleting service:', error);
+                                                                                alert('Error deleting service. Please try again.');
+                                                                            }
                                                                         }
                                                                     }
                                                                 }}
@@ -1340,19 +1410,39 @@
                                                     type="button"
                                                     onClick={async () => {
                                                         if (confirm('Are you sure you want to delete this service?')) {
+                                                            const serviceIdToDelete = selectedServiceForEdit.id;
+                                                            
+                                                            // Optimistically update UI first
+                                                            setServices(prev => prev.filter(s => s.id !== serviceIdToDelete));
+                                                            setShowAddModal(false);
+                                                            setSelectedServiceForEdit(null);
+                                                            
                                                             try {
-                                                                const response = await fetch(API_ROUTES.services.destroy(selectedServiceForEdit.id), {
+                                                                // Create AbortController for timeout
+                                                                const controller = new AbortController();
+                                                                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                                                                
+                                                                const response = await fetch(API_ROUTES.services.destroy(serviceIdToDelete), {
                                                                     method: 'DELETE',
                                                                     headers: {
                                                                         'X-CSRF-TOKEN': csrfToken,
                                                                         'Accept': 'application/json'
-                                                                    }
+                                                                    },
+                                                                    signal: controller.signal
                                                                 });
+                                                                
+                                                                clearTimeout(timeoutId);
+                                                                
+                                                                if (!response.ok) {
+                                                                    throw new Error('Delete request failed');
+                                                                }
+                                                                
                                                                 const result = await response.json();
                                                                 if (result.success) {
+                                                                    // Service already removed from UI, no need to reload
                                                                     alert('Service deleted successfully!');
-                                                                    setShowAddModal(false);
-                                                                    setSelectedServiceForEdit(null);
+                                                                } else {
+                                                                    // Revert the optimistic update on error
                                                                     const reloadResponse = await fetch(API_ROUTES.services.index);
                                                                     const reloadData = await reloadResponse.json();
                                                                     if (reloadData.success && reloadData.services) {
@@ -1368,12 +1458,32 @@
                                                                             status: s.status,
                                                                         })));
                                                                     }
-                                                                } else {
                                                                     alert('Error deleting service: ' + (result.message || 'Unknown error'));
                                                                 }
                                                             } catch (error) {
-                                                                console.error('Error deleting service:', error);
-                                                                alert('Error deleting service. Please try again.');
+                                                                // Revert optimistic update on error
+                                                                const reloadResponse = await fetch(API_ROUTES.services.index);
+                                                                const reloadData = await reloadResponse.json();
+                                                                if (reloadData.success && reloadData.services) {
+                                                                    setServices(reloadData.services.map(s => ({
+                                                                        id: s.id,
+                                                                        label: s.label,
+                                                                        basePrice: parseFloat(s.base_price) || 0,
+                                                                        additionalPrices: s.additional_prices ?? [],
+                                                                        icon: s.icon,
+                                                                        color: s.color,
+                                                                        colorValue: s.color_value || '#3b82f6',
+                                                                        isDefault: s.is_default,
+                                                                        status: s.status,
+                                                                    })));
+                                                                }
+                                                                
+                                                                if (error.name === 'AbortError') {
+                                                                    alert('Request timed out. Please check if the service was deleted and refresh the page.');
+                                                                } else {
+                                                                    console.error('Error deleting service:', error);
+                                                                    alert('Error deleting service. Please try again.');
+                                                                }
                                                             }
                                                         }
                                                     }}
