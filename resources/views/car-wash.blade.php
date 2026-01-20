@@ -4904,79 +4904,61 @@
                                             Select Service
                                         </h2>
                                     </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                                        {/* Default Services - Only show if not deleted */}
-                                        {activeDefaultServices.map((defaultService, index) => {
-                                            const isMiniCarWash = defaultService.label === 'Mini Car Wash';
-                                            const bgClass = isMiniCarWash 
-                                                ? 'bg-blue-600' 
-                                                : 'bg-gradient-to-br from-emerald-600 to-emerald-700';
-                                            const iconPath = isMiniCarWash
-                                                ? 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
-                                                : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
-                                            
-                                            return (
-                                                <button
-                                                    key={defaultService.label}
-                                                    type="button"
-                                                    className={`${bgClass} text-white p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] shadow-lg flex flex-col items-center gap-2 sm:gap-2.5 md:gap-3 cursor-pointer active:scale-95 transition-transform hover:opacity-90 border-none outline-none w-full ${!isMiniCarWash ? 'shadow-xl hover:shadow-2xl hover:scale-105 transform' : ''}`}
-                                                    onClick={() => {
-                                                        setSelectedService({ 
-                                                            label: defaultService.label, 
-                                                            basePrice: defaultService.basePrice,
-                                                            additionalPrices: defaultService.additionalPrices || []
-                                                        });
-                                                        setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                        // Parse base price as number and format to 2 decimal places
-                                                        const basePrice = parseFloat(defaultService.basePrice || 0) || 0;
-                                                        setFormData({ ...formData, price: basePrice.toFixed(2) });
-                                                        setView('entry');
-                                                    }}
-                                                >
-                                                    <div className="bg-white/20 p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl">
-                                                        <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={iconPath} />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="font-black text-[9px] sm:text-[10px] md:text-[11px] uppercase tracking-tighter leading-tight">{defaultService.label}</p>
-                                                        <p className="text-[8px] sm:text-[9px] md:text-[10px] opacity-80 mt-0.5 sm:mt-1 font-bold">Rs.{defaultService.basePrice}</p>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                        
-                                        {/* New Categories - Display below default services */}
-                                        {categories.map((category) => {
-                                            // Use colorValue if available, otherwise get from color class, fallback to blue
-                                            const bgColorVal = category.colorValue || (category.color ? getColorValue(category.color) : '#3b82f6');
-                                            const styleObj = { backgroundColor: bgColorVal };
-                                            return (
-                                                <button
-                                                    key={category.id}
-                                                    type="button"
-                                                    className="text-white p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] shadow-xl flex flex-col items-center gap-2 sm:gap-2.5 md:gap-3 cursor-pointer active:scale-95 transition-all hover:shadow-2xl hover:scale-105 w-full border-none outline-none transform"
-                                                    style={styleObj}
-                                                    onClick={() => {
-                                                        setSelectedService(category);
-                                                        setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                        // Parse base price as number and format to 2 decimal places
-                                                        const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
-                                                        setFormData({ ...formData, price: basePrice.toFixed(2) });
-                                                        setView('entry');
-                                                    }}
-                                                >
-                                                    <div className="bg-white/20 p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl backdrop-blur-sm">
-                                                        {getIconSVG(category.icon || 'cycle')}
-                                                    </div>
-                                                    <div className="text-center">
-                                                        <p className="font-black text-[9px] sm:text-[10px] md:text-[11px] uppercase tracking-tighter leading-tight">{category.label}</p>
-                                                        <p className="text-[8px] sm:text-[9px] md:text-[10px] opacity-90 mt-0.5 sm:mt-1 font-bold">Rs.{category.basePrice || category.base_price || 0}</p>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    {categories.length === 0 ? (
+                                        // No services in database - show button to add services
+                                        <div className="bg-white border-2 border-dashed border-slate-300 p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-[30px] md:rounded-[40px] text-center">
+                                            <div className="mb-4 sm:mb-6">
+                                                <svg className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 text-slate-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-700 uppercase tracking-tight mb-2 sm:mb-3">
+                                                No Services Available
+                                            </p>
+                                            <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6 font-semibold">
+                                                Add your first service to get started
+                                            </p>
+                                            <button
+                                                onClick={() => window.location.href = '{{ route("car.wash.services") }}'}
+                                                className="px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-emerald-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base font-black uppercase hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+                                            >
+                                                Add Services
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+                                            {/* New Categories - Display services from database */}
+                                            {categories.map((category) => {
+                                                // Use colorValue if available, otherwise get from color class, fallback to blue
+                                                const bgColorVal = category.colorValue || (category.color ? getColorValue(category.color) : '#3b82f6');
+                                                const styleObj = { backgroundColor: bgColorVal };
+                                                return (
+                                                    <button
+                                                        key={category.id}
+                                                        type="button"
+                                                        className="text-white p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] shadow-xl flex flex-col items-center gap-2 sm:gap-2.5 md:gap-3 cursor-pointer active:scale-95 transition-all hover:shadow-2xl hover:scale-105 w-full border-none outline-none transform"
+                                                        style={styleObj}
+                                                        onClick={() => {
+                                                            setSelectedService(category);
+                                                            setSelectedAdditionalPrices(new Set()); // Reset selections
+                                                            // Parse base price as number and format to 2 decimal places
+                                                            const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
+                                                            setFormData({ ...formData, price: basePrice.toFixed(2) });
+                                                            setView('entry');
+                                                        }}
+                                                    >
+                                                        <div className="bg-white/20 p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl backdrop-blur-sm">
+                                                            {getIconSVG(category.icon || 'cycle')}
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <p className="font-black text-[9px] sm:text-[10px] md:text-[11px] uppercase tracking-tighter leading-tight">{category.label}</p>
+                                                            <p className="text-[8px] sm:text-[9px] md:text-[10px] opacity-90 mt-0.5 sm:mt-1 font-bold">Rs.{category.basePrice || category.base_price || 0}</p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </section>
                                 
                                 <section>
