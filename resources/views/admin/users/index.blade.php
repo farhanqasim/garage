@@ -90,8 +90,48 @@
                                     <span class="badge bg-info">No role Have</span>
                                   @endif
                                 </td>
-                                    <td>{{ $user->branches->branch_name ?? 'N/A' }}</td>
-                                    <td>{{ $user->branches->branch_code ?? 'N/A' }}</td>
+                                <td>
+                                    @if($user->branches)
+                                        <div>
+                                            <strong>{{ $user->branches->branch_name }}</strong>
+                                            <span class="badge badge-primary ms-1">Owner</span>
+                                        </div>
+                                    @elseif($user->assignedBranches->count() > 0)
+                                        @foreach($user->assignedBranches->take(2) as $branch)
+                                            @php
+                                                $userRole = $branch->pivot->role ?? 'staff';
+                                                $roleBadges = [
+                                                    'manager' => 'badge-primary',
+                                                    'staff' => 'badge-info',
+                                                    'worker' => 'badge-warning',
+                                                    'other' => 'badge-secondary'
+                                                ];
+                                                $roleColor = $roleBadges[$userRole] ?? 'badge-secondary';
+                                            @endphp
+                                            <div class="small mb-1">
+                                                {{ $branch->branch_name }}
+                                                <span class="badge {{ $roleColor }}">{{ ucfirst($userRole) }}</span>
+                                            </div>
+                                        @endforeach
+                                        @if($user->assignedBranches->count() > 2)
+                                            <small class="text-muted">+{{ $user->assignedBranches->count() - 2 }} more</small>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">No Branch</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($user->branches)
+                                        <span>{{ $user->branches->branch_code }}</span>
+                                    @elseif($user->assignedBranches->count() > 0)
+                                        <span>{{ $user->assignedBranches->first()->branch_code }}</span>
+                                        @if($user->assignedBranches->count() > 1)
+                                            <small class="text-muted">(+{{ $user->assignedBranches->count() - 1 }})</small>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">N/A</span>
+                                    @endif
+                                </td>
                                     <td>{{ $user->email }}</td>
                                     <td>{{ $user->phone ?? 'N/A' }}</td>
                                 <td>
@@ -289,6 +329,19 @@
     </div>
 </div>
 
-
+@push('scripts')
+<script>
+    // Auto-open add modal if URL parameter is set
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('add') === '1') {
+            const addModal = new bootstrap.Modal(document.getElementById('add-category'));
+            addModal.show();
+            // Clean URL after opening modal
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    });
+</script>
+@endpush
 
 @endsection
