@@ -806,6 +806,13 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .blink-animation {
+            animation: blink 1s ease-in-out infinite;
+        }
         /* Mobile responsive improvements */
         @media (max-width: 640px) {
             header {
@@ -1479,6 +1486,16 @@
                 // Use backend completed jobs from database only
                 return initialCompletedJobs && Array.isArray(initialCompletedJobs) ? initialCompletedJobs : [];
             });
+            const [dateRangeStart, setDateRangeStart] = useState(() => {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+            const [dateRangeEnd, setDateRangeEnd] = useState(() => {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+            const [filteredCompletedJobs, setFilteredCompletedJobs] = useState([]);
+            const [showAvgDetailsModal, setShowAvgDetailsModal] = useState(false);
             const [completeModalJobId, setCompleteModalJobId] = useState(null);
             const [selectedRating, setSelectedRating] = useState('');
             const [jobComment, setJobComment] = useState('');
@@ -1567,7 +1584,7 @@
                                 }
                                 
                                 return {
-                                    ...service,
+                                ...service,
                                     basePrice: service.base_price || service.basePrice || 0,
                                     additionalPrices: additionalPrices
                                 };
@@ -1749,7 +1766,7 @@
                                     
                                     // If no voices, wait a bit for them to load
                                     if (voices.length === 0) {
-                                        setTimeout(() => {
+                                    setTimeout(() => {
                                             voices = window.speechSynthesis.getVoices();
                                             attemptSpeak(voices);
                                         }, 200);
@@ -1765,11 +1782,11 @@
                                 try {
                                     const textToSpeak = `${vehicleNumber} inspection pending`;
                                     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                                    utterance.lang = 'en-US';
+                                        utterance.lang = 'en-US';
                                     utterance.rate = 0.9;
-                                    utterance.pitch = 1;
-                                    utterance.volume = 1;
-                                    
+                                        utterance.pitch = 1;
+                                        utterance.volume = 1;
+                                        
                                     // Try to select English voice
                                     if (voices && voices.length > 0) {
                                         const englishVoice = voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
@@ -1787,7 +1804,7 @@
                                         console.log('✅ VOICE COMPLETED');
                                     };
                                     
-                                    utterance.onerror = (e) => {
+                                        utterance.onerror = (e) => {
                                         // Log all errors for debugging
                                         console.error('VOICE ERROR:', e.error, 'for', vehicleNumber);
                                     };
@@ -1827,14 +1844,14 @@
                                     utterance.onstart = () => console.log('🔊 VOICE STARTED');
                                     utterance.onend = () => console.log('✅ VOICE COMPLETED');
                                     utterance.onerror = (e) => {
-                                        if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                                            if (e.error !== 'interrupted' && e.error !== 'canceled') {
                                             console.error('❌ VOICE ERROR:', e.error);
-                                        }
-                                    };
-                                    
-                                    window.speechSynthesis.speak(utterance);
+                                            }
+                                        };
+                                        
+                                        window.speechSynthesis.speak(utterance);
                                     console.log('📢 SPEAKING:', textToSpeak);
-                                } catch (error) {
+                            } catch (error) {
                                     console.error('Error speaking:', error);
                                 }
                             }
@@ -1885,6 +1902,26 @@
                         });
                 }
             }, [showCompletedJobsModal]);
+            
+            // Filter completed jobs based on date range
+            useEffect(() => {
+                if (completedJobs && Array.isArray(completedJobs)) {
+                    const startDate = new Date(dateRangeStart);
+                    startDate.setHours(0, 0, 0, 0);
+                    const endDate = new Date(dateRangeEnd);
+                    endDate.setHours(23, 59, 59, 999);
+                    
+                    const filtered = completedJobs.filter(job => {
+                        if (!job.endTime) return false;
+                        const jobDate = new Date(job.endTime);
+                        return jobDate >= startDate && jobDate <= endDate;
+                    });
+                    
+                    setFilteredCompletedJobs(filtered);
+                } else {
+                    setFilteredCompletedJobs([]);
+                }
+            }, [completedJobs, dateRangeStart, dateRangeEnd]);
             
             // Update staff list when All Staff modal opens - fetch from API
             useEffect(() => {
@@ -3621,6 +3658,137 @@
                                                     </div>
                                                 </div>
                                                 
+                                                {/* Percentage Summary Graph */}
+                                                {(() => {
+                                                    const statusCounts = {
+                                                        excellent: 0,
+                                                        good: 0,
+                                                        average: 0,
+                                                        poor: 0,
+                                                        total: 0
+                                                    };
+                                                    
+                                                    inspectionItems.forEach((item) => {
+                                                        const itemData = inspectionData[item.id];
+                                                        if (itemData && itemData.status && itemData.status !== '') {
+                                                            statusCounts[itemData.status] = (statusCounts[itemData.status] || 0) + 1;
+                                                            statusCounts.total++;
+                                                        }
+                                                    });
+                                                    
+                                                    const percentages = {
+                                                        excellent: statusCounts.total > 0 ? (statusCounts.excellent / statusCounts.total * 100).toFixed(1) : 0,
+                                                        good: statusCounts.total > 0 ? (statusCounts.good / statusCounts.total * 100).toFixed(1) : 0,
+                                                        average: statusCounts.total > 0 ? (statusCounts.average / statusCounts.total * 100).toFixed(1) : 0,
+                                                        poor: statusCounts.total > 0 ? (statusCounts.poor / statusCounts.total * 100).toFixed(1) : 0
+                                                    };
+                                                    
+                                                    const excellentWidth = percentages.excellent + '%';
+                                                    const goodWidth = percentages.good + '%';
+                                                    const averageWidth = percentages.average + '%';
+                                                    const poorWidth = percentages.poor + '%';
+                                                    
+                                                    const excellentStyle = { width: excellentWidth };
+                                                    const goodStyle = { width: goodWidth };
+                                                    const averageStyle = { width: averageWidth };
+                                                    const poorStyle = { width: poorWidth };
+                                                    
+                                                    if (statusCounts.total === 0) return null;
+                                                    
+                                                    return (
+                                                        <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
+                                                            <div className="bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-sm">
+                                                                <h3 className="text-xs sm:text-sm font-black text-slate-700 uppercase mb-3 sm:mb-4 tracking-wider">Status Distribution</h3>
+                                                                <div className="space-y-2 sm:space-y-2.5">
+                                                                    {/* Excellent */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">⭐</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-blue-600 uppercase">Excellent</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-blue-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={excellentStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.excellent) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.excellent + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.excellent) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-blue-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.excellent + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* Good */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">✅</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-green-600 uppercase">Good</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-green-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={goodStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.good) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.good + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.good) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-green-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.good + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* Average */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">⚠️</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-yellow-600 uppercase">Avg</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-yellow-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={averageStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.average) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.average + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.average) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-yellow-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.average + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* Poor */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">❌</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-red-600 uppercase">Poor</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-red-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={poorStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.poor) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.poor + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.poor) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-red-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.poor + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                
                                                 {/* Footer */}
                                                 <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
@@ -4289,12 +4457,12 @@
                                                                                                 Qty: {item.quantity}
                                                                                             </span>
                                                                                             <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                                                                                                Rate: Rs.{item.price.toFixed(2)}
+                                                                                                Rate: Rs.{typeof item.price === 'number' ? item.price.toFixed(2) : (parseFloat(item.price) || 0).toFixed(2)}
                                                                                             </span>
                                                                                         </div>
                                                                                     </div>
                                                                                     <div className="col-span-12 sm:col-span-6 text-left sm:text-right mt-2 sm:mt-0">
-                                                                                        <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">Rs.{item.subtotal.toFixed(2)}</p>
+                                                                                        <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">Rs.{typeof item.subtotal === 'number' ? item.subtotal.toFixed(2) : (parseFloat(item.subtotal) || 0).toFixed(2)}</p>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -4319,7 +4487,7 @@
                                                                             <div>
                                                                                 <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-0.5 sm:mb-1">Grand Total</p>
                                                                                 <p className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono">
-                                                                                    Rs.{expenseHistory.reduce((sum, exp) => sum + exp.subtotal, 0).toFixed(2)}
+                                                                                    Rs.{(expenseHistory && Array.isArray(expenseHistory) ? expenseHistory.reduce((sum, exp) => sum + (parseFloat(exp.subtotal) || 0), 0) : 0).toFixed(2)}
                                                                                 </p>
                                                                             </div>
                                                                         </div>
@@ -4362,38 +4530,78 @@
                                                 
                                                 <div className="relative flex items-center justify-between z-10">
                                                         <div className="flex items-center gap-2 sm:gap-4">
-                                                            <div className="relative">
+                                                        <div className="relative">
                                                                 <div className="w-8 h-8 sm:w-10 md:w-12 sm:h-10 md:h-12 bg-white/25 backdrop-blur-xl rounded-lg sm:rounded-xl flex items-center justify-center border-2 border-white/50 shadow-lg">
                                                                     <svg className="w-4 h-4 sm:w-5 md:w-6 sm:h-5 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                                                    </svg>
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <h2 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black uppercase tracking-tight drop-shadow-lg">
-                                                                    COMPLETED JOBS
-                                                                </h2>
-                                                                <p className="text-[10px] sm:text-xs md:text-sm opacity-90 font-semibold mt-0.5 sm:mt-1 hidden sm:block">
-                                                                    {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                                                </p>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                                </svg>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={() => setShowCompletedJobsModal(false)}
+                                                        <div className="flex-1">
+                                                                <h2 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black uppercase tracking-tight drop-shadow-lg">
+                                                                COMPLETED JOBS
+                                                            </h2>
+                                                                <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+                                                                    <input
+                                                                        type="date"
+                                                                        value={dateRangeStart}
+                                                                        onChange={(e) => setDateRangeStart(e.target.value)}
+                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
+                                                                    />
+                                                                    <span className="text-white/80 font-bold text-xs sm:text-sm">to</span>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={dateRangeEnd}
+                                                                        onChange={(e) => setDateRangeEnd(e.target.value)}
+                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
+                                                                    />
+                                                                </div>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setShowCompletedJobsModal(false)}
                                                             className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-xl border-2 border-white/50 hover:scale-110 hover:rotate-90 shadow-lg"
-                                                            aria-label="Close completed jobs modal"
-                                                        >
+                                                        aria-label="Close completed jobs modal"
+                                                    >
                                                             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                        </button>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
                                                 </div>
                                             </div>
                                             
                                             {/* Statistics Cards - Compact */}
-                                            {completedJobs && Array.isArray(completedJobs) && completedJobs.length > 0 && (
+                                            {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 && (
                                                 <div className="p-2 sm:p-4 md:p-5 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b-2 border-slate-200">
-                                                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2 md:gap-3 max-w-4xl mx-auto">
+                                                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2 md:gap-3 max-w-5xl mx-auto">
+                                                        {/* Workers Card */}
+                                                        <div className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-orange-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
+                                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">WORKERS</p>
+                                                                <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white">
+                                                                    {(() => {
+                                                                        if (!filteredCompletedJobs || !Array.isArray(filteredCompletedJobs)) return 0;
+                                                                        const uniqueWorkers = new Set();
+                                                                        filteredCompletedJobs.forEach(job => {
+                                                                            const workerName = job.workerName || job.worker_name || job.worker;
+                                                                            if (workerName && workerName !== 'N/A' && workerName.trim() !== '') {
+                                                                                uniqueWorkers.add(workerName.trim());
+                                                                            }
+                                                                        });
+                                                                        return uniqueWorkers.size;
+                                                                    })()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        
                                                         {/* Total Revenue Card */}
                                                         <div className="group relative bg-gradient-to-br from-emerald-500 via-green-500 to-emerald-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-emerald-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
                                                             <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
@@ -4407,7 +4615,7 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">REVENUE</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
-                                                                    Rs.{(completedJobs && Array.isArray(completedJobs) ? completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) : 0).toFixed(2)}
+                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4425,13 +4633,16 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">JOBS</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white">
-                                                                    {completedJobs && Array.isArray(completedJobs) ? completedJobs.length : 0}
+                                                                    {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.length : 0}
                                                                 </p>
                                                             </div>
                                                         </div>
                                                         
                                                         {/* Average Amount Card */}
-                                                        <div className="group relative bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-purple-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                        <div 
+                                                            onClick={() => setShowAvgDetailsModal(true)}
+                                                            className="group relative bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-purple-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden cursor-pointer"
+                                                        >
                                                             <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
                                                             <div className="relative z-10">
                                                                 <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
@@ -4443,7 +4654,7 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">AVG</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
-                                                                    Rs.{(completedJobs && Array.isArray(completedJobs) && completedJobs.length > 0 ? (completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) / completedJobs.length) : 0).toFixed(2)}
+                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 ? (filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) / filteredCompletedJobs.length) : 0).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4453,7 +4664,7 @@
                                             
                                             {/* Content - Compact Table View */}
                                             <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 bg-gradient-to-b from-slate-50 via-white to-slate-50">
-                                                {!completedJobs || !Array.isArray(completedJobs) || completedJobs.length === 0 ? (
+                                                {!filteredCompletedJobs || !Array.isArray(filteredCompletedJobs) || filteredCompletedJobs.length === 0 ? (
                                                     <div className="text-center py-8 sm:py-12 md:py-16">
                                                         <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
                                                             <svg className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4472,7 +4683,7 @@
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">#</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Date/Time</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Vehicle</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Customer</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Worker</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden sm:table-cell">Service</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden md:table-cell">Worker</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Amount</th>
@@ -4481,7 +4692,7 @@
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody className="bg-white divide-y divide-slate-100">
-                                                                    {completedJobs && Array.isArray(completedJobs) && completedJobs.map((job, jobIdx) => {
+                                                                    {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.map((job, jobIdx) => {
                                                                         const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                                         const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                                         const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
@@ -4495,15 +4706,16 @@
                                                                                     </div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{jobDateTime}</div>
-                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 hidden sm:block">{startTime} - {endTime}</div>
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{jobDate}</div>
+                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-600 mt-0.5">{startTime} - {endTime}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
+                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-600 mt-0.5">{job.customerName || job.customer_name || 'N/A'}</div>
+                                                                                    {job.mobile && <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 mt-0.5 font-mono">{job.mobile}</div>}
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.customerName || job.customer_name || 'N/A'}</div>
-                                                                                    {job.mobile && <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 hidden sm:block">{job.mobile}</div>}
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
@@ -4512,12 +4724,12 @@
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-blue-600 font-mono">Rs.{(job.price || 0).toFixed(2)}</div>
+                                                                                    <div className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-blue-600 font-mono">Rs.{(Number(job.price) || 0).toFixed(2)}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
                                                                                     {job.workerCommission > 0 ? (
                                                                                         <div>
-                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{(job.commissionAmount || 0).toFixed(2)}</div>
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{(Number(job.commissionAmount) || 0).toFixed(2)}</div>
                                                                                             <div className="text-[8px] sm:text-[9px] text-slate-500">({job.workerCommission}%)</div>
                                                                                         </div>
                                                                                     ) : (
@@ -4525,7 +4737,7 @@
                                                                                     )}
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap text-center">
-                                                                                    <div className="flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap">
+                                                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
                                                                                         <button
                                                                                             onClick={async () => {
                                                                                                 try {
@@ -4561,21 +4773,24 @@
                                                                                                     setSelectedJobForDetail(job);
                                                                                                 }
                                                                                             }}
-                                                                                            className="px-2 sm:px-2 md:px-2.5 py-1.5 sm:py-1.5 bg-blue-500 text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase hover:bg-blue-600 transition-colors shadow-sm hover:shadow-md"
+                                                                                            className="group relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:from-blue-600 hover:to-blue-700 hover:scale-110 shadow-md hover:shadow-lg border-2 border-blue-400/50 hover:border-blue-300"
                                                                                             title="View Details"
                                                                                         >
-                                                                                            <span className="hidden sm:inline">View</span>
-                                                                                            <span className="sm:hidden text-base">👁</span>
+                                                                                            <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                                            </svg>
                                                                                         </button>
                                                                                         <button
                                                                                             onClick={() => {
                                                                                                 setSelectedJobForEdit(job);
                                                                                             }}
-                                                                                            className="px-2 sm:px-2 md:px-2.5 py-1.5 sm:py-1.5 bg-emerald-500 text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase hover:bg-emerald-600 transition-colors shadow-sm hover:shadow-md"
+                                                                                            className="group relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:from-emerald-600 hover:to-emerald-700 hover:scale-110 shadow-md hover:shadow-lg border-2 border-emerald-400/50 hover:border-emerald-300"
                                                                                             title="Edit Job"
                                                                                         >
-                                                                                            <span className="hidden sm:inline">Edit</span>
-                                                                                            <span className="sm:hidden text-base">✏</span>
+                                                                                            <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                                            </svg>
                                                                                         </button>
                                                                                         <button
                                                                                             onClick={async () => {
@@ -4610,11 +4825,12 @@
                                                                                                     }
                                                                                                 }
                                                                                             }}
-                                                                                            className="px-2 sm:px-2 md:px-2.5 py-1.5 sm:py-1.5 bg-red-500 text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase hover:bg-red-600 transition-colors shadow-sm hover:shadow-md"
+                                                                                            className="group relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:from-red-600 hover:to-red-700 hover:scale-110 shadow-md hover:shadow-lg border-2 border-red-400/50 hover:border-red-300"
                                                                                             title="Delete Job"
                                                                                         >
-                                                                                            <span className="hidden sm:inline">Del</span>
-                                                                                            <span className="sm:hidden text-base">🗑</span>
+                                                                                            <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                                            </svg>
                                                                                         </button>
                                                                                     </div>
                                                                                 </td>
@@ -4642,6 +4858,101 @@
                                         </div>
                                     </div>
                                 )}
+                                
+                                {/* Average Details Modal */}
+                                {showAvgDetailsModal && (() => {
+                                    const totalJobs = filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.length : 0;
+                                    const totalAmount = filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0;
+                                    const averageAmount = totalJobs > 0 ? totalAmount / totalJobs : 0;
+                                    
+                                    return (
+                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => setShowAvgDetailsModal(false)}>
+                                            <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                                {/* Header */}
+                                                <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase">Average Amount Details</h2>
+                                                            <p className="text-xs sm:text-sm opacity-90 mt-1">How the average was calculated</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setShowAvgDetailsModal(false)}
+                                                            className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all"
+                                                        >
+                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Content */}
+                                                <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
+                                                    <div className="space-y-4 sm:space-y-5">
+                                                        {/* Calculation Summary */}
+                                                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-purple-200">
+                                                            <h3 className="text-sm sm:text-base font-black text-purple-900 uppercase mb-3 sm:mb-4">Calculation Formula</h3>
+                                                            <div className="space-y-2 sm:space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs sm:text-sm font-bold text-slate-700">Total Amount:</span>
+                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">Rs.{totalAmount.toFixed(2)}</span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs sm:text-sm font-bold text-slate-700">Total Jobs:</span>
+                                                                    <span className="text-sm sm:text-base font-black text-purple-600">{totalJobs}</span>
+                                                                </div>
+                                                                <div className="border-t-2 border-purple-300 pt-2 sm:pt-3 mt-2 sm:mt-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-xs sm:text-sm font-bold text-slate-700">Average = Total Amount ÷ Total Jobs</span>
+                                                                        <span className="text-base sm:text-lg md:text-xl font-black text-purple-700 font-mono">Rs.{averageAmount.toFixed(2)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Jobs Breakdown */}
+                                                        {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 && (
+                                                            <div>
+                                                                <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase mb-3 sm:mb-4">Jobs Breakdown</h3>
+                                                                <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
+                                                                    {filteredCompletedJobs.map((job, idx) => (
+                                                                        <div key={job.id || idx} className="bg-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-slate-200">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                                                                                        {job.vehicleNo || job.vehicle_no || 'N/A'} - {job.customerName || job.customer_name || 'N/A'}
+                                                                                    </p>
+                                                                                    <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
+                                                                                        {job.serviceName || job.service_name || job.service || 'N/A'}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <div className="ml-3 flex-shrink-0">
+                                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">
+                                                                                        Rs.{(parseFloat(job.price) || 0).toFixed(2)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Footer */}
+                                                <div className="p-3 sm:p-4 md:p-5 border-t border-slate-200 bg-slate-50">
+                                                    <button
+                                                        onClick={() => setShowAvgDetailsModal(false)}
+                                                        className="w-full px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg"
+                                                    >
+                                                        Close
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                                 
                                 {/* Job Detail Modal with Print - Full Screen */}
                                 {selectedJobForDetail && (
@@ -4729,13 +5040,13 @@
                                                         </div>
                                                         <div className="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-blue-400">
                                                             <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Amount</p>
-                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
                                                         </div>
                                                         <div className="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-emerald-400">
                                                             <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Commission</p>
                                                             {selectedJobForDetail.workerCommission > 0 ? (
                                                                 <div>
-                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{(selectedJobForDetail.commissionAmount || 0).toFixed(2)}</p>
+                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
                                                                     <p className="text-[9px] sm:text-[10px] md:text-xs text-white/80 mt-0.5 sm:mt-1">({selectedJobForDetail.workerCommission}%)</p>
                                                                 </div>
                                                             ) : (
@@ -4793,12 +5104,12 @@
                                                                             <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{item.name}</p>
                                                                             <p className="text-[10px] sm:text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
                                                                         </div>
-                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{(item.total || (item.quantity * item.price)).toFixed(2)}</p>
+                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{(typeof (item.total || (item.quantity * item.price)) === 'number' ? (item.total || (item.quantity * item.price)) : parseFloat(item.total || (item.quantity * item.price) || 0)).toFixed(2)}</p>
                                                                     </div>
                                                                 ))}
                                                                 <div className="bg-orange-200 p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg border-2 border-orange-300 flex justify-between items-center mt-2 sm:mt-3 md:mt-4">
                                                                     <p className="text-xs sm:text-sm font-black text-orange-900 uppercase">Total Expense</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -4810,24 +5121,24 @@
                                                         <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                                                             <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                 <p className="text-xs sm:text-sm font-black text-slate-700">Total Amount:</p>
-                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
                                                             </div>
                                                             {selectedJobForDetail.workerCommission > 0 && (
                                                                 <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                     <p className="text-xs sm:text-sm font-black text-slate-700">Worker Commission ({selectedJobForDetail.workerCommission}%):</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{(selectedJobForDetail.commissionAmount || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
                                                                 </div>
                                                             )}
                                                             {selectedJobForDetail.expense && selectedJobForDetail.expense.totalAmount > 0 && (
                                                                 <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                     <p className="text-xs sm:text-sm font-black text-slate-700">Total Expenses:</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
                                                                 </div>
                                                             )}
                                                             <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-3 sm:p-3.5 md:p-4 rounded-md sm:rounded-lg mt-2 sm:mt-3 md:mt-4 gap-2">
                                                                 <p className="text-sm sm:text-base font-black text-white uppercase">Net Amount:</p>
                                                                 <p className="text-base sm:text-lg md:text-xl font-black text-white font-mono">
-                                                                    Rs.{((selectedJobForDetail.price || 0) - (selectedJobForDetail.commissionAmount || 0) - (selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
+                                                                    Rs.{(Number(selectedJobForDetail.price || 0) - Number(selectedJobForDetail.commissionAmount || 0) - Number(selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -5057,8 +5368,8 @@
                                             <div className="mb-4 sm:mb-6">
                                                 <svg className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 text-slate-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                </svg>
-                                            </div>
+                                                        </svg>
+                                                    </div>
                                             <p className="text-sm sm:text-base md:text-lg font-black text-slate-700 uppercase tracking-tight mb-2 sm:mb-3">
                                                 No Services Available
                                             </p>
@@ -5070,41 +5381,41 @@
                                                 className="px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-emerald-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base font-black uppercase hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
                                             >
                                                 Add Services
-                                            </button>
+                                                </button>
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
                                             {/* New Categories - Display services from database */}
-                                            {categories.map((category) => {
-                                                // Use colorValue if available, otherwise get from color class, fallback to blue
-                                                const bgColorVal = category.colorValue || (category.color ? getColorValue(category.color) : '#3b82f6');
-                                                const styleObj = { backgroundColor: bgColorVal };
-                                                return (
-                                                    <button
-                                                        key={category.id}
-                                                        type="button"
+                                        {categories.map((category) => {
+                                            // Use colorValue if available, otherwise get from color class, fallback to blue
+                                            const bgColorVal = category.colorValue || (category.color ? getColorValue(category.color) : '#3b82f6');
+                                            const styleObj = { backgroundColor: bgColorVal };
+                                            return (
+                                                <button
+                                                    key={category.id}
+                                                    type="button"
                                                         className="text-white p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] shadow-xl flex flex-col items-center gap-2 sm:gap-2.5 md:gap-3 cursor-pointer active:scale-95 transition-all hover:shadow-2xl hover:scale-105 w-full border-none outline-none transform"
-                                                        style={styleObj}
-                                                        onClick={() => {
-                                                            setSelectedService(category);
-                                                            setSelectedAdditionalPrices(new Set()); // Reset selections
+                                                    style={styleObj}
+                                                    onClick={() => {
+                                                        setSelectedService(category);
+                                                        setSelectedAdditionalPrices(new Set()); // Reset selections
                                                             // Parse base price as number and format to 2 decimal places
                                                             const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
                                                             setFormData({ ...formData, price: basePrice.toFixed(2) });
-                                                            setView('entry');
-                                                        }}
-                                                    >
+                                                        setView('entry');
+                                                    }}
+                                                >
                                                         <div className="bg-white/20 p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl backdrop-blur-sm">
-                                                            {getIconSVG(category.icon || 'cycle')}
-                                                        </div>
-                                                        <div className="text-center">
+                                                        {getIconSVG(category.icon || 'cycle')}
+                                                    </div>
+                                                    <div className="text-center">
                                                             <p className="font-black text-[9px] sm:text-[10px] md:text-[11px] uppercase tracking-tighter leading-tight">{category.label}</p>
                                                             <p className="text-[8px] sm:text-[9px] md:text-[10px] opacity-90 mt-0.5 sm:mt-1 font-bold">Rs.{category.basePrice || category.base_price || 0}</p>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                     )}
                                 </section>
                                 
@@ -5161,51 +5472,66 @@
                                                                     {job.vehicleNo ? job.vehicleNo.charAt(0) : 'V'}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 uppercase tracking-tight truncate">
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-slate-900 uppercase tracking-tight truncate">
                                                                         {job.vehicleNo}
                                                                     </p>
-                                                                    <p className="text-[10px] sm:text-xs text-slate-500 font-semibold mt-0.5 truncate">
+                                                                    <p className="text-[9px] sm:text-[10px] text-slate-500 font-black mt-0.5 truncate">
                                                                         {job.customerName}
                                                                     </p>
                                                                     {job.mobile && (
-                                                                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono mt-0.5 truncate">
+                                                                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono font-black mt-0.5 truncate">
                                                                             {job.mobile}
                                                                         </p>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                             <div className="text-right flex-shrink-0">
-                                                                <p className="text-[10px] sm:text-xs font-black text-emerald-600 font-mono">
-                                                                    Rs.{typeof job.price === 'number' ? job.price.toFixed(2) : job.price}
+                                                                <p className="text-lg sm:text-xl md:text-2xl font-black text-emerald-600 font-mono">
+                                                                    Rs.{typeof job.price === 'number' ? job.price.toFixed(0) : job.price}
                                                                 </p>
-                                                                <div className="mt-0.5 sm:mt-1">
-                                                                    <p className="text-[7px] sm:text-[8px] text-slate-400 uppercase font-bold">Timer</p>
-                                                                    <p className="text-[9px] sm:text-[10px] text-blue-600 font-mono font-black">
+                                                                <div className="mt-0.5 sm:mt-1 flex items-center gap-2 sm:gap-3">
+                                                                    <div className="text-left">
+                                                                        <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase font-bold">Start Time</p>
+                                                                        <p className="text-[9px] sm:text-[10px] text-slate-600 font-mono font-semibold">
+                                                                            {timeString}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <p className="text-[7px] sm:text-[8px] text-slate-400 uppercase font-bold">Timer</p>
+                                                                        <p className="text-[9px] sm:text-[10px] text-blue-600 font-mono font-black">
                                                                         {timerString}
                                                                     </p>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         
                                                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 gap-2 sm:gap-2">
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2 order-2 sm:order-1">
                                                                 {job.worker && (
                                                                     <span className="text-[10px] sm:text-[11px] text-blue-600 font-bold truncate">
                                                                         👤 {job.worker}
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
+                                                                {(() => {
+                                                                    const inspectionCompleted = completedInspections.has(job.id);
+                                                                    const jobStarted = job.startTime && job.startTime !== null;
+                                                                    const shouldBlink = jobStarted && !inspectionCompleted;
+                                                                    return (
                                                                 <button
                                                                     onClick={() => {
                                                                         setInspectionModalJobId(job.id);
                                                                         setInspectionData({});
                                                                     }}
-                                                                    className="bg-purple-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 transition-colors shadow-md flex-shrink-0"
+                                                                            className={`bg-purple-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 transition-colors shadow-md flex-shrink-0 ${shouldBlink ? 'blink-animation' : ''}`}
                                                                 >
-                                                                    <span className="hidden sm:inline">INSPECTION</span>
-                                                                    <span className="sm:hidden">INSP</span>
+                                                                            <span className="hidden sm:inline">INSPECTION</span>
+                                                                            <span className="sm:hidden">INSP</span>
                                                                 </button>
+                                                                    );
+                                                                })()}
                                                                 <button
                                                                     onClick={() => {
                                                                         setExpenseModalJobId(job.id);
@@ -5864,9 +6190,18 @@
             );
         };
         
+        // Wait for DOM and Babel to be ready, then render React app
+        function initApp() {
         // Check if React 18 createRoot is available, otherwise use legacy render
+            try {
         const rootElement = document.getElementById('root');
         if (rootElement) {
+                    if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+                        console.error('React or ReactDOM not loaded!');
+                        rootElement.innerHTML = '<div style="padding: 20px; text-align: center; color: red;"><h2>Error: React libraries not loaded</h2><p>Please refresh the page.</p></div>';
+                        return;
+                    }
+                    
             if (ReactDOM.createRoot) {
                 // React 18+
                 const root = ReactDOM.createRoot(rootElement);
@@ -5877,6 +6212,22 @@
             }
         } else {
             console.error('Root element not found!');
+                }
+            } catch (error) {
+                console.error('Error rendering React app:', error);
+                const rootElement = document.getElementById('root');
+                if (rootElement) {
+                    rootElement.innerHTML = '<div style="padding: 20px; text-align: center; color: red;"><h2>Error Loading Application</h2><p>' + (error.message || 'Unknown error') + '</p><p>Please refresh the page.</p></div>';
+                }
+            }
+        }
+        
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            // DOM is already ready
+            setTimeout(initApp, 100); // Small delay to ensure Babel is ready
         }
     </script>
     
