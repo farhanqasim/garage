@@ -76,6 +76,9 @@
     </script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
+    <!-- html2pdf library for PDF download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <!-- Tesseract.js for OCR (Number Plate Recognition) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
@@ -668,6 +671,10 @@
         
         /* Print Styles */
         @media print {
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
             body * {
                 visibility: hidden;
             }
@@ -683,9 +690,47 @@
                 box-shadow: none;
                 border: none;
                 margin: 0;
+                padding: 0;
+                background: white;
+                page-break-after: avoid;
+            }
+            #jobDetailPrint .print-header {
+                background: linear-gradient(to right, #2563eb, #4f46e5) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: white !important;
                 padding: 20px;
+                margin-bottom: 20px;
+            }
+            #jobDetailPrint .print-section {
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+            }
+            #jobDetailPrint .print-card {
+                background: #f8fafc !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                border: 2px solid #e2e8f0 !important;
+                padding: 15px;
+                margin-bottom: 15px;
+                border-radius: 8px;
+            }
+            #jobDetailPrint .print-amount {
+                background: linear-gradient(to bottom right, #3b82f6, #4f46e5) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: white !important;
+            }
+            #jobDetailPrint .print-commission {
+                background: linear-gradient(to bottom right, #10b981, #059669) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color: white !important;
             }
             button {
+                display: none !important;
+            }
+            .no-print {
                 display: none !important;
             }
         }
@@ -760,6 +805,13 @@
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .blink-animation {
+            animation: blink 1s ease-in-out infinite;
         }
         /* Mobile responsive improvements */
         @media (max-width: 640px) {
@@ -992,7 +1044,6 @@
             </div>
         </div>
     </div>
-    
     <!-- Add Worker Modal -->
     <div class="category-modal-overlay" id="workerModalOverlay">
         <div class="category-modal">
@@ -1435,6 +1486,16 @@
                 // Use backend completed jobs from database only
                 return initialCompletedJobs && Array.isArray(initialCompletedJobs) ? initialCompletedJobs : [];
             });
+            const [dateRangeStart, setDateRangeStart] = useState(() => {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+            const [dateRangeEnd, setDateRangeEnd] = useState(() => {
+                const today = new Date();
+                return today.toISOString().split('T')[0];
+            });
+            const [filteredCompletedJobs, setFilteredCompletedJobs] = useState([]);
+            const [showAvgDetailsModal, setShowAvgDetailsModal] = useState(false);
             const [completeModalJobId, setCompleteModalJobId] = useState(null);
             const [selectedRating, setSelectedRating] = useState('');
             const [jobComment, setJobComment] = useState('');
@@ -1442,6 +1503,9 @@
             const [inspectionModalJobId, setInspectionModalJobId] = useState(null);
             const [inspectionData, setInspectionData] = useState({});
             const [completedInspections, setCompletedInspections] = useState(new Set());
+            const pendingInspectionAlertsRef = React.useRef(new Set()); // Track jobs that have shown alerts (using ref for synchronous access)
+            const userInteractionRef = React.useRef(false); // Track if user has interacted with page (required for speech)
+            const [inspectionNotification, setInspectionNotification] = useState(null); // Custom notification state
             const [isRecording, setIsRecording] = useState(false);
             const [audioBlob, setAudioBlob] = useState(null);
             const [audioUrl, setAudioUrl] = useState(null);
@@ -1470,15 +1534,15 @@
             // Helper function to get icon SVG
             const getIconSVG = (iconName) => {
                 const iconMap = {
-                    'car': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
-                    'bus': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 001 1h1a1 1 0 001-1v-1h8v1a1 1 0 001 1h1a1 1 0 001-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.31-2.69-6-6-6H6C2.69 0 0 2.69 0 6v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/></svg>,
-                    'motorcycle': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.44 9.03L15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.65-1.97-4.77-4.56-4.97zM7 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm10 0c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></svg>,
-                    'truck': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>,
-                    'auto-rickshaw': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 2.01C18.72 1.42 18.16 1 17.5 1h-11c-.66 0-1.21.42-1.42 1.01L3 8v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1V8l-2.08-5.99zM6.5 12c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9s1.5.67 1.5 1.5S7.33 12 6.5 12zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 7l1.5-4.5h11L19 7H5z"/></svg>,
-                    'cycle': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>,
-                    'tractor': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><rect x="3" y="7" width="15" height="7" rx="1"/><line x1="4" y1="9" x2="4" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="5.5" y1="9" x2="5.5" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="7" y1="7" x2="7" y2="9" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="11" y1="7" x2="11" y2="9" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><path d="M3 7 L3 5 L4 5 L4 6.5" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="6" cy="17" r="3.5" opacity="0.15"/><circle cx="6" cy="17" r="2.5" opacity="0.3"/><circle cx="6" cy="17" r="1.2"/><path d="M6 13.5 L6 20.5 M2.5 17 L9.5 17" stroke="currentColor" strokeWidth="1" opacity="0.7"/><circle cx="16" cy="17" r="4.5" opacity="0.15"/><circle cx="16" cy="17" r="3.2" opacity="0.3"/><circle cx="16" cy="17" r="1.3"/><path d="M16 12.5 L16 21.5 M11.5 17 L20.5 17" stroke="currentColor" strokeWidth="1.2" opacity="0.7"/><circle cx="9.5" cy="9.5" r="1.5"/><rect x="8.5" y="11" width="2.5" height="3" rx="0.5"/><circle cx="11.5" cy="12" r="1" opacity="0.8"/><line x1="11.5" y1="11" x2="11.5" y2="13" stroke="currentColor" strokeWidth="0.8" opacity="0.9"/><rect x="13" y="11.5" width="2" height="2.5" rx="0.3" opacity="0.7"/></svg>,
-                    'luxury-car': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
-                    'clean': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.36 2.72L20.78 4.14 15.06 9.85C16.13 11.39 16.28 13.24 15.38 14.44L9.06 8.12C10.26 7.22 12.11 7.37 13.65 8.44L19.36 2.72M5.93 17.57C3.92 15.56 2.69 13.16 2.35 10.92L7.23 8.83L14.67 16.27L12.58 21.15C10.34 20.81 7.94 19.58 5.93 17.57Z"/></svg>
+                    'car': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
+                    'bus': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 001 1h1a1 1 0 001-1v-1h8v1a1 1 0 001 1h1a1 1 0 001-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.31-2.69-6-6-6H6C2.69 0 0 2.69 0 6v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/></svg>,
+                    'motorcycle': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.44 9.03L15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77 0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.65-1.97-4.77-4.56-4.97zM7 15c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm10 0c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/></svg>,
+                    'truck': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>,
+                    'auto-rickshaw': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 2.01C18.72 1.42 18.16 1 17.5 1h-11c-.66 0-1.21.42-1.42 1.01L3 8v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1V8l-2.08-5.99zM6.5 12c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9s1.5.67 1.5 1.5S7.33 12 6.5 12zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 7l1.5-4.5h11L19 7H5z"/></svg>,
+                    'cycle': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>,
+                    'tractor': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><rect x="3" y="7" width="15" height="7" rx="1"/><line x1="4" y1="9" x2="4" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="5.5" y1="9" x2="5.5" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="7" y1="7" x2="7" y2="9" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><line x1="11" y1="7" x2="11" y2="9" stroke="currentColor" strokeWidth="0.8" opacity="0.4"/><path d="M3 7 L3 5 L4 5 L4 6.5" stroke="currentColor" strokeWidth="2" fill="none"/><circle cx="6" cy="17" r="3.5" opacity="0.15"/><circle cx="6" cy="17" r="2.5" opacity="0.3"/><circle cx="6" cy="17" r="1.2"/><path d="M6 13.5 L6 20.5 M2.5 17 L9.5 17" stroke="currentColor" strokeWidth="1" opacity="0.7"/><circle cx="16" cy="17" r="4.5" opacity="0.15"/><circle cx="16" cy="17" r="3.2" opacity="0.3"/><circle cx="16" cy="17" r="1.3"/><path d="M16 12.5 L16 21.5 M11.5 17 L20.5 17" stroke="currentColor" strokeWidth="1.2" opacity="0.7"/><circle cx="9.5" cy="9.5" r="1.5"/><rect x="8.5" y="11" width="2.5" height="3" rx="0.5"/><circle cx="11.5" cy="12" r="1" opacity="0.8"/><line x1="11.5" y1="11" x2="11.5" y2="13" stroke="currentColor" strokeWidth="0.8" opacity="0.9"/><rect x="13" y="11.5" width="2" height="2.5" rx="0.3" opacity="0.7"/></svg>,
+                    'luxury-car': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
+                    'clean': <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.36 2.72L20.78 4.14 15.06 9.85C16.13 11.39 16.28 13.24 15.38 14.44L9.06 8.12C10.26 7.22 12.11 7.37 13.65 8.44L19.36 2.72M5.93 17.57C3.92 15.56 2.69 13.16 2.35 10.92L7.23 8.83L14.67 16.27L12.58 21.15C10.34 20.81 7.94 19.58 5.93 17.57Z"/></svg>
                 };
                 return iconMap[iconName] || iconMap['car'];
             };
@@ -1505,7 +1569,27 @@
                         const response = await fetch(API_ROUTES.services.index);
                         const data = await response.json();
                         if (data.success && data.services) {
-                            setCategories(data.services);
+                            // Map services to convert base_price to basePrice and additional_prices to additionalPrices for frontend compatibility
+                            const mappedServices = data.services.map(service => {
+                                // Parse additional_prices if it's a string, otherwise use as is
+                                let additionalPrices = [];
+                                if (service.additional_prices) {
+                                    additionalPrices = typeof service.additional_prices === 'string' 
+                                        ? JSON.parse(service.additional_prices) 
+                                        : service.additional_prices;
+                                } else if (service.additionalPrices) {
+                                    additionalPrices = typeof service.additionalPrices === 'string' 
+                                        ? JSON.parse(service.additionalPrices) 
+                                        : service.additionalPrices;
+                                }
+                                
+                                return {
+                                ...service,
+                                    basePrice: service.base_price || service.basePrice || 0,
+                                    additionalPrices: additionalPrices
+                                };
+                            });
+                            setCategories(mappedServices);
                         }
                     } catch (error) {
                         console.error('Error loading categories from API:', error);
@@ -1575,19 +1659,74 @@
                 return () => clearInterval(timer);
             }, []);
             
-            // Check for pending inspections every 30 seconds
+            // Initialize speech synthesis voices and track user interaction
             useEffect(() => {
-                // If no active jobs, stop all voice alerts and return
+                if ('speechSynthesis' in window) {
+                    // Load voices on component mount (some browsers need this)
+                    const loadVoices = () => {
+                        const voices = window.speechSynthesis.getVoices();
+                        console.log('Available voices:', voices.length);
+                    };
+                    loadVoices();
+                    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                        window.speechSynthesis.onvoiceschanged = loadVoices;
+                    }
+                }
+                
+                // Track user interactions to enable speech synthesis
+                const enableSpeech = () => {
+                    userInteractionRef.current = true;
+                    // Test speech synthesis on first interaction to enable it
+                    if ('speechSynthesis' in window) {
+                        try {
+                            const testUtterance = new SpeechSynthesisUtterance('');
+                            testUtterance.volume = 0; // Silent test
+                            window.speechSynthesis.speak(testUtterance);
+                            window.speechSynthesis.cancel(); // Cancel immediately
+                            console.log('✅ Speech synthesis enabled after user interaction');
+                        } catch (e) {
+                            console.log('Speech test:', e);
+                        }
+                    }
+                };
+                
+                // Listen for any user interaction (persistent, not once)
+                document.addEventListener('click', enableSpeech, { passive: true });
+                document.addEventListener('touchstart', enableSpeech, { passive: true });
+                document.addEventListener('keydown', enableSpeech, { passive: true });
+                
+                return () => {
+                    document.removeEventListener('click', enableSpeech);
+                    document.removeEventListener('touchstart', enableSpeech);
+                    document.removeEventListener('keydown', enableSpeech);
+                };
+            }, []);
+            
+            // Check for pending inspections and show alerts
+            useEffect(() => {
+                // If no active jobs, clear all alerts and stop voice
                 if (activeJobs.length === 0) {
+                    pendingInspectionAlertsRef.current.clear();
                     if ('speechSynthesis' in window) {
                         window.speechSynthesis.cancel();
                     }
                     return;
                 }
                 
+                // Remove alerts for jobs that are no longer active
+                const activeJobIds = new Set(activeJobs.map(j => j.id));
+                const filtered = new Set();
+                pendingInspectionAlertsRef.current.forEach(jobId => {
+                    if (activeJobIds.has(jobId)) {
+                        filtered.add(jobId);
+                    }
+                });
+                pendingInspectionAlertsRef.current = filtered;
+                
                 const inspectionCheckInterval = setInterval(() => {
                     // Check again if activeJobs is empty, stop voice if so
                     if (activeJobs.length === 0) {
+                        pendingInspectionAlertsRef.current.clear();
                         if ('speechSynthesis' in window) {
                             window.speechSynthesis.cancel();
                         }
@@ -1595,6 +1734,13 @@
                     }
                     
                     activeJobs.forEach((job) => {
+                        // Skip if inspection already completed
+                        if (completedInspections.has(job.id)) {
+                            // Remove from pending alerts if it was there
+                            pendingInspectionAlertsRef.current.delete(job.id);
+                            return;
+                        }
+                        
                         // Check if job is older than 30 seconds
                         const jobStartTime = new Date(job.startTime);
                         const elapsed = currentTime - jobStartTime;
@@ -1602,42 +1748,116 @@
                         
                         // If 30 seconds passed and inspection not completed
                         if (elapsed >= thirtySeconds && !completedInspections.has(job.id)) {
-                            // Show alert with vehicle number
-                            alert(`${job.vehicleNo} - Inspection Pending`);
+                            // Get vehicle number (job name) - this is what shows in the DOM
+                            const vehicleNumber = job.vehicleNo || job.vehicle_no || 'Unknown';
                             
-                            // Voice announcement
-                            try {
-                                if ('speechSynthesis' in window) {
+                            // Function to speak the inspection pending message
+                            const speakMessage = () => {
+                                if (!('speechSynthesis' in window)) {
+                                    return;
+                                }
+                                
+                                try {
                                     // Cancel any ongoing speech
                                     window.speechSynthesis.cancel();
                                     
-                                    // Wait a bit then speak
+                                    // Get voices
+                                    let voices = window.speechSynthesis.getVoices();
+                                    
+                                    // If no voices, wait a bit for them to load
+                                    if (voices.length === 0) {
                                     setTimeout(() => {
-                                        const utterance = new SpeechSynthesisUtterance(`${job.vehicleNo} inspection pending`);
+                                            voices = window.speechSynthesis.getVoices();
+                                            attemptSpeak(voices);
+                                        }, 200);
+                                    } else {
+                                        attemptSpeak(voices);
+                                    }
+                                } catch (error) {
+                                    console.error('Error in speakMessage:', error);
+                                }
+                            };
+                            
+                            const attemptSpeak = (voices) => {
+                                try {
+                                    const textToSpeak = `${vehicleNumber} inspection pending`;
+                                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
                                         utterance.lang = 'en-US';
-                                        utterance.rate = 1;
+                                    utterance.rate = 0.9;
                                         utterance.pitch = 1;
                                         utterance.volume = 1;
                                         
-                                        // Handle speech errors (ignore "interrupted" errors as they're normal when cancelling)
+                                    // Try to select English voice
+                                    if (voices && voices.length > 0) {
+                                        const englishVoice = voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
+                                        if (englishVoice) {
+                                            utterance.voice = englishVoice;
+                                        }
+                                    }
+                                    
+                                    // Event handlers
+                                    utterance.onstart = () => {
+                                        console.log('🔊 VOICE STARTED:', textToSpeak);
+                                    };
+                                    
+                                    utterance.onend = () => {
+                                        console.log('✅ VOICE COMPLETED');
+                                    };
+                                    
                                         utterance.onerror = (e) => {
-                                            // Only log non-interrupted errors
+                                        // Log all errors for debugging
+                                        console.error('VOICE ERROR:', e.error, 'for', vehicleNumber);
+                                    };
+                                    
+                                    // Speak it
+                                    window.speechSynthesis.speak(utterance);
+                                    console.log('📢 SPEAKING:', textToSpeak);
+                                } catch (speakErr) {
+                                    console.error('Error in attemptSpeak:', speakErr);
+                                }
+                            };
+                            
+                            // Show custom notification (non-blocking)
+                            setInspectionNotification({
+                                jobId: job.id,
+                                vehicleNumber: vehicleNumber,
+                                message: `${vehicleNumber} - Inspection Pending`
+                            });
+                            
+                            // Try to speak automatically (will work if user has already interacted)
+                            if ('speechSynthesis' in window && userInteractionRef.current) {
+                                try {
+                                    window.speechSynthesis.cancel();
+                                    const textToSpeak = `${vehicleNumber} inspection pending`;
+                                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                                    utterance.lang = 'en-US';
+                                    utterance.rate = 0.9;
+                                    utterance.pitch = 1;
+                                    utterance.volume = 1;
+                                    
+                                    let voices = window.speechSynthesis.getVoices();
+                                    if (voices.length > 0) {
+                                        const englishVoice = voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
+                                        if (englishVoice) utterance.voice = englishVoice;
+                                    }
+                                    
+                                    utterance.onstart = () => console.log('🔊 VOICE STARTED');
+                                    utterance.onend = () => console.log('✅ VOICE COMPLETED');
+                                    utterance.onerror = (e) => {
                                             if (e.error !== 'interrupted' && e.error !== 'canceled') {
-                                                console.error('Speech error:', e);
+                                            console.error('❌ VOICE ERROR:', e.error);
                                             }
                                         };
                                         
                                         window.speechSynthesis.speak(utterance);
-                                    }, 100);
-                                } else {
-                                    console.log('Speech synthesis not supported');
-                                }
+                                    console.log('📢 SPEAKING:', textToSpeak);
                             } catch (error) {
-                                console.error('Error with speech synthesis:', error);
+                                    console.error('Error speaking:', error);
+                                }
                             }
                         }
                     });
-                }, 30000); // Check and alert every 30 seconds
+                }, 5000); // Check every 5 seconds for faster response
                 
                 return () => {
                     clearInterval(inspectionCheckInterval);
@@ -1647,6 +1867,14 @@
                     }
                 };
             }, [activeJobs, currentTime, completedInspections]);
+            
+            // Remove alert and stop speech when inspection is completed
+            useEffect(() => {
+                // When inspection is completed, stop any ongoing speech immediately
+                if (completedInspections.size > 0 && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+            }, [completedInspections]);
             
             // Active jobs stored in database, no need to save to localStorage
             
@@ -1674,6 +1902,26 @@
                         });
                 }
             }, [showCompletedJobsModal]);
+            
+            // Filter completed jobs based on date range
+            useEffect(() => {
+                if (completedJobs && Array.isArray(completedJobs)) {
+                    const startDate = new Date(dateRangeStart);
+                    startDate.setHours(0, 0, 0, 0);
+                    const endDate = new Date(dateRangeEnd);
+                    endDate.setHours(23, 59, 59, 999);
+                    
+                    const filtered = completedJobs.filter(job => {
+                        if (!job.endTime) return false;
+                        const jobDate = new Date(job.endTime);
+                        return jobDate >= startDate && jobDate <= endDate;
+                    });
+                    
+                    setFilteredCompletedJobs(filtered);
+                } else {
+                    setFilteredCompletedJobs([]);
+                }
+            }, [completedJobs, dateRangeStart, dateRangeEnd]);
             
             // Update staff list when All Staff modal opens - fetch from API
             useEffect(() => {
@@ -2286,37 +2534,37 @@
                     </a>
                     
                     {/* Header */}
-                    <header className="bg-slate-950 text-white p-6 rounded-b-[45px] shadow-2xl relative z-50" role="banner">
-                        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
-                            <div className="flex items-center gap-4">
+                    <header className="bg-slate-950 text-white p-3 sm:p-4 md:p-6 rounded-b-2xl sm:rounded-b-[30px] md:rounded-b-[45px] shadow-2xl relative z-50" role="banner">
+                        <div className="flex justify-between items-center mb-4 sm:mb-6 md:mb-8 flex-wrap gap-2 sm:gap-3 md:gap-4">
+                            <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
                                 <a 
                                     href={homeRoute} 
-                                    className="text-white hover:text-blue-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg p-2" 
+                                    className="text-white hover:text-blue-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg p-1.5 sm:p-2 flex-shrink-0" 
                                     title="Back to Dashboard"
                                     aria-label="Back to Dashboard"
                                 >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                     </svg>
                                 </a>
-                                <div>
-                                    <h1 className="text-2xl font-black italic tracking-tighter uppercase leading-none text-blue-400">
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-lg sm:text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-none text-blue-400 truncate">
                                         Elite Car Wash
                                     </h1>
-                                    <div className="flex items-center gap-2 mt-1" aria-label="Branch and user information">
-                                        <span className="text-[10px] opacity-70 font-bold uppercase" aria-label="Branch name">
+                                    <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 mt-0.5 sm:mt-1 flex-wrap" aria-label="Branch and user information">
+                                        <span className="text-[9px] sm:text-[10px] opacity-70 font-bold uppercase truncate" aria-label="Branch name">
                                             {branchName}
                                         </span>
-                                        <span className="text-[10px] opacity-50" aria-hidden="true">•</span>
-                                        <span className="text-[10px] opacity-70 font-semibold" aria-label="User name">
+                                        <span className="text-[9px] sm:text-[10px] opacity-50 hidden sm:inline" aria-hidden="true">•</span>
+                                        <span className="text-[9px] sm:text-[10px] opacity-70 font-semibold truncate" aria-label="User name">
                                             {userName}
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 relative">
+                            <div className="flex items-center gap-2 sm:gap-2.5 md:gap-3 relative flex-shrink-0">
                                 <button 
-                                    className="text-white hover:text-blue-400 transition-colors p-2 relative focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg" 
+                                    className="text-white hover:text-blue-400 transition-colors p-1.5 sm:p-1.5 md:p-2 relative focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg flex-shrink-0" 
                                     title="Settings"
                                     id="reactSettingsBtn"
                                     aria-label="Open settings menu"
@@ -2333,7 +2581,7 @@
                                         }
                                     }}
                                 >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
@@ -2341,37 +2589,33 @@
                                     {/* Settings Dropdown Menu */}
                                     {showServicesDropdown && (
                                         <div 
-                                            className="absolute top-full right-0 mt-3 w-64 bg-white rounded-3xl shadow-2xl border-2 border-slate-100 z-50 overflow-hidden" 
+                                            className="absolute top-full right-0 mt-2 sm:mt-2.5 md:mt-3 w-56 sm:w-60 md:w-64 bg-white rounded-2xl sm:rounded-[25px] md:rounded-3xl shadow-2xl border-2 border-slate-100 z-50 overflow-hidden" 
                                             role="menu"
                                             aria-label="Settings menu"
                                         >
-                                            {/* ALL SERVICES - Show all services list */}
+                                            {/* ALL SERVICES - Navigate to services page */}
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
-                                                    setTimeout(() => {
-                                                        setShowAllServicesModal(true);
-                                                    }, 200);
+                                                    window.location.href = '{{ route("car.wash.services") }}';
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ' ') {
                                                         e.preventDefault();
                                                         setShowServicesDropdown(false);
-                                                        setTimeout(() => {
-                                                            setShowAllServicesModal(true);
-                                                        }, 200);
+                                                        window.location.href = '{{ route("car.wash.services") }}';
                                                     }
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500 rounded-t-3xl"
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500 rounded-t-2xl sm:rounded-t-[25px] md:rounded-t-3xl"
                                                 role="menuitem"
                                                 aria-label="View all services"
                                             >
-                                                <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-base font-black text-slate-900 uppercase tracking-wide">All Services</span>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">All Services</span>
                                             </button>
                                             
                                             {/* ALL STAFF */}
@@ -2387,16 +2631,16 @@
                                                         window.location.href = '{{ route("car.wash.staff") }}';
                                                     }
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
                                                 role="menuitem"
                                                 aria-label="View all staff members"
                                             >
-                                                <div className="w-12 h-12 rounded-2xl bg-purple-600 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-base font-black text-slate-900 uppercase tracking-wide">All Staff</span>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">All Staff</span>
                                             </button>
                                             
                                             {/* COMPLETED JOBS */}
@@ -2412,16 +2656,16 @@
                                                         window.location.href = '{{ route("car.wash.completed-jobs") }}';
                                                     }
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
                                                 role="menuitem"
                                                 aria-label="View completed jobs"
                                             >
-                                                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-base font-black text-slate-900 uppercase tracking-wide">Completed Jobs</span>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Completed Jobs</span>
                                             </button>
                                             
                                             {/* ADD EXPENSE */}
@@ -2437,16 +2681,16 @@
                                                         alert('Add Expense feature coming soon!');
                                                     }
                                                 }}
-                                                className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
                                                 role="menuitem"
                                                 aria-label="Add expense (coming soon)"
                                             >
-                                                <div className="w-12 h-12 rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
-                                                    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-base font-black text-slate-900 uppercase tracking-wide">Add Expense</span>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Add Expense</span>
                                             </button>
                                         </div>
                                     )}
@@ -2462,10 +2706,10 @@
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-3" role="group" aria-label="Today's statistics">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
                             <button
                                 type="button"
-                                className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
                                 onMouseDown={(e) => {
                                     const startTime = Date.now();
                                     const handleMouseUp = () => {
@@ -2498,14 +2742,14 @@
                                 title="Click or long press to view completed jobs"
                                 aria-label="Total revenue today. Click to view details"
                             >
-                                <p className="text-[8px] opacity-50 font-black uppercase mb-1">Total</p>
-                                <p className="text-sm font-black text-emerald-400 font-mono" aria-label="Total revenue amount">
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
+                                <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
                                     Rs.{stats && typeof stats.todayRevenue !== 'undefined' ? stats.todayRevenue : 0}
                                 </p>
                             </button>
                             <button
                                 type="button"
-                                className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
                                 onMouseDown={(e) => {
                                     const startTime = Date.now();
                                     const handleMouseUp = () => {
@@ -2538,21 +2782,21 @@
                                 title="Click or long press to view expense details"
                                 aria-label="Total expenses today. Click to view details"
                             >
-                                <p className="text-[8px] opacity-50 font-black uppercase mb-1">Exp.</p>
-                                <p className="text-sm font-black text-rose-400 font-mono" aria-label="Total expenses amount">
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Exp.</p>
+                                <p className="text-xs sm:text-sm font-black text-rose-400 font-mono truncate" aria-label="Total expenses amount">
                                     Rs.{stats && typeof stats.todayExpensesTotal !== 'undefined' ? stats.todayExpensesTotal : 0}
                                 </p>
                             </button>
-                            <div className="bg-white/5 p-4 rounded-[28px] border border-white/5 text-center" role="status" aria-label="Grand total today">
-                                <p className="text-[8px] opacity-50 font-black uppercase mb-1">G. Total</p>
-                                <p className="text-sm font-black text-blue-400 font-mono" aria-label="Grand total amount">
+                            <div className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center" role="status" aria-label="Grand total today">
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">G. Total</p>
+                                <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Grand total amount">
                                     Rs.{stats && typeof stats.todayGrandTotal !== 'undefined' ? stats.todayGrandTotal : 0}
                                 </p>
                             </div>
                         </div>
                     </header>
                     
-                    <main id="main-content" className="p-5" role="main" aria-label="Main content">
+                    <main id="main-content" className="p-3 sm:p-4 md:p-5" role="main" aria-label="Main content">
                         {view === 'dashboard' && (
                             <div className="space-y-8 animate-in fade-in duration-500" role="region" aria-label="Dashboard">
                                 {/* Services Modal - Full Screen Overlay */}
@@ -2667,7 +2911,7 @@
                                                                         const previewPrice = previewCard ? previewCard.querySelector('.price') : null;
                                                                         
                                                                         if (categoryNameInput) categoryNameInput.value = service.label || '';
-                                                                        if (categoryPriceInput) categoryPriceInput.value = service.basePrice || 0;
+                                                                        if (categoryPriceInput) categoryPriceInput.value = service.basePrice || service.base_price || 0;
                                                                         
                                                                         // Use existing category values if editing, otherwise use service values
                                                                         const colorValue = existingCategory?.colorValue || service.colorValue;
@@ -2703,7 +2947,7 @@
                                                                         });
                                                                         
                                                                         if (previewLabel) previewLabel.textContent = (service.label || 'SERVICE LABEL').toUpperCase();
-                                                                        if (previewPrice) previewPrice.textContent = '· RS.' + (service.basePrice || 0);
+                                                                        if (previewPrice) previewPrice.textContent = '· RS.' + (service.basePrice || service.base_price || 0);
                                                                         if (previewCard && colorValue) {
                                                                             previewCard.style.background = colorValue;
                                                                         }
@@ -2852,7 +3096,7 @@
                                                                     </div>
                                                                     <div className="flex-1">
                                                                         <p className="text-base font-black text-slate-900 uppercase">{service.label}</p>
-                                                                        <p className="text-sm text-slate-500 font-mono mt-1">Rs. {service.basePrice || 0}</p>
+                                                                        <p className="text-sm text-slate-500 font-mono mt-1">Rs. {service.basePrice || service.base_price || 0}</p>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-xs text-slate-400 font-bold">Click to Edit</span>
@@ -2987,20 +3231,20 @@
                                     };
                                     
                                     return (
-                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => {
+                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
                                             if (handleCloseAttempt()) {
                                                 setCompleteModalJobId(null);
                                                 setSelectedRating('');
                                                 setJobComment('');
                                             }
                                         }}>
-                                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                            <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                                                 {/* Header */}
-                                                <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h2 className="text-2xl font-black uppercase tracking-tighter">Complete Job</h2>
-                                                            <p className="text-sm opacity-90 mt-1">Rate the service</p>
+                                                <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
+                                                    <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Complete Job</h2>
+                                                            <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1 hidden sm:block">Rate the service</p>
                                                         </div>
                                                         <button
                                                             onClick={() => {
@@ -3010,9 +3254,9 @@
                                                                     setJobComment('');
                                                                 }
                                                             }}
-                                                            className="text-white hover:text-slate-200 transition-colors p-2"
+                                                            className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
                                                         >
-                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                             </svg>
                                                         </button>
@@ -3020,31 +3264,31 @@
                                                 </div>
                                                 
                                                 {/* Job Info */}
-                                                <div className="p-6 border-b border-slate-200 bg-slate-50">
-                                                    <div className="flex items-center gap-3 mb-2">
-                                                        <span className="text-sm font-black text-slate-900 uppercase">{job.vehicleNo}</span>
-                                                        <span className="text-xs text-slate-500">•</span>
-                                                        <span className="text-xs text-slate-600">{job.customerName}</span>
+                                                <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-slate-50">
+                                                    <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2 flex-wrap">
+                                                        <span className="text-xs sm:text-sm font-black text-slate-900 uppercase truncate">{job.vehicleNo}</span>
+                                                        <span className="text-xs text-slate-500 hidden sm:inline">•</span>
+                                                        <span className="text-[10px] sm:text-xs text-slate-600 truncate">{job.customerName}</span>
                                                     </div>
-                                                    <div className="text-xs text-slate-500">
+                                                    <div className="text-[10px] sm:text-xs text-slate-500">
                                                         Service: {job.service} • Rs.{job.price}
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Rating Section */}
-                                                <div className="flex-1 overflow-y-auto p-6">
+                                                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
                                                     {/* Inspection Validation Message */}
                                                     {!allItemsRated && (
-                                                        <div className="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <span className="text-xl">⚠️</span>
-                                                                <span className="text-sm font-black text-red-900 uppercase">Inspection Required</span>
+                                                        <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl">
+                                                            <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                                                                <span className="text-lg sm:text-xl flex-shrink-0">⚠️</span>
+                                                                <span className="text-xs sm:text-sm font-black text-red-900 uppercase">Inspection Required</span>
                                                             </div>
-                                                            <p className="text-xs text-red-700 mb-2">Please complete all inspection items before completing the job. All inspection comments must be passed.</p>
+                                                            <p className="text-[10px] sm:text-xs text-red-700 mb-1.5 sm:mb-2">Please complete all inspection items before completing the job. All inspection comments must be passed.</p>
                                                             {!inspectionCompleted && (
-                                                                <div className="text-xs text-red-600">
+                                                                <div className="text-[9px] sm:text-xs text-red-600">
                                                                     <span className="font-bold">Missing items:</span>
-                                                                    <ul className="list-disc list-inside mt-1">
+                                                                    <ul className="list-disc list-inside mt-0.5 sm:mt-1 space-y-0.5">
                                                                         {requiredInspectionItems
                                                                             .filter(itemId => {
                                                                                 const itemData = inspectionData[itemId];
@@ -3076,7 +3320,7 @@
                                                                     onClick={() => {
                                                                         setInspectionModalJobId(job.id);
                                                                     }}
-                                                                    className="mt-3 w-full px-4 py-2 bg-purple-500 text-white rounded-xl text-xs font-black uppercase hover:bg-purple-600 transition-colors"
+                                                                    className="mt-2 sm:mt-3 w-full px-3 sm:px-4 py-1.5 sm:py-2 bg-purple-500 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase hover:bg-purple-600 transition-colors"
                                                                 >
                                                                     Open Inspection Modal
                                                                 </button>
@@ -3084,9 +3328,9 @@
                                                         </div>
                                                     )}
                                                     
-                                                    <div className="mb-6">
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-3">Service Rating</label>
-                                                        <div className="grid grid-cols-2 gap-3">
+                                                    <div className="mb-4 sm:mb-5 md:mb-6">
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Service Rating</label>
+                                                        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 md:gap-3">
                                                             {[
                                                                 { value: 'excellent', label: 'Excellent', color: 'bg-green-500', icon: '⭐' },
                                                                 { value: 'good', label: 'Good', color: 'bg-blue-500', icon: '👍' },
@@ -3097,34 +3341,34 @@
                                                                     key={rating.value}
                                                                     type="button"
                                                                     onClick={() => setSelectedRating(rating.value)}
-                                                                    className={`p-4 rounded-2xl border-2 transition-all ${
+                                                                    className={`p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl border-2 transition-all ${
                                                                         selectedRating === rating.value
                                                                             ? `${rating.color} text-white border-${rating.color.replace('bg-', '')} shadow-lg scale-105`
                                                                             : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                                                                     }`}
                                                                 >
-                                                                    <div className="text-2xl mb-1">{rating.icon}</div>
-                                                                    <div className="text-xs font-black uppercase">{rating.label}</div>
+                                                                    <div className="text-xl sm:text-2xl mb-0.5 sm:mb-1">{rating.icon}</div>
+                                                                    <div className="text-[10px] sm:text-xs font-black uppercase">{rating.label}</div>
                                                                 </button>
                                                             ))}
                                                         </div>
                                                     </div>
                                                     
                                                     {/* Comments Section */}
-                                                    <div className="mb-4">
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Comments (Optional)</label>
+                                                    <div className="mb-3 sm:mb-4">
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Comments (Optional)</label>
                                                         <textarea
                                                             value={jobComment}
                                                             onChange={(e) => setJobComment(e.target.value)}
                                                             placeholder="Enter any comments or notes..."
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
-                                                            rows="4"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
+                                                            rows="3"
                                                         />
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Footer */}
-                                                <div className="p-6 border-t border-slate-200 bg-slate-50">
+                                                <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
                                                         onClick={async () => {
                                                             // Check if all inspection items are rated
@@ -3279,14 +3523,15 @@
                                                             alert('Error completing job. Please try again.');
                                                         }
                                                     }}
-                                                        className={`w-full px-6 py-4 rounded-2xl text-sm font-black uppercase transition-all shadow-lg ${
+                                                        className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
                                                             allItemsRated 
                                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700' 
                                                                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                                         }`}
                                                         disabled={!allItemsRated}
                                                     >
-                                                        {allItemsRated ? 'Confirm & Complete' : 'Complete All Inspections First'}
+                                                        <span className="hidden sm:inline">{allItemsRated ? 'Confirm & Complete' : 'Complete All Inspections First'}</span>
+                                                        <span className="sm:hidden">{allItemsRated ? 'Complete' : 'Complete Inspections'}</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -3323,26 +3568,26 @@
                                     };
                                     
                                     return (
-                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => {
+                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
                                             setInspectionModalJobId(null);
                                             setInspectionData({});
                                         }}>
-                                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                            <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                                                 {/* Header */}
-                                                <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h2 className="text-2xl font-black uppercase tracking-tighter">Car Inspection</h2>
-                                                            <p className="text-sm opacity-90 mt-1">Rate each inspection item</p>
+                                                <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+                                                    <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Car Inspection</h2>
+                                                            <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1 hidden sm:block">Rate each inspection item</p>
                                                         </div>
                                                         <button
                                                             onClick={() => {
                                                                 setInspectionModalJobId(null);
                                                                 setInspectionData({});
                                                             }}
-                                                            className="text-white hover:text-slate-200 transition-colors p-2"
+                                                            className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
                                                         >
-                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                             </svg>
                                                         </button>
@@ -3350,36 +3595,36 @@
                                                 </div>
                                                 
                                                 {/* Job Info */}
-                                                <div className="p-4 border-b border-slate-200 bg-slate-50">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-sm font-black text-slate-900 uppercase">{job.vehicleNo}</span>
-                                                        <span className="text-xs text-slate-500">•</span>
-                                                        <span className="text-xs text-slate-600">{job.customerName}</span>
+                                                <div className="p-3 sm:p-4 border-b border-slate-200 bg-slate-50">
+                                                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                                                        <span className="text-xs sm:text-sm font-black text-slate-900 uppercase truncate">{job.vehicleNo}</span>
+                                                        <span className="text-xs text-slate-500 hidden sm:inline">•</span>
+                                                        <span className="text-[10px] sm:text-xs text-slate-600 truncate">{job.customerName}</span>
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Inspection Items */}
-                                                <div className="flex-1 overflow-y-auto p-6">
-                                                    <div className="space-y-4">
+                                                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                    <div className="space-y-3 sm:space-y-3.5 md:space-y-4">
                                                         {inspectionItems.map((item) => {
                                                             const itemData = inspectionData[item.id] || { status: '' };
                                                             const statusInfo = getStatusIcon(itemData.status);
                                                             
                                                             return (
-                                                                <div key={item.id} className={`bg-white p-5 rounded-2xl border-2 ${statusInfo.border} transition-all hover:shadow-lg`}>
-                                                                    <div className="flex items-center justify-between mb-4">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <span className="text-2xl">{item.icon}</span>
-                                                                            <span className="text-base font-black text-slate-900 uppercase">{item.name}</span>
+                                                                <div key={item.id} className={`bg-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl border-2 ${statusInfo.border} transition-all hover:shadow-lg`}>
+                                                                    <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+                                                                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                                            <span className="text-xl sm:text-2xl flex-shrink-0">{item.icon}</span>
+                                                                            <span className="text-sm sm:text-base font-black text-slate-900 uppercase truncate">{item.name}</span>
                                                                         </div>
-                                                                        <div className={`px-3 py-1 rounded-lg ${statusInfo.bg} ${statusInfo.color} font-bold text-sm`}>
+                                                                        <div className={`px-2 sm:px-3 py-1 rounded-lg ${statusInfo.bg} ${statusInfo.color} font-bold text-xs sm:text-sm flex-shrink-0`}>
                                                                             {statusInfo.icon}
                                                                         </div>
                                                                     </div>
                                                                     
                                                                     <div>
-                                                                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2">Status</label>
-                                                                        <div className="grid grid-cols-4 gap-2">
+                                                                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase block mb-1.5 sm:mb-2">Status</label>
+                                                                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                                                                                 {[
                                                                                     { value: 'excellent', label: 'Excellent', icon: '⭐', color: 'bg-blue-500 hover:bg-blue-600' },
                                                                                     { value: 'good', label: 'Good', icon: '✅', color: 'bg-green-500 hover:bg-green-600' },
@@ -3395,14 +3640,14 @@
                                                                                                 [item.id]: { ...prev[item.id], status: status.value }
                                                                                             }));
                                                                                         }}
-                                                                                        className={`p-2 rounded-xl text-white font-black text-xs transition-all ${
+                                                                                        className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-white font-black text-[8px] sm:text-[9px] md:text-xs transition-all ${
                                                                                             itemData.status === status.value 
                                                                                                 ? `${status.color} shadow-lg scale-105` 
                                                                                                 : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                                                                                         }`}
                                                                                     >
-                                                                                        <div className="text-lg mb-0.5">{status.icon}</div>
-                                                                                        <div className="text-[9px]">{status.label}</div>
+                                                                                        <div className="text-sm sm:text-base md:text-lg mb-0.5">{status.icon}</div>
+                                                                                        <div className="text-[8px] sm:text-[9px] leading-tight">{status.label}</div>
                                                                                     </button>
                                                                                 ))}
                                                                         </div>
@@ -3413,8 +3658,139 @@
                                                     </div>
                                                 </div>
                                                 
+                                                {/* Percentage Summary Graph */}
+                                                {(() => {
+                                                    const statusCounts = {
+                                                        excellent: 0,
+                                                        good: 0,
+                                                        average: 0,
+                                                        poor: 0,
+                                                        total: 0
+                                                    };
+                                                    
+                                                    inspectionItems.forEach((item) => {
+                                                        const itemData = inspectionData[item.id];
+                                                        if (itemData && itemData.status && itemData.status !== '') {
+                                                            statusCounts[itemData.status] = (statusCounts[itemData.status] || 0) + 1;
+                                                            statusCounts.total++;
+                                                        }
+                                                    });
+                                                    
+                                                    const percentages = {
+                                                        excellent: statusCounts.total > 0 ? (statusCounts.excellent / statusCounts.total * 100).toFixed(1) : 0,
+                                                        good: statusCounts.total > 0 ? (statusCounts.good / statusCounts.total * 100).toFixed(1) : 0,
+                                                        average: statusCounts.total > 0 ? (statusCounts.average / statusCounts.total * 100).toFixed(1) : 0,
+                                                        poor: statusCounts.total > 0 ? (statusCounts.poor / statusCounts.total * 100).toFixed(1) : 0
+                                                    };
+                                                    
+                                                    const excellentWidth = percentages.excellent + '%';
+                                                    const goodWidth = percentages.good + '%';
+                                                    const averageWidth = percentages.average + '%';
+                                                    const poorWidth = percentages.poor + '%';
+                                                    
+                                                    const excellentStyle = { width: excellentWidth };
+                                                    const goodStyle = { width: goodWidth };
+                                                    const averageStyle = { width: averageWidth };
+                                                    const poorStyle = { width: poorWidth };
+                                                    
+                                                    if (statusCounts.total === 0) return null;
+                                                    
+                                                    return (
+                                                        <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
+                                                            <div className="bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-sm">
+                                                                <h3 className="text-xs sm:text-sm font-black text-slate-700 uppercase mb-3 sm:mb-4 tracking-wider">Status Distribution</h3>
+                                                                <div className="space-y-2 sm:space-y-2.5">
+                                                                    {/* Excellent */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">⭐</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-blue-600 uppercase">Excellent</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-blue-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={excellentStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.excellent) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.excellent + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.excellent) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-blue-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.excellent + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* Good */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">✅</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-green-600 uppercase">Good</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-green-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={goodStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.good) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.good + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.good) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-green-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.good + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* Average */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">⚠️</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-yellow-600 uppercase">Avg</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-yellow-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={averageStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.average) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.average + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.average) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-yellow-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.average + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    {/* Poor */}
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
+                                                                            <span className="text-base sm:text-lg">❌</span>
+                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-red-600 uppercase">Poor</span>
+                                                                        </div>
+                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
+                                                                            <div 
+                                                                                className="bg-red-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
+                                                                                style={poorStyle}
+                                                                            >
+                                                                                {parseFloat(percentages.poor) > 10 && (
+                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.poor + '%'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {parseFloat(percentages.poor) <= 10 && (
+                                                                            <span className="text-[9px] sm:text-[10px] font-black text-red-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.poor + '%'}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                
                                                 {/* Footer */}
-                                                <div className="p-6 border-t border-slate-200 bg-slate-50">
+                                                <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
                                                         onClick={async () => {
                                                             console.log('Inspection completed:', {
@@ -3471,7 +3847,7 @@
                                                                 alert('Error saving inspection. Please try again.');
                                                             }
                                                         }}
-                                                        className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl text-sm font-black uppercase hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg"
+                                                        className="w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg"
                                                     >
                                                         Save Inspection
                                                     </button>
@@ -3483,18 +3859,18 @@
                                 
                                 {/* Expense Modal */}
                                 {expenseModalJobId && (
-                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => {
+                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
                                         setExpenseModalJobId(null);
                                         setExpenseItems({});
                                         setCustomExpenses([]);
                                     }}>
-                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                        <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                                             {/* Header */}
-                                            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <h2 className="text-2xl font-black uppercase tracking-tighter">Refreshment Expense</h2>
-                                                        <p className="text-sm opacity-90 mt-1">Select items and quantities</p>
+                                            <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+                                                <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Refreshment Expense</h2>
+                                                        <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1 hidden sm:block">Select items and quantities</p>
                                                     </div>
                                                     <button
                                                         onClick={() => {
@@ -3502,9 +3878,9 @@
                                                             setExpenseItems({});
                                                             setCustomExpenses([]);
                                                         }}
-                                                        className="text-white hover:text-slate-200 transition-colors p-2"
+                                                        className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
                                                     >
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                         </svg>
                                                     </button>
@@ -3512,8 +3888,8 @@
                                             </div>
                                             
                                             {/* Refreshment Items */}
-                                            <div className="flex-1 overflow-y-auto p-6">
-                                                <div className="space-y-4">
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                <div className="space-y-3 sm:space-y-3.5 md:space-y-4">
                                                     {[
                                                         { name: 'Tea', icon: '☕', defaultPrice: 50 },
                                                         { name: 'Cold Drink', icon: '🥤', defaultPrice: 100 },
@@ -3525,13 +3901,13 @@
                                                         const total = quantity * priceValue;
                                                         
                                                         return (
-                                                            <div key={item.name} className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="text-2xl">{item.icon}</span>
-                                                                        <span className="text-sm font-black text-slate-900 uppercase">{item.name}</span>
+                                                            <div key={item.name} className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-slate-100">
+                                                                <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
+                                                                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                                        <span className="text-xl sm:text-2xl flex-shrink-0">{item.icon}</span>
+                                                                        <span className="text-xs sm:text-sm font-black text-slate-900 uppercase truncate">{item.name}</span>
                                                                     </div>
-                                                                    <div className="flex items-center gap-2">
+                                                                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -3543,11 +3919,11 @@
                                                                                     }));
                                                                                 }
                                                                             }}
-                                                                            className="w-8 h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100"
+                                                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100 text-sm sm:text-base"
                                                                         >
                                                                             −
                                                                         </button>
-                                                                        <span className="w-10 text-center text-sm font-black text-slate-900">{quantity}</span>
+                                                                        <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-black text-slate-900">{quantity}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -3557,7 +3933,7 @@
                                                                                     [item.name]: { quantity: quantity + 1, price: currentPrice }
                                                                                 }));
                                                                             }}
-                                                                            className="w-8 h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100"
+                                                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100 text-sm sm:text-base"
                                                                         >
                                                                             +
                                                                         </button>
@@ -3565,9 +3941,9 @@
                                                                 </div>
                                                                 
                                                                 {/* Price Input Box - Always Visible */}
-                                                                <div className="pt-3 border-t border-slate-200">
-                                                                    <div className="mb-2">
-                                                                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Price (Rs.)</label>
+                                                                <div className="pt-2 sm:pt-3 border-t border-slate-200">
+                                                                    <div className="mb-1.5 sm:mb-2">
+                                                                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase block mb-1">Price (Rs.)</label>
                                                                         <input
                                                                             type="number"
                                                                             value={price}
@@ -3585,16 +3961,16 @@
                                                                                     [item.name]: { quantity, price: priceValue }
                                                                                 }));
                                                                             }}
-                                                                            className="w-full px-4 py-3 text-base font-black text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-orange-500 focus:outline-none"
+                                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base font-black text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-orange-500 focus:outline-none"
                                                                             min="0"
                                                                             step="10"
                                                                             placeholder="Enter price"
                                                                         />
                                                                     </div>
                                                                     {quantity >= 1 && (
-                                                                        <div className="flex items-center justify-between pt-2">
-                                                                            <span className="text-xs text-slate-500">Total:</span>
-                                                                            <span className="text-base font-black text-orange-600">Rs.{total}</span>
+                                                                        <div className="flex items-center justify-between pt-1.5 sm:pt-2">
+                                                                            <span className="text-[10px] sm:text-xs text-slate-500">Total:</span>
+                                                                            <span className="text-sm sm:text-base font-black text-orange-600">Rs.{total}</span>
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -3610,13 +3986,13 @@
                                                         const total = quantity * priceValue;
                                                         
                                                         return (
-                                                            <div key={customItem.id} className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="text-2xl">➕</span>
-                                                                        <span className="text-sm font-black text-slate-900 uppercase">{customItem.name}</span>
+                                                            <div key={customItem.id} className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-slate-100">
+                                                                <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
+                                                                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                                        <span className="text-xl sm:text-2xl flex-shrink-0">➕</span>
+                                                                        <span className="text-xs sm:text-sm font-black text-slate-900 uppercase truncate">{customItem.name}</span>
                                                                     </div>
-                                                                    <div className="flex items-center gap-2">
+                                                                    <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -3628,11 +4004,11 @@
                                                                                     }));
                                                                                 }
                                                                             }}
-                                                                            className="w-8 h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100"
+                                                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100 text-sm sm:text-base"
                                                                         >
                                                                             −
                                                                         </button>
-                                                                        <span className="w-10 text-center text-sm font-black text-slate-900">{quantity}</span>
+                                                                        <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-black text-slate-900">{quantity}</span>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
@@ -3642,7 +4018,7 @@
                                                                                     [customItem.id]: { quantity: quantity + 1, price: currentPrice }
                                                                                 }));
                                                                             }}
-                                                                            className="w-8 h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100"
+                                                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white border-2 border-slate-200 flex items-center justify-center text-slate-600 font-black hover:bg-slate-100 text-sm sm:text-base"
                                                                         >
                                                                             +
                                                                         </button>
@@ -3656,7 +4032,7 @@
                                                                                     return newItems;
                                                                                 });
                                                                             }}
-                                                                            className="w-8 h-8 rounded-lg bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-black hover:bg-red-200"
+                                                                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-black hover:bg-red-200 text-sm sm:text-base"
                                                                         >
                                                                             ×
                                                                         </button>
@@ -3664,9 +4040,9 @@
                                                                 </div>
                                                                 
                                                                 {/* Price Input Box - Always Visible */}
-                                                                <div className="pt-3 border-t border-slate-200">
-                                                                    <div className="mb-2">
-                                                                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Price (Rs.)</label>
+                                                                <div className="pt-2 sm:pt-3 border-t border-slate-200">
+                                                                    <div className="mb-1.5 sm:mb-2">
+                                                                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase block mb-1">Price (Rs.)</label>
                                                                         <input
                                                                             type="number"
                                                                             value={price}
@@ -3684,16 +4060,16 @@
                                                                                     [customItem.id]: { quantity, price: priceValue }
                                                                                 }));
                                                                             }}
-                                                                            className="w-full px-4 py-3 text-base font-black text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-orange-500 focus:outline-none"
+                                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base font-black text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-orange-500 focus:outline-none"
                                                                             min="0"
                                                                             step="10"
                                                                             placeholder="Enter price"
                                                                         />
                                                                     </div>
                                                                     {quantity >= 1 && (
-                                                                        <div className="flex items-center justify-between pt-2">
-                                                                            <span className="text-xs text-slate-500">Total:</span>
-                                                                            <span className="text-base font-black text-orange-600">Rs.{total}</span>
+                                                                        <div className="flex items-center justify-between pt-1.5 sm:pt-2">
+                                                                            <span className="text-[10px] sm:text-xs text-slate-500">Total:</span>
+                                                                            <span className="text-sm sm:text-base font-black text-orange-600">Rs.{total}</span>
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -3703,14 +4079,14 @@
                                                 </div>
                                                 
                                                 {/* Add Other Expense Button */}
-                                                <div className="mt-4">
+                                                <div className="mt-3 sm:mt-4">
                                                     <button
                                                         type="button"
                                                         onClick={() => {
                                                             setShowAddCustomExpense(true);
                                                             setNewCustomExpenseName('');
                                                         }}
-                                                        className="w-full px-6 py-4 bg-slate-200 text-slate-700 rounded-2xl text-sm font-black uppercase hover:bg-slate-300 transition-all border-2 border-slate-300"
+                                                        className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 bg-slate-200 text-slate-700 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:bg-slate-300 transition-all border-2 border-slate-300"
                                                     >
                                                         + Add Other Expense
                                                     </button>
@@ -3718,18 +4094,18 @@
                                                 
                                                 {/* Add Custom Expense Input Modal */}
                                                 {showAddCustomExpense && (
-                                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => {
+                                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
                                                         setShowAddCustomExpense(false);
                                                         setNewCustomExpenseName('');
                                                     }}>
-                                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-                                                            <h3 className="text-xl font-black uppercase mb-4 text-slate-900">Add Custom Expense</h3>
+                                                        <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-sm p-4 sm:p-5 md:p-6" onClick={(e) => e.stopPropagation()}>
+                                                            <h3 className="text-lg sm:text-xl font-black uppercase mb-3 sm:mb-4 text-slate-900">Add Custom Expense</h3>
                                                             <input
                                                                 type="text"
                                                                 value={newCustomExpenseName}
                                                                 onChange={(e) => setNewCustomExpenseName(e.target.value)}
                                                                 placeholder="Enter expense name"
-                                                                className="w-full px-4 py-3 text-base font-bold text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-orange-500 focus:outline-none mb-4"
+                                                                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-orange-500 focus:outline-none mb-3 sm:mb-4"
                                                                 autoFocus
                                                                 onKeyPress={(e) => {
                                                                     if (e.key === 'Enter' && newCustomExpenseName.trim()) {
@@ -3747,7 +4123,7 @@
                                                                     }
                                                                 }}
                                                             />
-                                                            <div className="flex gap-3">
+                                                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => {
@@ -3765,7 +4141,7 @@
                                                                             setNewCustomExpenseName('');
                                                                         }
                                                                     }}
-                                                                    className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-xl text-sm font-black uppercase hover:bg-orange-600 transition-all"
+                                                                    className="flex-1 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 bg-orange-500 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-orange-600 transition-all"
                                                                 >
                                                                     Add
                                                                 </button>
@@ -3775,7 +4151,7 @@
                                                                         setShowAddCustomExpense(false);
                                                                         setNewCustomExpenseName('');
                                                                     }}
-                                                                    className="flex-1 px-6 py-3 bg-slate-200 text-slate-700 rounded-xl text-sm font-black uppercase hover:bg-slate-300 transition-all"
+                                                                    className="flex-1 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 bg-slate-200 text-slate-700 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-slate-300 transition-all"
                                                                 >
                                                                     Cancel
                                                                 </button>
@@ -3785,10 +4161,10 @@
                                                 )}
                                                 
                                                 {/* Total */}
-                                                <div className="mt-6 pt-4 border-t-2 border-slate-200">
+                                                <div className="mt-4 sm:mt-5 md:mt-6 pt-3 sm:pt-4 border-t-2 border-slate-200">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-base font-black text-slate-900 uppercase">Total:</span>
-                                                        <span className="text-2xl font-black text-orange-600">
+                                                        <span className="text-sm sm:text-base font-black text-slate-900 uppercase">Total:</span>
+                                                        <span className="text-xl sm:text-2xl font-black text-orange-600">
                                                             Rs.{(() => {
                                                                 let total = 0;
                                                                 Object.keys(expenseItems).forEach((key) => {
@@ -3820,7 +4196,7 @@
                                             </div>
                                             
                                             {/* Footer */}
-                                            <div className="p-6 border-t border-slate-200 bg-slate-50">
+                                            <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
                                                 <button
                                                     onClick={async () => {
                                                         // Prepare expense items array
@@ -3958,7 +4334,7 @@
                                                             alert('Please add at least one expense item with quantity and price.');
                                                         }
                                                     }}
-                                                    className="w-full px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl text-sm font-black uppercase hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg"
+                                                    className="w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg"
                                                 >
                                                     Save Expense
                                                 </button>
@@ -3969,31 +4345,32 @@
                                 
                                 {/* Expense Details Modal - Modern Card Style */}
                                 {showExpenseDetailsModal && (
-                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4" onClick={() => setShowExpenseDetailsModal(false)}>
-                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-[40px] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col border-4 border-slate-200" onClick={(e) => e.stopPropagation()}>
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => setShowExpenseDetailsModal(false)}>
+                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-2xl sm:rounded-[30px] md:rounded-[40px] shadow-2xl w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col border-2 sm:border-3 md:border-4 border-slate-200" onClick={(e) => e.stopPropagation()}>
                                             {/* Header with Icon - Auto Adjust */}
-                                            <div className="relative p-4 sm:p-6 md:p-8 bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 text-white overflow-hidden">
+                                            <div className="relative p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 text-white overflow-hidden">
                                                 <div className="absolute inset-0 bg-black/10"></div>
-                                                <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                                                        <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center border-2 border-white/30 flex-shrink-0">
-                                                            <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 md:gap-4">
+                                                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
+                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl md:rounded-2xl flex items-center justify-center border-2 border-white/30 flex-shrink-0">
+                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                                             </svg>
                                                         </div>
                                                         <div className="flex-1 min-w-0">
-                                                            <h2 className="text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-tight truncate">Expense Report</h2>
-                                                            <p className="text-xs sm:text-sm opacity-90 mt-1 flex items-center gap-2">
-                                                                <span>📋</span> 
-                                                                <span className="truncate">Reference wise expense details</span>
+                                                            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black uppercase tracking-tight truncate">Expense Report</h2>
+                                                            <p className="text-[10px] sm:text-xs md:text-sm opacity-90 mt-0.5 sm:mt-1 flex items-center gap-1.5 sm:gap-2">
+                                                                <span className="text-sm sm:text-base">📋</span> 
+                                                                <span className="truncate hidden sm:inline">Reference wise expense details</span>
+                                                                <span className="truncate sm:hidden">Expense details</span>
                                                             </p>
                                                         </div>
                                                     </div>
                                                     <button
                                                         onClick={() => setShowExpenseDetailsModal(false)}
-                                                        className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all backdrop-blur-sm border border-white/30 flex-shrink-0 self-start sm:self-auto"
+                                                        className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-sm border border-white/30 flex-shrink-0 self-start sm:self-auto"
                                                     >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                                                         </svg>
                                                     </button>
@@ -4001,19 +4378,19 @@
                                             </div>
                                             
                                             {/* Content */}
-                                            <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-50 to-white">
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-gradient-to-b from-slate-50 to-white">
                                                 {expenseHistory.length === 0 ? (
-                                                    <div className="text-center py-16">
-                                                        <div className="w-24 h-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center mx-auto mb-6">
-                                                            <svg className="w-12 h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <div className="text-center py-8 sm:py-12 md:py-16">
+                                                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 md:mb-6">
+                                                            <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                             </svg>
                                                         </div>
-                                                        <p className="text-xl font-black text-slate-700 uppercase tracking-wide">No Expenses Yet</p>
-                                                        <p className="text-sm text-slate-500 mt-2">Expenses will appear here once you add them</p>
+                                                        <p className="text-base sm:text-lg md:text-xl font-black text-slate-700 uppercase tracking-wide">No Expenses Yet</p>
+                                                        <p className="text-xs sm:text-sm text-slate-500 mt-1 sm:mt-2">Expenses will appear here once you add them</p>
                                                     </div>
                                                 ) : (
-                                                    <div className="space-y-6">
+                                                    <div className="space-y-4 sm:space-y-5 md:space-y-6">
                                                         {expenseHistory.map((expense, expIdx) => {
                                                             // Try to get job data from activeJobs if not in expense record
                                                             const job = activeJobs.find(j => j.id === expense.jobId);
@@ -4022,70 +4399,70 @@
                                                             const mobile = expense.mobile || job?.mobile || 'N/A';
                                                             
                                                             return (
-                                                            <div key={expense.id} className="bg-white rounded-[30px] border-2 border-slate-200 shadow-xl hover:shadow-2xl transition-all overflow-hidden">
+                                                            <div key={expense.id} className="bg-white rounded-2xl sm:rounded-[25px] md:rounded-[30px] border-2 border-slate-200 shadow-xl hover:shadow-2xl transition-all overflow-hidden">
                                                                 {/* Customer Info Header */}
-                                                                <div className="bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 p-5 border-b-2 border-slate-300">
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                                        <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <div className="bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 p-3 sm:p-4 md:p-5 border-b-2 border-slate-300">
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
+                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-blue-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                                                                     </svg>
                                                                                 </div>
-                                                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Vehicle Number</p>
+                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Vehicle Number</p>
                                                                             </div>
-                                                                            <p className="text-base font-black text-slate-900 ml-10 truncate">{vehicleNo}</p>
+                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{vehicleNo}</p>
                                                                         </div>
-                                                                        <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
+                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-emerald-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                                                                     </svg>
                                                                                 </div>
-                                                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Customer Name</p>
+                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Customer Name</p>
                                                                             </div>
-                                                                            <p className="text-base font-black text-slate-900 ml-10 truncate">{customerName}</p>
+                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{customerName}</p>
                                                                         </div>
-                                                                        <div className="bg-white rounded-xl p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-2 mb-2">
-                                                                                <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
+                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-purple-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                                                                     </svg>
                                                                                 </div>
-                                                                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Mobile Number</p>
+                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Mobile Number</p>
                                                                             </div>
-                                                                            <p className="text-base font-black text-slate-900 ml-10 truncate">{mobile}</p>
+                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{mobile}</p>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                                 
                                                                 {/* Items List - Clean Table Style */}
-                                                                <div className="p-6">
-                                                                    <div className="space-y-3">
+                                                                <div className="p-3 sm:p-4 md:p-6">
+                                                                    <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                                                                         {expense.items.map((item, idx) => (
-                                                                            <div key={idx} className="bg-gradient-to-r from-slate-50 to-white rounded-xl p-4 border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all">
-                                                                                <div className="grid grid-cols-12 gap-4 items-center">
-                                                                                    <div className="col-span-1 flex justify-center">
-                                                                                        <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-rose-400 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md">
+                                                                            <div key={idx} className="bg-gradient-to-r from-slate-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all">
+                                                                                <div className="grid grid-cols-12 gap-2 sm:gap-3 md:gap-4 items-center">
+                                                                                    <div className="col-span-2 sm:col-span-1 flex justify-center">
+                                                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-orange-400 to-rose-400 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-md">
                                                                                             {idx + 1}
                                                                                         </div>
                                                                                     </div>
-                                                                                    <div className="col-span-5">
-                                                                                        <p className="text-sm font-black text-slate-900 uppercase mb-2">{item.name}</p>
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            <span className="text-[10px] text-slate-600 font-bold bg-slate-200 px-3 py-1 rounded-lg">
+                                                                                    <div className="col-span-10 sm:col-span-5">
+                                                                                        <p className="text-xs sm:text-sm font-black text-slate-900 uppercase mb-1 sm:mb-2 truncate">{item.name}</p>
+                                                                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                                                                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
                                                                                                 Qty: {item.quantity}
                                                                                             </span>
-                                                                                            <span className="text-[10px] text-slate-600 font-bold bg-slate-200 px-3 py-1 rounded-lg">
-                                                                                                Rate: Rs.{item.price.toFixed(2)}
+                                                                                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                                                                                                Rate: Rs.{typeof item.price === 'number' ? item.price.toFixed(2) : (parseFloat(item.price) || 0).toFixed(2)}
                                                                                             </span>
                                                                                         </div>
                                                                                     </div>
-                                                                                    <div className="col-span-6 text-right">
-                                                                                        <p className="text-lg font-black text-slate-900">Rs.{item.subtotal.toFixed(2)}</p>
+                                                                                    <div className="col-span-12 sm:col-span-6 text-left sm:text-right mt-2 sm:mt-0">
+                                                                                        <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">Rs.{typeof item.subtotal === 'number' ? item.subtotal.toFixed(2) : (parseFloat(item.subtotal) || 0).toFixed(2)}</p>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -4098,25 +4475,25 @@
                                                         
                                                         {/* Grand Total - All Expenses */}
                                                         {expenseHistory.length > 0 && (
-                                                            <div className="mt-6 pt-6 border-t-4 border-slate-400">
-                                                                <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 rounded-[30px] p-6 border-4 border-orange-300 shadow-2xl">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="flex items-center gap-4">
-                                                                            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border-2 border-white/30">
-                                                                                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <div className="mt-4 sm:mt-5 md:mt-6 pt-4 sm:pt-5 md:pt-6 border-t-2 sm:border-t-3 md:border-t-4 border-slate-400">
+                                                                <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 rounded-2xl sm:rounded-[25px] md:rounded-[30px] p-4 sm:p-5 md:p-6 border-2 sm:border-3 md:border-4 border-orange-300 shadow-2xl">
+                                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                                                                        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+                                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center border-2 border-white/30 flex-shrink-0">
+                                                                                <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                                                                 </svg>
                                                                             </div>
                                                                             <div>
-                                                                                <p className="text-xs font-black text-white/80 uppercase tracking-[0.3em] mb-1">Grand Total</p>
-                                                                                <p className="text-3xl font-black text-white font-mono">
-                                                                                    Rs.{expenseHistory.reduce((sum, exp) => sum + exp.subtotal, 0).toFixed(2)}
+                                                                                <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-0.5 sm:mb-1">Grand Total</p>
+                                                                                <p className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono">
+                                                                                    Rs.{(expenseHistory && Array.isArray(expenseHistory) ? expenseHistory.reduce((sum, exp) => sum + (parseFloat(exp.subtotal) || 0), 0) : 0).toFixed(2)}
                                                                                 </p>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="text-right">
-                                                                            <p className="text-xs font-black text-white/80 uppercase tracking-widest mb-1">Total Records</p>
-                                                                            <p className="text-2xl font-black text-white">{expenseHistory.length}</p>
+                                                                        <div className="text-left sm:text-right">
+                                                                            <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-widest mb-0.5 sm:mb-1">Total Records</p>
+                                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">{expenseHistory.length}</p>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -4127,10 +4504,10 @@
                                             </div>
                                             
                                             {/* Footer */}
-                                            <div className="p-6 border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+                                            <div className="p-3 sm:p-4 md:p-6 border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white">
                                                 <button
                                                     onClick={() => setShowExpenseDetailsModal(false)}
-                                                    className="w-full px-8 py-4 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-2xl text-sm font-black uppercase hover:from-slate-800 hover:to-slate-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                                                    className="w-full px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 md:py-4 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:from-slate-800 hover:to-slate-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                                                 >
                                                     Close Report
                                                 </button>
@@ -4141,111 +4518,143 @@
                                 
                                 {/* Completed Jobs Modal - Table View with Edit/Delete/Detail */}
                                 {showCompletedJobsModal && (
-                                    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-3 sm:p-4" onClick={() => setShowCompletedJobsModal(false)}>
-                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-[60px] sm:rounded-[70px] shadow-[0_25px_100px_-12px_rgba(0,0,0,0.5)] w-full max-w-7xl max-h-[98vh] overflow-hidden flex flex-col border-[6px] border-blue-300/60 relative" onClick={(e) => e.stopPropagation()}>
-                                            {/* Header */}
-                                            <div className="relative p-8 sm:p-10 bg-gradient-to-br from-blue-600 via-indigo-600 via-purple-600 to-blue-600 text-white overflow-hidden">
+                                    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-1 sm:p-3 md:p-4" onClick={() => setShowCompletedJobsModal(false)}>
+                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-xl sm:rounded-[60px] md:rounded-[70px] shadow-[0_25px_100px_-12px_rgba(0,0,0,0.5)] w-full max-w-7xl max-h-[98vh] overflow-hidden flex flex-col border-2 sm:border-[6px] border-blue-300/60 relative" onClick={(e) => e.stopPropagation()}>
+                                            {/* Header - Compact */}
+                                            <div className="relative p-3 sm:p-5 md:p-6 bg-gradient-to-br from-blue-600 via-indigo-600 via-purple-600 to-blue-600 text-white overflow-hidden">
                                                 {/* Animated Background Elements */}
                                                 <div className="absolute inset-0">
-                                                    <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-48 -mt-48 animate-pulse"></div>
-                                                    <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -ml-40 -mb-40 animate-pulse"></div>
-                                                    <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-white/5 rounded-full blur-2xl -translate-x-1/2 -translate-y-1/2"></div>
+                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl -mr-32 -mt-32"></div>
+                                                    <div className="absolute bottom-0 left-0 w-56 h-56 bg-white/10 rounded-full blur-2xl -ml-28 -mb-28"></div>
                                                 </div>
                                                 
-                                                {/* Shine Effect - Bigger */}
-                                                <div className="absolute -top-4 -bottom-4 -left-8 -right-8 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 z-50"></div>
-                                                
-                                                <div className="relative flex flex-col items-center justify-center gap-6 text-center z-10">
-                                                    <div className="flex items-center gap-5 justify-center">
+                                                <div className="relative flex items-center justify-between z-10">
+                                                        <div className="flex items-center gap-2 sm:gap-4">
                                                         <div className="relative">
-                                                            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white/25 backdrop-blur-xl rounded-3xl sm:rounded-[32px] flex items-center justify-center border-[3px] border-white/50 flex-shrink-0 shadow-[0_8px_32px_rgba(0,0,0,0.3)] transform hover:scale-110 transition-transform">
-                                                                <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                                                <div className="w-8 h-8 sm:w-10 md:w-12 sm:h-10 md:h-12 bg-white/25 backdrop-blur-xl rounded-lg sm:rounded-xl flex items-center justify-center border-2 border-white/50 shadow-lg">
+                                                                    <svg className="w-4 h-4 sm:w-5 md:w-6 sm:h-5 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                                                 </svg>
                                                             </div>
-                                                            <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full border-2 border-white shadow-lg animate-ping"></div>
                                                         </div>
-                                                        <div>
-                                                            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-tighter drop-shadow-2xl bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+                                                        <div className="flex-1">
+                                                                <h2 className="text-base sm:text-xl md:text-2xl lg:text-3xl font-black uppercase tracking-tight drop-shadow-lg">
                                                                 COMPLETED JOBS
                                                             </h2>
-                                                            <div className="flex items-center justify-center gap-3 mt-3">
-                                                                <div className="w-3 h-3 bg-emerald-300 rounded-full animate-pulse shadow-lg shadow-emerald-400/50"></div>
-                                                                <p className="text-base sm:text-lg opacity-95 font-bold tracking-wide">
-                                                                    {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                                                </p>
-                                                            </div>
+                                                                <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
+                                                                    <input
+                                                                        type="date"
+                                                                        value={dateRangeStart}
+                                                                        onChange={(e) => setDateRangeStart(e.target.value)}
+                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
+                                                                    />
+                                                                    <span className="text-white/80 font-bold text-xs sm:text-sm">to</span>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={dateRangeEnd}
+                                                                        onChange={(e) => setDateRangeEnd(e.target.value)}
+                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
+                                                                    />
+                                                                </div>
                                                         </div>
                                                     </div>
                                                     <button
                                                         onClick={() => setShowCompletedJobsModal(false)}
-                                                        className="absolute top-4 right-4 w-14 h-14 bg-white/25 hover:bg-white/35 rounded-2xl flex items-center justify-center transition-all backdrop-blur-xl border-[3px] border-white/50 flex-shrink-0 hover:scale-110 hover:rotate-90 shadow-xl"
+                                                            className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-xl border-2 border-white/50 hover:scale-110 hover:rotate-90 shadow-lg"
                                                         aria-label="Close completed jobs modal"
                                                     >
-                                                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                                                         </svg>
                                                     </button>
                                                 </div>
                                             </div>
                                             
-                                            {/* Ultra Premium Statistics Cards with Glass Morphism */}
-                                            {completedJobs && Array.isArray(completedJobs) && completedJobs.length > 0 && (
-                                                <div className="p-4 sm:p-6 bg-gradient-to-b from-slate-100 via-white to-slate-50 border-b-[4px] border-slate-300 relative z-0">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[50%] mx-auto">
-                                                        {/* Total Revenue Card - 3D Effect */}
-                                                        <div className="group relative bg-gradient-to-br from-emerald-500 via-green-500 to-emerald-600 rounded-2xl p-4 sm:p-5 shadow-xl border-[3px] border-emerald-400/60 transform hover:scale-[1.03] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                                                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
-                                                            <div className="relative">
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <div className="w-8 h-8 bg-white/25 backdrop-blur-md rounded-lg flex items-center justify-center shadow-lg border-2 border-white/40">
-                                                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            {/* Statistics Cards - Compact */}
+                                            {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 && (
+                                                <div className="p-2 sm:p-4 md:p-5 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b-2 border-slate-200">
+                                                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2 md:gap-3 max-w-5xl mx-auto">
+                                                        {/* Workers Card */}
+                                                        <div className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-orange-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
+                                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                                                         </svg>
                                                                     </div>
                                                                 </div>
-                                                                <p className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] mb-2">TOTAL REVENUE</p>
-                                                                <p className="text-2xl sm:text-3xl font-black text-white font-mono leading-tight">
-                                                                    Rs.{(completedJobs && Array.isArray(completedJobs) ? completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) : 0).toFixed(2)}
+                                                                <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">WORKERS</p>
+                                                                <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white">
+                                                                    {(() => {
+                                                                        if (!filteredCompletedJobs || !Array.isArray(filteredCompletedJobs)) return 0;
+                                                                        const uniqueWorkers = new Set();
+                                                                        filteredCompletedJobs.forEach(job => {
+                                                                            const workerName = job.workerName || job.worker_name || job.worker;
+                                                                            if (workerName && workerName !== 'N/A' && workerName.trim() !== '') {
+                                                                                uniqueWorkers.add(workerName.trim());
+                                                                            }
+                                                                        });
+                                                                        return uniqueWorkers.size;
+                                                                    })()}
                                                                 </p>
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* Total Jobs Card - 3D Effect */}
-                                                        <div className="group relative bg-gradient-to-br from-blue-500 via-indigo-500 to-blue-600 rounded-2xl p-4 sm:p-5 shadow-xl border-[3px] border-blue-400/60 transform hover:scale-[1.03] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                                                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12"></div>
-                                                            <div className="relative">
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <div className="w-8 h-8 bg-white/25 backdrop-blur-md rounded-lg flex items-center justify-center shadow-lg border-2 border-white/40">
-                                                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                        {/* Total Revenue Card */}
+                                                        <div className="group relative bg-gradient-to-br from-emerald-500 via-green-500 to-emerald-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-emerald-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
+                                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                                         </svg>
                                                                     </div>
                                                                 </div>
-                                                                <p className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] mb-2">TOTAL JOBS</p>
-                                                                <p className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                                                                    {completedJobs && Array.isArray(completedJobs) ? completedJobs.length : 0}
+                                                                <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">REVENUE</p>
+                                                                <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
+                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* Average Amount Card - 3D Effect */}
-                                                        <div className="group relative bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 rounded-2xl p-4 sm:p-5 shadow-xl border-[3px] border-purple-400/60 transform hover:scale-[1.03] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                                                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12"></div>
-                                                            <div className="relative">
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <div className="w-8 h-8 bg-white/25 backdrop-blur-md rounded-lg flex items-center justify-center shadow-lg border-2 border-white/40">
-                                                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                                        {/* Total Jobs Card */}
+                                                        <div className="group relative bg-gradient-to-br from-blue-500 via-indigo-500 to-blue-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-blue-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
+                                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                                         </svg>
                                                                     </div>
                                                                 </div>
-                                                                <p className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em] mb-2">AVERAGE AMOUNT</p>
-                                                                <p className="text-2xl sm:text-3xl font-black text-white font-mono leading-tight">
-                                                                    Rs.{(completedJobs && Array.isArray(completedJobs) && completedJobs.length > 0 ? (completedJobs.reduce((sum, job) => sum + (job.price || 0), 0) / completedJobs.length) : 0).toFixed(2)}
+                                                                <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">JOBS</p>
+                                                                <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white">
+                                                                    {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.length : 0}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Average Amount Card */}
+                                                        <div 
+                                                            onClick={() => setShowAvgDetailsModal(true)}
+                                                            className="group relative bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-purple-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden cursor-pointer"
+                                                        >
+                                                            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
+                                                            <div className="relative z-10">
+                                                                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
+                                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                                                        </svg>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">AVG</p>
+                                                                <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
+                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 ? (filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) / filteredCompletedJobs.length) : 0).toFixed(2)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4253,169 +4662,179 @@
                                                 </div>
                                             )}
                                             
-                                            {/* Content - Table View */}
-                                            <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-gradient-to-b from-slate-100 via-white to-slate-50">
-                                                {!completedJobs || !Array.isArray(completedJobs) || completedJobs.length === 0 ? (
-                                                    <div className="text-center py-24">
-                                                        <div className="relative w-40 h-40 bg-gradient-to-br from-blue-300 via-indigo-300 to-purple-300 rounded-full flex items-center justify-center mx-auto mb-10 shadow-[0_20px_60px_rgba(59,130,246,0.4)]">
-                                                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full opacity-30 animate-pulse"></div>
-                                                            <svg className="w-20 h-20 text-blue-700 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            {/* Content - Compact Table View */}
+                                            <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 bg-gradient-to-b from-slate-50 via-white to-slate-50">
+                                                {!filteredCompletedJobs || !Array.isArray(filteredCompletedJobs) || filteredCompletedJobs.length === 0 ? (
+                                                    <div className="text-center py-8 sm:py-12 md:py-16">
+                                                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
+                                                            <svg className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                             </svg>
                                                         </div>
-                                                        <p className="text-3xl font-black text-slate-800 uppercase tracking-tight mb-3">No Completed Jobs Found</p>
-                                                        <p className="text-lg text-slate-500 mt-6 font-bold">Completed jobs will appear here once you complete them</p>
+                                                        <p className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 uppercase mb-2">No Completed Jobs</p>
+                                                        <p className="text-xs sm:text-sm text-slate-500">Completed jobs will appear here</p>
                                                     </div>
                                                 ) : (
-                                                    <div className="bg-white rounded-3xl shadow-xl border-2 border-slate-200 overflow-hidden">
-                                                        {/* Table */}
-                                                        <div className="overflow-x-auto">
-                                                            <table className="w-full">
+                                                    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                                                        <div className="overflow-x-auto -mx-2 sm:mx-0">
+                                                            <table className="w-full min-w-[800px]">
                                                                 <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
                                                                     <tr>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Vehicle No</th>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Customer</th>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Service</th>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Worker</th>
-                                                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
-                                                                        <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">#</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Date/Time</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Vehicle</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Worker</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden sm:table-cell">Service</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden md:table-cell">Worker</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Amount</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden lg:table-cell">Commission</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Actions</th>
                                                                     </tr>
                                                                 </thead>
-                                                                <tbody className="bg-white divide-y divide-slate-200">
-                                                                    {completedJobs && Array.isArray(completedJobs) && completedJobs.map((job, jobIdx) => {
+                                                                <tbody className="bg-white divide-y divide-slate-100">
+                                                                    {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.map((job, jobIdx) => {
                                                                         const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                                         const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                                         const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
                                                                         const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
                                                                         
                                                                         return (
-                                                                        <tr key={job.id || jobIdx} className="hover:bg-slate-50 transition-colors">
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="flex items-center">
-                                                                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-lg">
+                                                                            <tr key={job.id || jobIdx} className="hover:bg-blue-50/50 transition-colors group">
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
+                                                                                    <div className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-md sm:rounded-lg flex items-center justify-center text-white font-black text-[9px] sm:text-[10px] md:text-[11px] shadow-md">
                                                                                         {jobIdx + 1}
                                                                                     </div>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="text-sm font-black text-slate-900">{jobDateTime}</div>
-                                                                                <div className="text-xs text-slate-500">{startTime} - {endTime}</div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="text-sm font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="text-sm font-black text-slate-900">{job.customerName || job.customer_name || 'N/A'}</div>
-                                                                                {job.mobile && <div className="text-xs text-slate-500">{job.mobile}</div>}
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="text-sm font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="text-sm font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                                <div className="text-sm font-black text-blue-600">Rs.{(job.price || 0).toFixed(2)}</div>
-                                                                            </td>
-                                                                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                                                <div className="flex items-center justify-center gap-2">
-                                                                                    <button
-                                                                                        onClick={async () => {
-                                                                                            // Load job details including inspections and expenses
-                                                                                            try {
-                                                                                                const jobResponse = await fetch(API_ROUTES.jobs.index);
-                                                                                                const jobData = await jobResponse.json();
-                                                                                                const fullJob = jobData.jobs?.find(j => j.id === job.id) || job;
-                                                                                                
-                                                                                                // Load inspection
-                                                                                                let inspection = null;
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{jobDate}</div>
+                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-600 mt-0.5">{startTime} - {endTime}</div>
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
+                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-600 mt-0.5">{job.customerName || job.customer_name || 'N/A'}</div>
+                                                                                    {job.mobile && <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 mt-0.5 font-mono">{job.mobile}</div>}
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
+                                                                                    <div className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-blue-600 font-mono">Rs.{(Number(job.price) || 0).toFixed(2)}</div>
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
+                                                                                    {job.workerCommission > 0 ? (
+                                                                                        <div>
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{(Number(job.commissionAmount) || 0).toFixed(2)}</div>
+                                                                                            <div className="text-[8px] sm:text-[9px] text-slate-500">({job.workerCommission}%)</div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="text-[9px] sm:text-[10px] text-slate-400">-</div>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap text-center">
+                                                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
+                                                                                        <button
+                                                                                            onClick={async () => {
                                                                                                 try {
-                                                                                                    const inspResponse = await fetch(API_ROUTES.inspections.show(job.id));
-                                                                                                    if (inspResponse.ok) {
-                                                                                                        const inspData = await inspResponse.json();
-                                                                                                        if (inspData.success) inspection = inspData.inspection;
-                                                                                                    }
-                                                                                                } catch (e) {
-                                                                                                    console.log('No inspection found');
-                                                                                                }
-                                                                                                
-                                                                                                // Load expense
-                                                                                                let expense = null;
-                                                                                                try {
-                                                                                                    const expResponse = await fetch(API_ROUTES.expenses.show(job.id));
-                                                                                                    if (expResponse.ok) {
-                                                                                                        const expData = await expResponse.json();
-                                                                                                        if (expData.success) expense = expData.expense;
-                                                                                                    }
-                                                                                                } catch (e) {
-                                                                                                    console.log('No expense found');
-                                                                                                }
-                                                                                                
-                                                                                                setSelectedJobForDetail({ ...fullJob, inspection, expense });
-                                                                                            } catch (error) {
-                                                                                                console.error('Error loading job details:', error);
-                                                                                                setSelectedJobForDetail(job);
-                                                                                            }
-                                                                                        }}
-                                                                                        className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-600 transition-colors shadow-md"
-                                                                                        title="View Details"
-                                                                                    >
-                                                                                        Detail
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => {
-                                                                                            setSelectedJobForEdit(job);
-                                                                                        }}
-                                                                                        className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-xs font-black uppercase hover:bg-emerald-600 transition-colors shadow-md"
-                                                                                        title="Edit Job"
-                                                                                    >
-                                                                                        Edit
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={async () => {
-                                                                                            if (confirm(`Are you sure you want to delete job #${jobIdx + 1}?`)) {
-                                                                                                try {
-                                                                                                    const response = await fetch(API_ROUTES.jobs.destroy(job.id), {
-                                                                                                        method: 'DELETE',
-                                                                                                        headers: {
-                                                                                                            'Content-Type': 'application/json',
-                                                                                                            'X-CSRF-TOKEN': csrfToken,
-                                                                                                            'Accept': 'application/json'
-                                                                                                        }
-                                                                                                    });
+                                                                                                    const jobResponse = await fetch(API_ROUTES.jobs.index);
+                                                                                                    const jobData = await jobResponse.json();
+                                                                                                    const fullJob = jobData.jobs?.find(j => j.id === job.id) || job;
                                                                                                     
-                                                                                                    const result = await response.json();
-                                                                                                    
-                                                                                                    if (result.success) {
-                                                                                                        // Remove from completed jobs
-                                                                                                        setCompletedJobs(prev => prev.filter(j => j.id !== job.id));
-                                                                                                        alert('Job deleted successfully!');
-                                                                                                        
-                                                                                                        // Reload completed jobs from backend
-                                                                                                        const reloadResponse = await fetch(API_ROUTES.jobs.completed);
-                                                                                                        const reloadData = await reloadResponse.json();
-                                                                                                        if (reloadData.success && reloadData.jobs) {
-                                                                                                            setCompletedJobs(reloadData.jobs);
+                                                                                                    let inspection = null;
+                                                                                                    try {
+                                                                                                        const inspResponse = await fetch(API_ROUTES.inspections.show(job.id));
+                                                                                                        if (inspResponse.ok) {
+                                                                                                            const inspData = await inspResponse.json();
+                                                                                                            if (inspData.success) inspection = inspData.inspection;
                                                                                                         }
-                                                                                                    } else {
-                                                                                                        alert('Error deleting job: ' + (result.message || 'Unknown error'));
+                                                                                                    } catch (e) {
+                                                                                                        console.log('No inspection found');
                                                                                                     }
+                                                                                                    
+                                                                                                    let expense = null;
+                                                                                                    try {
+                                                                                                        const expResponse = await fetch(API_ROUTES.expenses.show(job.id));
+                                                                                                        if (expResponse.ok) {
+                                                                                                            const expData = await expResponse.json();
+                                                                                                            if (expData.success) expense = expData.expense;
+                                                                                                        }
+                                                                                                    } catch (e) {
+                                                                                                        console.log('No expense found');
+                                                                                                    }
+                                                                                                    
+                                                                                                    setSelectedJobForDetail({ ...fullJob, inspection, expense });
                                                                                                 } catch (error) {
-                                                                                                    console.error('Error deleting job:', error);
-                                                                                                    alert('Error deleting job. Please try again.');
+                                                                                                    console.error('Error loading job details:', error);
+                                                                                                    setSelectedJobForDetail(job);
                                                                                                 }
-                                                                                            }
-                                                                                        }}
-                                                                                        className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-black uppercase hover:bg-red-600 transition-colors shadow-md"
-                                                                                        title="Delete Job"
-                                                                                    >
-                                                                                        Delete
-                                                                                    </button>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
+                                                                                            }}
+                                                                                            className="group relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:from-blue-600 hover:to-blue-700 hover:scale-110 shadow-md hover:shadow-lg border-2 border-blue-400/50 hover:border-blue-300"
+                                                                                            title="View Details"
+                                                                                        >
+                                                                                            <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => {
+                                                                                                setSelectedJobForEdit(job);
+                                                                                            }}
+                                                                                            className="group relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:from-emerald-600 hover:to-emerald-700 hover:scale-110 shadow-md hover:shadow-lg border-2 border-emerald-400/50 hover:border-emerald-300"
+                                                                                            title="Edit Job"
+                                                                                        >
+                                                                                            <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={async () => {
+                                                                                                if (confirm(`Are you sure you want to delete job #${jobIdx + 1}?`)) {
+                                                                                                    try {
+                                                                                                        const response = await fetch(API_ROUTES.jobs.destroy(job.id), {
+                                                                                                            method: 'DELETE',
+                                                                                                            headers: {
+                                                                                                                'Content-Type': 'application/json',
+                                                                                                                'X-CSRF-TOKEN': csrfToken,
+                                                                                                                'Accept': 'application/json'
+                                                                                                            }
+                                                                                                        });
+                                                                                                        
+                                                                                                        const result = await response.json();
+                                                                                                        
+                                                                                                        if (result.success) {
+                                                                                                            setCompletedJobs(prev => prev.filter(j => j.id !== job.id));
+                                                                                                            alert('Job deleted successfully!');
+                                                                                                            
+                                                                                                            const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                                                            const reloadData = await reloadResponse.json();
+                                                                                                            if (reloadData.success && reloadData.jobs) {
+                                                                                                                setCompletedJobs(reloadData.jobs);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            alert('Error deleting job: ' + (result.message || 'Unknown error'));
+                                                                                                        }
+                                                                                                    } catch (error) {
+                                                                                                        console.error('Error deleting job:', error);
+                                                                                                        alert('Error deleting job. Please try again.');
+                                                                                                    }
+                                                                                                }
+                                                                                            }}
+                                                                                            className="group relative w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:from-red-600 hover:to-red-700 hover:scale-110 shadow-md hover:shadow-lg border-2 border-red-400/50 hover:border-red-300"
+                                                                                            title="Delete Job"
+                                                                                        >
+                                                                                            <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                                            </svg>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
                                                                         );
                                                                     })}
                                                                 </tbody>
@@ -4425,12 +4844,12 @@
                                                 )}
                                             </div>
                                             
-                                            {/* Ultra Premium Footer */}
-                                            <div className="p-8 sm:p-10 border-t-[6px] border-slate-300 bg-gradient-to-r from-slate-100 via-white to-slate-100">
-                                                <div className="flex flex-col sm:flex-row gap-5">
+                                            {/* Footer - Compact */}
+                                            <div className="p-2 sm:p-4 md:p-5 border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50">
+                                                <div className="flex justify-end">
                                                     <button
                                                         onClick={() => setShowCompletedJobsModal(false)}
-                                                        className="flex-1 px-10 py-5 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white rounded-3xl text-base font-black uppercase tracking-wide hover:from-slate-800 hover:via-slate-900 hover:to-black transition-all shadow-2xl hover:shadow-[0_20px_60px_-12px_rgba(0,0,0,0.5)] transform hover:scale-[1.03] border-[4px] border-slate-600/50"
+                                                        className="px-4 sm:px-6 py-1.5 sm:py-2 md:py-2.5 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                                                     >
                                                         Close
                                                     </button>
@@ -4440,85 +4859,207 @@
                                     </div>
                                 )}
                                 
-                                {/* Job Detail Modal with Print */}
-                                {selectedJobForDetail && (
-                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex items-center justify-center p-4" onClick={() => setSelectedJobForDetail(null)}>
-                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()} id="jobDetailPrint">
-                                            {/* Header */}
-                                            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <h2 className="text-2xl font-black uppercase tracking-tighter">Job Details</h2>
-                                                        <p className="text-sm opacity-90 mt-1">Complete job information with inspections and expenses</p>
+                                {/* Average Details Modal */}
+                                {showAvgDetailsModal && (() => {
+                                    const totalJobs = filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.length : 0;
+                                    const totalAmount = filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0;
+                                    const averageAmount = totalJobs > 0 ? totalAmount / totalJobs : 0;
+                                    
+                                    return (
+                                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => setShowAvgDetailsModal(false)}>
+                                            <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                                {/* Header */}
+                                                <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 text-white">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase">Average Amount Details</h2>
+                                                            <p className="text-xs sm:text-sm opacity-90 mt-1">How the average was calculated</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setShowAvgDetailsModal(false)}
+                                                            className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all"
+                                                        >
+                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
                                                     </div>
+                                                </div>
+                                                
+                                                {/* Content */}
+                                                <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
+                                                    <div className="space-y-4 sm:space-y-5">
+                                                        {/* Calculation Summary */}
+                                                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-purple-200">
+                                                            <h3 className="text-sm sm:text-base font-black text-purple-900 uppercase mb-3 sm:mb-4">Calculation Formula</h3>
+                                                            <div className="space-y-2 sm:space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs sm:text-sm font-bold text-slate-700">Total Amount:</span>
+                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">Rs.{totalAmount.toFixed(2)}</span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs sm:text-sm font-bold text-slate-700">Total Jobs:</span>
+                                                                    <span className="text-sm sm:text-base font-black text-purple-600">{totalJobs}</span>
+                                                                </div>
+                                                                <div className="border-t-2 border-purple-300 pt-2 sm:pt-3 mt-2 sm:mt-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-xs sm:text-sm font-bold text-slate-700">Average = Total Amount ÷ Total Jobs</span>
+                                                                        <span className="text-base sm:text-lg md:text-xl font-black text-purple-700 font-mono">Rs.{averageAmount.toFixed(2)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Jobs Breakdown */}
+                                                        {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 && (
+                                                            <div>
+                                                                <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase mb-3 sm:mb-4">Jobs Breakdown</h3>
+                                                                <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
+                                                                    {filteredCompletedJobs.map((job, idx) => (
+                                                                        <div key={job.id || idx} className="bg-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-slate-200">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                                                                                        {job.vehicleNo || job.vehicle_no || 'N/A'} - {job.customerName || job.customer_name || 'N/A'}
+                                                                                    </p>
+                                                                                    <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5">
+                                                                                        {job.serviceName || job.service_name || job.service || 'N/A'}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <div className="ml-3 flex-shrink-0">
+                                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">
+                                                                                        Rs.{(parseFloat(job.price) || 0).toFixed(2)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Footer */}
+                                                <div className="p-3 sm:p-4 md:p-5 border-t border-slate-200 bg-slate-50">
                                                     <button
-                                                        onClick={() => setSelectedJobForDetail(null)}
-                                                        className="text-white hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-white/20"
-                                                        aria-label="Close job details"
+                                                        onClick={() => setShowAvgDetailsModal(false)}
+                                                        className="w-full px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg"
                                                     >
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
+                                                        Close
                                                     </button>
                                                 </div>
                                             </div>
+                                        </div>
+                                    );
+                                })()}
+                                
+                                {/* Job Detail Modal with Print - Full Screen */}
+                                {selectedJobForDetail && (
+                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex items-center justify-center p-1 sm:p-2" onClick={() => setSelectedJobForDetail(null)}>
+                                        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full h-full max-w-[98vw] max-h-[98vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()} id="jobDetailPrint">
+                                            {/* Header */}
+                                            <div className="print-header p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                                                <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h2 className="text-base sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Job Details</h2>
+                                                        <p className="text-[10px] sm:text-xs md:text-sm opacity-90 mt-0.5 sm:mt-1 hidden sm:block">Complete job information with inspections and expenses</p>
+                                                        <p className="text-[9px] sm:text-[10px] md:text-xs opacity-80 mt-1 sm:mt-2">
+                                                            {selectedJobForDetail.endTime ? new Date(selectedJobForDetail.endTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}
+                                                        </p>
+                                                    </div>
+                                                    <div className="no-print flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
+                                                        <a
+                                                            href={`/car-wash/jobs/${selectedJobForDetail.id}`}
+                                                            target="_blank"
+                                                            className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] md:text-xs font-black uppercase transition-colors backdrop-blur-sm flex items-center gap-1 sm:gap-2"
+                                                            title="Open in New Page"
+                                                        >
+                                                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                            </svg>
+                                                            <span className="hidden sm:inline">New Page</span>
+                                                        </a>
+                                                        <button
+                                                            onClick={() => setSelectedJobForDetail(null)}
+                                                            className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 rounded-lg hover:bg-white/20"
+                                                            aria-label="Close job details"
+                                                        >
+                                                            <svg className="w-4 h-4 sm:w-5 md:w-6 sm:h-5 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             
-                                            {/* Job Info */}
-                                            <div className="flex-1 overflow-y-auto p-6">
-                                                <div className="space-y-6">
+                                            {/* Job Info - Full Scrollable */}
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-gradient-to-b from-slate-50 to-white">
+                                                <div className="space-y-3 sm:space-y-4 max-w-7xl mx-auto">
                                                     {/* Customer & Vehicle Info */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Vehicle No</p>
-                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.vehicleNo || selectedJobForDetail.vehicle_no || 'N/A'}</p>
+                                                    <div className="print-section grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Vehicle No</p>
+                                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">{selectedJobForDetail.vehicleNo || selectedJobForDetail.vehicle_no || 'N/A'}</p>
                                                         </div>
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Customer</p>
-                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.customerName || selectedJobForDetail.customer_name || 'N/A'}</p>
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Customer</p>
+                                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">{selectedJobForDetail.customerName || selectedJobForDetail.customer_name || 'N/A'}</p>
                                                         </div>
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Mobile</p>
-                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.mobile || 'N/A'}</p>
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Mobile</p>
+                                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">{selectedJobForDetail.mobile || 'N/A'}</p>
                                                         </div>
                                                     </div>
                                                     
                                                     {/* Service & Worker */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Service</p>
-                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.serviceName || selectedJobForDetail.service_name || selectedJobForDetail.service || 'N/A'}</p>
+                                                    <div className="print-section grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Service</p>
+                                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">{selectedJobForDetail.serviceName || selectedJobForDetail.service_name || selectedJobForDetail.service || 'N/A'}</p>
                                                         </div>
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Worker</p>
-                                                            <p className="text-lg font-black text-slate-900">{selectedJobForDetail.workerName || selectedJobForDetail.worker_name || selectedJobForDetail.worker || 'N/A'}</p>
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Worker</p>
+                                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">{selectedJobForDetail.workerName || selectedJobForDetail.worker_name || selectedJobForDetail.worker || 'N/A'}</p>
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* Time & Amount */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Start Time</p>
-                                                            <p className="text-lg font-black text-slate-900">
+                                                    {/* Time, Amount & Commission */}
+                                                    <div className="print-section grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Start Time</p>
+                                                            <p className="text-xs sm:text-sm md:text-lg font-black text-slate-900">
                                                                 {selectedJobForDetail.startTime ? new Date(selectedJobForDetail.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                                                             </p>
                                                         </div>
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">End Time</p>
-                                                            <p className="text-lg font-black text-slate-900">
+                                                        <div className="print-card bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">End Time</p>
+                                                            <p className="text-xs sm:text-sm md:text-lg font-black text-slate-900">
                                                                 {selectedJobForDetail.endTime ? new Date(selectedJobForDetail.endTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
                                                             </p>
                                                         </div>
-                                                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl border-2 border-blue-400">
-                                                            <p className="text-xs font-black text-white/90 uppercase mb-2">Amount</p>
-                                                            <p className="text-2xl font-black text-white">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                        <div className="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-blue-400">
+                                                            <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Amount</p>
+                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-emerald-400">
+                                                            <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Commission</p>
+                                                            {selectedJobForDetail.workerCommission > 0 ? (
+                                                                <div>
+                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-[9px] sm:text-[10px] md:text-xs text-white/80 mt-0.5 sm:mt-1">({selectedJobForDetail.workerCommission}%)</p>
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-sm sm:text-base md:text-lg font-black text-white/70">-</p>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     
                                                     {/* Inspection Details */}
                                                     {selectedJobForDetail.inspection && selectedJobForDetail.inspection.inspectionItems && (
-                                                        <div className="bg-purple-50 p-6 rounded-xl border-2 border-purple-200">
-                                                            <h3 className="text-lg font-black text-purple-900 uppercase mb-4">Inspection Details</h3>
-                                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                        <div className="print-section bg-purple-50 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl border-2 border-purple-200">
+                                                            <h3 className="text-sm sm:text-base md:text-lg font-black text-purple-900 uppercase mb-2 sm:mb-3 md:mb-4">Inspection Details</h3>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5 md:gap-3">
                                                                 {Object.keys(selectedJobForDetail.inspection.inspectionItems).map(itemId => {
                                                                     const item = selectedJobForDetail.inspection.inspectionItems[itemId];
                                                                     const itemNames = {
@@ -4542,9 +5083,9 @@
                                                                         'poor': '❌'
                                                                     };
                                                                     return (
-                                                                        <div key={itemId} className="bg-white p-3 rounded-lg border border-purple-200">
-                                                                            <p className="text-xs font-black text-slate-600 uppercase mb-1">{itemNames[itemId] || itemId}</p>
-                                                                            <p className="text-sm font-black text-purple-700">{statusIcons[item.status] || '⚪'} {item.status || 'N/A'}</p>
+                                                                        <div key={itemId} className="bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg border border-purple-200">
+                                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-slate-600 uppercase mb-0.5 sm:mb-1">{itemNames[itemId] || itemId}</p>
+                                                                            <p className="text-[10px] sm:text-xs md:text-sm font-black text-purple-700">{statusIcons[item.status] || '⚪'} {item.status || 'N/A'}</p>
                                                                         </div>
                                                                     );
                                                                 })}
@@ -4554,42 +5095,71 @@
                                                     
                                                     {/* Expense Details */}
                                                     {selectedJobForDetail.expense && selectedJobForDetail.expense.expenseItems && selectedJobForDetail.expense.expenseItems.length > 0 && (
-                                                        <div className="bg-orange-50 p-6 rounded-xl border-2 border-orange-200">
-                                                            <h3 className="text-lg font-black text-orange-900 uppercase mb-4">Expense Details</h3>
-                                                            <div className="space-y-2">
+                                                        <div className="print-section bg-orange-50 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl border-2 border-orange-200">
+                                                            <h3 className="text-sm sm:text-base md:text-lg font-black text-orange-900 uppercase mb-2 sm:mb-3 md:mb-4">Expense Details</h3>
+                                                            <div className="space-y-1.5 sm:space-y-2">
                                                                 {selectedJobForDetail.expense.expenseItems.map((item, idx) => (
-                                                                    <div key={idx} className="bg-white p-3 rounded-lg border border-orange-200 flex justify-between items-center">
-                                                                        <div>
-                                                                            <p className="text-sm font-black text-slate-900">{item.name}</p>
-                                                                            <p className="text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
+                                                                    <div key={idx} className="bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg border border-orange-200 flex justify-between items-center gap-2">
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{item.name}</p>
+                                                                            <p className="text-[10px] sm:text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
                                                                         </div>
-                                                                        <p className="text-sm font-black text-orange-600">Rs.{item.total || (item.quantity * item.price)}</p>
+                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{(typeof (item.total || (item.quantity * item.price)) === 'number' ? (item.total || (item.quantity * item.price)) : parseFloat(item.total || (item.quantity * item.price) || 0)).toFixed(2)}</p>
                                                                     </div>
                                                                 ))}
-                                                                <div className="bg-orange-200 p-3 rounded-lg border-2 border-orange-300 flex justify-between items-center mt-4">
-                                                                    <p className="text-sm font-black text-orange-900 uppercase">Total Expense</p>
-                                                                    <p className="text-lg font-black text-orange-900">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                                <div className="bg-orange-200 p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg border-2 border-orange-300 flex justify-between items-center mt-2 sm:mt-3 md:mt-4">
+                                                                    <p className="text-xs sm:text-sm font-black text-orange-900 uppercase">Total Expense</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     )}
                                                     
+                                                    {/* Summary Section */}
+                                                    <div className="print-section bg-gradient-to-br from-slate-100 to-slate-200 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl border-2 border-slate-300">
+                                                        <h3 className="text-sm sm:text-base md:text-lg font-black text-slate-900 uppercase mb-2 sm:mb-3 md:mb-4">Summary</h3>
+                                                        <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
+                                                            <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
+                                                                <p className="text-xs sm:text-sm font-black text-slate-700">Total Amount:</p>
+                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
+                                                            </div>
+                                                            {selectedJobForDetail.workerCommission > 0 && (
+                                                                <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
+                                                                    <p className="text-xs sm:text-sm font-black text-slate-700">Worker Commission ({selectedJobForDetail.workerCommission}%):</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
+                                                                </div>
+                                                            )}
+                                                            {selectedJobForDetail.expense && selectedJobForDetail.expense.totalAmount > 0 && (
+                                                                <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
+                                                                    <p className="text-xs sm:text-sm font-black text-slate-700">Total Expenses:</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-3 sm:p-3.5 md:p-4 rounded-md sm:rounded-lg mt-2 sm:mt-3 md:mt-4 gap-2">
+                                                                <p className="text-sm sm:text-base font-black text-white uppercase">Net Amount:</p>
+                                                                <p className="text-base sm:text-lg md:text-xl font-black text-white font-mono">
+                                                                    Rs.{(Number(selectedJobForDetail.price || 0) - Number(selectedJobForDetail.commissionAmount || 0) - Number(selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
                                                     {/* Notes/Comments */}
                                                     {selectedJobForDetail.notes && (
-                                                        <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
-                                                            <p className="text-xs font-black text-slate-500 uppercase mb-2">Notes</p>
-                                                            <p className="text-sm text-slate-900">{selectedJobForDetail.notes}</p>
+                                                        <div className="print-section bg-slate-50 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-slate-200">
+                                                            <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase mb-1 sm:mb-2">Notes</p>
+                                                            <p className="text-xs sm:text-sm text-slate-900">{selectedJobForDetail.notes}</p>
                                                         </div>
                                                     )}
                                                 </div>
                                             </div>
                                             
-                                            {/* Footer with Print Button */}
-                                            <div className="p-6 border-t border-slate-200 bg-slate-50">
-                                                <div className="flex gap-4">
+                                            {/* Footer with Print & PDF Buttons */}
+                                            <div className="no-print p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
+                                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
                                                     <button
                                                         onClick={() => setSelectedJobForDetail(null)}
-                                                        className="flex-1 px-6 py-3 bg-slate-700 text-white rounded-xl text-sm font-black uppercase hover:bg-slate-800 transition-colors"
+                                                        className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-slate-700 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-slate-800 transition-colors"
                                                     >
                                                         Close
                                                     </button>
@@ -4597,12 +5167,33 @@
                                                         onClick={() => {
                                                             window.print();
                                                         }}
-                                                        className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                                                        className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-blue-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
                                                     >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                                                         </svg>
                                                         Print
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const element = document.getElementById('jobDetailPrint');
+                                                            const opt = {
+                                                                margin: [10, 10, 10, 10],
+                                                                filename: `job-${selectedJobForDetail.id || 'detail'}-${new Date().toISOString().split('T')[0]}.pdf`,
+                                                                image: { type: 'jpeg', quality: 0.98 },
+                                                                html2canvas: { scale: 2, useCORS: true },
+                                                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                                            };
+                                                            
+                                                            html2pdf().set(opt).from(element).save();
+                                                        }}
+                                                        className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
+                                                    >
+                                                        <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                        <span className="hidden sm:inline">Download PDF</span>
+                                                        <span className="sm:hidden">PDF</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -4612,20 +5203,20 @@
                                 
                                 {/* Job Edit Modal */}
                                 {selectedJobForEdit && (
-                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex items-center justify-center p-4" onClick={() => setSelectedJobForEdit(null)}>
-                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => setSelectedJobForEdit(null)}>
+                                        <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                                             {/* Header */}
-                                            <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-green-600 text-white">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <h2 className="text-2xl font-black uppercase tracking-tighter">Edit Job</h2>
-                                                        <p className="text-sm opacity-90 mt-1">Update job information</p>
+                                            <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-green-600 text-white">
+                                                <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Edit Job</h2>
+                                                        <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1 hidden sm:block">Update job information</p>
                                                     </div>
                                                     <button
                                                         onClick={() => setSelectedJobForEdit(null)}
-                                                        className="text-white hover:text-slate-200 transition-colors p-2 rounded-lg hover:bg-white/20"
+                                                        className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 rounded-lg hover:bg-white/20 flex-shrink-0"
                                                     >
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                         </svg>
                                                     </button>
@@ -4633,82 +5224,82 @@
                                             </div>
                                             
                                             {/* Edit Form */}
-                                            <div className="flex-1 overflow-y-auto p-6">
-                                                <div className="space-y-4">
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                <div className="space-y-3 sm:space-y-3.5 md:space-y-4">
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Customer Name</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Customer Name</label>
                                                         <input
                                                             type="text"
                                                             id="editCustomerName"
                                                             defaultValue={selectedJobForEdit.customerName || selectedJobForEdit.customer_name || ''}
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Vehicle No</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Vehicle No</label>
                                                         <input
                                                             type="text"
                                                             id="editVehicleNo"
                                                             defaultValue={selectedJobForEdit.vehicleNo || selectedJobForEdit.vehicle_no || ''}
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Mobile</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Mobile</label>
                                                         <input
                                                             type="tel"
                                                             id="editMobile"
                                                             defaultValue={selectedJobForEdit.mobile || ''}
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Service</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Service</label>
                                                         <input
                                                             type="text"
                                                             id="editService"
                                                             defaultValue={selectedJobForEdit.serviceName || selectedJobForEdit.service_name || selectedJobForEdit.service || ''}
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Worker</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Worker</label>
                                                         <input
                                                             type="text"
                                                             id="editWorker"
                                                             defaultValue={selectedJobForEdit.workerName || selectedJobForEdit.worker_name || selectedJobForEdit.worker || ''}
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Amount (Rs.)</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Amount (Rs.)</label>
                                                         <input
                                                             type="number"
                                                             id="editAmount"
                                                             defaultValue={selectedJobForEdit.price || 0}
                                                             min="0"
                                                             step="1"
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-sm font-black text-slate-900 uppercase block mb-2">Notes</label>
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Notes</label>
                                                         <textarea
                                                             id="editNotes"
                                                             defaultValue={selectedJobForEdit.notes || ''}
                                                             rows="3"
-                                                            className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
+                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
                                             
                                             {/* Footer */}
-                                            <div className="p-6 border-t border-slate-200 bg-slate-50">
-                                                <div className="flex gap-4">
+                                            <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
+                                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4">
                                                     <button
                                                         onClick={() => setSelectedJobForEdit(null)}
-                                                        className="flex-1 px-6 py-3 bg-slate-700 text-white rounded-xl text-sm font-black uppercase hover:bg-slate-800 transition-colors"
+                                                        className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-slate-700 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-slate-800 transition-colors"
                                                     >
                                                         Cancel
                                                     </button>
@@ -4755,7 +5346,7 @@
                                                                 alert('Error updating job. Please try again.');
                                                             }
                                                         }}
-                                                        className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-black uppercase hover:bg-emerald-700 transition-colors"
+                                                        className="flex-1 px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:bg-emerald-700 transition-colors"
                                                     >
                                                         Update Job
                                                     </button>
@@ -4766,48 +5357,35 @@
                                 )}
                                 
                                 <section>
-                                    <div className="flex items-center justify-between mb-4 px-2">
-                                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                    <div className="flex items-center justify-between mb-3 sm:mb-4 px-2">
+                                        <h2 className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                                             Select Service
                                         </h2>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {/* Default Services - Only show if not deleted */}
-                                        {activeDefaultServices.map((defaultService, index) => {
-                                            const isMiniCarWash = defaultService.label === 'Mini Car Wash';
-                                            const bgClass = isMiniCarWash 
-                                                ? 'bg-blue-600' 
-                                                : 'bg-gradient-to-br from-emerald-600 to-emerald-700';
-                                            const iconPath = isMiniCarWash
-                                                ? 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4'
-                                                : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
-                                            
-                                            return (
-                                                <button
-                                                    key={defaultService.label}
-                                                    type="button"
-                                                    className={`${bgClass} text-white p-6 rounded-[35px] shadow-lg flex flex-col items-center gap-3 cursor-pointer active:scale-95 transition-transform hover:opacity-90 border-none outline-none w-full ${!isMiniCarWash ? 'shadow-xl hover:shadow-2xl hover:scale-105 transform' : ''}`}
-                                                    onClick={() => {
-                                                        setSelectedService({ label: defaultService.label, basePrice: defaultService.basePrice });
-                                                        setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                        setFormData({ ...formData, price: defaultService.basePrice });
-                                                        setView('entry');
-                                                    }}
-                                                >
-                                                    <div className="bg-white/20 p-3 rounded-2xl">
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={iconPath} />
+                                    {categories.length === 0 ? (
+                                        // No services in database - show button to add services
+                                        <div className="bg-white border-2 border-dashed border-slate-300 p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-[30px] md:rounded-[40px] text-center">
+                                            <div className="mb-4 sm:mb-6">
+                                                <svg className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 text-slate-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                                         </svg>
                                                     </div>
-                                                    <div className="text-center">
-                                                        <p className="font-black text-[11px] uppercase tracking-tighter">{defaultService.label}</p>
-                                                        <p className="text-[10px] opacity-80 mt-1 font-bold">Rs.{defaultService.basePrice}</p>
-                                                    </div>
+                                            <p className="text-sm sm:text-base md:text-lg font-black text-slate-700 uppercase tracking-tight mb-2 sm:mb-3">
+                                                No Services Available
+                                            </p>
+                                            <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6 font-semibold">
+                                                Add your first service to get started
+                                            </p>
+                                            <button
+                                                onClick={() => window.location.href = '{{ route("car.wash.services") }}'}
+                                                className="px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-emerald-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm md:text-base font-black uppercase hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
+                                            >
+                                                Add Services
                                                 </button>
-                                            );
-                                        })}
-                                        
-                                        {/* New Categories - Display below default services */}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+                                            {/* New Categories - Display services from database */}
                                         {categories.map((category) => {
                                             // Use colorValue if available, otherwise get from color class, fallback to blue
                                             const bgColorVal = category.colorValue || (category.color ? getColorValue(category.color) : '#3b82f6');
@@ -4816,40 +5394,43 @@
                                                 <button
                                                     key={category.id}
                                                     type="button"
-                                                    className="text-white p-6 rounded-[35px] shadow-xl flex flex-col items-center gap-3 cursor-pointer active:scale-95 transition-all hover:shadow-2xl hover:scale-105 w-full border-none outline-none transform"
+                                                        className="text-white p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] shadow-xl flex flex-col items-center gap-2 sm:gap-2.5 md:gap-3 cursor-pointer active:scale-95 transition-all hover:shadow-2xl hover:scale-105 w-full border-none outline-none transform"
                                                     style={styleObj}
                                                     onClick={() => {
                                                         setSelectedService(category);
                                                         setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                        setFormData({ ...formData, price: category.basePrice || 0 });
+                                                            // Parse base price as number and format to 2 decimal places
+                                                            const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
+                                                            setFormData({ ...formData, price: basePrice.toFixed(2) });
                                                         setView('entry');
                                                     }}
                                                 >
-                                                    <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
+                                                        <div className="bg-white/20 p-2 sm:p-2.5 md:p-3 rounded-xl sm:rounded-2xl backdrop-blur-sm">
                                                         {getIconSVG(category.icon || 'cycle')}
                                                     </div>
                                                     <div className="text-center">
-                                                        <p className="font-black text-[11px] uppercase tracking-tighter">{category.label}</p>
-                                                        <p className="text-[10px] opacity-90 mt-1 font-bold">Rs.{category.basePrice || 0}</p>
+                                                            <p className="font-black text-[9px] sm:text-[10px] md:text-[11px] uppercase tracking-tighter leading-tight">{category.label}</p>
+                                                            <p className="text-[8px] sm:text-[9px] md:text-[10px] opacity-90 mt-0.5 sm:mt-1 font-bold">Rs.{category.basePrice || category.base_price || 0}</p>
                                                     </div>
                                                 </button>
                                             );
                                         })}
                                     </div>
+                                    )}
                                 </section>
                                 
                                 <section>
-                                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-2">
+                                    <h2 className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 sm:mb-4 px-2">
                                         Active Jobs
                                     </h2>
                                     {activeJobs.length === 0 ? (
-                                        <div className="bg-white border-2 border-dashed border-slate-200 p-10 rounded-[40px] text-center">
-                                            <p className="text-slate-300 font-black text-[10px] uppercase tracking-widest">
+                                        <div className="bg-white border-2 border-dashed border-slate-200 p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-[30px] md:rounded-[40px] text-center">
+                                            <p className="text-slate-300 font-black text-[9px] sm:text-[10px] uppercase tracking-widest">
                                                 No active vehicles
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-3">
+                                        <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                                             {activeJobs.map((job) => {
                                                 const serviceColorVal = allServices.find(s => s.label === job.service)?.colorValue || '#3b82f6';
                                                 // Fix timer calculation - handle null/invalid startTime
@@ -4880,68 +5461,84 @@
                                                 return (
                                                     <div 
                                                         key={job.id}
-                                                        className="bg-white p-6 rounded-[35px] shadow-lg border-2 border-slate-100"
+                                                        className="bg-white p-3 sm:p-4 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] shadow-lg border-2 border-slate-100"
                                                     >
-                                                        <div className="flex items-center justify-between mb-4">
-                                                            <div className="flex items-center gap-3">
+                                                        <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+                                                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                                                 <div 
-                                                                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg"
+                                                                    className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-white font-black text-sm sm:text-base md:text-lg shadow-lg flex-shrink-0"
                                                                     style={styleObj}
                                                                 >
                                                                     {job.vehicleNo ? job.vehicleNo.charAt(0) : 'V'}
                                                                 </div>
-                                                                <div>
-                                                                    <p className="text-base font-black text-slate-900 uppercase tracking-tight">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-slate-900 uppercase tracking-tight truncate">
                                                                         {job.vehicleNo}
                                                                     </p>
-                                                                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                                                                    <p className="text-[9px] sm:text-[10px] text-slate-500 font-black mt-0.5 truncate">
                                                                         {job.customerName}
                                                                     </p>
                                                                     {job.mobile && (
-                                                                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                                                        <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono font-black mt-0.5 truncate">
                                                                             {job.mobile}
                                                                         </p>
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <p className="text-xs font-black text-emerald-600 font-mono">
-                                                                    Rs.{typeof job.price === 'number' ? job.price.toFixed(2) : job.price}
+                                                            <div className="text-right flex-shrink-0">
+                                                                <p className="text-lg sm:text-xl md:text-2xl font-black text-emerald-600 font-mono">
+                                                                    Rs.{typeof job.price === 'number' ? job.price.toFixed(0) : job.price}
                                                                 </p>
-                                                                <div className="mt-1">
-                                                                    <p className="text-[8px] text-slate-400 uppercase font-bold">Timer</p>
-                                                                    <p className="text-[10px] text-blue-600 font-mono font-black">
+                                                                <div className="mt-0.5 sm:mt-1 flex items-center gap-2 sm:gap-3">
+                                                                    <div className="text-left">
+                                                                        <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase font-bold">Start Time</p>
+                                                                        <p className="text-[9px] sm:text-[10px] text-slate-600 font-mono font-semibold">
+                                                                            {timeString}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <p className="text-[7px] sm:text-[8px] text-slate-400 uppercase font-bold">Timer</p>
+                                                                        <p className="text-[9px] sm:text-[10px] text-blue-600 font-mono font-black">
                                                                         {timerString}
                                                                     </p>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                         
-                                                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                                                            <div className="flex items-center gap-2">
+                                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 gap-2 sm:gap-2">
+                                                            <div className="flex items-center gap-2 order-2 sm:order-1">
                                                                 {job.worker && (
-                                                                    <span className="text-[11px] text-blue-600 font-bold">
+                                                                    <span className="text-[10px] sm:text-[11px] text-blue-600 font-bold truncate">
                                                                         👤 {job.worker}
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
+                                                                {(() => {
+                                                                    const inspectionCompleted = completedInspections.has(job.id);
+                                                                    const jobStarted = job.startTime && job.startTime !== null;
+                                                                    const shouldBlink = jobStarted && !inspectionCompleted;
+                                                                    return (
                                                                 <button
                                                                     onClick={() => {
                                                                         setInspectionModalJobId(job.id);
                                                                         setInspectionData({});
                                                                     }}
-                                                                    className="bg-purple-500 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 transition-colors shadow-md"
+                                                                            className={`bg-purple-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 transition-colors shadow-md flex-shrink-0 ${shouldBlink ? 'blink-animation' : ''}`}
                                                                 >
-                                                                    INSPECTION
+                                                                            <span className="hidden sm:inline">INSPECTION</span>
+                                                                            <span className="sm:hidden">INSP</span>
                                                                 </button>
+                                                                    );
+                                                                })()}
                                                                 <button
                                                                     onClick={() => {
                                                                         setExpenseModalJobId(job.id);
                                                                         setExpenseItems({});
                                                                         setCustomExpenses([]);
                                                                     }}
-                                                                    className="bg-orange-500 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-md"
+                                                                    className="bg-orange-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-md flex-shrink-0"
                                                                 >
                                                                     EXPENSE
                                                                 </button>
@@ -4951,7 +5548,7 @@
                                                                         setSelectedRating('');
                                                                         setJobComment('');
                                                                     }}
-                                                                    className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors shadow-md"
+                                                                    className="bg-emerald-600 text-white px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors shadow-md flex-shrink-0"
                                                                 >
                                                                     COMPLETE
                                                                 </button>
@@ -4967,18 +5564,18 @@
                         )}
                         
                         {view === 'entry' && selectedService && (
-                            <div className="bg-white rounded-[45px] p-8 shadow-2xl animate-in slide-in-from-bottom">
-                                <div className="flex justify-between items-center mb-8">
+                            <div className="bg-white rounded-2xl sm:rounded-[35px] md:rounded-[45px] p-4 sm:p-6 md:p-8 shadow-2xl animate-in slide-in-from-bottom">
+                                <div className="flex justify-between items-center mb-4 sm:mb-6 md:mb-8 gap-2">
                                     <button 
                                         onClick={() => setView('dashboard')} 
-                                        className="p-3 bg-slate-100 rounded-2xl"
+                                        className="p-2 sm:p-2.5 md:p-3 bg-slate-100 rounded-xl sm:rounded-2xl flex-shrink-0"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                         </svg>
                                     </button>
-                                    <h2 className="text-xl font-black uppercase italic tracking-tighter">CHECK-IN</h2>
-                                    <div className="w-10"></div>
+                                    <h2 className="text-base sm:text-lg md:text-xl font-black uppercase italic tracking-tighter">CHECK-IN</h2>
+                                    <div className="w-8 sm:w-9 md:w-10"></div>
                                 </div>
                                 
                                 <form onSubmit={async (e) => {
@@ -5063,6 +5660,8 @@
                                     }
                                     
                                     // Prepare job data for backend
+                                    // Parse price as number (in case it's stored as string from toFixed)
+                                    const finalPrice = parseFloat(formData.price || 0) || 0;
                                     const jobData = {
                                         service_id: serviceId,
                                         worker_id: workerId,
@@ -5070,7 +5669,7 @@
                                         vehicle_no: formData.vehicleNo || null,
                                         mobile: formData.mobile || null,
                                         service_name: selectedService ? selectedService.label : 'Unknown Service',
-                                        price: formData.price || 0,
+                                        price: finalPrice,
                                         additional_prices: selectedService?.additionalPrices || [],
                                         worker_name: formData.worker || null,
                                     };
@@ -5131,11 +5730,11 @@
                                     setIsRecording(false);
                                     setMediaRecorder(null);
                                     setRecognition(null);
-                                }} className="space-y-6">
-                                    <div className="p-6 rounded-[35px] bg-slate-50 shadow-inner text-center">
+                                }} className="space-y-4 sm:space-y-5 md:space-y-6">
+                                    <div className="p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] bg-slate-50 shadow-inner text-center">
                                         <input
                                             required
-                                            className="w-full bg-transparent p-2 font-black uppercase text-4xl text-center font-mono outline-none text-slate-900"
+                                            className="w-full bg-transparent p-1.5 sm:p-2 font-black uppercase text-2xl sm:text-3xl md:text-4xl text-center font-mono outline-none text-slate-900"
                                             placeholder="ABC-123"
                                             value={formData.vehicleNo}
                                             onChange={(e) => {
@@ -5143,7 +5742,7 @@
                                                 setFormData({ ...formData, vehicleNo: value });
                                             }}
                                         />
-                                        <p className="text-[10px] font-black uppercase text-slate-400 mt-2 tracking-widest">VEHICLE PLATE NUMBER</p>
+                                        <p className="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 mt-1.5 sm:mt-2 tracking-widest">VEHICLE PLATE NUMBER</p>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -5153,21 +5752,21 @@
                                                     alert('Please enter vehicle plate number');
                                                 }
                                             }}
-                                            className="mt-4 bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-colors shadow-lg"
+                                            className="mt-3 sm:mt-4 bg-blue-600 text-white px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl sm:rounded-2xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-blue-700 transition-colors shadow-lg"
                                         >
                                             SELECT VEHICLE
                                         </button>
                                     </div>
                                     
-                                    <div className="space-y-4">
-                                        <div className="bg-slate-50 px-6 py-4 rounded-2xl">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">
+                                    <div className="space-y-3 sm:space-y-3.5 md:space-y-4">
+                                        <div className="bg-slate-50 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl">
+                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase mb-1.5 sm:mb-2 block">
                                                 Customer Name <span className="text-red-500">*</span>
                                             </label>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-1.5 sm:gap-2">
                                                 <input
                                                     type="text"
-                                                    className={`flex-1 bg-transparent font-bold text-xs outline-none border-2 rounded-lg px-3 py-2 ${
+                                                    className={`flex-1 bg-transparent font-bold text-xs outline-none border-2 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 ${
                                                         !formData.customerName && !audioBlob 
                                                             ? 'border-red-400 text-red-600' 
                                                             : 'border-slate-300 text-slate-900'
@@ -5316,7 +5915,7 @@
                                                             }
                                                         }
                                                     }}
-                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border-2 ${
+                                                    className={`px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all border-2 flex-shrink-0 ${
                                                         isRecording 
                                                             ? 'bg-red-500 border-red-500 text-white animate-pulse' 
                                                             : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
@@ -5326,17 +5925,17 @@
                                                 </button>
                                             </div>
                                             {!formData.customerName && !audioBlob && (
-                                                <p className="text-[9px] text-red-500 font-bold mt-2">
+                                                <p className="text-[8px] sm:text-[9px] text-red-500 font-bold mt-1.5 sm:mt-2">
                                                     ⚠️ Please enter customer name OR record voice (Required)
                                                 </p>
                                             )}
                                             {audioBlob && (
-                                                <div className="mt-2">
-                                                    <p className="text-[9px] text-green-600 font-bold mb-1">
+                                                <div className="mt-1.5 sm:mt-2">
+                                                    <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
                                                         ✅ Voice recorded
                                                     </p>
                                                     {audioUrl && (
-                                                        <audio controls className="w-full h-8" src={audioUrl}>
+                                                        <audio controls className="w-full h-7 sm:h-8" src={audioUrl}>
                                                             Your browser does not support audio playback.
                                                         </audio>
                                                     )}
@@ -5344,19 +5943,19 @@
                                             )}
                                         </div>
                                         
-                                        <div className="bg-slate-50 px-6 py-4 rounded-2xl">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <div className="bg-slate-50 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl">
+                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                                 </svg>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Mobile Number</span>
+                                                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase">Mobile Number</span>
                                             </div>
                                             <input
                                                 type="tel"
-                                                className={`w-full bg-transparent font-bold text-xs outline-none ${
+                                                className={`w-full bg-transparent font-bold text-xs outline-none border-b-2 ${
                                                     formData.mobile && formData.mobile.length < 11 
-                                                        ? 'text-red-600 border-b-2 border-red-400' 
-                                                        : 'text-slate-900'
+                                                        ? 'text-red-600 border-red-400' 
+                                                        : 'text-slate-900 border-slate-300'
                                                 }`}
                                                 placeholder="Enter mobile number"
                                                 value={formData.mobile}
@@ -5375,37 +5974,37 @@
                                                 }}
                                             />
                                             {formData.mobile && formData.mobile.length < 11 && formData.mobile.length > 0 && (
-                                                <p className="text-[9px] text-red-500 font-bold mt-1">
+                                                <p className="text-[8px] sm:text-[9px] text-red-500 font-bold mt-1">
                                                     ⚠️ Please enter complete 11 digit number
                                                 </p>
                                             )}
                                         </div>
                                         
                                         <div>
-                                            <p className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-3 tracking-widest">
+                                            <p className="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 ml-1 sm:ml-2 mb-2 sm:mb-3 tracking-widest">
                                                 ASSIGN WORKER 
-                                                <span className="text-red-500 text-lg ml-1">*</span>
-                                                <span className="text-red-500 ml-2 text-[9px]">(COMPULSORY)</span>
+                                                <span className="text-red-500 text-base sm:text-lg ml-0.5 sm:ml-1">*</span>
+                                                <span className="text-red-500 ml-1.5 sm:ml-2 text-[8px] sm:text-[9px]">(COMPULSORY)</span>
                                             </p>
                                             {WORKERS.length === 0 ? (
-                                                <div className="bg-red-50 border-2 border-red-200 px-6 py-4 rounded-2xl text-center">
+                                                <div className="bg-red-50 border-2 border-red-200 px-4 sm:px-5 md:px-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl text-center">
                                                     <p className="text-xs text-red-600 font-bold">⚠️ No workers available</p>
-                                                    <p className="text-[10px] text-red-400 mt-1">Add workers from Settings → All Staff</p>
+                                                    <p className="text-[9px] sm:text-[10px] text-red-400 mt-1">Add workers from Settings → All Staff</p>
                                                 </div>
                                             ) : (
                                                 <div>
                                                     {!formData.worker && (
-                                                        <div className="mb-3 bg-red-100 border-2 border-red-500 rounded-xl p-4 animate-pulse">
-                                                            <p className="text-[11px] text-red-700 font-black uppercase tracking-wide flex items-center gap-2">
-                                                                <svg className="w-5 h-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <div className="mb-2 sm:mb-3 bg-red-100 border-2 border-red-500 rounded-lg sm:rounded-xl p-3 sm:p-4 animate-pulse">
+                                                            <p className="text-[10px] sm:text-[11px] text-red-700 font-black uppercase tracking-wide flex items-center gap-1.5 sm:gap-2">
+                                                                <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-bounce flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                                                 </svg>
                                                                 ⚠️ COMPULSORY: Please Select a Worker
                                                             </p>
-                                                            <p className="text-[9px] text-red-600 font-semibold mt-1 ml-7">You must select a worker before starting the job</p>
+                                                            <p className="text-[8px] sm:text-[9px] text-red-600 font-semibold mt-0.5 sm:mt-1 ml-5 sm:ml-7">You must select a worker before starting the job</p>
                                                         </div>
                                                     )}
-                                                    <div className={`grid grid-cols-2 gap-2 ${!formData.worker ? 'animate-pulse' : ''}`}>
+                                                    <div className={`grid grid-cols-2 gap-1.5 sm:gap-2 ${!formData.worker ? 'animate-pulse' : ''}`}>
                                                         {WORKERS.map((worker, index) => {
                                                             const workerName = typeof worker === 'string' ? worker : (worker.name || 'Unknown');
                                                             const workerKey = typeof worker === 'string' ? worker : (worker.id || index);
@@ -5415,7 +6014,7 @@
                                                                     key={workerKey}
                                                                     type="button"
                                                                     onClick={() => setFormData({ ...formData, worker: workerName })}
-                                                                    className={`p-4 rounded-2xl text-[9px] font-black uppercase border-2 transition-all ${
+                                                                    className={`p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl text-[8px] sm:text-[9px] font-black uppercase border-2 transition-all ${
                                                                         isSelected
                                                                             ? 'bg-slate-900 border-slate-900 text-white shadow-lg scale-105'
                                                                             : !formData.worker
@@ -5434,45 +6033,45 @@
                                         
                                         {/* Service Prices Section - Advanced Box Style */}
                                         {selectedService && (
-                                            <div className="mt-6 bg-gradient-to-br from-white via-slate-50 to-slate-100 px-6 py-5 rounded-3xl border-2 border-slate-300 shadow-xl">
+                                            <div className="mt-4 sm:mt-5 md:mt-6 bg-gradient-to-br from-white via-slate-50 to-slate-100 px-4 sm:px-5 md:px-6 py-4 sm:py-4.5 md:py-5 rounded-2xl sm:rounded-[25px] md:rounded-3xl border-2 border-slate-300 shadow-xl">
                                                 {/* Header with Icon */}
-                                                <div className="flex items-center gap-3 mb-5 pb-4 border-b-2 border-slate-200">
-                                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
-                                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 md:mb-5 pb-3 sm:pb-3.5 md:pb-4 border-b-2 border-slate-200">
+                                                    <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                                        <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs font-black uppercase text-slate-800 tracking-widest">SERVICE PRICES</p>
-                                                        <p className="text-[9px] text-slate-500 font-semibold mt-0.5">Select services to include</p>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[10px] sm:text-xs font-black uppercase text-slate-800 tracking-widest">SERVICE PRICES</p>
+                                                        <p className="text-[8px] sm:text-[9px] text-slate-500 font-semibold mt-0.5">Select services to include</p>
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Base Price - Always Included */}
-                                                <div className="mb-4 bg-white rounded-2xl p-4 border-2 border-green-200 shadow-md">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-8 h-8 bg-green-500 rounded-xl flex items-center justify-center shadow-sm">
-                                                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="mb-3 sm:mb-3.5 md:mb-4 bg-white rounded-xl sm:rounded-2xl p-3 sm:p-3.5 md:p-4 border-2 border-green-200 shadow-md">
+                                                    <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                                                                <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                                 </svg>
                                                             </div>
-                                                            <div>
-                                                                <span className="text-sm font-black text-slate-800 block">Base Price</span>
-                                                                <span className="text-[9px] text-slate-500 font-semibold">Always included</span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="text-xs sm:text-sm font-black text-slate-800 block">Base Price</span>
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-500 font-semibold">Always included</span>
                                                             </div>
                                                         </div>
-                                                        <span className="text-xl font-black text-slate-900 font-mono bg-slate-50 px-4 py-2 rounded-xl border-2 border-slate-200">
-                                                            Rs. {selectedService.basePrice || 0}
+                                                        <span className="text-base sm:text-lg md:text-xl font-black text-slate-900 font-mono bg-slate-50 px-3 sm:px-3.5 md:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 border-slate-200 flex-shrink-0">
+                                                            Rs. {selectedService.basePrice || selectedService.base_price || 0}
                                                         </span>
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Additional Prices (Selectable) */}
                                                 {selectedService.additionalPrices && selectedService.additionalPrices.length > 0 && (
-                                                    <div className="space-y-3 mb-4">
-                                                        <p className="text-[10px] font-black text-slate-700 uppercase mb-3 tracking-wider flex items-center gap-2">
-                                                            <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                                                    <div className="space-y-2 sm:space-y-2.5 md:space-y-3 mb-3 sm:mb-3.5 md:mb-4">
+                                                        <p className="text-[9px] sm:text-[10px] font-black text-slate-700 uppercase mb-2 sm:mb-2.5 md:mb-3 tracking-wider flex items-center gap-1.5 sm:gap-2">
+                                                            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-600 rounded-full flex-shrink-0"></span>
                                                             Additional Services (Optional)
                                                         </p>
                                                         {selectedService.additionalPrices.map((additionalPrice, index) => {
@@ -5480,34 +6079,34 @@
                                                             return (
                                                                 <label 
                                                                     key={index} 
-                                                                    className={`flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all transform ${
+                                                                    className={`flex items-center justify-between p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl cursor-pointer transition-all transform ${
                                                                         isSelected 
                                                                             ? 'bg-gradient-to-r from-blue-50 via-blue-100 to-blue-50 border-2 border-blue-500 shadow-lg scale-[1.02]' 
                                                                             : 'bg-white border-2 border-slate-200 hover:border-blue-300 hover:shadow-md'
                                                                     }`}
                                                                 >
-                                                                    <div className="flex items-center gap-3 flex-1">
-                                                                        <div className={`relative w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-sm ${
+                                                                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                                        <div className={`relative w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg border-2 flex items-center justify-center transition-all shadow-sm flex-shrink-0 ${
                                                                             isSelected 
                                                                                 ? 'bg-blue-600 border-blue-600' 
                                                                                 : 'bg-white border-slate-300'
                                                                         }`}>
                                                                             {isSelected && (
-                                                                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                                                 </svg>
                                                                             )}
                                                                         </div>
-                                                                        <div>
-                                                                            <span className={`text-sm font-black block ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <span className={`text-xs sm:text-sm font-black block truncate ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
                                                                                 {additionalPrice.label || `Additional ${index + 1}`}
                                                                             </span>
                                                                             {isSelected && (
-                                                                                <span className="text-[9px] text-blue-600 font-bold mt-0.5 block">Selected</span>
+                                                                                <span className="text-[8px] sm:text-[9px] text-blue-600 font-bold mt-0.5 block">Selected</span>
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                    <span className={`text-base font-black font-mono px-4 py-2 rounded-xl ${
+                                                                    <span className={`text-sm sm:text-base font-black font-mono px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl flex-shrink-0 ${
                                                                         isSelected 
                                                                             ? 'bg-blue-600 text-white shadow-md' 
                                                                             : 'bg-slate-100 text-slate-800'
@@ -5526,15 +6125,15 @@
                                                                             }
                                                                             setSelectedAdditionalPrices(newSelected);
                                                                             
-                                                                            // Update total price
-                                                                            let total = selectedService.basePrice || 0;
+                                                                            // Update total price - parse all values as numbers
+                                                                            let total = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
                                                                             newSelected.forEach(selectedIndex => {
                                                                                 const ap = selectedService.additionalPrices[selectedIndex];
                                                                                 if (ap && ap.amount) {
-                                                                                    total += (ap.amount || 0);
+                                                                                    total += parseFloat(ap.amount || 0) || 0;
                                                                                 }
                                                                             });
-                                                                            setFormData({ ...formData, price: total });
+                                                                            setFormData({ ...formData, price: total.toFixed(2) });
                                                                         }}
                                                                         className="sr-only"
                                                                     />
@@ -5547,22 +6146,23 @@
                                         )}
                                     </div>
                                     
-                                    <div className="bg-slate-900 p-8 rounded-[40px] text-white flex justify-between items-center mt-8">
-                                        <div>
-                                            <p className="text-[10px] font-bold opacity-50 tracking-widest">PRICE</p>
-                                            <p className="text-4xl font-black font-mono text-emerald-400">Rs.{formData.price}</p>
+                                    <div className="bg-slate-900 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[30px] md:rounded-[40px] text-white flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 md:gap-0 mt-6 sm:mt-7 md:mt-8">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[9px] sm:text-[10px] font-bold opacity-50 tracking-widest">PRICE</p>
+                                            <p className="text-2xl sm:text-3xl md:text-4xl font-black font-mono text-emerald-400">Rs.{formData.price}</p>
                                         </div>
                                         <button 
                                             type="submit" 
                                             disabled={!formData.worker || formData.worker.trim() === ''}
                                             title={!formData.worker || formData.worker.trim() === '' ? 'Please select a worker first' : 'Start the job'}
-                                            className={`px-8 py-5 rounded-[22px] font-black uppercase text-[10px] tracking-widest transition-all relative ${
+                                            className={`w-full sm:w-auto px-6 sm:px-7 md:px-8 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-[18px] md:rounded-[22px] font-black uppercase text-[9px] sm:text-[10px] tracking-widest transition-all relative ${
                                                 !formData.worker || formData.worker.trim() === ''
                                                     ? 'bg-slate-600 text-slate-300 cursor-not-allowed opacity-50'
                                                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
                                             }`}
                                         >
-                                            {!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER FIRST' : 'START JOB'}
+                                            <span className="hidden sm:inline">{!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER FIRST' : 'START JOB'}</span>
+                                            <span className="sm:hidden">{!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER' : 'START JOB'}</span>
                                         </button>
                                     </div>
                                 </form>
@@ -5571,17 +6171,17 @@
                     </main>
                     
                     {/* Bottom Nav */}
-                    <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-100 flex justify-around p-5 z-40 rounded-t-[40px] shadow-2xl">
+                    <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-100 flex justify-around p-3 sm:p-4 md:p-5 z-40 rounded-t-2xl sm:rounded-t-[30px] md:rounded-t-[40px] shadow-2xl">
                         <button 
                             onClick={() => setView('dashboard')} 
-                            className={`p-4 rounded-3xl transition-all ${view === 'dashboard' ? 'bg-slate-950 text-white shadow-xl -translate-y-2' : 'text-slate-300'}`}
+                            className={`p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl transition-all ${view === 'dashboard' ? 'bg-slate-950 text-white shadow-xl -translate-y-1 sm:-translate-y-2' : 'text-slate-300'}`}
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                         </button>
-                        <button className="p-4 rounded-3xl text-slate-300">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300">
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                         </button>
@@ -5590,9 +6190,18 @@
             );
         };
         
+        // Wait for DOM and Babel to be ready, then render React app
+        function initApp() {
         // Check if React 18 createRoot is available, otherwise use legacy render
+            try {
         const rootElement = document.getElementById('root');
         if (rootElement) {
+                    if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+                        console.error('React or ReactDOM not loaded!');
+                        rootElement.innerHTML = '<div style="padding: 20px; text-align: center; color: red;"><h2>Error: React libraries not loaded</h2><p>Please refresh the page.</p></div>';
+                        return;
+                    }
+                    
             if (ReactDOM.createRoot) {
                 // React 18+
                 const root = ReactDOM.createRoot(rootElement);
@@ -5603,6 +6212,22 @@
             }
         } else {
             console.error('Root element not found!');
+                }
+            } catch (error) {
+                console.error('Error rendering React app:', error);
+                const rootElement = document.getElementById('root');
+                if (rootElement) {
+                    rootElement.innerHTML = '<div style="padding: 20px; text-align: center; color: red;"><h2>Error Loading Application</h2><p>' + (error.message || 'Unknown error') + '</p><p>Please refresh the page.</p></div>';
+                }
+            }
+        }
+        
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            // DOM is already ready
+            setTimeout(initApp, 100); // Small delay to ensure Babel is ready
         }
     </script>
     
@@ -6327,7 +6952,7 @@
                     const categoryNameInput = document.getElementById('categoryName');
                     const categoryPriceInput = document.getElementById('categoryPrice');
                     if (categoryNameInput) categoryNameInput.value = categoryData.label || '';
-                    if (categoryPriceInput) categoryPriceInput.value = categoryData.basePrice || 0;
+                    if (categoryPriceInput) categoryPriceInput.value = categoryData.basePrice || categoryData.base_price || 0;
                     categoryModal.classList.add('show');
                 }
             });
