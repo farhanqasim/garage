@@ -38,9 +38,18 @@ class CarWashJobController extends Controller
             $query->whereDate('created_at', today());
         }
 
-        $jobs = $query->orderBy('created_at', 'desc')
+        $jobs = $query->with('worker')->orderBy('created_at', 'desc')
             ->get()
             ->map(function($job) {
+                // Get worker commission percentage
+                $workerCommission = 0;
+                $commissionAmount = 0;
+                if ($job->worker && $job->worker->commission) {
+                    $workerCommission = (float) $job->worker->commission;
+                    // Calculate commission amount: (price * commission_percentage) / 100
+                    $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
+                }
+                
                 return [
                     'id' => $job->id,
                     'serviceId' => $job->service_id,
@@ -52,6 +61,8 @@ class CarWashJobController extends Controller
                     'price' => (float) $job->price,
                     'additionalPrices' => $job->additional_prices ?? [],
                     'workerName' => $job->worker_name,
+                    'workerCommission' => $workerCommission,
+                    'commissionAmount' => round($commissionAmount, 2),
                     'status' => $job->status,
                     'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
                     'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
@@ -106,6 +117,78 @@ class CarWashJobController extends Controller
     }
 
     /**
+     * Show job detail page
+     */
+    public function show($id)
+    {
+        $user = Auth::user();
+        $branchId = $user->branches ? $user->branches->id : null;
+        
+        $job = CarWashJob::where(function($q) use ($branchId) {
+            $q->where('branch_id', $branchId)
+              ->orWhereNull('branch_id');
+        })
+        ->with(['worker', 'inspection', 'expense'])
+        ->findOrFail($id);
+        
+        // Calculate commission
+        $workerCommission = 0;
+        $commissionAmount = 0;
+        if ($job->worker && $job->worker->commission) {
+            $workerCommission = (float) $job->worker->commission;
+            $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
+        }
+        
+        // Format inspection data
+        $inspectionData = null;
+        if ($job->inspection) {
+            $inspectionData = [
+                'id' => $job->inspection->id,
+                'inspectionItems' => $job->inspection->inspection_items ?? [],
+                'isCompleted' => $job->inspection->is_completed ?? false,
+                'completedAt' => $job->inspection->completed_at ? $job->inspection->completed_at->toISOString() : null,
+            ];
+        }
+        
+        // Format expense data
+        $expenseData = null;
+        if ($job->expense) {
+            $expenseData = [
+                'id' => $job->expense->id,
+                'expenseItems' => $job->expense->expense_items ?? [],
+                'totalAmount' => (float) ($job->expense->total_amount ?? 0),
+            ];
+        }
+        
+        $jobData = [
+            'id' => $job->id,
+            'serviceId' => $job->service_id,
+            'workerId' => $job->worker_id,
+            'customerName' => $job->customer_name,
+            'vehicleNo' => $job->vehicle_no,
+            'mobile' => $job->mobile,
+            'serviceName' => $job->service_name,
+            'price' => (float) $job->price,
+            'additionalPrices' => $job->additional_prices ?? [],
+            'workerName' => $job->worker_name,
+            'workerCommission' => $workerCommission,
+            'commissionAmount' => round($commissionAmount, 2),
+            'status' => $job->status,
+            'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+            'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
+            'durationSeconds' => $job->duration_seconds,
+            'notes' => $job->notes,
+            'inspection' => $inspectionData,
+            'expense' => $expenseData,
+        ];
+        
+        $userName = $user->name ?? 'Guest';
+        $branchName = $user->branches ? $user->branches->branch_name : 'Guest';
+        
+        return view('car-wash-job-detail', compact('jobData', 'userName', 'branchName'));
+    }
+
+    /**
      * Get completed jobs (today or all)
      */
     public function completedJobs(Request $request)
@@ -122,9 +205,18 @@ class CarWashJobController extends Controller
             $query->today();
         }
 
-        $jobs = $query->orderBy('end_time', 'desc')
+        $jobs = $query->with('worker')->orderBy('end_time', 'desc')
             ->get()
             ->map(function($job) {
+                // Get worker commission percentage
+                $workerCommission = 0;
+                $commissionAmount = 0;
+                if ($job->worker && $job->worker->commission) {
+                    $workerCommission = (float) $job->worker->commission;
+                    // Calculate commission amount: (price * commission_percentage) / 100
+                    $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
+                }
+                
                 return [
                     'id' => $job->id,
                     'serviceId' => $job->service_id,
@@ -136,6 +228,8 @@ class CarWashJobController extends Controller
                     'price' => (float) $job->price,
                     'additionalPrices' => $job->additional_prices ?? [],
                     'workerName' => $job->worker_name,
+                    'workerCommission' => $workerCommission,
+                    'commissionAmount' => round($commissionAmount, 2),
                     'status' => $job->status,
                     'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
                     'endTime' => $job->end_time ? $job->end_time->toISOString() : null,

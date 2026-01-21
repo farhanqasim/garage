@@ -284,8 +284,6 @@ public function store_branches(Request $request)
         return redirect()->back()->with('success', 'User removed from branch successfully!');
     }
 
-
-
     public function delete_branch($id)
     {
         $user = Auth::user();
