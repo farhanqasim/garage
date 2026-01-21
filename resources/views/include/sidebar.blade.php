@@ -110,7 +110,7 @@
                                 <li><a href="">Battery</a></li>
                                 <li><a href="">Oil</a></li>
                                 <li><a href="">Scrap</a></li>
-                                <li><a href="">Services</a></li>
+                                <li><a href="{{ route('car.wash.services') }}">Services</a></li>
                                 {{-- <li><a href="{{ route('all.vehical') }}">Vehicals</a></li>
                                 <li><a href="{{ route('all.brands') }}">Brands</a></li>
                                 <li><a href="{{ route('all.platos') }}">Platos</a></li>
@@ -163,6 +163,14 @@
                                 <i class="ti ti-stack-3 fs-16 me-2"></i>
                                 <span>Branches</span></a>
                         </li>
+                        <li><a href="{{ route('all.users') }}">
+                                <i class="ti ti-users fs-16 me-2"></i>
+                                <span>Users</span></a>
+                        </li>
+                        <li><a href="{{ route('all.users') }}?add=1">
+                                <i class="ti ti-user-plus fs-16 me-2"></i>
+                                <span>Add New User</span></a>
+                        </li>
                     </ul>
                 </li>
                 <li class="submenu-open">
@@ -175,6 +183,23 @@
                         <li><a href="{{ route('warehouses.create') }}">
                                 <i class="ti ti-plus fs-16 me-2"></i>
                                 <span>Add New Warehouse</span></a>
+                        </li>
+                    </ul>
+                </li>
+                <li class="submenu-open">
+                    <h6 class="submenu-hdr">Bank Management</h6>
+                    <ul>
+                        <li><a href="{{ route('admin.banks.index') }}">
+                                <i class="ti ti-building-bank fs-16 me-2"></i>
+                                <span>Banks</span></a>
+                        </li>
+                        <li><a href="{{ route('admin.bank-accounts.index') }}">
+                                <i class="ti ti-credit-card fs-16 me-2"></i>
+                                <span>Bank Accounts</span></a>
+                        </li>
+                        <li><a href="{{ route('admin.payments.index') }}">
+                                <i class="ti ti-wallet fs-16 me-2"></i>
+                                <span>Payments</span></a>
                         </li>
                     </ul>
                 </li>

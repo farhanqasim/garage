@@ -48,6 +48,8 @@
             fatherCardFront: w.father_card_front ? `/storage/${w.father_card_front}` : null,
             fatherCardBack: w.father_card_back ? `/storage/${w.father_card_back}` : null,
             status: w.status !== undefined ? w.status : true,
+            dailyJobsCount: w.daily_jobs_count ?? 0,
+            dailyCommission: w.daily_commission ?? 0,
         }));
         const branchName = @json($branchName);
         const userName = @json($userName);
@@ -72,25 +74,27 @@
                 fetch(API_ROUTES.workers.index)
                     .then(res => res.json())
                     .then(data => {
-                        if (data.success && data.workers) {
-                            const workersData = data.workers || [];
-                            setWorkers(workersData.map(w => ({
-                                id: w.id,
-                                name: w.name,
-                                mobile: w.mobile,
-                                additionalMobiles: w.additional_mobiles ?? w.additionalMobiles ?? [],
-                                fatherName: w.father_name ?? w.fatherName,
-                                fatherMobile: w.father_mobile ?? w.fatherMobile,
-                                fatherAdditionalMobiles: w.father_additional_mobiles ?? w.fatherAdditionalMobiles ?? [],
-                                location: w.location,
-                                commission: w.commission,
-                                idCardFront: w.id_card_front ? `/storage/${w.id_card_front}` : (w.idCardFront || null),
-                                idCardBack: w.id_card_back ? `/storage/${w.id_card_back}` : (w.idCardBack || null),
-                                fatherCardFront: w.father_card_front ? `/storage/${w.father_card_front}` : (w.fatherCardFront || null),
-                                fatherCardBack: w.father_card_back ? `/storage/${w.father_card_back}` : (w.fatherCardBack || null),
-                                status: w.status !== undefined ? w.status : true,
-                            })));
-                        }
+                                                        if (data.success && data.workers) {
+                                                            const workersData = data.workers || [];
+                                                            setWorkers(workersData.map(w => ({
+                                                                id: w.id,
+                                                                name: w.name,
+                                                                mobile: w.mobile,
+                                                                additionalMobiles: w.additional_mobiles ?? w.additionalMobiles ?? [],
+                                                                fatherName: w.father_name ?? w.fatherName,
+                                                                fatherMobile: w.father_mobile ?? w.fatherMobile,
+                                                                fatherAdditionalMobiles: w.father_additional_mobiles ?? w.fatherAdditionalMobiles ?? [],
+                                                                location: w.location,
+                                                                commission: w.commission,
+                                                                idCardFront: w.id_card_front ? `/storage/${w.id_card_front}` : (w.idCardFront || null),
+                                                                idCardBack: w.id_card_back ? `/storage/${w.id_card_back}` : (w.idCardBack || null),
+                                                                fatherCardFront: w.father_card_front ? `/storage/${w.father_card_front}` : (w.fatherCardFront || null),
+                                                                fatherCardBack: w.father_card_back ? `/storage/${w.father_card_back}` : (w.fatherCardBack || null),
+                                                                status: w.status !== undefined ? w.status : true,
+                                                                dailyJobsCount: w.daily_jobs_count ?? w.dailyJobsCount ?? 0,
+                                                                dailyCommission: w.daily_commission ?? w.dailyCommission ?? 0,
+                                                            })));
+                                                        }
                     })
                     .catch(err => console.error('Error loading workers:', err));
             }, []);
@@ -149,7 +153,9 @@
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Mobile</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Father Name</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Location</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission %</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Daily Jobs</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Daily Commission</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Status</th>
                                                 <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
                                             </tr>
@@ -180,6 +186,19 @@
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-black text-purple-600">{(worker.commission || 0)}%</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-md">
+                                                                {worker.dailyJobsCount || 0}
+                                                            </div>
+                                                            <span className="text-xs text-slate-500 font-bold">Jobs</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-black text-emerald-600">
+                                                            Rs. {(worker.dailyCommission || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase ${(worker.status !== undefined ? worker.status : true) ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
@@ -217,24 +236,26 @@
                                                                                 // Reload workers
                                                                                 const reloadResponse = await fetch(API_ROUTES.workers.index);
                                                                                 const reloadData = await reloadResponse.json();
-                                                                                if (reloadData.success && reloadData.workers) {
-                                                                                    setWorkers(reloadData.workers.map(w => ({
-                                                                                        id: w.id,
-                                                                                        name: w.name,
-                                                                                        mobile: w.mobile,
-                                                                                        additionalMobiles: w.additional_mobiles ?? [],
-                                                                                        fatherName: w.father_name,
-                                                                                        fatherMobile: w.father_mobile,
-                                                                                        fatherAdditionalMobiles: w.father_additional_mobiles ?? [],
-                                                                                        location: w.location,
-                                                                                        commission: w.commission,
-                                                                                        idCardFront: w.id_card_front ? `/storage/${w.id_card_front}` : null,
-                                                                                        idCardBack: w.id_card_back ? `/storage/${w.id_card_back}` : null,
-                                                                                        fatherCardFront: w.father_card_front ? `/storage/${w.father_card_front}` : null,
-                                                                                        fatherCardBack: w.father_card_back ? `/storage/${w.father_card_back}` : null,
-                                                                                        status: w.status,
-                                                                                    })));
-                                                                                }
+                                                        if (reloadData.success && reloadData.workers) {
+                                                            setWorkers(reloadData.workers.map(w => ({
+                                                                id: w.id,
+                                                                name: w.name,
+                                                                mobile: w.mobile,
+                                                                additionalMobiles: w.additional_mobiles ?? [],
+                                                                fatherName: w.father_name,
+                                                                fatherMobile: w.father_mobile,
+                                                                fatherAdditionalMobiles: w.father_additional_mobiles ?? [],
+                                                                location: w.location,
+                                                                commission: w.commission,
+                                                                idCardFront: w.id_card_front ? `/storage/${w.id_card_front}` : null,
+                                                                idCardBack: w.id_card_back ? `/storage/${w.id_card_back}` : null,
+                                                                fatherCardFront: w.father_card_front ? `/storage/${w.father_card_front}` : null,
+                                                                fatherCardBack: w.father_card_back ? `/storage/${w.father_card_back}` : null,
+                                                                status: w.status,
+                                                                dailyJobsCount: w.daily_jobs_count ?? 0,
+                                                                dailyCommission: w.daily_commission ?? 0,
+                                                            })));
+                                                        }
                                                                             } else {
                                                                                 alert('Error deleting worker: ' + (result.message || 'Unknown error'));
                                                                             }
@@ -413,6 +434,8 @@
                                                             fatherCardFront: w.father_card_front ? (w.father_card_front.startsWith('http') ? w.father_card_front : (w.fatherCardFront || `/${w.father_card_front}`)) : (w.fatherCardFront || null),
                                                             fatherCardBack: w.father_card_back ? (w.father_card_back.startsWith('http') ? w.father_card_back : (w.fatherCardBack || `/${w.father_card_back}`)) : (w.fatherCardBack || null),
                                                             status: w.status !== undefined ? w.status : true,
+                                                            dailyJobsCount: w.daily_jobs_count ?? 0,
+                                                            dailyCommission: w.daily_commission ?? 0,
                                                         })));
                                                     }
                                                 } else {

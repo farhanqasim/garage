@@ -10,7 +10,7 @@ class UserController extends Controller
 {
     public function all_users(){
       $users = User::where('role', 'user')
-                     ->with('branches')
+                     ->with(['branches', 'assignedBranches'])
                      ->paginate(10);
                     //  return $users;
         return view('admin.users.index', compact('users'));
