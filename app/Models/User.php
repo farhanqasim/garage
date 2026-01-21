@@ -47,7 +47,17 @@ class User extends Authenticatable
 
     public function branches()
     {
-        return $this->hasOne(Branch::class);
+        return $this->hasOne(Branch::class, 'user_id');
+    }
+
+    /**
+     * Get all branches assigned to this user (many-to-many)
+     */
+    public function assignedBranches()
+    {
+        return $this->belongsToMany(Branch::class, 'branch_user', 'user_id', 'branch_id')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
 public function user_items()

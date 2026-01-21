@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\CarWashWorker;
+use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,23 +25,72 @@ class CarWashWorkerController extends Controller
         ->where('status', true)
         ->orderBy('name', 'asc')
         ->get()
-        ->map(function($worker) {
+        ->map(function($worker) use ($branchId) {
+            // Get today's completed jobs for this worker
+            // Check both end_time and created_at in case end_time is null
+            $todayCompletedJobs = CarWashJob::where(function($query) use ($branchId) {
+                $query->where('branch_id', $branchId)
+                      ->orWhereNull('branch_id');
+            })
+            ->where('worker_id', $worker->id)
+            ->where('status', 'completed')
+            ->where(function($query) {
+                $query->whereDate('end_time', today())
+                      ->orWhere(function($q) {
+                          // If end_time is null, check created_at
+                          $q->whereNull('end_time')
+                            ->whereDate('created_at', today());
+                      });
+            })
+            ->get();
+            
+            // Calculate daily commission
+            $dailyCommission = 0;
+            $dailyJobsCount = $todayCompletedJobs->count();
+            $workerCommissionPercentage = (float) ($worker->commission ?? 0);
+            
+            foreach ($todayCompletedJobs as $job) {
+                // Calculate total job price including additional prices
+                $jobPrice = (float) ($job->price ?? 0);
+                $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
+                $totalJobPrice = $jobPrice + (float) $additionalPrices;
+                
+                // Calculate commission on total price
+                if ($totalJobPrice > 0 && $workerCommissionPercentage > 0) {
+                    $commissionAmount = ($totalJobPrice * $workerCommissionPercentage) / 100;
+                    $dailyCommission += $commissionAmount;
+                }
+            }
+            
             return [
                 'id' => $worker->id,
                 'name' => $worker->name,
                 'mobile' => $worker->mobile,
+                'additional_mobiles' => $worker->additional_mobiles ?? [],
                 'additionalMobiles' => $worker->additional_mobiles ?? [],
+                'father_name' => $worker->father_name,
                 'fatherName' => $worker->father_name,
+                'father_mobile' => $worker->father_mobile,
                 'fatherMobile' => $worker->father_mobile,
+                'father_additional_mobiles' => $worker->father_additional_mobiles ?? [],
                 'fatherAdditionalMobiles' => $worker->father_additional_mobiles ?? [],
                 'location' => $worker->location,
                 'commission' => $worker->commission,
+                'id_card_front' => $worker->id_card_front ? asset($worker->id_card_front) : null,
                 'idCardFront' => $worker->id_card_front ? asset($worker->id_card_front) : null,
+                'id_card_back' => $worker->id_card_back ? asset($worker->id_card_back) : null,
                 'idCardBack' => $worker->id_card_back ? asset($worker->id_card_back) : null,
+                'father_card_front' => $worker->father_card_front ? asset($worker->father_card_front) : null,
                 'fatherCardFront' => $worker->father_card_front ? asset($worker->father_card_front) : null,
+                'father_card_back' => $worker->father_card_back ? asset($worker->father_card_back) : null,
                 'fatherCardBack' => $worker->father_card_back ? asset($worker->father_card_back) : null,
+                'status' => $worker->status,
                 'completedJobs' => $worker->completedJobsCount(),
                 'totalEarnings' => $worker->totalEarnings(),
+                'daily_jobs_count' => $dailyJobsCount,
+                'dailyJobsCount' => $dailyJobsCount,
+                'daily_commission' => round($dailyCommission, 2),
+                'dailyCommission' => round($dailyCommission, 2),
             ];
         });
         
