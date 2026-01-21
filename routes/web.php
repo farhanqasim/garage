@@ -29,6 +29,9 @@ use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VehicalTypeController;
 use App\Http\Controllers\Admin\WarehouseController;
+use App\Http\Controllers\Admin\BankController;
+use App\Http\Controllers\Admin\BankAccountController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Auth\WebAuthnController;
 
 /*
@@ -135,7 +138,17 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
 // ==============================
 // 🧩 ADMIN ROUTES (No Middleware)
 // ==============================
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
+    Route::resource('banks', BankController::class);
+    Route::post('banks/{bank}/toggle-status', [BankController::class, 'toggleStatus'])->name('banks.toggle-status');
+    
+    Route::resource('bank-accounts', BankAccountController::class);
+    Route::post('bank-accounts/{bankAccount}/toggle-status', [BankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
+    
+    Route::resource('payments', PaymentController::class)->only(['index', 'show']);
+    Route::post('payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payments.mark-paid');
+    Route::post('payments/{payment}/mark-failed', [PaymentController::class, 'markAsFailed'])->name('payments.mark-failed');
+    Route::post('payments/{payment}/mark-refunded', [PaymentController::class, 'markAsRefunded'])->name('payments.mark-refunded');
 });
 
 Route::get('setting',[SettingController::class,"setting"])->name('admin.setting');
