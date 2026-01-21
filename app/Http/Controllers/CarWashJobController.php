@@ -250,7 +250,7 @@ class CarWashJobController extends Controller
     {
         $request->validate([
             'service_id' => 'nullable|exists:car_wash_services,id',
-            'worker_id' => 'nullable|exists:car_wash_workers,id',
+            'worker_id' => 'required|exists:car_wash_workers,id',
             'customer_name' => 'nullable|string|max:255',
             'vehicle_no' => 'nullable|string|max:50',
             'mobile' => 'nullable|string|max:50',
