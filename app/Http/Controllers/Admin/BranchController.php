@@ -22,15 +22,23 @@ class BranchController extends Controller
             $users = User::where('role', 'user')->get();
         }
 
-        // ✅ If admin → show all branches
+        // ✅ If admin → show all branches with assigned users
         if ($user->role === 'admin') {
-            $branches = Branch::with('user')->paginate(10);
+            $branches = Branch::with(['user', 'users'])->paginate(10);
             return view('admin.branches.index', compact('branches', 'users'));
         }
 
-        // ✅ If normal user
+        // ✅ If normal user - check owner OR assigned branches
         if ($user->role === 'user') {
-            $branch = Branch::with('user')->where('user_id', $user->id)->first();
+            $branch = Branch::with(['user', 'users'])->where('user_id', $user->id)->first();
+            
+            // If no branch as owner, check assigned branches
+            if (!$branch) {
+                $assignedBranch = $user->assignedBranches()->first();
+                if ($assignedBranch) {
+                    $branch = Branch::with(['user', 'users'])->find($assignedBranch->id);
+                }
+            }
 
             if ($branch) {
                 // User already added a branch → show only their branch
@@ -182,11 +190,99 @@ public function store_branches(Request $request)
         // Keep existing status
         $branch->save();
 
+        // Handle assigning multiple users to branch with roles (for admins)
+        if ($user->role === 'admin' && $request->has('assigned_user_ids')) {
+            $assignedUserIds = $request->assigned_user_ids ?? [];
+            $assignedUserRoles = $request->assigned_user_roles ?? [];
+            
+            // Remove branch owner from assigned users list (they're already the owner)
+            $filteredUserIds = [];
+            $filteredRoles = [];
+            foreach ($assignedUserIds as $index => $uid) {
+                if ($uid != $branch->user_id) {
+                    $filteredUserIds[] = $uid;
+                    $filteredRoles[] = $assignedUserRoles[$index] ?? 'staff';
+                }
+            }
+            
+            // Prepare sync data with roles
+            $syncData = [];
+            foreach ($filteredUserIds as $index => $userId) {
+                $syncData[$userId] = ['role' => $filteredRoles[$index] ?? 'staff'];
+            }
+            
+            // Sync assigned users with roles
+            $branch->users()->sync($syncData);
+        }
+
         // ✅ Redirect with success
         return redirect()->route('all.branches')->with('success', 'Branch updated successfully!');
     }
 
+    /**
+     * Assign users to a branch with roles
+     */
+    public function assignUsers(Request $request, $id)
+    {
+        $user = Auth::user();
+        
+        // Only admins can assign users
+        if ($user->role !== 'admin') {
+            return redirect()->back()->with('error', 'Unauthorized access.');
+        }
 
+        $branch = Branch::findOrFail($id);
+        
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id',
+            'user_roles' => 'nullable|array',
+            'user_roles.*' => 'in:manager,staff,worker,other'
+        ]);
+
+        $userIds = $request->user_ids;
+        $userRoles = $request->user_roles ?? [];
+        
+        // Remove branch owner from list (they're already the owner)
+        $filteredUserIds = [];
+        $filteredRoles = [];
+        
+        foreach ($userIds as $index => $uid) {
+            if ($uid != $branch->user_id) {
+                $filteredUserIds[] = $uid;
+                $filteredRoles[] = $userRoles[$index] ?? 'staff';
+            }
+        }
+
+        // Prepare sync data with roles
+        $syncData = [];
+        foreach ($filteredUserIds as $index => $userId) {
+            $syncData[$userId] = ['role' => $filteredRoles[$index] ?? 'staff'];
+        }
+
+        // Sync assigned users with roles
+        $branch->users()->sync($syncData);
+
+        return redirect()->back()->with('success', 'Users assigned to branch successfully!');
+    }
+
+    /**
+     * Remove a user from a branch
+     */
+    public function removeUser($branchId, $userId)
+    {
+        $user = Auth::user();
+        
+        // Only admins can remove users
+        if ($user->role !== 'admin') {
+            return redirect()->back()->with('error', 'Unauthorized access.');
+        }
+
+        $branch = Branch::findOrFail($branchId);
+        $branch->users()->detach($userId);
+
+        return redirect()->back()->with('success', 'User removed from branch successfully!');
+    }
 
     public function delete_branch($id)
     {
