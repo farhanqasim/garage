@@ -55,7 +55,9 @@ class User extends Authenticatable
      */
     public function assignedBranches()
     {
-        return $this->belongsToMany(Branch::class, 'branch_user')->withPivot('role')->withTimestamps();
+        return $this->belongsToMany(Branch::class, 'branch_user', 'user_id', 'branch_id')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
 public function user_items()
