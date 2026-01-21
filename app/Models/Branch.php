@@ -9,6 +9,13 @@ class Branch extends Model
 {
     use HasFactory;
 
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'branches';
+
     protected $fillable = [
         'user_id',
         'branch_name',
@@ -34,7 +41,9 @@ class Branch extends Model
      */
     public function users()
     {
-        return $this->belongsToMany(User::class, 'branch_user')->withPivot('role')->withTimestamps();
+        return $this->belongsToMany(User::class, 'branch_user', 'branch_id', 'user_id')
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     public function item_branch()
