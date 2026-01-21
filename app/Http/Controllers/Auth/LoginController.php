@@ -107,20 +107,47 @@ class LoginController extends Controller
         
         // For normal users, branch is REQUIRED
         if ($user->role === 'user') {
-            // Find user's branch
-            $branch = Branch::where('user_id', $user->id)
+            // Find user's branches (either as owner or as assigned member)
+            $ownerBranches = Branch::where('user_id', $user->id)
                 ->where('status', 'active')
-                ->first();
+                ->get();
             
-            if ($branch) {
+            $assignedBranches = $user->assignedBranches()
+                ->where('status', 'active')
+                ->get();
+            
+            // Merge and get unique branches
+            $allBranches = $ownerBranches->merge($assignedBranches)->unique('id');
+            
+            if ($allBranches->count() > 0) {
+                // If only one branch, auto-select it
+                if ($allBranches->count() === 1) {
+                    $branch = $allBranches->first();
+                    return response()->json([
+                        'success' => true,
+                        'user_role' => 'user',
+                        'branch_required' => true,
+                        'branch_id' => $branch->id,
+                        'branch_name' => $branch->branch_name,
+                        'branch_code' => $branch->branch_code,
+                        'message' => 'Branch found - Selection required'
+                    ]);
+                }
+                
+                // Multiple branches - return list
                 return response()->json([
                     'success' => true,
                     'user_role' => 'user',
                     'branch_required' => true,
-                    'branch_id' => $branch->id,
-                    'branch_name' => $branch->branch_name,
-                    'branch_code' => $branch->branch_code,
-                    'message' => 'Branch found - Selection required'
+                    'multiple_branches' => true,
+                    'branches' => $allBranches->map(function($b) {
+                        return [
+                            'id' => $b->id,
+                            'name' => $b->branch_name,
+                            'code' => $b->branch_code
+                        ];
+                    }),
+                    'message' => 'Multiple branches found - Selection required'
                 ]);
             } else {
                 return response()->json([
@@ -159,14 +186,25 @@ class LoginController extends Controller
                     ->withErrors(['branch_id' => 'Branch selection is required for user login.']);
             }
             
-            // Verify branch belongs to this user
+            // Verify user has access to this branch (either as owner or assigned member)
             $branch = Branch::find($request->branch_id);
             
-            if (!$branch || $branch->user_id != $user->id || $branch->status !== 'active') {
+            if (!$branch || $branch->status !== 'active') {
                 Auth::logout();
                 return redirect()->back()
                     ->withInput($request->only('email'))
-                    ->withErrors(['branch_id' => 'Invalid branch selected. Please select your branch.']);
+                    ->withErrors(['branch_id' => 'Invalid or inactive branch selected.']);
+            }
+            
+            // Check if user is branch owner OR assigned to this branch
+            $isOwner = $branch->user_id == $user->id;
+            $isAssigned = $user->assignedBranches()->where('branch_id', $branch->id)->exists();
+            
+            if (!$isOwner && !$isAssigned) {
+                Auth::logout();
+                return redirect()->back()
+                    ->withInput($request->only('email'))
+                    ->withErrors(['branch_id' => 'You do not have access to this branch. Please select your branch.']);
             }
             
             // Store selected branch in session

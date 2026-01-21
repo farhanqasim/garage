@@ -29,6 +29,14 @@ class Branch extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Get all users assigned to this branch (many-to-many)
+     */
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'branch_user')->withPivot('role')->withTimestamps();
+    }
+
     public function item_branch()
     {
         return $this->hasOne(Item::class);

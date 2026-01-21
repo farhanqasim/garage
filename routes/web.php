@@ -281,7 +281,9 @@ Route::get('/all/branch', [BranchController::class, 'all_branches'])->name('all.
 Route::post('/branches', [BranchController::class, 'store_branches'])->name('branch.store');
 Route::post('/update-branch-status/{id}', [BranchController::class, 'updatebranchStatus'])->name('update.branch.status');
 Route::put('/branch/update/{id}', [BranchController::class, 'update_branches'])->name('branch.update');
-Route::get('/branch/delete/{id}', [BranchController::class, 'delete_branch'])->name('branch.delete');
+Route::post('/branch/assign-users/{id}', [BranchController::class, 'assignUsers'])->name('branch.assign.users');
+Route::get('/branch/{branchId}/remove-user/{userId}', [BranchController::class, 'removeUser'])->name('branch.remove.user');
+Route::delete('/branch/delete/{id}', [BranchController::class, 'delete_branch'])->name('branch.delete');
 
 
 

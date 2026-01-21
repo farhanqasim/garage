@@ -163,6 +163,14 @@
                                 <i class="ti ti-stack-3 fs-16 me-2"></i>
                                 <span>Branches</span></a>
                         </li>
+                        <li><a href="{{ route('all.users') }}">
+                                <i class="ti ti-users fs-16 me-2"></i>
+                                <span>Users</span></a>
+                        </li>
+                        <li><a href="{{ route('all.users') }}?add=1">
+                                <i class="ti ti-user-plus fs-16 me-2"></i>
+                                <span>Add New User</span></a>
+                        </li>
                     </ul>
                 </li>
                 <li class="submenu-open">
