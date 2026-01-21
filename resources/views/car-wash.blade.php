@@ -1431,15 +1431,24 @@
                 vehicleNo: '',
                 mobile: '',
                 worker: '', // Must be explicitly selected - no default value
+                workerId: null, // Worker ID for database
                 price: 0
             });
             
-            // Load workers from backend - database only
+            // Debug: Log formData changes
+            useEffect(() => {
+                console.log('formData updated:', formData);
+            }, [formData]);
+            
+            // Load workers from backend - database only (keep full objects with id)
             const [workers, setWorkers] = useState(() => {
-                // Use backend workers from database
+                // Use backend workers from database - keep full objects
                 if (initialWorkers && Array.isArray(initialWorkers) && initialWorkers.length > 0) {
-                    return initialWorkers.map(w => typeof w === 'string' ? w : (w.name || w));
+                    const filtered = initialWorkers.filter(w => w && (typeof w === 'object' || typeof w === 'string'));
+                    console.log('Initial workers loaded:', filtered);
+                    return filtered;
                 }
+                console.log('No initial workers found');
                 return [];
             });
             
@@ -1450,7 +1459,10 @@
                         const response = await fetch(API_ROUTES.workers.index);
                         const data = await response.json();
                         if (data.success && data.workers) {
-                            setWorkers(data.workers.map(w => typeof w === 'string' ? w : (w.name || w)));
+                            // Keep full worker objects with id
+                            const filtered = data.workers.filter(w => w && (typeof w === 'object' || typeof w === 'string'));
+                            console.log('Workers loaded from API:', filtered);
+                            setWorkers(filtered);
                         }
                     } catch (error) {
                         console.error('Error loading workers from API:', error);
@@ -1466,7 +1478,7 @@
                 };
             }, []);
             
-            // Get workers - use state directly, not a constant
+            // Get workers - use state directly, not a constant (full objects with id)
             const WORKERS = workers || [];
             const [editingCategory, setEditingCategory] = useState(null);
             const [showServicesDropdown, setShowServicesDropdown] = useState(false);
@@ -1511,6 +1523,7 @@
             const [audioUrl, setAudioUrl] = useState(null);
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
+            const recognitionTranscriptRef = React.useRef(''); // Store transcript for mobile compatibility
             const [activeJobs, setActiveJobs] = useState(() => {
                 // Use backend active jobs from database only
                 return initialActiveJobs && Array.isArray(initialActiveJobs) ? initialActiveJobs : [];
@@ -5588,8 +5601,16 @@
                                     }
                                     
                                     // Validate worker selection - COMPULSORY
-                                    if (!formData.worker || formData.worker.trim() === '') {
-                                        alert('⚠️ COMPULSORY: Please select a worker from the list before starting the job!');
+                                    console.log('Form submission - formData:', formData);
+                                    console.log('Form submission - WORKERS:', WORKERS);
+                                    
+                                    if (!formData.worker || formData.worker.trim() === '' || !formData.workerId) {
+                                        console.error('Worker validation failed:', {
+                                            worker: formData.worker,
+                                            workerId: formData.workerId,
+                                            formData: formData
+                                        });
+                                        alert('⚠️ COMPULSORY: Please select a worker from the list before starting the job!\n\nSelected: ' + (formData.worker || 'None') + '\nWorker ID: ' + (formData.workerId || 'None'));
                                         // Scroll to worker section if possible
                                         const workerSection = document.querySelector('[class*="ASSIGN WORKER"]')?.closest('div');
                                         if (workerSection) {
@@ -5648,8 +5669,12 @@
                                         }
                                     }
                                     
-                                    // Find worker_id by name
-                                    if (formData.worker) {
+                                    // Find worker_id - prefer direct ID, fallback to name matching
+                                    if (formData.workerId) {
+                                        // Direct worker ID from formData
+                                        workerId = formData.workerId;
+                                    } else if (formData.worker) {
+                                        // Fallback: Find worker by name
                                         const foundWorker = WORKERS.find(w => {
                                             const workerName = typeof w === 'string' ? w : (w.name || '');
                                             return workerName === formData.worker.trim();
@@ -5659,12 +5684,23 @@
                                         }
                                     }
                                     
+                                    // Validate worker_id is present
+                                    if (!workerId) {
+                                        alert('⚠️ ERROR: Worker ID not found. Please select a worker again.');
+                                        // Scroll to worker section
+                                        const workerSection = document.querySelector('[class*="ASSIGN WORKER"]')?.closest('div');
+                                        if (workerSection) {
+                                            workerSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        }
+                                        return;
+                                    }
+                                    
                                     // Prepare job data for backend
                                     // Parse price as number (in case it's stored as string from toFixed)
                                     const finalPrice = parseFloat(formData.price || 0) || 0;
                                     const jobData = {
                                         service_id: serviceId,
-                                        worker_id: workerId,
+                                        worker_id: workerId, // Required field - must be present
                                         customer_name: formData.customerName || null,
                                         vehicle_no: formData.vehicleNo || null,
                                         mobile: formData.mobile || null,
@@ -5673,6 +5709,13 @@
                                         additional_prices: selectedService?.additionalPrices || [],
                                         worker_name: formData.worker || null,
                                     };
+                                    
+                                    // Double check worker_id before sending
+                                    if (!jobData.worker_id) {
+                                        console.error('Worker ID is missing in jobData:', jobData);
+                                        alert('⚠️ ERROR: Worker ID is missing. Please select a worker again.');
+                                        return;
+                                    }
                                     
                                     try {
                                         // Save job to database
@@ -5720,7 +5763,7 @@
                                     
                                     // Reset form and go back to dashboard
                                     setView('dashboard');
-                                    setFormData({ customerName: '', vehicleNo: '', mobile: '', worker: '', price: 0 }); // Reset worker to empty - must be selected
+                                    setFormData({ customerName: '', vehicleNo: '', mobile: '', worker: '', workerId: null, price: 0 }); // Reset worker to empty - must be selected
                                     setSelectedService(null);
                                     setAudioBlob(null);
                                     if (audioUrl) {
@@ -5843,7 +5886,33 @@
                                                                 if (stream) {
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
+                                                                
+                                                                // On mobile, check if we have transcript after recording stops
+                                                                // Sometimes recognition ends before recorder, so check transcript here too
+                                                                // Use ref to get the stored transcript (works across closures)
+                                                                setTimeout(() => {
+                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        console.log('✅ Setting customer name from transcript ref after recording stop:', customerName);
+                                                                        setFormData(prev => {
+                                                                            // Only update if not already set or if this is better
+                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
+                                                                                return { ...prev, customerName: customerName };
+                                                                            }
+                                                                            return prev;
+                                                                        });
+                                                                        // Clear audio since we have text
+                                                                        setAudioBlob(null);
+                                                                        if (audioUrl) {
+                                                                            URL.revokeObjectURL(audioUrl);
+                                                                        }
+                                                                        setAudioUrl(null);
+                                                                    }
+                                                                }, 500); // Small delay to ensure recognition has processed
                                                             };
+                                                            
+                                                            // Clear transcript ref for new recording
+                                                            recognitionTranscriptRef.current = '';
                                                             
                                                             // Start speech recognition for text
                                                             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -5852,21 +5921,79 @@
                                                             if (SpeechRecognition) {
                                                                 recognitionInstance = new SpeechRecognition();
                                                                 recognitionInstance.lang = 'en-US';
-                                                                recognitionInstance.continuous = false;
-                                                                recognitionInstance.interimResults = false;
+                                                                recognitionInstance.continuous = true; // Changed to true for mobile compatibility
+                                                                recognitionInstance.interimResults = true; // Changed to true to get results on mobile
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
-                                                                    if (event.results && event.results.length > 0 && event.results[0].length > 0) {
-                                                                        const transcript = event.results[0][0].transcript;
-                                                                        setFormData({ ...formData, customerName: transcript.trim().toUpperCase() });
+                                                                    let interimTranscript = '';
+                                                                    let finalTranscript = '';
+                                                                    
+                                                                    // Process all results (mobile browsers may send multiple results)
+                                                                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                                                                        const transcript = event.results[i][0].transcript;
+                                                                        if (event.results[i].isFinal) {
+                                                                            finalTranscript += transcript + ' ';
+                                                                            // Store in ref for later use
+                                                                            recognitionTranscriptRef.current += transcript + ' ';
+                                                                        } else {
+                                                                            interimTranscript += transcript;
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    // Update formData immediately for mobile browsers (they may not send final results)
+                                                                    if (finalTranscript.trim()) {
+                                                                        // Final result - use this
+                                                                        const customerName = finalTranscript.trim().toUpperCase();
+                                                                        console.log('✅ Final transcript:', customerName);
+                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
+                                                                        setAudioBlob(null); // Clear audio blob when we have text
+                                                                        if (audioUrl) {
+                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
+                                                                        }
+                                                                    } else if (interimTranscript.trim()) {
+                                                                        // Interim result - update for preview (mobile browsers)
+                                                                        const customerName = interimTranscript.trim().toUpperCase();
+                                                                        console.log('📝 Interim transcript:', customerName);
+                                                                        // Store interim in ref too (for mobile fallback)
+                                                                        recognitionTranscriptRef.current = customerName;
+                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
                                                                     }
                                                                 };
                                                                 
                                                                 recognitionInstance.onerror = (event) => {
                                                                     console.error('Speech recognition error:', event.error);
+                                                                    // On mobile, some errors are not critical (like no-speech)
+                                                                    if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                                                                        // Don't show alert for these - user might still be speaking
+                                                                        console.log('Speech recognition info:', event.error);
+                                                                    } else {
+                                                                        console.error('Speech recognition error:', event.error);
+                                                                    }
                                                                 };
                                                                 
                                                                 recognitionInstance.onend = () => {
+                                                                    console.log('🎤 Speech recognition ended');
+                                                                    console.log('📝 Stored transcript:', recognitionTranscriptRef.current);
+                                                                    
+                                                                    // Use stored transcript from ref (works for mobile)
+                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        console.log('✅ Setting customer name from transcript ref:', customerName);
+                                                                        setFormData(prev => {
+                                                                            // Only update if not already set or if this is more complete
+                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
+                                                                                return { ...prev, customerName: customerName };
+                                                                            }
+                                                                            return prev;
+                                                                        });
+                                                                        setAudioBlob(null); // Clear audio blob when we have text
+                                                                        if (audioUrl) {
+                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
+                                                                        }
+                                                                    }
+                                                                    
                                                                     // Stop audio recording when speech ends
                                                                     if (recorder && recorder.state !== 'inactive') {
                                                                         recorder.stop();
@@ -5881,8 +6008,34 @@
                                                                     }
                                                                 };
                                                                 
+                                                                // Mobile browsers may need onstart event
+                                                                recognitionInstance.onstart = () => {
+                                                                    console.log('🎤 Speech recognition started');
+                                                                };
+                                                                
+                                                                // Mobile browsers may restart recognition automatically
+                                                                recognitionInstance.onnomatch = () => {
+                                                                    console.log('⚠️ No speech match found');
+                                                                };
+                                                                
                                                                 setRecognition(recognitionInstance);
-                                                                recognitionInstance.start();
+                                                                
+                                                                try {
+                                                                    recognitionInstance.start();
+                                                                    console.log('✅ Speech recognition started successfully');
+                                                                } catch (startError) {
+                                                                    console.error('Error starting speech recognition:', startError);
+                                                                    // On mobile, if recognition fails, still allow audio recording
+                                                                    // Don't show alert - just log it, audio will still record
+                                                                    console.log('⚠️ Voice recognition not available. Audio will be recorded only.');
+                                                                }
+                                                            } else {
+                                                                console.log('⚠️ Speech recognition not supported - audio recording only');
+                                                                // Show helpful message on mobile
+                                                                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                                                if (isMobile) {
+                                                                    console.log('📱 Mobile browser detected - speech recognition may not be available');
+                                                                }
                                                             }
                                                             
                                                             // Start audio recording
@@ -5890,17 +6043,38 @@
                                                             setMediaRecorder(recorder);
                                                             setIsRecording(true);
                                                             
-                                                            // Fallback: Auto stop after 6 seconds if speech doesn't end naturally
+                                                            // Fallback: Auto stop after 8 seconds if speech doesn't end naturally (longer for mobile)
                                                             const recordingTimeout = setTimeout(() => {
+                                                                console.log('⏱️ Recording timeout reached');
                                                                 if (recorder && recorder.state !== 'inactive') {
                                                                     recorder.stop();
                                                                 }
-                                                                if (recognitionInstance) {
-                                                                    recognitionInstance.stop();
+                                                                if (recognitionInstance && recognitionInstance.state !== 'inactive') {
+                                                                    try {
+                                                                        recognitionInstance.stop();
+                                                                    } catch (e) {
+                                                                        console.log('Error stopping recognition:', e);
+                                                                    }
                                                                 }
                                                                 setIsRecording(false);
-                                                                stream.getTracks().forEach(track => track.stop());
-                                                            }, 6000); // 6 seconds fallback
+                                                                if (stream) {
+                                                                    stream.getTracks().forEach(track => track.stop());
+                                                                }
+                                                                
+                                                                // Final check - if we have any transcript in ref, use it
+                                                                if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                    const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                    console.log('✅ Final timeout check - setting customer name:', customerName);
+                                                                    if (customerName) {
+                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
+                                                                        setAudioBlob(null);
+                                                                        if (audioUrl) {
+                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }, 8000); // 8 seconds fallback (longer for mobile)
                                                             
                                                             // Store timeout ID to clear if speech ends early
                                                             window.currentRecordingTimeout = recordingTimeout;
@@ -5933,11 +6107,19 @@
                                                 <div className="mt-1.5 sm:mt-2">
                                                     <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
                                                         ✅ Voice recorded
+                                                        {!formData.customerName && (
+                                                            <span className="text-orange-600 ml-1">(Text not recognized - please type name manually)</span>
+                                                        )}
                                                     </p>
                                                     {audioUrl && (
                                                         <audio controls className="w-full h-7 sm:h-8" src={audioUrl}>
                                                             Your browser does not support audio playback.
                                                         </audio>
+                                                    )}
+                                                    {!formData.customerName && (
+                                                        <p className="text-[8px] sm:text-[9px] text-orange-600 font-semibold mt-1">
+                                                            💡 Tip: On mobile, speech recognition may not work. Please type the customer name manually.
+                                                        </p>
                                                     )}
                                                 </div>
                                             )}
@@ -6008,19 +6190,54 @@
                                                         {WORKERS.map((worker, index) => {
                                                             const workerName = typeof worker === 'string' ? worker : (worker.name || 'Unknown');
                                                             const workerKey = typeof worker === 'string' ? worker : (worker.id || index);
-                                                            const isSelected = formData.worker === workerName;
+                                                            const workerId = typeof worker === 'string' ? null : (worker.id || null);
+                                                            const isSelected = formData.worker === workerName || formData.workerId === workerId;
+                                                            
                                                             return (
                                                                 <button
                                                                     key={workerKey}
                                                                     type="button"
-                                                                    onClick={() => setFormData({ ...formData, worker: workerName })}
-                                                                    className={`p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl text-[8px] sm:text-[9px] font-black uppercase border-2 transition-all ${
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        
+                                                                        console.log('🔵 Worker button clicked:', { 
+                                                                            workerName, 
+                                                                            workerId, 
+                                                                            worker, 
+                                                                            workerHasId: !!(worker && worker.id),
+                                                                            currentFormData: formData 
+                                                                        });
+                                                                        
+                                                                        if (!workerId) {
+                                                                            console.error('❌ Worker ID is null for worker:', worker);
+                                                                            alert('Error: Worker ID not found. Please refresh the page.\n\nWorker: ' + workerName + '\nWorker Object: ' + JSON.stringify(worker));
+                                                                            return;
+                                                                        }
+                                                                        
+                                                                        // Use functional update to ensure we get latest state
+                                                                        setFormData(prevFormData => {
+                                                                            const updatedData = { 
+                                                                                ...prevFormData, 
+                                                                                worker: workerName, 
+                                                                                workerId: workerId 
+                                                                            };
+                                                                            console.log('✅ Updating formData:', {
+                                                                                previous: prevFormData,
+                                                                                updated: updatedData
+                                                                            });
+                                                                            return updatedData;
+                                                                        });
+                                                                    }}
+                                                                    className={`p-3 sm:p-3.5 md:p-4 rounded-xl sm:rounded-2xl text-[8px] sm:text-[9px] font-black uppercase border-2 transition-all cursor-pointer ${
                                                                         isSelected
                                                                             ? 'bg-slate-900 border-slate-900 text-white shadow-lg scale-105'
                                                                             : !formData.worker
                                                                                 ? 'bg-red-50 border-red-500 text-red-700 hover:border-red-600 hover:bg-red-100 shadow-md animate-pulse'
-                                                                                : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                                                                : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:bg-slate-50'
                                                                     }`}
+                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                    onMouseUp={(e) => e.stopPropagation()}
                                                                 >
                                                                     {workerName}
                                                                 </button>
