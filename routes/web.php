@@ -116,6 +116,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/jobs/active', [\App\Http\Controllers\CarWashJobController::class, 'activeJobs'])->name('jobs.active');
     Route::get('/jobs/completed', [\App\Http\Controllers\CarWashJobController::class, 'completedJobs'])->name('jobs.completed');
     Route::get('/jobs/today-stats', [\App\Http\Controllers\CarWashJobController::class, 'todayStats'])->name('jobs.today-stats');
+    Route::get('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'show'])->name('jobs.show');
     Route::post('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'store'])->name('jobs.store');
     Route::put('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'update'])->name('jobs.update');
     Route::post('/jobs/{id}/complete', [\App\Http\Controllers\CarWashJobController::class, 'complete'])->name('jobs.complete');

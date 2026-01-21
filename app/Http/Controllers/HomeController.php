@@ -177,9 +177,19 @@ public function completedJobs()
               ->orWhereNull('branch_id');
     })
     ->completed()
+    ->with('worker')
     ->orderBy('end_time', 'desc')
     ->get()
     ->map(function($job) {
+        // Get worker commission percentage
+        $workerCommission = 0;
+        $commissionAmount = 0;
+        if ($job->worker && $job->worker->commission) {
+            $workerCommission = (float) $job->worker->commission;
+            // Calculate commission amount: (price * commission_percentage) / 100
+            $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
+        }
+        
         return [
             'id' => $job->id,
             'serviceId' => $job->service_id,
@@ -191,6 +201,8 @@ public function completedJobs()
             'price' => (float) $job->price,
             'additionalPrices' => $job->additional_prices ?? [],
             'workerName' => $job->worker_name,
+            'workerCommission' => $workerCommission,
+            'commissionAmount' => round($commissionAmount, 2),
             'status' => $job->status,
             'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
             'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
