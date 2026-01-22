@@ -11,34 +11,77 @@ class Payment extends Model
 
     protected $fillable = [
         'user_id',
-        'order_id',
-        'payment_method',
-        'bank_id',
+        'customer_id',
+        'supplier_id',
+        'payment_method_id',
+        'bank_account_id',
+        'direction',
+        'payment_date',
         'transaction_id',
         'amount',
         'currency',
         'status',
         'paid_at',
+        'notes',
     ];
 
     protected $casts = [
+        'payment_date' => 'date',
         'amount' => 'decimal:2',
         'paid_at' => 'datetime',
     ];
 
-    /**
-     * Get the user that made this payment
-     */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get the bank associated with this payment (if payment_method is 'bank')
-     */
-    public function bank()
+    public function customer()
     {
-        return $this->belongsTo(Bank::class);
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    public function sales()
+    {
+        return $this->belongsToMany(Sale::class, 'sale_payments')
+                    ->withPivot('allocated_amount')
+                    ->withTimestamps();
+    }
+
+    public function purchases()
+    {
+        return $this->belongsToMany(Purchase::class, 'purchase_payments')
+                    ->withPivot('allocated_amount')
+                    ->withTimestamps();
+    }
+
+    public function bankTransactions()
+    {
+        return $this->hasMany(BankTransaction::class, 'matched_payment_id');
+    }
+
+    public function scopeIncoming($query)
+    {
+        return $query->where('direction', 'in');
+    }
+
+    public function scopeOutgoing($query)
+    {
+        return $query->where('direction', 'out');
     }
 }

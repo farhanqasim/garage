@@ -13,10 +13,16 @@ class BankAccountController extends Controller
     /**
      * Display a listing of the bank accounts.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $bankAccounts = BankAccount::with('bank')
-            ->orderBy('bank_id', 'asc')
+        $query = BankAccount::with('bank');
+
+        // Filter by account type
+        if ($request->has('account_type') && $request->account_type) {
+            $query->where('account_type', $request->account_type);
+        }
+
+        $bankAccounts = $query->orderBy('bank_id', 'asc')
             ->orderBy('is_primary', 'desc')
             ->orderBy('account_title', 'asc')
             ->paginate(10);
@@ -40,10 +46,13 @@ class BankAccountController extends Controller
     {
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
+            'account_type' => 'required|in:bank,cash',
             'account_title' => 'required|string|max:255',
             'account_number' => 'required|string|max:255',
             'iban' => 'nullable|string|max:255',
             'branch_code' => 'nullable|string|max:255',
+            'ifsc_code' => 'nullable|string|max:255',
+            'opening_balance' => 'nullable|numeric|min:0',
             'is_primary' => 'nullable|boolean',
             'status' => 'nullable|boolean',
         ]);
@@ -59,10 +68,13 @@ class BankAccountController extends Controller
 
             BankAccount::create([
                 'bank_id' => $validated['bank_id'],
+                'account_type' => $validated['account_type'],
                 'account_title' => $validated['account_title'],
                 'account_number' => $validated['account_number'],
                 'iban' => $validated['iban'] ?? null,
                 'branch_code' => $validated['branch_code'] ?? null,
+                'ifsc_code' => $validated['ifsc_code'] ?? null,
+                'opening_balance' => $validated['opening_balance'] ?? 0,
                 'is_primary' => $validated['is_primary'] ?? false,
                 'status' => $validated['status'] ?? true,
             ]);
@@ -77,6 +89,21 @@ class BankAccountController extends Controller
                 ->withInput()
                 ->with('error', 'Error creating bank account: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Display the specified bank account.
+     */
+    public function show(BankAccount $bankAccount)
+    {
+        $bankAccount->load(['bank', 'payments.paymentMethod', 'bankTransactions.matchedPayment']);
+        
+        // Calculate summary
+        $totalPayments = $bankAccount->payments()->count();
+        $totalTransactions = $bankAccount->bankTransactions()->count();
+        $reconciledTransactions = $bankAccount->bankTransactions()->where('reconciled', true)->count();
+        
+        return view('admin.bank-accounts.show', compact('bankAccount', 'totalPayments', 'totalTransactions', 'reconciledTransactions'));
     }
 
     /**
@@ -95,10 +122,13 @@ class BankAccountController extends Controller
     {
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
+            'account_type' => 'required|in:bank,cash',
             'account_title' => 'required|string|max:255',
             'account_number' => 'required|string|max:255',
             'iban' => 'nullable|string|max:255',
             'branch_code' => 'nullable|string|max:255',
+            'ifsc_code' => 'nullable|string|max:255',
+            'opening_balance' => 'nullable|numeric|min:0',
             'is_primary' => 'nullable|boolean',
             'status' => 'nullable|boolean',
         ]);
@@ -115,10 +145,13 @@ class BankAccountController extends Controller
 
             $bankAccount->update([
                 'bank_id' => $validated['bank_id'],
+                'account_type' => $validated['account_type'],
                 'account_title' => $validated['account_title'],
                 'account_number' => $validated['account_number'],
                 'iban' => $validated['iban'] ?? null,
                 'branch_code' => $validated['branch_code'] ?? null,
+                'ifsc_code' => $validated['ifsc_code'] ?? null,
+                'opening_balance' => $validated['opening_balance'] ?? 0,
                 'is_primary' => $validated['is_primary'] ?? false,
                 'status' => $validated['status'] ?? true,
             ]);

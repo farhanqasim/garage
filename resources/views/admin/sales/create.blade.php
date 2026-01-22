@@ -170,9 +170,69 @@
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
                                             <div class="fw-bold fs-16">GRAND TOTAL</div>
-                                            <div class="small">Total Payable Amount</div>
+                                            <div class="small">Total Receivable Amount</div>
                                         </div>
                                         <div class="fw-bold fs-24" id="grand-total">Rs 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Section -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0"><i class="ti ti-credit-card me-2"></i>Payment Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Payment Method <span class="text-danger">*</span></label>
+                                                <select name="payment_method_id" id="sales_payment_method_id" class="form-select" required>
+                                                    <option value="">Select Payment Method</option>
+                                                    @php
+                                                        $paymentMethods = \App\Models\PaymentMethod::active()->get();
+                                                    @endphp
+                                                    @foreach($paymentMethods as $method)
+                                                        <option value="{{ $method->id }}" data-requires-bank="{{ $method->requires_bank_account ? '1' : '0' }}">
+                                                            {{ $method->display_name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3" id="sales_bank_account_wrapper" style="display: none;">
+                                                <label class="form-label fw-bold">Bank Account</label>
+                                                <select name="bank_account_id" id="sales_bank_account_id" class="form-select">
+                                                    <option value="">Select Bank Account</option>
+                                                    @php
+                                                        $bankAccounts = \App\Models\BankAccount::where('status', true)->with('bank')->get();
+                                                    @endphp
+                                                    @foreach($bankAccounts as $account)
+                                                        <option value="{{ $account->id }}">
+                                                            {{ $account->bank->name ?? 'N/A' }} - {{ $account->account_title }} ({{ $account->account_number }})
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Payment Amount <span class="text-danger">*</span></label>
+                                                <input type="number" name="payment_amount" id="sales_payment_amount" class="form-control" step="0.01" min="0" value="0" required>
+                                                <small class="text-muted">Enter payment amount (can be partial)</small>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Payment Date</label>
+                                                <input type="date" name="payment_date" id="sales_payment_date" class="form-control" value="{{ date('Y-m-d') }}">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Transaction ID / Reference</label>
+                                                <input type="text" name="payment_transaction_id" id="sales_payment_transaction_id" class="form-control" placeholder="Optional transaction reference">
+                                            </div>
+                                            <div class="col-md-12 mb-3">
+                                                <label class="form-label fw-bold">Payment Notes</label>
+                                                <textarea name="payment_notes" id="sales_payment_notes" class="form-control" rows="2" placeholder="Additional payment notes (optional)"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2183,7 +2243,29 @@ $(document).ready(function() {
 
         $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
         $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
+        
+        // Set max payment amount to grand total
+        const grandTotalValue = parseFloat(grandTotal);
+        $('#sales_payment_amount').attr('max', grandTotalValue);
+        if (parseFloat($('#sales_payment_amount').val()) > grandTotalValue) {
+            $('#sales_payment_amount').val(grandTotalValue);
+        }
     }
+    
+    // Payment method change handler for sales
+    $('#sales_payment_method_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const requiresBank = selectedOption.data('requires-bank') == '1';
+        
+        if (requiresBank) {
+            $('#sales_bank_account_wrapper').show();
+            $('#sales_bank_account_id').prop('required', true);
+        } else {
+            $('#sales_bank_account_wrapper').hide();
+            $('#sales_bank_account_id').prop('required', false);
+            $('#sales_bank_account_id').val('');
+        }
+    });
 
     // Quantity dropdown change - show custom input if "Qty" selected
     $('#sales-item-quantity').on('change', function() {

@@ -16,6 +16,10 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Warehouse;
 use App\Models\WarehouseItem;
+use App\Models\Payment;
+use App\Models\PaymentMethod;
+use App\Models\BankAccount;
+use App\Models\SalePayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -704,6 +708,12 @@ class SalesController extends Controller
                 'shipping' => 'nullable|numeric|min:0',
                 'reference' => 'nullable|string|max:255',
                 'status' => 'nullable|string',
+                'payment_method_id' => 'nullable|exists:payment_methods,id',
+                'bank_account_id' => 'nullable|exists:bank_accounts,id',
+                'payment_amount' => 'nullable|numeric|min:0',
+                'payment_date' => 'nullable|date',
+                'payment_transaction_id' => 'nullable|string|max:255',
+                'payment_notes' => 'nullable|string',
             ]);
         } catch (ValidationException $e) {
             if ($request->ajax() || $request->wantsJson()) {
@@ -804,6 +814,39 @@ class SalesController extends Controller
                     $item->on_hand = max(0, ($item->on_hand ?? 0) - $saleQuantity);
                     $item->save();
                 }
+            }
+
+            // Create payment if provided
+            if ($request->filled('payment_method_id') && $request->payment_amount > 0) {
+                $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+                $paymentAmount = floatval($request->payment_amount);
+                
+                // Validate bank account if required
+                if ($paymentMethod->requires_bank_account && !$request->bank_account_id) {
+                    throw new \Exception('Bank account is required for this payment method.');
+                }
+                
+                $payment = Payment::create([
+                    'user_id' => auth()->id(),
+                    'customer_id' => $request->customer_id,
+                    'payment_method_id' => $request->payment_method_id,
+                    'bank_account_id' => $request->bank_account_id ?? null,
+                    'amount' => $paymentAmount,
+                    'currency' => 'PKR',
+                    'direction' => 'in', // Incoming payment for sale
+                    'payment_date' => $request->payment_date ?? $request->sale_date,
+                    'transaction_id' => $request->payment_transaction_id ?? null,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'notes' => $request->payment_notes ?? "Payment for Sale #{$sale->id}",
+                ]);
+                
+                // Link payment to sale
+                SalePayment::create([
+                    'sale_id' => $sale->id,
+                    'payment_id' => $payment->id,
+                    'allocated_amount' => $paymentAmount,
+                ]);
             }
 
             DB::commit();

@@ -32,6 +32,8 @@ use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\BankAccountController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PaymentMethodController;
+use App\Http\Controllers\Admin\BankTransactionController;
 use App\Http\Controllers\Auth\WebAuthnController;
 
 /*
@@ -127,12 +129,22 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::delete('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'destroy'])->name('jobs.destroy');
     
     // Inspections Routes
+    Route::get('/banks', [BankController::class, 'index'])->name('banks.index');
+    Route::post('/cash-transfers', [BankController::class, 'storeTransfer'])->name('cash-transfers.store');
+
     Route::get('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'show'])->name('inspections.show');
     Route::post('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'store'])->name('inspections.store');
     
     // Expenses Routes
     Route::get('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'show'])->name('expenses.show');
     Route::post('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'store'])->name('expenses.store');
+    
+    // Payments Routes
+    Route::get('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/create', [\App\Http\Controllers\CarWashPaymentController::class, 'create'])->name('payments.create');
+    Route::post('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'store'])->name('payments.store');
+    Route::get('/payments/pending-commission/{workerId}', [\App\Http\Controllers\CarWashPaymentController::class, 'getPendingCommission'])->name('payments.pending-commission');
+    Route::get('/payments/available-cash', [\App\Http\Controllers\CarWashPaymentController::class, 'getAvailableCashApi'])->name('payments.available-cash');
 });
 
 // ==============================
@@ -149,6 +161,12 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::post('payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payments.mark-paid');
     Route::post('payments/{payment}/mark-failed', [PaymentController::class, 'markAsFailed'])->name('payments.mark-failed');
     Route::post('payments/{payment}/mark-refunded', [PaymentController::class, 'markAsRefunded'])->name('payments.mark-refunded');
+    
+    Route::resource('payment-methods', PaymentMethodController::class);
+    
+    Route::resource('bank-transactions', BankTransactionController::class);
+    Route::post('bank-transactions/{bankTransaction}/reconcile', [BankTransactionController::class, 'reconcile'])->name('bank-transactions.reconcile');
+    Route::post('bank-transactions/{bankTransaction}/unreconcile', [BankTransactionController::class, 'unreconcile'])->name('bank-transactions.unreconcile');
 });
 
 Route::get('setting',[SettingController::class,"setting"])->name('admin.setting');
