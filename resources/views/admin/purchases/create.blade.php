@@ -179,6 +179,93 @@
                             </div>
                         </div>
 
+                        <!-- Payment Section -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0"><i class="ti ti-credit-card me-2"></i>Payment Information</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Payment Method</label>
+                                                <select name="payment_method_id" id="payment_method_id" class="form-select">
+                                                    <option value="">Select Payment Method</option>
+                                                    @php
+                                                        $paymentMethods = \App\Models\PaymentMethod::active()->get();
+                                                    @endphp
+                                                    @foreach($paymentMethods as $method)
+                                                        <option value="{{ $method->id }}" data-requires-bank="{{ $method->requires_bank_account ? '1' : '0' }}">
+                                                            {{ $method->display_name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3" id="bank_account_wrapper" style="display: none;">
+                                                <label class="form-label fw-bold">Bank Account</label>
+                                                <select name="bank_account_id" id="bank_account_id" class="form-select">
+                                                    <option value="">Select Bank Account</option>
+                                                    @php
+                                                        $bankAccounts = \App\Models\BankAccount::where('status', true)->with('bank')->get();
+                                                    @endphp
+                                                    @foreach($bankAccounts as $account)
+                                                        <option value="{{ $account->id }}">
+                                                            {{ $account->bank->name ?? 'N/A' }} - {{ $account->account_title }} ({{ $account->account_number }})
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Payment Amount</label>
+                                                <div class="input-group">
+                                                    <input type="number" name="payment_amount" id="payment_amount" class="form-control" step="0.01" min="0" value="0">
+                                                    <button type="button" class="btn btn-outline-primary" id="fillFullAmount" title="Fill full amount">
+                                                        <i class="ti ti-arrow-down"></i> Full
+                                                    </button>
+                                                </div>
+                                                <small class="text-muted">Enter payment amount (can be partial)</small>
+                                                <div class="mt-1">
+                                                    <small class="text-info">
+                                                        <strong>Remaining:</strong> <span id="remaining_amount">Rs 0.00</span>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Payment Date</label>
+                                                <input type="date" name="payment_date" id="payment_date" class="form-control" value="{{ date('Y-m-d') }}">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label fw-bold">Transaction ID / Reference</label>
+                                                <input type="text" name="payment_transaction_id" id="payment_transaction_id" class="form-control" placeholder="Optional transaction reference">
+                                            </div>
+                                            <div class="col-md-12 mb-3">
+                                                <label class="form-label fw-bold">Payment Notes</label>
+                                                <textarea name="payment_notes" id="payment_notes" class="form-control" rows="2" placeholder="Additional payment notes (optional)"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                <div class="alert alert-info mb-0">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <strong>Payment Summary:</strong>
+                                                            <span class="ms-2">Grand Total: <span id="payment_grand_total">Rs 0.00</span></span>
+                                                            <span class="ms-3">Payment Amount: <span id="payment_amount_display">Rs 0.00</span></span>
+                                                            <span class="ms-3">Remaining: <span id="payment_remaining_display" class="fw-bold">Rs 0.00</span></span>
+                                                        </div>
+                                                        <div>
+                                                            <span id="payment_status_badge" class="badge bg-secondary">No Payment</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Hidden fields for order tax, discount, shipping -->
                         <input type="hidden" name="order_tax" id="order_tax" value="0">
                         <input type="hidden" name="discount" id="discount" value="0">
@@ -1616,7 +1703,106 @@ $(document).ready(function() {
 
         $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
         $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
+        
+        // Set max payment amount to grand total
+        const grandTotalValue = parseFloat(grandTotal);
+        $('#payment_amount').attr('max', grandTotalValue);
+        const currentPaymentAmount = parseFloat($('#payment_amount').val()) || 0;
+        if (currentPaymentAmount > grandTotalValue) {
+            $('#payment_amount').val(grandTotalValue);
+        }
+        
+        // Update remaining amount
+        updateRemainingAmount();
     }
+    
+    // Update remaining amount display
+    function updateRemainingAmount() {
+        const grandTotal = parseFloat($('#grand-total').text().replace('Rs ', '').replace(/,/g, '')) || 0;
+        const paymentAmount = parseFloat($('#payment_amount').val()) || 0;
+        const remaining = Math.max(0, grandTotal - paymentAmount);
+        
+        // Update remaining amount in input field area
+        $('#remaining_amount').text('Rs ' + remaining.toFixed(2));
+        
+        // Update payment summary
+        $('#payment_grand_total').text('Rs ' + grandTotal.toFixed(2));
+        $('#payment_amount_display').text('Rs ' + paymentAmount.toFixed(2));
+        $('#payment_remaining_display').text('Rs ' + remaining.toFixed(2));
+        
+        // Update payment status badge
+        const paymentStatusBadge = $('#payment_status_badge');
+        if (paymentAmount === 0) {
+            paymentStatusBadge.removeClass('bg-success bg-warning bg-danger').addClass('bg-secondary').text('No Payment');
+        } else if (remaining === 0) {
+            paymentStatusBadge.removeClass('bg-secondary bg-warning bg-danger').addClass('bg-success').text('Fully Paid');
+        } else if (remaining < grandTotal * 0.5) {
+            paymentStatusBadge.removeClass('bg-secondary bg-success bg-danger').addClass('bg-warning').text('Partially Paid');
+        } else {
+            paymentStatusBadge.removeClass('bg-secondary bg-success bg-warning').addClass('bg-danger').text('Unpaid');
+        }
+        
+        // Change color based on remaining amount
+        if (remaining === 0) {
+            $('#remaining_amount').removeClass('text-warning text-danger').addClass('text-success');
+            $('#payment_remaining_display').removeClass('text-warning text-danger').addClass('text-success');
+        } else if (remaining < grandTotal * 0.5) {
+            $('#remaining_amount').removeClass('text-success text-danger').addClass('text-warning');
+            $('#payment_remaining_display').removeClass('text-success text-danger').addClass('text-warning');
+        } else {
+            $('#remaining_amount').removeClass('text-success text-warning').addClass('text-danger');
+            $('#payment_remaining_display').removeClass('text-success text-warning').addClass('text-danger');
+        }
+    }
+    
+    // Fill full amount button
+    $('#fillFullAmount').on('click', function() {
+        const grandTotal = parseFloat($('#grand-total').text().replace('Rs ', '').replace(/,/g, '')) || 0;
+        $('#payment_amount').val(grandTotal.toFixed(2));
+        updateRemainingAmount();
+    });
+    
+    // Update remaining amount when payment amount changes (already handled above, removing duplicate)
+    
+    // Payment method change handler
+    $('#payment_method_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const requiresBank = selectedOption.data('requires-bank') == '1';
+        const paymentAmount = parseFloat($('#payment_amount').val()) || 0;
+        
+        if (requiresBank && paymentAmount > 0) {
+            $('#bank_account_wrapper').show();
+            $('#bank_account_id').prop('required', true);
+        } else {
+            $('#bank_account_wrapper').hide();
+            $('#bank_account_id').prop('required', false);
+            $('#bank_account_id').val('');
+        }
+    });
+    
+    // Show/hide bank account based on payment amount
+    $('#payment_amount').on('input change', function() {
+        const paymentAmount = parseFloat($(this).val()) || 0;
+        const selectedOption = $('#payment_method_id').find('option:selected');
+        const requiresBank = selectedOption.data('requires-bank') == '1';
+        
+        if (paymentAmount > 0 && requiresBank) {
+            $('#bank_account_wrapper').show();
+            $('#bank_account_id').prop('required', true);
+        } else if (paymentAmount === 0) {
+            $('#bank_account_wrapper').hide();
+            $('#bank_account_id').prop('required', false);
+        }
+        
+        updateRemainingAmount();
+    });
+    
+    // Set payment amount to grand total on load
+    $(document).ready(function() {
+        calculateTotals();
+        updateRemainingAmount();
+        
+    });
 
     // Form submission
     $('#purchaseForm').on('submit', function(e) {
@@ -1624,7 +1810,37 @@ $(document).ready(function() {
 
         if (purchaseItems.length === 0) {
             alert('Please add at least one item');
-            return;
+            return false;
+        }
+        
+        // Validate payment information
+        const paymentMethod = $('#payment_method_id').val();
+        const paymentAmount = parseFloat($('#payment_amount').val()) || 0;
+        const grandTotal = parseFloat($('#grand-total').text().replace('Rs ', '').replace(/,/g, '')) || 0;
+        
+        // If payment method is selected, amount must be greater than 0
+        if (paymentMethod && paymentAmount <= 0) {
+            alert('Please enter a valid payment amount.');
+            $('#payment_amount').focus();
+            return false;
+        }
+        
+        // If payment amount exceeds grand total
+        if (paymentAmount > grandTotal) {
+            alert('Payment amount cannot exceed grand total (Rs ' + grandTotal.toFixed(2) + ')!');
+            $('#payment_amount').focus();
+            return false;
+        }
+        
+        // If payment method requires bank account but none selected
+        if (paymentMethod && paymentAmount > 0) {
+            const selectedOption = $('#payment_method_id').find('option:selected');
+            const requiresBank = selectedOption.data('requires-bank') == '1';
+            if (requiresBank && !$('#bank_account_id').val()) {
+                alert('Please select a bank account for this payment method.');
+                $('#bank_account_id').focus();
+                return false;
+            }
         }
 
         // Prepare items data
@@ -1651,22 +1867,39 @@ $(document).ready(function() {
         $.ajax({
             url: $(this).attr('action'),
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
             data: formData,
             processData: false,
             contentType: false,
             success: function(response) {
-                window.location.href = '{{ route("all_purchases") }}';
+                console.log('Purchase created successfully:', response);
+                if (response.success) {
+                    alert('Purchase created successfully!');
+                    window.location.href = '{{ route("all_purchases") }}';
+                } else {
+                    alert(response.message || 'Purchase created but with warnings.');
+                    window.location.href = '{{ route("all_purchases") }}';
+                }
             },
             error: function(xhr) {
-                if (xhr.responseJSON && xhr.responseJSON.errors) {
-                    let errors = '';
-                    Object.values(xhr.responseJSON.errors).forEach(function(error) {
-                        errors += error[0] + '\n';
-                    });
-                    alert(errors);
-                } else {
-                    alert('Error saving purchase. Please try again.');
+                console.error('Purchase creation error:', xhr);
+                let errorMessage = 'Error saving purchase. Please try again.';
+                
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseJSON.errors) {
+                        const errors = Object.values(xhr.responseJSON.errors).flat();
+                        errorMessage = errors.join('\n');
+                    }
+                } else if (xhr.responseText) {
+                    errorMessage = xhr.responseText;
                 }
+                
+                alert(errorMessage);
             }
         });
     });

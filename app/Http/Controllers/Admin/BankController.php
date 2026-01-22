@@ -11,8 +11,29 @@ class BankController extends Controller
     /**
      * Display a listing of the banks.
      */
-    public function index()
+    public function index(Request $request)
     {
+        // If request expects JSON (API call), return JSON
+        if ($request->wantsJson() || $request->expectsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            $banks = Bank::where('status', true)->orderBy('name', 'asc')->get();
+            
+            return response()->json([
+                'success' => true,
+                'banks' => $banks->map(function ($bank) {
+                    return [
+                        'id' => $bank->id,
+                        'name' => $bank->name,
+                        'short_name' => $bank->short_name,
+                        'icon' => 'bank',
+                        'type' => 'bank',
+                        'balance' => 0, // You can add balance calculation here
+                        'subtitle' => $bank->short_name ?? $bank->name,
+                    ];
+                })
+            ]);
+        }
+        
+        // Otherwise return HTML view
         $banks = Bank::orderBy('name', 'asc')->paginate(10);
         return view('admin.banks.index', compact('banks'));
     }

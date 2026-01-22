@@ -47,4 +47,26 @@ class Purchase extends Model
     {
         return $this->belongsTo(Branch::class);
     }
+
+    public function payments()
+    {
+        return $this->belongsToMany(Payment::class, 'purchase_payments')
+                    ->withPivot('allocated_amount')
+                    ->withTimestamps();
+    }
+
+    public function getTotalPaidAttribute()
+    {
+        return $this->payments()->sum('purchase_payments.allocated_amount');
+    }
+
+    public function getRemainingAmountAttribute()
+    {
+        return $this->grand_total - $this->total_paid;
+    }
+
+    public function getIsFullyPaidAttribute()
+    {
+        return $this->remaining_amount <= 0;
+    }
 }

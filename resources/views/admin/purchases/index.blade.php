@@ -127,11 +127,6 @@
                 </table>
             </div>
         </div>
-        @if(isset($purchases) && $purchases->hasPages())
-        <div class="card-footer">
-            {{ $purchases->links('pagination::bootstrap-5') }}
-        </div>
-        @endif
     </div>
 </div>
 

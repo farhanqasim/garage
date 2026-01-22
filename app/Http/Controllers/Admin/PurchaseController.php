@@ -16,6 +16,10 @@ use App\Models\Volt;
 use App\Models\Cca;
 use App\Models\Warehouse;
 use App\Models\WarehouseItem;
+use App\Models\Payment;
+use App\Models\PaymentMethod;
+use App\Models\BankAccount;
+use App\Models\PurchasePayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +32,7 @@ class PurchaseController extends Controller
     {
         $purchases = Purchase::with(['supplier', 'items.item'])
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->get();
         return view('admin.purchases.index', compact('purchases'));
     }
 
@@ -89,24 +93,42 @@ class PurchaseController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'branch_id' => 'required|exists:branches,id',
-            'supplier_id' => 'required|exists:suppliers,id',
-            'purchase_date' => 'required|date',
-            'reference' => 'nullable|string|max:255',
-            'status' => 'required|in:received,pending,ordered',
-            'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|exists:items,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.rate' => 'required|numeric|min:0',
-            'items.*.unit' => 'nullable|string',
-            'items.*.discount' => 'nullable|numeric|min:0',
-            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
-        ]);
+        try {
+            $request->validate([
+                'branch_id' => 'required|exists:branches,id',
+                'supplier_id' => 'required|exists:suppliers,id',
+                'purchase_date' => 'required|date',
+                'reference' => 'nullable|string|max:255',
+                'status' => 'required|in:received,pending,ordered',
+                'items' => 'required|array|min:1',
+                'items.*.item_id' => 'required|exists:items,id',
+                'items.*.quantity' => 'required|numeric|min:0.01',
+                'items.*.rate' => 'required|numeric|min:0',
+                'items.*.unit' => 'nullable|string',
+                'items.*.discount' => 'nullable|numeric|min:0',
+                'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            return redirect()->back()->withInput()->withErrors($e->errors());
+        }
 
         $warehouse = Warehouse::where('branch_id', $request->branch_id)->first();
         if (!$warehouse) {
-            return redirect()->back()->withInput()->with('error', 'Warehouse not found for selected branch.');
+            $errorMessage = 'Warehouse not found for selected branch.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage
+                ], 422);
+            }
+            return redirect()->back()->withInput()->with('error', $errorMessage);
         }
 
         DB::beginTransaction();
@@ -206,11 +228,92 @@ class PurchaseController extends Controller
                 $itemModel->save();
             }
 
+            // Create payment if provided
+            if ($request->filled('payment_method_id') && $request->payment_amount > 0) {
+                $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+                $paymentAmount = floatval($request->payment_amount);
+                
+                // Validate payment amount doesn't exceed grand total
+                if ($paymentAmount > $grandTotal) {
+                    throw new \Exception("Payment amount (Rs " . number_format($paymentAmount, 2) . ") cannot exceed grand total (Rs " . number_format($grandTotal, 2) . ").");
+                }
+                
+                // Validate bank account if required
+                if ($paymentMethod->requires_bank_account && !$request->bank_account_id) {
+                    throw new \Exception('Bank account is required for this payment method.');
+                }
+                
+                // Validate bank account exists if provided
+                if ($request->bank_account_id) {
+                    $bankAccount = BankAccount::find($request->bank_account_id);
+                    if (!$bankAccount || !$bankAccount->status) {
+                        throw new \Exception('Selected bank account is not available.');
+                    }
+                }
+                
+                $payment = Payment::create([
+                    'user_id' => auth()->id(),
+                    'supplier_id' => $request->supplier_id,
+                    'payment_method_id' => $request->payment_method_id,
+                    'bank_account_id' => $request->bank_account_id ?? null,
+                    'amount' => $paymentAmount,
+                    'currency' => 'PKR',
+                    'direction' => 'out', // Outgoing payment for purchase
+                    'payment_date' => $request->payment_date ?? $purchaseDate,
+                    'transaction_id' => $request->payment_transaction_id ?? null,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'notes' => $request->payment_notes ?? "Payment for Purchase #{$purchase->invoice_no}",
+                ]);
+                
+                // Link payment to purchase
+                PurchasePayment::create([
+                    'purchase_id' => $purchase->id,
+                    'payment_id' => $payment->id,
+                    'allocated_amount' => $paymentAmount,
+                ]);
+                
+                // Create bank transaction if bank account is used
+                if ($request->bank_account_id && $paymentMethod->requires_bank_account) {
+                    \App\Models\BankTransaction::create([
+                        'bank_account_id' => $request->bank_account_id,
+                        'transaction_date' => $request->payment_date ?? $purchaseDate,
+                        'description' => "Purchase Payment - Invoice #{$purchase->invoice_no}" . ($request->payment_notes ? " - {$request->payment_notes}" : ''),
+                        'amount' => $paymentAmount,
+                        'type' => 'debit', // Debit for outgoing payment
+                        'statement_reference' => $request->payment_transaction_id ?? $purchase->invoice_no,
+                        'matched_payment_id' => $payment->id,
+                        'reconciled' => false,
+                    ]);
+                }
+            }
+
             DB::commit();
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Purchase created successfully',
+                    'purchase_id' => $purchase->id,
+                    'invoice_no' => $purchase->invoice_no
+                ]);
+            }
+            
             return redirect()->route('all_purchases')->with('success', 'Purchase created successfully');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withInput()->with('error', 'Failed to create purchase: ' . $e->getMessage());
+            
+            $errorMessage = 'Failed to create purchase: ' . $e->getMessage();
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+            
+            return redirect()->back()->withInput()->with('error', $errorMessage);
         }
     }
 
