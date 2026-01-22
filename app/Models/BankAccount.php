@@ -11,24 +11,62 @@ class BankAccount extends Model
 
     protected $fillable = [
         'bank_id',
+        'account_type',
         'account_title',
         'account_number',
         'iban',
         'branch_code',
+        'ifsc_code',
+        'opening_balance',
         'is_primary',
         'status',
     ];
 
     protected $casts = [
+        'opening_balance' => 'decimal:2',
         'is_primary' => 'boolean',
         'status' => 'boolean',
     ];
 
-    /**
-     * Get the bank that owns this account
-     */
     public function bank()
     {
         return $this->belongsTo(Bank::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function bankTransactions()
+    {
+        return $this->hasMany(BankTransaction::class);
+    }
+
+    public function getCurrentBalanceAttribute()
+    {
+        $openingBalance = $this->opening_balance ?? 0;
+        
+        $credits = $this->bankTransactions()
+            ->where('type', 'credit')
+            ->where('reconciled', true)
+            ->sum('amount');
+        
+        $debits = $this->bankTransactions()
+            ->where('type', 'debit')
+            ->where('reconciled', true)
+            ->sum('amount');
+        
+        return $openingBalance + $credits - $debits;
+    }
+
+    public function scopeBankAccounts($query)
+    {
+        return $query->where('account_type', 'bank');
+    }
+
+    public function scopeCashAccounts($query)
+    {
+        return $query->where('account_type', 'cash');
     }
 }

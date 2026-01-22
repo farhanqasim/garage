@@ -29,8 +29,8 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="searchableTable" class="table table-hover table-center">
+                <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table id="searchableTable" class="table table-hover table-center" style="min-width: 600px;">
                         <thead class="thead-primary">
                             <tr>
                                 <th>#</th>
@@ -94,8 +94,10 @@
                 </div>
             </div>
             @if($banks->hasPages())
-                <div class="card-footer">
-                    {{ $banks->links() }}
+                <div class="card-footer p-3">
+                    <div class=" w-100" style="overflow-x: auto;">
+                        {{ $banks->links('pagination::bootstrap-5') }}
+                    </div>
                 </div>
             @endif
         </div>
