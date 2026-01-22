@@ -1332,6 +1332,12 @@
             expenses: {
                 show: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
                 store: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
+            },
+            banks: {
+                index: '{{ route("car-wash.banks.index") }}',
+            },
+            cashTransfers: {
+                store: '{{ route("car-wash.cash-transfers.store") }}',
             }
         };
         
@@ -1342,7 +1348,7 @@
         // Simplified App Component (UI structure without Firebase)
         const App = () => {
             const [view, setView] = useState('dashboard');
-            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0 });
+            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0, cashOnHand: 0 });
             
             // Load stats from API on mount - simplified to avoid errors
             useEffect(() => {
@@ -1363,6 +1369,11 @@
                             });
                             const todayRevenue = todayJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
                             
+                            // Calculate cash on hand from cash payments only
+                            const cashOnHand = todayJobs
+                                .filter(job => (job.paymentMethod || job.payment_method) === 'cash')
+                                .reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
+                            
                             // Try to get expenses from todayStats API if available
                             if (API_ROUTES.jobs.todayStats) {
                                 fetch(API_ROUTES.jobs.todayStats)
@@ -1372,14 +1383,16 @@
                                             setStats({
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: data.stats.todayExpensesTotal || 0,
-                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0)
+                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0),
+                                                cashOnHand: cashOnHand
                                             });
                                         } else {
                                             // Fallback: calculate without expenses
                                             setStats({
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: 0,
-                                                todayGrandTotal: todayRevenue
+                                                todayGrandTotal: todayRevenue,
+                                                cashOnHand: cashOnHand
                                             });
                                         }
                                     })
@@ -1389,7 +1402,8 @@
                                         setStats({
                                             todayRevenue: todayRevenue,
                                             todayExpensesTotal: 0,
-                                            todayGrandTotal: todayRevenue
+                                            todayGrandTotal: todayRevenue,
+                                            cashOnHand: cashOnHand
                                         });
                                     });
                             } else {
@@ -1397,7 +1411,8 @@
                                 setStats({
                                     todayRevenue: todayRevenue,
                                     todayExpensesTotal: 0,
-                                    todayGrandTotal: todayRevenue
+                                    todayGrandTotal: todayRevenue,
+                                    cashOnHand: cashOnHand
                                 });
                             }
                         } else {
@@ -1405,7 +1420,8 @@
                             setStats({
                                 todayRevenue: 0,
                                 todayExpensesTotal: 0,
-                                todayGrandTotal: 0
+                                todayGrandTotal: 0,
+                                cashOnHand: 0
                             });
                         }
                     })
@@ -1415,7 +1431,8 @@
                         setStats({
                             todayRevenue: 0,
                             todayExpensesTotal: 0,
-                            todayGrandTotal: 0
+                            todayGrandTotal: 0,
+                            cashOnHand: 0
                         });
                     });
             }, []);
@@ -1511,6 +1528,51 @@
             const [completeModalJobId, setCompleteModalJobId] = useState(null);
             const [selectedRating, setSelectedRating] = useState('');
             const [jobComment, setJobComment] = useState('');
+            const [paymentMethod, setPaymentMethod] = useState('cash');
+            const [selectedWorkerFilter, setSelectedWorkerFilter] = useState(null);
+            const [showWorkerFilterModal, setShowWorkerFilterModal] = useState(false);
+            const [showCashTransferModal, setShowCashTransferModal] = useState(false);
+            const [transferTab, setTransferTab] = useState('cash'); // 'cash' or 'bank'
+            const [transferMethods, setTransferMethods] = useState([
+                { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
+            ]);
+            const [transferAmount, setTransferAmount] = useState('');
+            const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
+            
+            // Load banks/transfer methods from API
+            useEffect(() => {
+                fetch(API_ROUTES.banks.index, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.banks) {
+                            // Map banks to transfer methods format
+                            const bankMethods = data.banks.map(bank => ({
+                                id: `bank_${bank.id}`,
+                                name: bank.name,
+                                icon: bank.icon === 'bank' ? 'bank' : bank.icon,
+                                type: bank.type,
+                                balance: bank.balance || 0,
+                                subtitle: bank.subtitle || '',
+                                bankId: bank.id
+                            }));
+                            
+                            // Combine with default admin cash
+                            setTransferMethods(prev => [
+                                prev[0], // Keep admin cash
+                                ...bankMethods
+                            ]);
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error loading banks:', err);
+                        // Keep default methods on error
+                    });
+            }, []);
             const [currentTime, setCurrentTime] = useState(new Date());
             const [inspectionModalJobId, setInspectionModalJobId] = useState(null);
             const [inspectionData, setInspectionData] = useState({});
@@ -1916,7 +1978,7 @@
                 }
             }, [showCompletedJobsModal]);
             
-            // Filter completed jobs based on date range
+            // Filter completed jobs based on date range and worker filter
             useEffect(() => {
                 if (completedJobs && Array.isArray(completedJobs)) {
                     const startDate = new Date(dateRangeStart);
@@ -1927,14 +1989,23 @@
                     const filtered = completedJobs.filter(job => {
                         if (!job.endTime) return false;
                         const jobDate = new Date(job.endTime);
-                        return jobDate >= startDate && jobDate <= endDate;
+                        const dateMatch = jobDate >= startDate && jobDate <= endDate;
+                        
+                        // Filter by worker if selected
+                        if (selectedWorkerFilter) {
+                            const jobWorkerName = (job.workerName || job.worker_name || job.worker || '').trim();
+                            const selectedWorkerName = selectedWorkerFilter.trim();
+                            return dateMatch && jobWorkerName === selectedWorkerName;
+                        }
+                        
+                        return dateMatch;
                     });
                     
                     setFilteredCompletedJobs(filtered);
                 } else {
                     setFilteredCompletedJobs([]);
                 }
-            }, [completedJobs, dateRangeStart, dateRangeEnd]);
+            }, [completedJobs, dateRangeStart, dateRangeEnd, selectedWorkerFilter]);
             
             // Update staff list when All Staff modal opens - fetch from API
             useEffect(() => {
@@ -2610,7 +2681,7 @@
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
-                                                    window.location.href = '{{ route("car.wash.services") }}';
+                                                    window.location.href ='{{ route("car.wash.services") }}';
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -2719,7 +2790,7 @@
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
+                        <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
                             <button
                                 type="button"
                                 className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
@@ -2806,6 +2877,18 @@
                                     Rs.{stats && typeof stats.todayGrandTotal !== 'undefined' ? stats.todayGrandTotal : 0}
                                 </p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowCashTransferModal(true)}
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                                title="Click to transfer cash"
+                                aria-label="Cash on hand today"
+                            >
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">ON HAND</p>
+                                <p className="text-xs sm:text-sm font-black text-yellow-400 font-mono truncate" aria-label="Cash on hand amount">
+                                    Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                </p>
+                            </button>
                         </div>
                     </header>
                     
@@ -3217,8 +3300,8 @@
                                     
                                     // Define required inspection items
                                     const requiredInspectionItems = [
-                                        'engine_oil', 'gear_oil', 'brake_oil', 'air_filter', 
-                                        'radiator_water', 'shower_water', 'power_oil', 'horn', 
+                                        'engine_oil', 'wiper_rubber', 'brake_oil', 'air_filter', 
+                                        'radiator_water', 'shower_water', 'horn', 
                                         'head_lights', 'indicator', 'brake_pad', 'ac_filter'
                                     ];
                                     
@@ -3310,12 +3393,11 @@
                                                                             .map(itemId => {
                                                                                 const itemNames = {
                                                                                     'engine_oil': 'Engine Oil',
-                                                                                    'gear_oil': 'Gear Oil',
+                                                                                    'wiper_rubber': 'Wiper Rubber',
                                                                                     'brake_oil': 'Brake Oil',
                                                                                     'air_filter': 'Air Filter',
                                                                                     'radiator_water': 'Radiator Water',
                                                                                     'shower_water': 'Shower Water level',
-                                                                                    'power_oil': 'Power Oil',
                                                                                     'horn': 'Horn',
                                                                                     'head_lights': 'Head Lights',
                                                                                     'indicator': 'Indicator',
@@ -3367,16 +3449,141 @@
                                                         </div>
                                                     </div>
                                                     
+                                                    {/* Payment Method Section */}
+                                                    <div className="mb-3 sm:mb-4">
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Payment Method</label>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                                                            {[
+                                                                { value: 'cash', label: 'Cash', icon: '💵', color: 'bg-green-500' },
+                                                                { value: 'bank', label: 'Bank', icon: '🏦', color: 'bg-blue-500' },
+                                                                { value: 'card', label: 'Card', icon: '💳', color: 'bg-purple-500' },
+                                                                { value: 'other', label: 'Other', icon: '💰', color: 'bg-slate-500' }
+                                                            ].map((method) => (
+                                                                <button
+                                                                    key={method.value}
+                                                                    type="button"
+                                                                    onClick={() => setPaymentMethod(method.value)}
+                                                                    className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all ${
+                                                                        paymentMethod === method.value
+                                                                            ? `${method.color} text-white border-${method.color.replace('bg-', '')} shadow-lg scale-105`
+                                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                    }`}
+                                                                >
+                                                                    <div className="text-lg sm:text-xl mb-0.5 sm:mb-1">{method.icon}</div>
+                                                                    <div className="text-[9px] sm:text-[10px] font-black uppercase">{method.label}</div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    
                                                     {/* Comments Section */}
                                                     <div className="mb-3 sm:mb-4">
                                                         <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Comments (Optional)</label>
-                                                        <textarea
-                                                            value={jobComment}
-                                                            onChange={(e) => setJobComment(e.target.value)}
-                                                            placeholder="Enter any comments or notes..."
-                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
-                                                            rows="3"
-                                                        />
+                                                        <div className="relative">
+                                                            <textarea
+                                                                value={jobComment}
+                                                                onChange={(e) => setJobComment(e.target.value)}
+                                                                placeholder="Enter any comments or notes..."
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 pr-10 sm:pr-12 text-xs sm:text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
+                                                                rows="3"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                                                                        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                                                                    if (!SpeechRecognition) {
+                                                                        alert('Speech recognition is not available.');
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    if (isRecording) {
+                                                                        // Stop recording
+                                                                        if (recognition) {
+                                                                            recognition.stop();
+                                                                            setRecognition(null);
+                                                                        }
+                                                                        setIsRecording(false);
+                                                                    } else {
+                                                                        // Start recording
+                                                                        const recognitionInstance = new SpeechRecognition();
+                                                                        recognitionInstance.continuous = true;
+                                                                        recognitionInstance.interimResults = true;
+                                                                        recognitionInstance.lang = 'en-US';
+                                                                        
+                                                                        let processedResults = new Set(); // Track processed result indices
+                                                                        
+                                                                        recognitionInstance.onstart = () => {
+                                                                            setIsRecording(true);
+                                                                            processedResults.clear();
+                                                                        };
+                                                                        
+                                                                        recognitionInstance.onresult = (event) => {
+                                                                            // Process all results, but only add final ones we haven't processed yet
+                                                                            for (let i = 0; i < event.results.length; i++) {
+                                                                                const result = event.results[i];
+                                                                                const transcript = result[0].transcript.trim();
+                                                                                
+                                                                                // Only process final results that we haven't seen before
+                                                                                if (result.isFinal && transcript && !processedResults.has(i)) {
+                                                                                    processedResults.add(i);
+                                                                                    setJobComment(prev => {
+                                                                                        const trimmed = prev.trim();
+                                                                                        return trimmed ? trimmed + ' ' + transcript : transcript;
+                                                                                    });
+                                                                                }
+                                                                            }
+                                                                        };
+                                                                        
+                                                                        recognitionInstance.onerror = (event) => {
+                                                                            console.error('Speech recognition error:', event.error);
+                                                                            if (event.error === 'no-speech') {
+                                                                                alert('No speech detected. Please try again.');
+                                                                            } else if (event.error === 'not-allowed') {
+                                                                                alert('Microphone permission denied. Please allow microphone access.');
+                                                                            }
+                                                                            setIsRecording(false);
+                                                                            setRecognition(null);
+                                                                        };
+                                                                        
+                                                                        recognitionInstance.onend = () => {
+                                                                            setIsRecording(false);
+                                                                            setRecognition(null);
+                                                                        };
+                                                                        
+                                                                        try {
+                                                                            recognitionInstance.start();
+                                                                            setRecognition(recognitionInstance);
+                                                                        } catch (error) {
+                                                                            console.error('Error starting speech recognition:', error);
+                                                                            alert('Error starting speech recognition. Please try again.');
+                                                                            setIsRecording(false);
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className={`absolute right-2 sm:right-3 top-2 sm:top-2.5 p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-all ${
+                                                                    isRecording 
+                                                                        ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
+                                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                                                                }`}
+                                                                title={isRecording ? 'Stop recording' : 'Start voice recording'}
+                                                            >
+                                                                {isRecording ? (
+                                                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                                        <path d="M6 6h12v12H6z"/>
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                                                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                                                                    </svg>
+                                                                )}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 
@@ -3480,7 +3687,8 @@
                                                                     },
                                                                     body: JSON.stringify({
                                                                         rating: selectedRating,
-                                                                        notes: jobComment || ''
+                                                                        notes: jobComment || '',
+                                                                        payment_method: paymentMethod
                                                                     })
                                                                 });
                                                                 
@@ -3497,7 +3705,8 @@
                                                                     status: 'completed',
                                                                     endTime: new Date().toISOString(),
                                                                     rating: selectedRating,
-                                                                    comment: jobComment
+                                                                    comment: jobComment,
+                                                                    paymentMethod: paymentMethod
                                                                 };
                                                                 
                                                                 // Complete job - remove from active jobs
@@ -3520,10 +3729,14 @@
                                                                     .catch(err => console.error('Error reloading completed jobs:', err));
                                                             
                                                             // Update stats
+                                                            const isCashPayment = paymentMethod === 'cash';
                                                             setStats(prev => ({
                                                                 ...prev,
                                                                 todayRevenue: (prev.todayRevenue || 0) + job.price,
-                                                                todayGrandTotal: (prev.todayGrandTotal || 0) + job.price
+                                                                todayGrandTotal: (prev.todayGrandTotal || 0) + job.price,
+                                                                cashOnHand: isCashPayment 
+                                                                    ? (prev.cashOnHand || 0) + job.price 
+                                                                    : (prev.cashOnHand || 0)
                                                             }));
                                                             
                                                             console.log('Job completed:', completedJob);
@@ -3531,6 +3744,7 @@
                                                             setCompleteModalJobId(null);
                                                             setSelectedRating('');
                                                             setJobComment('');
+                                                            setPaymentMethod('cash');
                                                         } catch (error) {
                                                             console.error('Error completing job:', error);
                                                             alert('Error completing job. Please try again.');
@@ -3559,12 +3773,11 @@
                                     
                                     const inspectionItems = [
                                         { id: 'engine_oil', name: 'Engine Oil', icon: '🛢️' },
-                                        { id: 'gear_oil', name: 'Gear Oil', icon: '⚙️' },
+                                        { id: 'wiper_rubber', name: 'Wiper Rubber', icon: '🧹' },
                                         { id: 'brake_oil', name: 'Brake Oil', icon: '🛑' },
                                         { id: 'air_filter', name: 'Air Filter', icon: '🌬️' },
                                         { id: 'radiator_water', name: 'Radiator Water', icon: '💧' },
                                         { id: 'shower_water', name: 'Shower Water level', icon: '🚿' },
-                                        { id: 'power_oil', name: 'Power Oil', icon: '⚡' },
                                         { id: 'horn', name: 'Horn', icon: '📢' },
                                         { id: 'head_lights', name: 'Head Lights', icon: '💡' },
                                         { id: 'indicator', name: 'Indicator', icon: '↪️' },
@@ -3636,171 +3849,140 @@
                                                                     </div>
                                                                     
                                                                     <div>
-                                                                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase block mb-1.5 sm:mb-2">Status</label>
-                                                                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                                                                                {[
-                                                                                    { value: 'excellent', label: 'Excellent', icon: '⭐', color: 'bg-blue-500 hover:bg-blue-600' },
-                                                                                    { value: 'good', label: 'Good', icon: '✅', color: 'bg-green-500 hover:bg-green-600' },
-                                                                                    { value: 'average', label: 'Avg', icon: '⚠️', color: 'bg-yellow-500 hover:bg-yellow-600' },
-                                                                                    { value: 'poor', label: 'Poor', icon: '❌', color: 'bg-red-500 hover:bg-red-600' }
-                                                                                ].map((status) => (
-                                                                                    <button
-                                                                                        key={status.value}
-                                                                                        type="button"
-                                                                                        onClick={() => {
+                                                                        {(() => {
+                                                                            // Calculate status counts and percentages for all items
+                                                                            const statusCounts = {
+                                                                                excellent: 0,
+                                                                                good: 0,
+                                                                                average: 0,
+                                                                                poor: 0,
+                                                                                total: 0
+                                                                            };
+                                                                            
+                                                                            inspectionItems.forEach((inspectionItem) => {
+                                                                                const itemData = inspectionData[inspectionItem.id];
+                                                                                if (itemData && itemData.status && itemData.status !== '') {
+                                                                                    statusCounts[itemData.status] = (statusCounts[itemData.status] || 0) + 1;
+                                                                                    statusCounts.total++;
+                                                                                }
+                                                                            });
+                                                                            
+                                                                            const calculatePercentage = (count) => {
+                                                                                if (statusCounts.total === 0) return 0;
+                                                                                return Math.round((count / statusCounts.total) * 100);
+                                                                            };
+                                                                            
+                                                                            const statusOptions = {
+                                                                                'excellent': { 
+                                                                                    label: 'Excellent', 
+                                                                                    icon: '⭐', 
+                                                                                    gradient: 'from-blue-500 via-blue-600 to-indigo-600',
+                                                                                    hoverGradient: 'hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700',
+                                                                                    shadow: 'shadow-blue-500/50',
+                                                                                    border: 'border-blue-400/60',
+                                                                                    count: statusCounts.excellent,
+                                                                                    percentage: calculatePercentage(statusCounts.excellent)
+                                                                                },
+                                                                                'good': { 
+                                                                                    label: 'Good', 
+                                                                                    icon: '✅', 
+                                                                                    gradient: 'from-green-500 via-emerald-600 to-teal-600',
+                                                                                    hoverGradient: 'hover:from-green-600 hover:via-emerald-700 hover:to-teal-700',
+                                                                                    shadow: 'shadow-green-500/50',
+                                                                                    border: 'border-green-400/60',
+                                                                                    count: statusCounts.good,
+                                                                                    percentage: calculatePercentage(statusCounts.good)
+                                                                                },
+                                                                                'average': { 
+                                                                                    label: 'Average', 
+                                                                                    icon: '⚠️', 
+                                                                                    gradient: 'from-yellow-500 via-amber-600 to-orange-600',
+                                                                                    hoverGradient: 'hover:from-yellow-600 hover:via-amber-700 hover:to-orange-700',
+                                                                                    shadow: 'shadow-yellow-500/50',
+                                                                                    border: 'border-yellow-400/60',
+                                                                                    count: statusCounts.average,
+                                                                                    percentage: calculatePercentage(statusCounts.average)
+                                                                                },
+                                                                                'poor': { 
+                                                                                    label: 'Poor', 
+                                                                                    icon: '❌', 
+                                                                                    gradient: 'from-red-500 via-rose-600 to-pink-600',
+                                                                                    hoverGradient: 'hover:from-red-600 hover:via-rose-700 hover:to-pink-700',
+                                                                                    shadow: 'shadow-red-500/50',
+                                                                                    border: 'border-red-400/60',
+                                                                                    count: statusCounts.poor,
+                                                                                    percentage: calculatePercentage(statusCounts.poor)
+                                                                                }
+                                                                            };
+                                                                            
+                                                                            // Dropdown with percentages
+                                                                            return (
+                                                                                <div className="relative">
+                                                                                    <select
+                                                                                        value={itemData.status || ''}
+                                                                                        onChange={(e) => {
                                                                                             setInspectionData(prev => ({
                                                                                                 ...prev,
-                                                                                                [item.id]: { ...prev[item.id], status: status.value }
+                                                                                                [item.id]: { ...prev[item.id], status: e.target.value }
                                                                                             }));
                                                                                         }}
-                                                                                        className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-white font-black text-[8px] sm:text-[9px] md:text-xs transition-all ${
-                                                                                            itemData.status === status.value 
-                                                                                                ? `${status.color} shadow-lg scale-105` 
-                                                                                                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                                                                        className={`w-full px-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl border-2 font-black text-sm sm:text-base transition-all duration-200 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                                                                            itemData.status === 'excellent' 
+                                                                                                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-blue-400 focus:ring-blue-500' 
+                                                                                            : itemData.status === 'good'
+                                                                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-400 focus:ring-green-500'
+                                                                                            : itemData.status === 'average'
+                                                                                                ? 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white border-yellow-400 focus:ring-yellow-500'
+                                                                                            : itemData.status === 'poor'
+                                                                                                ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-400 focus:ring-red-500'
+                                                                                            : 'bg-slate-50 text-slate-700 border-slate-300 focus:ring-slate-500 hover:bg-slate-100'
                                                                                         }`}
                                                                                     >
-                                                                                        <div className="text-sm sm:text-base md:text-lg mb-0.5">{status.icon}</div>
-                                                                                        <div className="text-[8px] sm:text-[9px] leading-tight">{status.label}</div>
-                                                                                    </button>
-                                                                                ))}
-                                                                        </div>
+                                                                                        <option value="" className="bg-white text-slate-700">Select Status</option>
+                                                                                        {Object.entries(statusOptions).map(([value, status]) => (
+                                                                                            <option 
+                                                                                                key={value} 
+                                                                                                value={value}
+                                                                                                className={`${
+                                                                                                    value === 'excellent' ? 'bg-blue-50 text-blue-700' :
+                                                                                                    value === 'good' ? 'bg-green-50 text-green-700' :
+                                                                                                    value === 'average' ? 'bg-yellow-50 text-yellow-700' :
+                                                                                                    'bg-red-50 text-red-700'
+                                                                                                }`}
+                                                                                            >
+                                                                                                {status.icon} {status.label} {statusCounts.total > 0 ? `(${status.percentage}% - ${status.count} items)` : ''}
+                                                                                            </option>
+                                                                                        ))}
+                                                                                    </select>
+                                                                                    {/* Custom dropdown arrow */}
+                                                                                    <div className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                                                                        <svg className={`w-5 h-5 ${itemData.status ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                                                        </svg>
+                                                                                    </div>
+                                                                                    
+                                                                                    {/* Selected status display */}
+                                                                                    {itemData.status && itemData.status !== '' && (
+                                                                                        <div className="mt-2 flex items-center gap-2">
+                                                                                            <span className="text-xs sm:text-sm text-slate-600 font-bold">
+                                                                                                Selected: {statusOptions[itemData.status].icon} {statusOptions[itemData.status].label}
+                                                                                                {statusCounts.total > 0 && (
+                                                                                                    <span className="ml-1 text-slate-500">
+                                                                                                        ({statusOptions[itemData.status].percentage}% - {statusOptions[itemData.status].count} items)
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
                                                 </div>
-                                                
-                                                {/* Percentage Summary Graph */}
-                                                {(() => {
-                                                    const statusCounts = {
-                                                        excellent: 0,
-                                                        good: 0,
-                                                        average: 0,
-                                                        poor: 0,
-                                                        total: 0
-                                                    };
-                                                    
-                                                    inspectionItems.forEach((item) => {
-                                                        const itemData = inspectionData[item.id];
-                                                        if (itemData && itemData.status && itemData.status !== '') {
-                                                            statusCounts[itemData.status] = (statusCounts[itemData.status] || 0) + 1;
-                                                            statusCounts.total++;
-                                                        }
-                                                    });
-                                                    
-                                                    const percentages = {
-                                                        excellent: statusCounts.total > 0 ? (statusCounts.excellent / statusCounts.total * 100).toFixed(1) : 0,
-                                                        good: statusCounts.total > 0 ? (statusCounts.good / statusCounts.total * 100).toFixed(1) : 0,
-                                                        average: statusCounts.total > 0 ? (statusCounts.average / statusCounts.total * 100).toFixed(1) : 0,
-                                                        poor: statusCounts.total > 0 ? (statusCounts.poor / statusCounts.total * 100).toFixed(1) : 0
-                                                    };
-                                                    
-                                                    const excellentWidth = percentages.excellent + '%';
-                                                    const goodWidth = percentages.good + '%';
-                                                    const averageWidth = percentages.average + '%';
-                                                    const poorWidth = percentages.poor + '%';
-                                                    
-                                                    const excellentStyle = { width: excellentWidth };
-                                                    const goodStyle = { width: goodWidth };
-                                                    const averageStyle = { width: averageWidth };
-                                                    const poorStyle = { width: poorWidth };
-                                                    
-                                                    if (statusCounts.total === 0) return null;
-                                                    
-                                                    return (
-                                                        <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
-                                                            <div className="bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-sm">
-                                                                <h3 className="text-xs sm:text-sm font-black text-slate-700 uppercase mb-3 sm:mb-4 tracking-wider">Status Distribution</h3>
-                                                                <div className="space-y-2 sm:space-y-2.5">
-                                                                    {/* Excellent */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">⭐</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-blue-600 uppercase">Excellent</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-blue-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={excellentStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.excellent) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.excellent + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.excellent) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-blue-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.excellent + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    {/* Good */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">✅</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-green-600 uppercase">Good</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-green-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={goodStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.good) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.good + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.good) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-green-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.good + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    {/* Average */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">⚠️</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-yellow-600 uppercase">Avg</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-yellow-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={averageStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.average) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.average + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.average) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-yellow-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.average + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    {/* Poor */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">❌</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-red-600 uppercase">Poor</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-red-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={poorStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.poor) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.poor + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.poor) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-red-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.poor + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()}
                                                 
                                                 {/* Footer */}
                                                 <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
@@ -3813,8 +3995,8 @@
                                                             
                                                             // Check if all items are rated
                                                             const requiredInspectionItems = [
-                                                                'engine_oil', 'gear_oil', 'brake_oil', 'air_filter', 
-                                                                'radiator_water', 'shower_water', 'power_oil', 'horn', 
+                                                                'engine_oil', 'wiper_rubber', 'brake_oil', 'air_filter', 
+                                                                'radiator_water', 'shower_water', 'horn', 
                                                                 'head_lights', 'indicator', 'brake_pad', 'ac_filter'
                                                             ];
                                                             
@@ -4529,6 +4711,354 @@
                                     </div>
                                 )}
                                 
+                                {/* Cash Transfer Modal */}
+                                {showCashTransferModal && (
+                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
+                                        setShowCashTransferModal(false);
+                                        setTransferAmount('');
+                                        setSelectedTransferMethod(null);
+                                    }}>
+                                        <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+                                                <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Money Transfer</h2>
+                                                        <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1">Transfer money to different accounts</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowCashTransferModal(false);
+                                                            setTransferAmount('');
+                                                            setSelectedTransferMethod(null);
+                                                        }}
+                                                        className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
+                                                    >
+                                                        <svg className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Tabs */}
+                                            <div className="flex border-b border-slate-200 bg-slate-50">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setTransferTab('cash');
+                                                        setSelectedTransferMethod(null);
+                                                    }}
+                                                    className={`flex-1 px-4 py-3 text-sm font-black uppercase transition-colors ${
+                                                        transferTab === 'cash'
+                                                            ? 'bg-yellow-500 text-white border-b-2 border-yellow-600'
+                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    Cash Transfer
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setTransferTab('bank');
+                                                        setSelectedTransferMethod(null);
+                                                    }}
+                                                    className={`flex-1 px-4 py-3 text-sm font-black uppercase transition-colors ${
+                                                        transferTab === 'bank'
+                                                            ? 'bg-blue-500 text-white border-b-2 border-blue-600'
+                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    Bank Transfer
+                                                </button>
+                                            </div>
+                                            
+                                            {/* Content */}
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                {transferTab === 'cash' ? (
+                                                    <>
+                                                        {/* Available Cash */}
+                                                        <div className="mb-4 sm:mb-5 bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-yellow-200">
+                                                            <div className="text-xs sm:text-sm font-bold text-yellow-700 uppercase mb-1">Available Cash</div>
+                                                            <div className="text-2xl sm:text-3xl font-black text-yellow-600 font-mono">
+                                                                Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Transfer Amount */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer Amount</label>
+                                                            <input
+                                                                type="number"
+                                                                value={transferAmount}
+                                                                onChange={(e) => setTransferAmount(e.target.value)}
+                                                                placeholder="Enter amount"
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-yellow-500 focus:outline-none font-mono"
+                                                                min="0"
+                                                                max={stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            />
+                                                        </div>
+                                                        
+                                                        {/* Transfer Methods - Only Cash Methods */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Transfer Method</label>
+                                                            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                                                                {transferMethods.filter(method => method.type === 'cash').map((method) => (
+                                                                    <button
+                                                                        key={method.id}
+                                                                        type="button"
+                                                                        onClick={() => setSelectedTransferMethod(method.id)}
+                                                                        className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all relative ${
+                                                                            selectedTransferMethod === method.id
+                                                                                ? 'bg-yellow-500 text-white border-yellow-600 shadow-lg scale-105'
+                                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="text-xl sm:text-2xl mb-1 sm:mb-2">{method.icon}</div>
+                                                                        <div className="text-[10px] sm:text-xs font-black uppercase mb-0.5">{method.name}</div>
+                                                                        {method.subtitle && (
+                                                                            <div className={`text-[8px] sm:text-[9px] font-bold mb-1 ${
+                                                                                selectedTransferMethod === method.id
+                                                                                    ? 'text-yellow-100'
+                                                                                    : 'text-slate-400'
+                                                                            }`}>
+                                                                                {method.subtitle}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className={`text-[9px] sm:text-[10px] font-bold mt-1 ${
+                                                                            selectedTransferMethod === method.id
+                                                                                ? 'text-yellow-100'
+                                                                                : 'text-slate-500'
+                                                                        }`}>
+                                                                            Balance: Rs.{method.balance || 0}
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        {/* Available Cash for Bank Transfer */}
+                                                        <div className="mb-4 sm:mb-5 bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-blue-200">
+                                                            <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Available Cash</div>
+                                                            <div className="text-2xl sm:text-3xl font-black text-blue-600 font-mono">
+                                                                Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Transfer Amount */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer Amount</label>
+                                                            <input
+                                                                type="number"
+                                                                value={transferAmount}
+                                                                onChange={(e) => setTransferAmount(e.target.value)}
+                                                                placeholder="Enter amount"
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-blue-500 focus:outline-none font-mono"
+                                                                min="0"
+                                                                max={stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            />
+                                                        </div>
+                                                        
+                                                        {/* Bank Transfer - Show All Banks */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Bank</label>
+                                                            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                                                                {transferMethods.filter(method => method.type === 'bank' || method.bankId).map((method) => (
+                                                                    <button
+                                                                        key={method.id}
+                                                                        type="button"
+                                                                        onClick={() => setSelectedTransferMethod(method.id)}
+                                                                        className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all relative ${
+                                                                            selectedTransferMethod === method.id
+                                                                                ? 'bg-blue-500 text-white border-blue-600 shadow-lg scale-105'
+                                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="mb-1 sm:mb-2 flex items-center justify-center">
+                                                                            <svg className={`w-8 h-8 sm:w-10 sm:h-10 ${selectedTransferMethod === method.id ? 'text-white' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                                                            </svg>
+                                                                        </div>
+                                                                        <div className="text-[10px] sm:text-xs font-black uppercase mb-0.5">{method.name}</div>
+                                                                        {method.subtitle && (
+                                                                            <div className={`text-[8px] sm:text-[9px] font-bold mb-1 ${
+                                                                                selectedTransferMethod === method.id
+                                                                                    ? 'text-blue-100'
+                                                                                    : 'text-slate-400'
+                                                                            }`}>
+                                                                                {method.subtitle}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className={`text-[9px] sm:text-[10px] font-bold mt-1 ${
+                                                                            selectedTransferMethod === method.id
+                                                                                ? 'text-blue-100'
+                                                                                : 'text-slate-500'
+                                                                        }`}>
+                                                                            Balance: Rs.{method.balance || 0}
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Add New Bank Button */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={async () => {
+                                                                    const newMethodName = prompt('Enter new bank name:');
+                                                                    if (newMethodName && newMethodName.trim()) {
+                                                                        // Create bank in database
+                                                                        try {
+                                                                            const response = await fetch('{{ route("admin.banks.store") }}', {
+                                                                                method: 'POST',
+                                                                                headers: {
+                                                                                    'Content-Type': 'application/json',
+                                                                                    'X-CSRF-TOKEN': csrfToken,
+                                                                                    'Accept': 'application/json'
+                                                                                },
+                                                                                body: JSON.stringify({
+                                                                                    name: newMethodName.trim(),
+                                                                                    status: true
+                                                                                })
+                                                                            });
+                                                                            
+                                                                            const result = await response.json();
+                                                                            
+                                                                            if (result.success || response.ok) {
+                                                                                // Reload banks from API
+                                                                                const banksResponse = await fetch(API_ROUTES.banks.index, {
+                                                                                    headers: {
+                                                                                        'Accept': 'application/json',
+                                                                                        'X-Requested-With': 'XMLHttpRequest'
+                                                                                    }
+                                                                                });
+                                                                                const banksData = await banksResponse.json();
+                                                                                
+                                                                                if (banksData.success && banksData.banks) {
+                                                                                    const bankMethods = banksData.banks.map(bank => ({
+                                                                                        id: `bank_${bank.id}`,
+                                                                                        name: bank.name,
+                                                                                        icon: bank.icon === 'bank' ? 'bank' : bank.icon,
+                                                                                        type: bank.type,
+                                                                                        balance: bank.balance || 0,
+                                                                                        subtitle: bank.subtitle || '',
+                                                                                        bankId: bank.id
+                                                                                    }));
+                                                                                    
+                                                                                    setTransferMethods([
+                                                                                        { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null },
+                                                                                        ...bankMethods
+                                                                                    ]);
+                                                                                    
+                                                                                    alert('New bank added successfully!');
+                                                                                }
+                                                                            } else {
+                                                                                alert('Error creating bank. Please try again.');
+                                                                            }
+                                                                        } catch (error) {
+                                                                            console.error('Error creating bank:', error);
+                                                                            alert('Error creating bank. Please try again.');
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors border-2 border-slate-300"
+                                                            >
+                                                                + Add New Bank
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Footer */}
+                                            <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!transferAmount || parseFloat(transferAmount) <= 0) {
+                                                            alert('Please enter a valid transfer amount.');
+                                                            return;
+                                                        }
+                                                        
+                                                        if (!selectedTransferMethod) {
+                                                            alert('Please select a transfer method.');
+                                                            return;
+                                                        }
+                                                        
+                                                        const amount = parseFloat(transferAmount);
+                                                        const availableCash = stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0;
+                                                        
+                                                        if (amount > availableCash) {
+                                                            alert(`Insufficient cash. Available: Rs.${availableCash}`);
+                                                            return;
+                                                        }
+                                                        
+                                                        // Transfer cash
+                                                        try {
+                                                            const selectedMethod = transferMethods.find(m => m.id === selectedTransferMethod);
+                                                            
+                                                            // If it's a bank transfer (has bankId), save to database
+                                                            if (selectedMethod?.bankId) {
+                                                                const response = await fetch(API_ROUTES.cashTransfers.store, {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        bank_id: selectedMethod.bankId,
+                                                                        amount: amount,
+                                                                        notes: `Cash transfer to ${selectedMethod.name}`
+                                                                    })
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (!result.success) {
+                                                                    alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                    return;
+                                                                }
+                                                            }
+                                                            
+                                                            // Update cash on hand
+                                                            setStats(prev => ({
+                                                                ...prev,
+                                                                cashOnHand: (prev.cashOnHand || 0) - amount
+                                                            }));
+                                                            
+                                                            // Update transfer method balance
+                                                            setTransferMethods(prev => prev.map(method => 
+                                                                method.id === selectedTransferMethod
+                                                                    ? { ...method, balance: (method.balance || 0) + amount }
+                                                                    : method
+                                                            ));
+                                                            
+                                                            alert(`Rs.${amount} transferred to ${selectedMethod?.name || 'selected method'} successfully!`);
+                                                            
+                                                            setShowCashTransferModal(false);
+                                                            setTransferAmount('');
+                                                            setSelectedTransferMethod(null);
+                                                        } catch (error) {
+                                                            console.error('Error transferring cash:', error);
+                                                            alert('Error transferring cash. Please try again.');
+                                                        }
+                                                    }}
+                                                    className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
+                                                        transferTab === 'cash'
+                                                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
+                                                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
+                                                    }`}
+                                                >
+                                                    {transferTab === 'cash' ? 'Transfer Cash' : 'Transfer to Bank'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
                                 {/* Completed Jobs Modal - Table View with Edit/Delete/Detail */}
                                 {showCompletedJobsModal && (
                                     <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-1 sm:p-3 md:p-4" onClick={() => setShowCompletedJobsModal(false)}>
@@ -4555,19 +5085,43 @@
                                                                 COMPLETED JOBS
                                                             </h2>
                                                                 <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
-                                                                    <input
-                                                                        type="date"
-                                                                        value={dateRangeStart}
-                                                                        onChange={(e) => setDateRangeStart(e.target.value)}
-                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
-                                                                    />
-                                                                    <span className="text-white/80 font-bold text-xs sm:text-sm">to</span>
-                                                                    <input
-                                                                        type="date"
-                                                                        value={dateRangeEnd}
-                                                                        onChange={(e) => setDateRangeEnd(e.target.value)}
-                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
-                                                                    />
+                                                                    {(() => {
+                                                                        const formatDate = (dateString) => {
+                                                                            if (!dateString) return '';
+                                                                            const date = new Date(dateString + 'T00:00:00');
+                                                                            const day = date.getDate();
+                                                                            const month = date.toLocaleDateString('en-US', { month: 'short' });
+                                                                            const year = date.getFullYear();
+                                                                            return `${day} - ${month} - ${year}`;
+                                                                        };
+                                                                        return (
+                                                                            <>
+                                                                                <div className="relative w-32 sm:w-36 md:w-40">
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        value={dateRangeStart}
+                                                                                        onChange={(e) => setDateRangeStart(e.target.value)}
+                                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark] w-full opacity-0 absolute z-10 cursor-pointer"
+                                                                                    />
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold w-full pointer-events-none">
+                                                                                        {formatDate(dateRangeStart) || 'Select Date'}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span className="text-white/80 font-bold text-xs sm:text-sm">to</span>
+                                                                                <div className="relative w-32 sm:w-36 md:w-40">
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        value={dateRangeEnd}
+                                                                                        onChange={(e) => setDateRangeEnd(e.target.value)}
+                                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark] w-full opacity-0 absolute z-10 cursor-pointer"
+                                                                                    />
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold w-full pointer-events-none">
+                                                                                        {formatDate(dateRangeEnd) || 'Select Date'}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                         </div>
                                                     </div>
@@ -4588,7 +5142,10 @@
                                                 <div className="p-2 sm:p-4 md:p-5 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b-2 border-slate-200">
                                                     <div className="grid grid-cols-4 gap-1.5 sm:gap-2 md:gap-3 max-w-5xl mx-auto">
                                                         {/* Workers Card */}
-                                                        <div className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-orange-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                        <div 
+                                                            onClick={() => setShowWorkerFilterModal(true)}
+                                                            className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-orange-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden cursor-pointer"
+                                                        >
                                                             <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
                                                             <div className="relative z-10">
                                                                 <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
@@ -4612,6 +5169,11 @@
                                                                         return uniqueWorkers.size;
                                                                     })()}
                                                                 </p>
+                                                                {selectedWorkerFilter && (
+                                                                    <p className="text-[8px] sm:text-[9px] text-white/90 mt-1 truncate" title={selectedWorkerFilter}>
+                                                                        {selectedWorkerFilter}
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         
@@ -4628,7 +5190,7 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">REVENUE</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
-                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0).toFixed(2)}
+                                                                    Rs.{Math.round(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4667,7 +5229,7 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">AVG</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
-                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 ? (filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) / filteredCompletedJobs.length) : 0).toFixed(2)}
+                                                                    Rs.{Math.round(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 ? (filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) / filteredCompletedJobs.length) : 0)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4696,10 +5258,14 @@
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">#</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Date/Time</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Vehicle</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Worker</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden sm:table-cell">Service</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">
+                                                                            <div className="flex items-start justify-between gap-2">
+                                                                                <div>Worker</div>
+                                                                                <div className="text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider text-right flex-shrink-0">Amount</div>
+                                                                            </div>
+                                                                        </th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden sm:table-cell">Amount</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden md:table-cell">Worker</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Amount</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden lg:table-cell">Commission</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Actions</th>
                                                                     </tr>
@@ -4708,8 +5274,50 @@
                                                                     {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.map((job, jobIdx) => {
                                                                         const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                                         const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                                                                        const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                                                                        // Format date as "DD MMM YYYY" (e.g., "20 Jan 2026")
+                                                                        const jobDate = job.endTime ? (() => {
+                                                                            const date = new Date(job.endTime);
+                                                                            const day = date.getDate();
+                                                                            const month = date.toLocaleDateString('en-US', { month: 'short' });
+                                                                            const year = date.getFullYear();
+                                                                            return `${day} ${month} ${year}`;
+                                                                        })() : 'N/A';
                                                                         const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
+                                                                        
+                                                                        // Calculate duration
+                                                                        let durationText = 'N/A';
+                                                                        if (job.startTime && job.endTime) {
+                                                                            const start = new Date(job.startTime);
+                                                                            const end = new Date(job.endTime);
+                                                                            const diffMs = end - start;
+                                                                            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                                                                            const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                                                            
+                                                                            if (diffHours > 0 && diffMinutes > 0) {
+                                                                                durationText = `${diffHours}h ${diffMinutes}m`;
+                                                                            } else if (diffHours > 0) {
+                                                                                durationText = `${diffHours}h`;
+                                                                            } else if (diffMinutes > 0) {
+                                                                                durationText = `${diffMinutes}m`;
+                                                                            } else {
+                                                                                durationText = '0m';
+                                                                            }
+                                                                        } else if (job.durationSeconds) {
+                                                                            // Fallback to durationSeconds if available
+                                                                            const totalMinutes = Math.floor(job.durationSeconds / 60);
+                                                                            const hours = Math.floor(totalMinutes / 60);
+                                                                            const minutes = totalMinutes % 60;
+                                                                            
+                                                                            if (hours > 0 && minutes > 0) {
+                                                                                durationText = `${hours}h ${minutes}m`;
+                                                                            } else if (hours > 0) {
+                                                                                durationText = `${hours}h`;
+                                                                            } else if (minutes > 0) {
+                                                                                durationText = `${minutes}m`;
+                                                                            } else {
+                                                                                durationText = '0m';
+                                                                            }
+                                                                        }
                                                                         
                                                                         return (
                                                                             <tr key={job.id || jobIdx} className="hover:bg-blue-50/50 transition-colors group">
@@ -4721,6 +5329,7 @@
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{jobDate}</div>
                                                                                     <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-600 mt-0.5">{startTime} - {endTime}</div>
+                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-blue-600 font-semibold mt-0.5">⏱️ {durationText}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
@@ -4728,16 +5337,19 @@
                                                                                     {job.mobile && <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 mt-0.5 font-mono">{job.mobile}</div>}
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-blue-600 mb-0.5">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                                            <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 mt-0.5">{userName || 'Guest'}</div>
+                                                                                        </div>
+                                                                                        <div className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono flex-shrink-0 text-right">
+                                                                                            {Math.round(Number(job.price) || 0) > 0 ? `Rs.${Math.round(Number(job.price) || 0)}` : ''}
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
-                                                                                </td>
-                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
-                                                                                </td>
-                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-blue-600 font-mono">Rs.{(Number(job.price) || 0).toFixed(2)}</div>
+                                                                                    <div className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{Math.round(Number(job.price) || 0)}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
                                                                                     {job.workerCommission > 0 ? (
@@ -4966,6 +5578,112 @@
                                         </div>
                                     );
                                 })()}
+
+                                {/* Worker Filter Modal */}
+                                {showWorkerFilterModal && (
+                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[70] flex items-center justify-center p-2 sm:p-3 md:p-4">
+                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col border-2 sm:border-[4px] border-orange-300/60">
+                                            {/* Header */}
+                                            <div className="relative p-3 sm:p-4 md:p-5 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
+                                                <div className="relative z-10 flex items-center justify-between">
+                                                    <div>
+                                                        <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-wider">Filter by Worker</h2>
+                                                        <p className="text-[10px] sm:text-xs text-white/90 mt-0.5">Select a worker to filter jobs</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setShowWorkerFilterModal(false)}
+                                                        className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-xl border-2 border-white/50 hover:scale-110 hover:rotate-90 shadow-lg"
+                                                        aria-label="Close worker filter modal"
+                                                    >
+                                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Content */}
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                <div className="space-y-2 sm:space-y-3">
+                                                    {/* All Workers Option */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedWorkerFilter(null);
+                                                            setShowWorkerFilterModal(false);
+                                                        }}
+                                                        className={`w-full p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all text-left ${
+                                                            !selectedWorkerFilter 
+                                                                ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white border-orange-400 shadow-lg' 
+                                                                : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200 hover:border-orange-300'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm sm:text-base font-black">All Workers</span>
+                                                            {!selectedWorkerFilter && (
+                                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                    
+                                                    {/* Worker List */}
+                                                    {(() => {
+                                                        if (!completedJobs || !Array.isArray(completedJobs)) return null;
+                                                        const uniqueWorkers = new Set();
+                                                        completedJobs.forEach(job => {
+                                                            const workerName = job.workerName || job.worker_name || job.worker;
+                                                            if (workerName && workerName !== 'N/A' && workerName.trim() !== '') {
+                                                                uniqueWorkers.add(workerName.trim());
+                                                            }
+                                                        });
+                                                        const workersArray = Array.from(uniqueWorkers).sort();
+                                                        
+                                                        if (workersArray.length === 0) {
+                                                            return (
+                                                                <div className="text-center py-8 text-slate-500">
+                                                                    <p className="text-sm">No workers found</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        
+                                                        return workersArray.map((workerName, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    setSelectedWorkerFilter(workerName);
+                                                                    setShowWorkerFilterModal(false);
+                                                                }}
+                                                                className={`w-full p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all text-left ${
+                                                                    selectedWorkerFilter === workerName
+                                                                        ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white border-orange-400 shadow-lg' 
+                                                                        : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200 hover:border-orange-300'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                                            </svg>
+                                                                        </div>
+                                                                        <span className="text-sm sm:text-base font-black">{workerName}</span>
+                                                                    </div>
+                                                                    {selectedWorkerFilter === workerName && (
+                                                                        <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                        </svg>
+                                                                    )}
+                                                                </div>
+                                                            </button>
+                                                        ));
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 
                                 {/* Job Detail Modal with Print - Full Screen */}
                                 {selectedJobForDetail && (
@@ -5077,12 +5795,11 @@
                                                                     const item = selectedJobForDetail.inspection.inspectionItems[itemId];
                                                                     const itemNames = {
                                                                         'engine_oil': 'Engine Oil',
-                                                                        'gear_oil': 'Gear Oil',
+                                                                        'wiper_rubber': 'Wiper Rubber',
                                                                         'brake_oil': 'Brake Oil',
                                                                         'air_filter': 'Air Filter',
                                                                         'radiator_water': 'Radiator Water',
                                                                         'shower_water': 'Shower Water',
-                                                                        'power_oil': 'Power Oil',
                                                                         'horn': 'Horn',
                                                                         'head_lights': 'Head Lights',
                                                                         'indicator': 'Indicator',
@@ -5520,12 +6237,15 @@
                                                         </div>
                                                         
                                                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 gap-2 sm:gap-2">
-                                                            <div className="flex items-center gap-2 order-2 sm:order-1">
+                                                            <div className="flex flex-col gap-0.5 order-2 sm:order-1">
                                                                 {job.worker && (
                                                                     <span className="text-[10px] sm:text-[11px] text-blue-600 font-bold truncate">
                                                                         👤 {job.worker}
                                                                     </span>
                                                                 )}
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-500 truncate">
+                                                                    {userName || 'Guest'}
+                                                                </span>
                                                             </div>
                                                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
                                                                 {(() => {
@@ -6509,24 +7229,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             const settingsDropdown = document.getElementById('settingsDropdown');
             
-            // Handle Add New Category button click - Use event delegation with capture
+            // Handle Add New Category button click - Redirect to services page
             document.addEventListener('click', function(e) {
                 const addNewCategoryBtn = document.getElementById('addNewCategoryBtn');
                 if (addNewCategoryBtn && (e.target === addNewCategoryBtn || addNewCategoryBtn.contains(e.target))) {
-                    if (e.preventDefault) e.preventDefault();
-                    if (e.stopPropagation) e.stopPropagation();
-                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-                    console.log('Add New Service button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Add New Service button clicked - Redirecting to services page');
                     
                     // Close dropdown first
                     if (settingsDropdown) {
                         settingsDropdown.classList.remove('show');
                     }
                     
-                    // Open modal after a short delay to ensure dropdown closes smoothly
-                    setTimeout(function() {
-                        openCategoryModal();
-                    }, 150);
+                    // Redirect to services page
+                    window.location.href = '{{ route("car.wash.services") }}';
                     return false;
                 }
             }, true); // Capture phase - fires before bubble phase

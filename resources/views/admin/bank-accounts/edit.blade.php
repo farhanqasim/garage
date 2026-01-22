@@ -49,6 +49,24 @@
 
                         <div class="col-md-6">
                             <div class="form-group">
+                                <label for="account_type" class="form-label">Account Type <span class="text-danger">*</span></label>
+                                <select class="form-control @error('account_type') is-invalid @enderror" 
+                                        id="account_type" 
+                                        name="account_type" 
+                                        required>
+                                    <option value="bank" {{ old('account_type', $bankAccount->account_type ?? 'bank') == 'bank' ? 'selected' : '' }}>Bank Account</option>
+                                    <option value="cash" {{ old('account_type', $bankAccount->account_type ?? 'bank') == 'cash' ? 'selected' : '' }}>Cash Account</option>
+                                </select>
+                                @error('account_type')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
                                 <label for="account_title" class="form-label">Account Title <span class="text-danger">*</span></label>
                                 <input type="text" 
                                        class="form-control @error('account_title') is-invalid @enderror" 
@@ -57,6 +75,21 @@
                                        value="{{ old('account_title', $bankAccount->account_title) }}" 
                                        required>
                                 @error('account_title')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="account_number" class="form-label">Account Number <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       class="form-control @error('account_number') is-invalid @enderror" 
+                                       id="account_number" 
+                                       name="account_number" 
+                                       value="{{ old('account_number', $bankAccount->account_number) }}" 
+                                       required>
+                                @error('account_number')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -104,6 +137,38 @@
                                        name="branch_code" 
                                        value="{{ old('branch_code', $bankAccount->branch_code) }}">
                                 @error('branch_code')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="ifsc_code" class="form-label">IFSC Code</label>
+                                <input type="text" 
+                                       class="form-control @error('ifsc_code') is-invalid @enderror" 
+                                       id="ifsc_code" 
+                                       name="ifsc_code" 
+                                       value="{{ old('ifsc_code', $bankAccount->ifsc_code) }}">
+                                @error('ifsc_code')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="opening_balance" class="form-label">Opening Balance</label>
+                                <input type="number" 
+                                       step="0.01" 
+                                       min="0"
+                                       class="form-control @error('opening_balance') is-invalid @enderror" 
+                                       id="opening_balance" 
+                                       name="opening_balance" 
+                                       value="{{ old('opening_balance', $bankAccount->opening_balance ?? 0) }}">
+                                @error('opening_balance')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>

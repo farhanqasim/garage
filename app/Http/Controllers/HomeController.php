@@ -220,7 +220,9 @@ public function completedJobs()
  * @return \Illuminate\Contracts\Support\Renderable
  */
 public function carWashServices()
+
 {
+    // return 23456;
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
     $branchId = null;

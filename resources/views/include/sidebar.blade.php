@@ -201,6 +201,14 @@
                                 <i class="ti ti-wallet fs-16 me-2"></i>
                                 <span>Payments</span></a>
                         </li>
+                        <li><a href="{{ route('admin.payment-methods.index') }}">
+                                <i class="ti ti-credit-card-pay fs-16 me-2"></i>
+                                <span>Payment Methods</span></a>
+                        </li>
+                        <li><a href="{{ route('admin.bank-transactions.index') }}">
+                                <i class="ti ti-exchange fs-16 me-2"></i>
+                                <span>Bank Transactions</span></a>
+                        </li>
                     </ul>
                 </li>
                 {{-- <li class="submenu-open">

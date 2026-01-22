@@ -13,6 +13,7 @@ class CarWashServiceController extends Controller
      */
     public function index()
     {
+        // return 23456;
         $user = Auth::user();
         $branchId = $user->branches ? $user->branches->id : null;
         

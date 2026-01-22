@@ -21,18 +21,38 @@
                     <!-- Filter by Payment Method -->
                     <form method="GET" action="{{ route('admin.payments.index') }}" class="d-inline">
                         <input type="hidden" name="status" value="{{ request('status') }}">
-                        <select name="payment_method" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <input type="hidden" name="direction" value="{{ request('direction') }}">
+                        <input type="hidden" name="customer_id" value="{{ request('customer_id') }}">
+                        <input type="hidden" name="supplier_id" value="{{ request('supplier_id') }}">
+                        <select name="payment_method_id" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Payment Methods</option>
-                            <option value="card" {{ request('payment_method') == 'card' ? 'selected' : '' }}>Card</option>
-                            <option value="bank" {{ request('payment_method') == 'bank' ? 'selected' : '' }}>Bank</option>
-                            <option value="wallet" {{ request('payment_method') == 'wallet' ? 'selected' : '' }}>Wallet</option>
-                            <option value="cash" {{ request('payment_method') == 'cash' ? 'selected' : '' }}>Cash</option>
+                            @foreach($paymentMethods as $method)
+                                <option value="{{ $method->id }}" {{ request('payment_method_id') == $method->id ? 'selected' : '' }}>
+                                    {{ $method->display_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+
+                    <!-- Filter by Direction -->
+                    <form method="GET" action="{{ route('admin.payments.index') }}" class="d-inline">
+                        <input type="hidden" name="payment_method_id" value="{{ request('payment_method_id') }}">
+                        <input type="hidden" name="status" value="{{ request('status') }}">
+                        <input type="hidden" name="customer_id" value="{{ request('customer_id') }}">
+                        <input type="hidden" name="supplier_id" value="{{ request('supplier_id') }}">
+                        <select name="direction" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Directions</option>
+                            <option value="in" {{ request('direction') == 'in' ? 'selected' : '' }}>Incoming (From Customers)</option>
+                            <option value="out" {{ request('direction') == 'out' ? 'selected' : '' }}>Outgoing (To Suppliers)</option>
                         </select>
                     </form>
 
                     <!-- Filter by Status -->
                     <form method="GET" action="{{ route('admin.payments.index') }}" class="d-inline">
-                        <input type="hidden" name="payment_method" value="{{ request('payment_method') }}">
+                        <input type="hidden" name="payment_method_id" value="{{ request('payment_method_id') }}">
+                        <input type="hidden" name="direction" value="{{ request('direction') }}">
+                        <input type="hidden" name="customer_id" value="{{ request('customer_id') }}">
+                        <input type="hidden" name="supplier_id" value="{{ request('supplier_id') }}">
                         <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">All Status</option>
                             <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
@@ -42,7 +62,7 @@
                         </select>
                     </form>
 
-                    @if(request('payment_method') || request('status'))
+                    @if(request('payment_method_id') || request('status') || request('direction') || request('customer_id') || request('supplier_id'))
                         <a href="{{ route('admin.payments.index') }}" class="btn btn-sm btn-secondary">Clear Filters</a>
                     @endif
                 </div>
@@ -51,20 +71,20 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="searchableTable" class="table table-hover table-center">
+                <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table id="searchableTable" class="table table-hover table-center" style="min-width: 1200px;">
                         <thead class="thead-primary">
                             <tr>
                                 <th>#</th>
-                                <th>User</th>
-                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Customer/Supplier</th>
                                 <th>Payment Method</th>
-                                <th>Bank</th>
+                                <th>Bank Account</th>
                                 <th>Transaction ID</th>
                                 <th>Amount</th>
+                                <th>Direction</th>
                                 <th>Status</th>
                                 <th>Paid At</th>
-                                <th>Created At</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -73,33 +93,25 @@
                                 <tr>
                                     <td>{{ $index + 1 + (($payments->currentPage() - 1) * $payments->perPage()) }}</td>
                                     <td>
-                                        <strong>{{ $payment->user->name ?? 'N/A' }}</strong>
-                                        @if($payment->user->email)
-                                            <br><small class="text-muted">{{ $payment->user->email }}</small>
-                                        @endif
+                                        <strong>{{ $payment->payment_date->format('Y-m-d') }}</strong>
+                                        <br><small class="text-muted">{{ $payment->created_at->format('H:i') }}</small>
                                     </td>
                                     <td>
-                                        @if($payment->order_id)
-                                            <span class="badge badge-info">#{{ $payment->order_id }}</span>
+                                        @if($payment->customer)
+                                            <strong>Customer:</strong> {{ is_array($payment->customer->names) ? implode(', ', $payment->customer->names) : $payment->customer->names }}
+                                        @elseif($payment->supplier)
+                                            <strong>Supplier:</strong> {{ $payment->supplier->name }}
                                         @else
                                             <span class="text-muted">N/A</span>
                                         @endif
                                     </td>
                                     <td>
-                                        @php
-                                            $methodColors = [
-                                                'card' => 'badge-primary',
-                                                'bank' => 'badge-success',
-                                                'wallet' => 'badge-warning',
-                                                'cash' => 'badge-secondary'
-                                            ];
-                                            $color = $methodColors[$payment->payment_method] ?? 'badge-secondary';
-                                        @endphp
-                                        <span class="badge {{ $color }}">{{ strtoupper($payment->payment_method) }}</span>
+                                        <span class="badge badge-primary">{{ $payment->paymentMethod->display_name ?? $payment->paymentMethod->name }}</span>
                                     </td>
                                     <td>
-                                        @if($payment->bank)
-                                            {{ $payment->bank->name }}
+                                        @if($payment->bankAccount)
+                                            {{ $payment->bankAccount->account_title }}
+                                            <br><small class="text-muted">{{ $payment->bankAccount->bank->name ?? '' }}</small>
                                         @else
                                             <span class="text-muted">N/A</span>
                                         @endif
@@ -113,6 +125,13 @@
                                     </td>
                                     <td>
                                         <strong>{{ number_format($payment->amount, 2) }} {{ $payment->currency }}</strong>
+                                    </td>
+                                    <td>
+                                        @if($payment->direction == 'in')
+                                            <span class="badge badge-success">IN</span>
+                                        @else
+                                            <span class="badge badge-danger">OUT</span>
+                                        @endif
                                     </td>
                                     <td>
                                         @php
@@ -132,9 +151,6 @@
                                         @else
                                             <span class="text-muted">-</span>
                                         @endif
-                                    </td>
-                                    <td>
-                                        <small>{{ $payment->created_at->format('Y-m-d H:i') }}</small>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
@@ -178,8 +194,10 @@
                 </div>
             </div>
             @if($payments->hasPages())
-                <div class="card-footer">
-                    {{ $payments->links() }}
+                <div class="card-footer p-3">
+                    <div class="d-flex justify-content-center w-100" style="overflow-x: auto;">
+                        {{ $payments->links('pagination::default') }}
+                    </div>
                 </div>
             @endif
         </div>
