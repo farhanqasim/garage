@@ -78,4 +78,44 @@ public function user_items()
         return $this->hasMany(WebAuthnCredential::class);
     }
 
+    /**
+     * Get the cash account for this user
+     */
+    public function cashAccount()
+    {
+        return $this->hasOne(CashAccount::class);
+    }
+
+    /**
+     * Get all cash transactions for this user
+     */
+    public function cashTransactions()
+    {
+        return $this->hasMany(CashTransaction::class);
+    }
+
+    /**
+     * Get cash transfers sent by this user
+     */
+    public function sentCashTransfers()
+    {
+        return $this->hasMany(CashTransfer::class, 'from_user_id');
+    }
+
+    /**
+     * Get cash transfers received by this user
+     */
+    public function receivedCashTransfers()
+    {
+        return $this->hasMany(CashTransfer::class, 'to_user_id');
+    }
+
+    /**
+     * Get bank transfers for this user
+     */
+    public function bankTransfers()
+    {
+        return $this->hasMany(BankTransfer::class);
+    }
+
 }

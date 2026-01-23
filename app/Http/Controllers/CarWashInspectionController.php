@@ -6,9 +6,12 @@ use Illuminate\Http\Request;
 use App\Models\CarWashInspection;
 use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashInspectionController extends Controller
 {
+    use HasBranchAccess;
+    
     /**
      * Store or update inspection for a job
      */
@@ -21,14 +24,19 @@ class CarWashInspectionController extends Controller
 
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
-        // Check permission
+        // Check permission - user must have access to the job's branch
         if ($job->branch_id !== null && $job->branch_id !== $branchId) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to add inspection for this job'
             ], 403);
+        }
+        
+        // Also allow if job has no branch (global job)
+        if ($job->branch_id === null) {
+            // Allow inspection for global jobs
         }
 
         // Update or create inspection
@@ -62,9 +70,10 @@ class CarWashInspectionController extends Controller
     {
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
-        // Check permission
+        // Check permission - user must have access to the job's branch
+        // Allow if: job has no branch (global) OR user has access to job's branch
         if ($job->branch_id !== null && $job->branch_id !== $branchId) {
             return response()->json([
                 'success' => false,
