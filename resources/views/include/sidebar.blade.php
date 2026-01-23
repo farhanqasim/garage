@@ -197,6 +197,14 @@
                                 <i class="ti ti-credit-card fs-16 me-2"></i>
                                 <span>Bank Accounts</span></a>
                         </li>
+                        <li><a href="{{ route('admin.cash-accounts.index') }}">
+                                <i class="ti ti-wallet fs-16 me-2"></i>
+                                <span>Cash Accounts (Wallets)</span></a>
+                        </li>
+                        <li><a href="{{ route('admin.cash-transactions.index') }}">
+                                <i class="ti ti-file-text fs-16 me-2"></i>
+                                <span>Cash Transactions History</span></a>
+                        </li>
                         <li><a href="{{ route('admin.payments.index') }}">
                                 <i class="ti ti-wallet fs-16 me-2"></i>
                                 <span>Payments</span></a>

@@ -13,16 +13,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashPaymentController extends Controller
 {
+    use HasBranchAccess;
+    
     /**
      * Get all payments for current branch
      */
     public function index(Request $request)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $query = CarWashPayment::with(['worker', 'paymentMethod', 'bankAccount', 'fromAccount', 'toAccount', 'createdBy'])
             ->where(function($q) use ($branchId) {
@@ -78,7 +81,7 @@ class CarWashPaymentController extends Controller
     public function create(Request $request)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $paymentType = $request->get('type', 'commission');
         $workerId = $request->get('worker_id');
@@ -119,7 +122,7 @@ class CarWashPaymentController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $request->validate([
             'payment_type' => 'required|in:commission,cash_transfer,bank_transfer,expense,other',
@@ -239,6 +242,12 @@ class CarWashPaymentController extends Controller
      */
     public function calculatePendingCommission($workerId, $branchId = null)
     {
+        // If branchId not provided, get from current user
+        if (!$branchId) {
+            $user = Auth::user();
+            $branchId = $this->getUserBranchId($user);
+        }
+        
         $query = CarWashJob::where('worker_id', $workerId)
             ->where('status', 'completed');
 
@@ -285,6 +294,12 @@ class CarWashPaymentController extends Controller
      */
     public function getAvailableCash($branchId = null)
     {
+        // If branchId not provided, get from current user
+        if (!$branchId) {
+            $user = Auth::user();
+            $branchId = $this->getUserBranchId($user);
+        }
+        
         // Calculate total income from completed jobs
         $query = CarWashJob::where('status', 'completed');
         
@@ -342,12 +357,36 @@ class CarWashPaymentController extends Controller
     }
 
     /**
+     * Get user's cash account balance (API)
+     */
+    public function getCashAccountBalance(Request $request)
+    {
+        $user = Auth::user();
+        
+        try {
+            $cashAccountService = app(\App\Services\CashAccountService::class);
+            $balance = $cashAccountService->getBalance($user->id);
+            
+            return response()->json([
+                'success' => true,
+                'balance' => (float) $balance,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'balance' => 0,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get pending commission for worker (API)
      */
     public function getPendingCommission(Request $request, $workerId)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $pendingCommission = $this->calculatePendingCommission($workerId, $branchId);
 
@@ -362,10 +401,129 @@ class CarWashPaymentController extends Controller
     public function getAvailableCashApi()
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $cash = $this->getAvailableCash($branchId);
 
         return response()->json($cash);
+    }
+
+    /**
+     * Get same-branch users for cash transfer (API)
+     */
+    public function getBranchUsers(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        if (!$branchId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No branch found for user',
+                'users' => []
+            ], 400);
+        }
+
+        // Get all users connected to this branch (owners or assigned)
+        $users = \App\Models\User::where(function($query) use ($branchId) {
+            // Branch owners
+            $query->whereHas('branches', function($q) use ($branchId) {
+                $q->where('branches.id', $branchId);
+            })
+            // Assigned users
+            ->orWhereHas('assignedBranches', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        })
+        ->where('id', '!=', $user->id) // Exclude current user
+        ->select('id', 'name', 'email', 'phone')
+        ->orderBy('name')
+        ->get();
+
+        return response()->json([
+            'success' => true,
+            'users' => $users
+        ]);
+    }
+
+    /**
+     * Transfer cash to another user (API)
+     */
+    public function transferToUser(Request $request)
+    {
+        $request->validate([
+            'to_user_id' => 'required|exists:users,id',
+            'amount' => 'required|numeric|min:0.01',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+        $toUserId = $request->to_user_id;
+        $amount = (float) $request->amount;
+        $note = $request->note;
+
+        // Verify both users are in the same branch
+        $toUser = \App\Models\User::findOrFail($toUserId);
+        $toUserBranchId = null;
+
+        // Get to_user's branch
+        if ($toUser->branches) {
+            $toUserBranchId = $toUser->branches->id;
+        } else {
+            $assignedBranch = $toUser->assignedBranches()->first();
+            if ($assignedBranch) {
+                $toUserBranchId = $assignedBranch->id;
+            }
+        }
+
+        // Check if both users are in the same branch
+        if ($branchId && $toUserBranchId && $branchId != $toUserBranchId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only transfer to users in the same branch'
+            ], 403);
+        }
+
+        // If current user has no branch but to_user has, allow if to_user's branch allows it
+        // Or if both have no branch, allow (global users)
+        if (!$branchId && !$toUserBranchId) {
+            // Both are global users, allow transfer
+            $branchId = null;
+        } elseif (!$branchId && $toUserBranchId) {
+            // Current user is global, to_user has branch - check if allowed
+            // For now, we'll allow it
+            $branchId = $toUserBranchId;
+        }
+
+        try {
+            $cashAccountService = app(\App\Services\CashAccountService::class);
+            
+            // Perform transfer
+            $transfer = $cashAccountService->transfer(
+                fromUserId: $user->id,
+                toUserId: $toUserId,
+                amount: $amount,
+                branchId: $branchId,
+                note: $note ?? "Cash transfer from {$user->name} to {$toUser->name}"
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cash transferred successfully',
+                'transfer' => [
+                    'id' => $transfer->id,
+                    'from_user' => $user->name,
+                    'to_user' => $toUser->name,
+                    'amount' => $amount,
+                    'status' => $transfer->status,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 }

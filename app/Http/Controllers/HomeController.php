@@ -88,20 +88,47 @@ public function carWash()
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
     $branchId = null;
+    $branchName = 'Guest';
     
-    // Check if user has created a branch (Branch table has user_id)
-    // Using 'branches' relationship which is hasOne based on user_id in Branch table
-    if ($user->branches) {
+    // Get branch ID from session (for assigned users) or owner relationship
+    if (session('selected_branch_id')) {
+        $sessionBranchId = session('selected_branch_id');
+        $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
+        $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
+        
+        if ($isOwner || $isAssigned) {
+            $branch = \App\Models\Branch::find($sessionBranchId);
+            if ($branch) {
+                $branchId = $branch->id;
+                $branchName = $branch->branch_name;
+            }
+        }
+    }
+    
+    // If no branch from session, check if user is owner
+    if (!$branchId && $user->branches) {
         $branchName = $user->branches->branch_name;
         $branchId = $user->branches->id;
-    } else {
-        $branchName = 'Guest';
+    }
+    
+    // If still no branch, check assigned branches
+    if (!$branchId) {
+        $assignedBranch = $user->assignedBranches()->first();
+        if ($assignedBranch) {
+            $branchId = $assignedBranch->id;
+            $branchName = $assignedBranch->branch_name;
+        }
     }
     
     // Get services for this branch or global services (direct models for Blade loops)
     $services = CarWashService::where(function($query) use ($branchId) {
-        $query->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+        } else {
+            // If no branch, show only global services
+            $query->whereNull('branch_id');
+        }
     })
     ->where('status', true)
     ->orderBy('created_at', 'desc')
@@ -109,8 +136,13 @@ public function carWash()
     
     // Get workers for this branch (direct models for Blade loops)
     $workers = CarWashWorker::where(function($query) use ($branchId) {
-        $query->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+        } else {
+            // If no branch, show only global workers
+            $query->whereNull('branch_id');
+        }
     })
     ->where('status', true)
     ->orderBy('name', 'asc')
@@ -118,8 +150,13 @@ public function carWash()
     
     // Get active jobs for this branch (map to array format for React)
     $activeJobs = CarWashJob::where(function($query) use ($branchId) {
-        $query->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+        } else {
+            // If no branch, show only global jobs
+            $query->whereNull('branch_id');
+        }
     })
     ->active()
     ->orderBy('start_time', 'asc')
@@ -141,8 +178,13 @@ public function carWash()
     
     // Get today's completed jobs (direct models for Blade loops)
     $completedJobs = CarWashJob::where(function($query) use ($branchId) {
-        $query->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+        } else {
+            // If no branch, show only global jobs
+            $query->whereNull('branch_id');
+        }
     })
     ->completed()
     ->whereDate('created_at', today())
@@ -162,19 +204,47 @@ public function completedJobs()
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
     $branchId = null;
+    $branchName = 'Guest';
     
-    // Check if user has created a branch
-    if ($user->branches) {
+    // Get branch ID from session (for assigned users) or owner relationship
+    if (session('selected_branch_id')) {
+        $sessionBranchId = session('selected_branch_id');
+        $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
+        $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
+        
+        if ($isOwner || $isAssigned) {
+            $branch = \App\Models\Branch::find($sessionBranchId);
+            if ($branch) {
+                $branchId = $branch->id;
+                $branchName = $branch->branch_name;
+            }
+        }
+    }
+    
+    // If no branch from session, check if user is owner
+    if (!$branchId && $user->branches) {
         $branchName = $user->branches->branch_name;
         $branchId = $user->branches->id;
-    } else {
-        $branchName = 'Guest';
+    }
+    
+    // If still no branch, check assigned branches
+    if (!$branchId) {
+        $assignedBranch = $user->assignedBranches()->first();
+        if ($assignedBranch) {
+            $branchId = $assignedBranch->id;
+            $branchName = $assignedBranch->branch_name;
+        }
     }
     
     // Get ALL completed jobs (not just today's)
     $completedJobs = CarWashJob::where(function($query) use ($branchId) {
-        $query->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+        } else {
+            // If no branch, show only global jobs
+            $query->whereNull('branch_id');
+        }
     })
     ->completed()
     ->with('worker')
@@ -222,22 +292,50 @@ public function completedJobs()
 public function carWashServices()
 
 {
-    // return 23456;
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
     $branchId = null;
+    $branchName = 'Guest';
     
-    if ($user->branches) {
+    // Get branch ID from session (for assigned users) or owner relationship
+    if (session('selected_branch_id')) {
+        $sessionBranchId = session('selected_branch_id');
+        $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
+        $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
+        
+        if ($isOwner || $isAssigned) {
+            $branch = \App\Models\Branch::find($sessionBranchId);
+            if ($branch) {
+                $branchId = $branch->id;
+                $branchName = $branch->branch_name;
+            }
+        }
+    }
+    
+    // If no branch from session, check if user is owner
+    if (!$branchId && $user->branches) {
         $branchName = $user->branches->branch_name;
         $branchId = $user->branches->id;
-    } else {
-        $branchName = 'Guest';
+    }
+    
+    // If still no branch, check assigned branches
+    if (!$branchId) {
+        $assignedBranch = $user->assignedBranches()->first();
+        if ($assignedBranch) {
+            $branchId = $assignedBranch->id;
+            $branchName = $assignedBranch->branch_name;
+        }
     }
     
     // Get ALL services (both active and inactive)
     $services = CarWashService::where(function($query) use ($branchId) {
-        $query->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
+        if ($branchId) {
+            $query->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+        } else {
+            // If no branch, show only global services
+            $query->whereNull('branch_id');
+        }
     })
     ->orderBy('created_at', 'desc')
     ->get()
@@ -268,18 +366,47 @@ public function carWashServices()
         $user = auth()->user();
         $userName = $user->name ?? 'Guest';
         $branchId = null;
+        $branchName = 'Guest';
         
-        if ($user->branches) {
+        // Get branch ID from session (for assigned users) or owner relationship
+        if (session('selected_branch_id')) {
+            $sessionBranchId = session('selected_branch_id');
+            $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
+            $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
+            
+            if ($isOwner || $isAssigned) {
+                $branch = \App\Models\Branch::find($sessionBranchId);
+                if ($branch) {
+                    $branchId = $branch->id;
+                    $branchName = $branch->branch_name;
+                }
+            }
+        }
+        
+        // If no branch from session, check if user is owner
+        if (!$branchId && $user->branches) {
             $branchName = $user->branches->branch_name;
             $branchId = $user->branches->id;
-        } else {
-            $branchName = 'Guest';
+        }
+        
+        // If still no branch, check assigned branches
+        if (!$branchId) {
+            $assignedBranch = $user->assignedBranches()->first();
+            if ($assignedBranch) {
+                $branchId = $assignedBranch->id;
+                $branchName = $assignedBranch->branch_name;
+            }
         }
         
         // Get ALL workers (both active and inactive)
         $workers = CarWashWorker::where(function($query) use ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
+            if ($branchId) {
+                $query->where('branch_id', $branchId)
+                      ->orWhereNull('branch_id');
+            } else {
+                // If no branch, show only global workers
+                $query->whereNull('branch_id');
+            }
         })
         ->orderBy('name', 'asc')
         ->get()
@@ -287,8 +414,12 @@ public function carWashServices()
             // Get today's completed jobs for this worker
             // Check both end_time and created_at in case end_time is null
             $todayCompletedJobs = CarWashJob::where(function($query) use ($branchId) {
-                $query->where('branch_id', $branchId)
-                      ->orWhereNull('branch_id');
+                if ($branchId) {
+                    $query->where('branch_id', $branchId)
+                          ->orWhereNull('branch_id');
+                } else {
+                    $query->whereNull('branch_id');
+                }
             })
             ->where('worker_id', $worker->id)
             ->where('status', 'completed')

@@ -5,22 +5,28 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\CarWashService;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashServiceController extends Controller
 {
+    use HasBranchAccess;
     /**
      * Get all services for the current user's branch
      */
     public function index()
     {
-        // return 23456;
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         // Get services for this branch or global services (where branch_id is null)
         $services = CarWashService::where(function($query) use ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
+            if ($branchId) {
+                $query->where('branch_id', $branchId)
+                      ->orWhereNull('branch_id');
+            } else {
+                // If no branch, show only global services
+                $query->whereNull('branch_id');
+            }
         })
         ->where('status', true)
         ->orderBy('created_at', 'desc')
@@ -31,6 +37,7 @@ class CarWashServiceController extends Controller
             'services' => $services
         ]);
     }
+
 
     /**
      * Store a new service
@@ -91,7 +98,7 @@ class CarWashServiceController extends Controller
         
         // Check if user has permission to update this service
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($service->branch_id !== null && $service->branch_id !== $branchId) {
             return response()->json([
@@ -130,7 +137,7 @@ class CarWashServiceController extends Controller
         
         // Check if user has permission to delete this service
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($service->branch_id !== null && $service->branch_id !== $branchId) {
             if ($request->ajax() || $request->wantsJson()) {
@@ -175,7 +182,7 @@ class CarWashServiceController extends Controller
         $service = CarWashService::findOrFail($id);
         
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($service->branch_id !== null && $service->branch_id !== $branchId) {
             return response()->json([

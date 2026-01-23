@@ -29,7 +29,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="bank_id" class="form-label">Bank <span class="text-danger">*</span></label>
-                                <select class="form-control @error('bank_id') is-invalid @enderror" 
+                                <select class="form-control searchable-select @error('bank_id') is-invalid @enderror" 
                                         id="bank_id" 
                                         name="bank_id" 
                                         required>
@@ -53,8 +53,8 @@
                                         id="account_type" 
                                         name="account_type" 
                                         required>
-                                    <option value="bank" {{ old('account_type', 'bank') == 'bank' ? 'selected' : '' }}>Bank Account</option>
-                                    <option value="cash" {{ old('account_type') == 'cash' ? 'selected' : '' }}>Cash Account</option>
+                                    <option value="bank" {{ old('account_type', 'bank') == 'bank' ? 'selected' : '' }}>Current Account</option>
+                                    <option value="cash" {{ old('account_type') == 'cash' ? 'selected' : '' }}>Saving Account</option>
                                 </select>
                                 @error('account_type')
                                     <div class="invalid-feedback">{{ $message }}</div>
