@@ -7,16 +7,19 @@ use App\Models\CarWashJob;
 use App\Models\CarWashWorker;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashJobController extends Controller
 {
+    use HasBranchAccess;
+    
     /**
      * Get all jobs for the current user's branch
      */
     public function index(Request $request)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         $query = CarWashJob::where(function($q) use ($branchId) {
             $q->where('branch_id', $branchId)
@@ -84,7 +87,7 @@ class CarWashJobController extends Controller
     public function activeJobs()
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         $jobs = CarWashJob::where(function($q) use ($branchId) {
             $q->where('branch_id', $branchId)
@@ -122,7 +125,7 @@ class CarWashJobController extends Controller
     public function show($id)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         $job = CarWashJob::where(function($q) use ($branchId) {
             $q->where('branch_id', $branchId)
@@ -183,7 +186,8 @@ class CarWashJobController extends Controller
         ];
         
         $userName = $user->name ?? 'Guest';
-        $branchName = $user->branches ? $user->branches->branch_name : 'Guest';
+        $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
+        $branchName = $branch ? $branch->branch_name : 'Guest';
         
         return view('car-wash-job-detail', compact('jobData', 'userName', 'branchName'));
     }
@@ -194,7 +198,7 @@ class CarWashJobController extends Controller
     public function completedJobs(Request $request)
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         $query = CarWashJob::where(function($q) use ($branchId) {
             $q->where('branch_id', $branchId)
@@ -261,9 +265,10 @@ class CarWashJobController extends Controller
         ]);
 
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $job = CarWashJob::create([
+            'user_id' => $user->id,
             'branch_id' => $branchId,
             'service_id' => $request->service_id,
             'worker_id' => $request->worker_id,
@@ -332,7 +337,7 @@ class CarWashJobController extends Controller
         
         // Check permission
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($job->branch_id !== null && $job->branch_id !== $branchId) {
             return response()->json([
@@ -388,7 +393,7 @@ class CarWashJobController extends Controller
         $job = CarWashJob::findOrFail($id);
         
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($job->branch_id !== null && $job->branch_id !== $branchId) {
             return response()->json([
@@ -500,7 +505,7 @@ class CarWashJobController extends Controller
         $job = CarWashJob::findOrFail($id);
         
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($job->branch_id !== null && $job->branch_id !== $branchId) {
             if ($request->ajax() || $request->wantsJson()) {
@@ -531,7 +536,7 @@ class CarWashJobController extends Controller
     public function todayStats()
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         $todayJobs = CarWashJob::where(function($q) use ($branchId) {
             $q->where('branch_id', $branchId)

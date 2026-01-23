@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\VehicalTypeController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\BankAccountController;
+use App\Http\Controllers\Admin\CashAccountController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\BankTransactionController;
@@ -145,6 +146,9 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::post('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'store'])->name('payments.store');
     Route::get('/payments/pending-commission/{workerId}', [\App\Http\Controllers\CarWashPaymentController::class, 'getPendingCommission'])->name('payments.pending-commission');
     Route::get('/payments/available-cash', [\App\Http\Controllers\CarWashPaymentController::class, 'getAvailableCashApi'])->name('payments.available-cash');
+    Route::get('/payments/cash-account-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashAccountBalance'])->name('payments.cash-account-balance');
+    Route::get('/payments/branch-users', [\App\Http\Controllers\CarWashPaymentController::class, 'getBranchUsers'])->name('payments.branch-users');
+    Route::post('/payments/transfer-to-user', [\App\Http\Controllers\CarWashPaymentController::class, 'transferToUser'])->name('payments.transfer-to-user');
 });
 
 // ==============================
@@ -156,6 +160,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     
     Route::resource('bank-accounts', BankAccountController::class);
     Route::post('bank-accounts/{bankAccount}/toggle-status', [BankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
+    
+    Route::resource('cash-accounts', CashAccountController::class)->only(['index', 'show']);
+    Route::get('cash-transactions', [CashAccountController::class, 'transactions'])->name('cash-transactions.index');
     
     Route::resource('payments', PaymentController::class)->only(['index', 'show']);
     Route::post('payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payments.mark-paid');
@@ -320,7 +327,7 @@ Route::delete('/branch/delete/{id}', [BranchController::class, 'delete_branch'])
 
 // All Users
 Route::get('/all/users', [UserController::class, 'all_users'])->name('all.users');
-Route::get('/delete-user/{id}', [UserController::class, 'deleteuser'])->name('delete.user');
+Route::delete('/delete-user/{id}', [UserController::class, 'deleteuser'])->name('delete.user');
 Route::put('/update-user/{id}', [UserController::class, 'updateuser'])->name('update.user');
 
 

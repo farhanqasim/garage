@@ -7,16 +7,19 @@ use App\Models\CarWashWorker;
 use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashWorkerController extends Controller
 {
+    use HasBranchAccess;
+    
     /**
      * Get all workers for the current user's branch
      */
     public function index()
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         $workers = CarWashWorker::where(function($query) use ($branchId) {
             $query->where('branch_id', $branchId)
@@ -125,7 +128,7 @@ class CarWashWorkerController extends Controller
         ]);
 
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         // Handle image uploads using saveSingleFile helper
         $idCardFront = $request->hasFile('id_card_front') ? saveSingleFile($request->file('id_card_front'), 'workers/id_cards') : null;
@@ -230,7 +233,7 @@ class CarWashWorkerController extends Controller
         
         // Check permission
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($worker->branch_id !== null && $worker->branch_id !== $branchId) {
             return response()->json([
@@ -349,7 +352,7 @@ class CarWashWorkerController extends Controller
         $worker = CarWashWorker::findOrFail($id);
         
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
         
         if ($worker->branch_id !== null && $worker->branch_id !== $branchId) {
             return response()->json([
