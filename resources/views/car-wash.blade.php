@@ -1338,6 +1338,11 @@
             },
             cashTransfers: {
                 store: '{{ route("car-wash.cash-transfers.store") }}',
+            },
+            payments: {
+                cashAccountBalance: '{{ route("car-wash.payments.cash-account-balance") }}',
+                branchUsers: '{{ route("car-wash.payments.branch-users") }}',
+                transferToUser: '{{ route("car-wash.payments.transfer-to-user") }}',
             }
         };
         
@@ -1350,8 +1355,43 @@
             const [view, setView] = useState('dashboard');
             const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0, cashOnHand: 0 });
             
+            // Function to refresh cash account balance
+            const refreshCashBalance = () => {
+                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                    fetch(API_ROUTES.payments.cashAccountBalance)
+                        .then(res => res.json())
+                        .then(balanceData => {
+                            if (balanceData.success) {
+                                const newBalance = parseFloat(balanceData.balance) || 0;
+                                setStats(prev => ({
+                                    ...prev,
+                                    cashOnHand: newBalance
+                                }));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error refreshing cash account balance:', err);
+                        });
+                }
+            };
+            
             // Load stats from API on mount - simplified to avoid errors
             useEffect(() => {
+                // Fetch user's cash account balance first
+                let userCashBalance = 0;
+                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                    fetch(API_ROUTES.payments.cashAccountBalance)
+                        .then(res => res.json())
+                        .then(balanceData => {
+                            if (balanceData.success) {
+                                userCashBalance = parseFloat(balanceData.balance) || 0;
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading cash account balance:', err);
+                        });
+                }
+                
                 // Calculate stats from completed jobs
                 fetch(API_ROUTES.jobs.completed)
                     .then(res => res.json())
@@ -1369,10 +1409,8 @@
                             });
                             const todayRevenue = todayJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
                             
-                            // Calculate cash on hand from cash payments only
-                            const cashOnHand = todayJobs
-                                .filter(job => (job.paymentMethod || job.payment_method) === 'cash')
-                                .reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
+                            // Use user's cash account balance instead of calculating from jobs
+                            const cashOnHand = userCashBalance;
                             
                             // Try to get expenses from todayStats API if available
                             if (API_ROUTES.jobs.todayStats) {
@@ -1416,23 +1454,23 @@
                                 });
                             }
                         } else {
-                            // No jobs, set default stats
+                            // No jobs, set default stats with cash balance
                             setStats({
                                 todayRevenue: 0,
                                 todayExpensesTotal: 0,
                                 todayGrandTotal: 0,
-                                cashOnHand: 0
+                                cashOnHand: userCashBalance
                             });
                         }
                     })
                     .catch(err => {
                         console.error('Error loading completed jobs for stats:', err);
-                        // Set default stats on error
+                        // Set default stats on error with cash balance
                         setStats({
                             todayRevenue: 0,
                             todayExpensesTotal: 0,
                             todayGrandTotal: 0,
-                            cashOnHand: 0
+                            cashOnHand: userCashBalance
                         });
                     });
             }, []);
@@ -1532,12 +1570,15 @@
             const [selectedWorkerFilter, setSelectedWorkerFilter] = useState(null);
             const [showWorkerFilterModal, setShowWorkerFilterModal] = useState(false);
             const [showCashTransferModal, setShowCashTransferModal] = useState(false);
-            const [transferTab, setTransferTab] = useState('cash'); // 'cash' or 'bank'
+            const [transferTab, setTransferTab] = useState('cash'); // 'cash', 'bank', or 'user'
             const [transferMethods, setTransferMethods] = useState([
                 { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
             ]);
             const [transferAmount, setTransferAmount] = useState('');
             const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
+            const [branchUsers, setBranchUsers] = useState([]);
+            const [selectedUserId, setSelectedUserId] = useState(null);
+            const [transferNote, setTransferNote] = useState('');
             
             // Load banks/transfer methods from API
             useEffect(() => {
@@ -3730,13 +3771,15 @@
                                                             
                                                             // Update stats
                                                             const isCashPayment = paymentMethod === 'cash';
+                                                            // Refresh cash balance from database after job completion
+                                                            refreshCashBalance();
+                                                            
+                                                            // Update stats (revenue will be recalculated from completed jobs)
                                                             setStats(prev => ({
                                                                 ...prev,
                                                                 todayRevenue: (prev.todayRevenue || 0) + job.price,
                                                                 todayGrandTotal: (prev.todayGrandTotal || 0) + job.price,
-                                                                cashOnHand: isCashPayment 
-                                                                    ? (prev.cashOnHand || 0) + job.price 
-                                                                    : (prev.cashOnHand || 0)
+                                                                // cashOnHand will be updated by refreshCashBalance
                                                             }));
                                                             
                                                             console.log('Job completed:', completedJob);
@@ -4717,6 +4760,8 @@
                                         setShowCashTransferModal(false);
                                         setTransferAmount('');
                                         setSelectedTransferMethod(null);
+                                        setSelectedUserId(null);
+                                        setTransferNote('');
                                     }}>
                                         <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
                                             {/* Header */}
@@ -4749,13 +4794,13 @@
                                                         setTransferTab('cash');
                                                         setSelectedTransferMethod(null);
                                                     }}
-                                                    className={`flex-1 px-4 py-3 text-sm font-black uppercase transition-colors ${
+                                                    className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
                                                         transferTab === 'cash'
                                                             ? 'bg-yellow-500 text-white border-b-2 border-yellow-600'
                                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                     }`}
                                                 >
-                                                    Cash Transfer
+                                                    Cash
                                                 </button>
                                                 <button
                                                     type="button"
@@ -4763,13 +4808,42 @@
                                                         setTransferTab('bank');
                                                         setSelectedTransferMethod(null);
                                                     }}
-                                                    className={`flex-1 px-4 py-3 text-sm font-black uppercase transition-colors ${
+                                                    className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
                                                         transferTab === 'bank'
                                                             ? 'bg-blue-500 text-white border-b-2 border-blue-600'
                                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                     }`}
                                                 >
-                                                    Bank Transfer
+                                                    Bank
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        setTransferTab('user');
+                                                        setSelectedUserId(null);
+                                                        // Load branch users when switching to user tab
+                                                        try {
+                                                            const response = await fetch(API_ROUTES.payments.branchUsers, {
+                                                                headers: {
+                                                                    'Accept': 'application/json',
+                                                                    'X-Requested-With': 'XMLHttpRequest'
+                                                                }
+                                                            });
+                                                            const data = await response.json();
+                                                            if (data.success && data.users) {
+                                                                setBranchUsers(data.users);
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error loading branch users:', error);
+                                                        }
+                                                    }}
+                                                    className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
+                                                        transferTab === 'user'
+                                                            ? 'bg-green-500 text-white border-b-2 border-green-600'
+                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    User
                                                 </button>
                                             </div>
                                             
@@ -4837,7 +4911,7 @@
                                                             </div>
                                                         </div>
                                                     </>
-                                                ) : (
+                                                ) : transferTab === 'bank' ? (
                                                     <>
                                                         {/* Available Cash for Bank Transfer */}
                                                         <div className="mb-4 sm:mb-5 bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-blue-200">
@@ -4970,7 +5044,83 @@
                                                             </button>
                                                         </div>
                                                     </>
-                                                )}
+                                                ) : transferTab === 'user' ? (
+                                                    <>
+                                                        {/* Available Cash for User Transfer */}
+                                                        <div className="mb-4 sm:mb-5 bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-green-200">
+                                                            <div className="text-xs sm:text-sm font-bold text-green-700 uppercase mb-1">Available Cash</div>
+                                                            <div className="text-2xl sm:text-3xl font-black text-green-600 font-mono">
+                                                                Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Transfer Amount */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer Amount</label>
+                                                            <input
+                                                                type="number"
+                                                                value={transferAmount}
+                                                                onChange={(e) => setTransferAmount(e.target.value)}
+                                                                placeholder="Enter amount"
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-green-500 focus:outline-none font-mono"
+                                                                min="0"
+                                                                max={stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            />
+                                                        </div>
+                                                        
+                                                        {/* Select User */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select User</label>
+                                                            {branchUsers.length === 0 ? (
+                                                                <div className="text-center py-4 text-slate-500 text-sm">
+                                                                    No users found in your branch
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                                    {branchUsers.map((user) => (
+                                                                        <button
+                                                                            key={user.id}
+                                                                            type="button"
+                                                                            onClick={() => setSelectedUserId(user.id)}
+                                                                            className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all text-left ${
+                                                                                selectedUserId === user.id
+                                                                                    ? 'bg-green-500 text-white border-green-600 shadow-lg'
+                                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            <div className="font-bold text-sm sm:text-base">{user.name}</div>
+                                                                            <div className={`text-xs sm:text-sm mt-1 ${
+                                                                                selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
+                                                                            }`}>
+                                                                                {user.email}
+                                                                            </div>
+                                                                            {user.phone && (
+                                                                                <div className={`text-xs mt-0.5 ${
+                                                                                    selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
+                                                                                }`}>
+                                                                                    {user.phone}
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Transfer Note */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Note (Optional)</label>
+                                                            <textarea
+                                                                value={transferNote}
+                                                                onChange={(e) => setTransferNote(e.target.value)}
+                                                                placeholder="Add a note for this transfer..."
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-green-500 focus:outline-none"
+                                                                rows="2"
+                                                                maxLength="500"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                             </div>
                                             
                                             {/* Footer */}
@@ -4982,16 +5132,63 @@
                                                             return;
                                                         }
                                                         
-                                                        if (!selectedTransferMethod) {
-                                                            alert('Please select a transfer method.');
-                                                            return;
-                                                        }
-                                                        
                                                         const amount = parseFloat(transferAmount);
                                                         const availableCash = stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0;
                                                         
                                                         if (amount > availableCash) {
                                                             alert(`Insufficient cash. Available: Rs.${availableCash}`);
+                                                            return;
+                                                        }
+                                                        
+                                                        // Handle user transfer
+                                                        if (transferTab === 'user') {
+                                                            if (!selectedUserId) {
+                                                                alert('Please select a user to transfer to.');
+                                                                return;
+                                                            }
+                                                            
+                                                            try {
+                                                                const response = await fetch(API_ROUTES.payments.transferToUser, {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        to_user_id: selectedUserId,
+                                                                        amount: amount,
+                                                                        note: transferNote || null
+                                                                    })
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (!result.success) {
+                                                                    alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                    return;
+                                                                }
+                                                                
+                                                                // Refresh cash balance from database after transfer
+                                                                refreshCashBalance();
+                                                                
+                                                                const selectedUser = branchUsers.find(u => u.id === selectedUserId);
+                                                                alert(`Rs.${amount} transferred to ${selectedUser?.name || 'user'} successfully!`);
+                                                                
+                                                                setShowCashTransferModal(false);
+                                                                setTransferAmount('');
+                                                                setSelectedUserId(null);
+                                                                setTransferNote('');
+                                                            } catch (error) {
+                                                                console.error('Error transferring cash:', error);
+                                                                alert('Error transferring cash. Please try again.');
+                                                            }
+                                                            return;
+                                                        }
+                                                        
+                                                        // Handle cash/bank transfer (existing logic)
+                                                        if (!selectedTransferMethod) {
+                                                            alert('Please select a transfer method.');
                                                             return;
                                                         }
                                                         
@@ -5023,11 +5220,8 @@
                                                                 }
                                                             }
                                                             
-                                                            // Update cash on hand
-                                                            setStats(prev => ({
-                                                                ...prev,
-                                                                cashOnHand: (prev.cashOnHand || 0) - amount
-                                                            }));
+                                                            // Refresh cash balance from database after transfer
+                                                            refreshCashBalance();
                                                             
                                                             // Update transfer method balance
                                                             setTransferMethods(prev => prev.map(method => 
@@ -5049,10 +5243,12 @@
                                                     className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
                                                         transferTab === 'cash'
                                                             ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
-                                                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
+                                                            : transferTab === 'bank'
+                                                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
+                                                            : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
                                                     }`}
                                                 >
-                                                    {transferTab === 'cash' ? 'Transfer Cash' : 'Transfer to Bank'}
+                                                    {transferTab === 'cash' ? 'Transfer Cash' : transferTab === 'bank' ? 'Transfer to Bank' : 'Transfer to User'}
                                                 </button>
                                             </div>
                                         </div>

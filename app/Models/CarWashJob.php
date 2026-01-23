@@ -10,6 +10,7 @@ class CarWashJob extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'branch_id',
         'service_id',
         'worker_id',
@@ -97,5 +98,13 @@ class CarWashJob extends Model
     public function expense()
     {
         return $this->hasOne(CarWashExpense::class, 'job_id');
+    }
+
+    /**
+     * Get the user who created this job
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }
