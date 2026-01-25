@@ -228,12 +228,12 @@
                                                         <div className="text-sm font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-blue-600">Rs.{(job.price || 0).toFixed(2)}</div>
+                                                        <div className="text-sm font-black text-blue-600">Rs.{Math.round(job.price || 0)}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         {job.workerCommission > 0 ? (
                                                             <div>
-                                                                <div className="text-sm font-black text-emerald-600 font-mono">Rs.{(job.commissionAmount || 0).toFixed(2)}</div>
+                                                                <div className="text-sm font-black text-emerald-600 font-mono">Rs.{Math.round(job.commissionAmount || 0)}</div>
                                                                 <div className="text-xs text-slate-500">({job.workerCommission}%)</div>
                                                             </div>
                                                         ) : (
@@ -424,13 +424,13 @@
                                             </div>
                                             <div className="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl border-2 border-blue-400">
                                                 <p className="text-xs font-black text-white/90 uppercase mb-2">Amount</p>
-                                                <p className="text-2xl font-black text-white">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                <p className="text-2xl font-black text-white">Rs.{Math.round(selectedJobForDetail.price || 0)}</p>
                                             </div>
                                             <div className="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-4 rounded-xl border-2 border-emerald-400">
                                                 <p className="text-xs font-black text-white/90 uppercase mb-2">Commission</p>
                                                 {selectedJobForDetail.workerCommission > 0 ? (
                                                     <div>
-                                                        <p className="text-2xl font-black text-white font-mono">Rs.{(selectedJobForDetail.commissionAmount || 0).toFixed(2)}</p>
+                                                        <p className="text-2xl font-black text-white font-mono">Rs.{Math.round(selectedJobForDetail.commissionAmount || 0)}</p>
                                                         <p className="text-xs text-white/80 mt-1">({selectedJobForDetail.workerCommission}%)</p>
                                                     </div>
                                                 ) : (
@@ -488,12 +488,12 @@
                                                                 <p className="text-sm font-black text-slate-900">{item.name}</p>
                                                                 <p className="text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
                                                             </div>
-                                                            <p className="text-sm font-black text-orange-600">Rs.{(item.total || (item.quantity * item.price)).toFixed(2)}</p>
+                                                            <p className="text-sm font-black text-orange-600">Rs.{Math.round(item.total || (item.quantity * item.price))}</p>
                                                         </div>
                                                     ))}
                                                     <div className="bg-orange-200 p-3 rounded-lg border-2 border-orange-300 flex justify-between items-center mt-4">
                                                         <p className="text-sm font-black text-orange-900 uppercase">Total Expense</p>
-                                                        <p className="text-lg font-black text-orange-900">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                        <p className="text-lg font-black text-orange-900">Rs.{Math.round(selectedJobForDetail.expense.totalAmount || 0)}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -505,24 +505,24 @@
                                             <div className="space-y-3">
                                                 <div className="flex justify-between items-center bg-white p-3 rounded-lg">
                                                     <p className="text-sm font-black text-slate-700">Total Amount:</p>
-                                                    <p className="text-lg font-black text-blue-600 font-mono">Rs.{(selectedJobForDetail.price || 0).toFixed(2)}</p>
+                                                    <p className="text-lg font-black text-blue-600 font-mono">Rs.{Math.round(selectedJobForDetail.price || 0)}</p>
                                                 </div>
                                                 {selectedJobForDetail.workerCommission > 0 && (
                                                     <div className="flex justify-between items-center bg-white p-3 rounded-lg">
                                                         <p className="text-sm font-black text-slate-700">Worker Commission ({selectedJobForDetail.workerCommission}%):</p>
-                                                        <p className="text-lg font-black text-emerald-600 font-mono">Rs.{(selectedJobForDetail.commissionAmount || 0).toFixed(2)}</p>
+                                                        <p className="text-lg font-black text-emerald-600 font-mono">Rs.{Math.round(selectedJobForDetail.commissionAmount || 0)}</p>
                                                     </div>
                                                 )}
                                                 {selectedJobForDetail.expense && selectedJobForDetail.expense.totalAmount > 0 && (
                                                     <div className="flex justify-between items-center bg-white p-3 rounded-lg">
                                                         <p className="text-sm font-black text-slate-700">Total Expenses:</p>
-                                                        <p className="text-lg font-black text-orange-600 font-mono">Rs.{(selectedJobForDetail.expense.totalAmount || 0).toFixed(2)}</p>
+                                                        <p className="text-lg font-black text-orange-600 font-mono">Rs.{Math.round(selectedJobForDetail.expense.totalAmount || 0)}</p>
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-lg mt-4">
                                                     <p className="text-base font-black text-white uppercase">Net Amount:</p>
                                                     <p className="text-xl font-black text-white font-mono">
-                                                        Rs.{((selectedJobForDetail.price || 0) - (selectedJobForDetail.commissionAmount || 0) - (selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
+                                                        Rs.{Math.round((selectedJobForDetail.price || 0) - (selectedJobForDetail.commissionAmount || 0) - (selectedJobForDetail.expense?.totalAmount || 0))}
                                                     </p>
                                                 </div>
                                             </div>

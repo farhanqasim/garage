@@ -13,6 +13,56 @@ class CarWashExpenseController extends Controller
     use HasBranchAccess;
     
     /**
+     * List job expenses for a date range. Query: from, to (YYYY-MM-DD; default today).
+     * Returns completed jobs with expenses where end_time date is between from and to.
+     */
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+        $from = $request->get('from', now()->format('Y-m-d'));
+        $to = $request->get('to', now()->format('Y-m-d'));
+
+        $jobs = CarWashJob::where(function ($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+        })
+            ->completed()
+            ->whereNotNull('end_time')
+            ->whereDate('end_time', '>=', $from)
+            ->whereDate('end_time', '<=', $to)
+            ->with(['expense', 'user'])
+            ->orderBy('end_time', 'desc')
+            ->get();
+
+        $list = [];
+        foreach ($jobs as $job) {
+            $exp = $job->expense;
+            if (!$exp) continue;
+            $items = is_array($exp->expense_items) ? $exp->expense_items : [];
+            $subtotal = (float) ($exp->total_amount ?? 0);
+            $list[] = [
+                'jobId' => $job->id,
+                'dateTime' => $job->end_time ? $job->end_time->format('Y-m-d H:i') : null,
+                'vehicleNo' => $job->vehicle_no,
+                'customerName' => $job->customer_name,
+                'mobile' => $job->mobile,
+                'workerName' => $job->worker_name,
+                'userName' => $job->user ? $job->user->name : null,
+                'items' => $items,
+                'subtotal' => $subtotal,
+            ];
+        }
+
+        $total = collect($list)->sum('subtotal');
+
+        return response()->json([
+            'success' => true,
+            'expenses' => $list,
+            'total' => round($total, 2),
+        ]);
+    }
+
+    /**
      * Store or update expense for a job
      */
     public function store(Request $request, $jobId)
