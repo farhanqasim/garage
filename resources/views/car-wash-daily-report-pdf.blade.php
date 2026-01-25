@@ -19,7 +19,6 @@
         .cash-row { font-size: 12px; font-weight: bold; color: #1e40af; }
         .no-data { text-align: center; padding: 40px; color: #64748b; }
         .opening-row { background: #f1f5f9; font-weight: bold; }
-        .expense-total-row { background: #f8fafc; font-size: 10px; }
         .expense-detail { font-size: 9px; background: #fffbf5; color: #92400e; padding: 4px 8px; vertical-align: top; }
         tfoot .footer-row { background: #1e40af; color: #fff; font-weight: bold; font-size: 10px; }
     </style>
@@ -36,48 +35,39 @@
                 <tr>
                     <th>Date & Time</th>
                     <th>Vehicle</th>
-                    <th class="text-right">Credit</th>
                     <th class="text-right">Refreshment Expenses</th>
+                    <th class="text-right">Credit</th>
                     <th class="text-right">Total</th>
                     <th>Worker</th>
+                    <th>Bank</th>
                     <th class="text-right">Commission</th>
                     <th class="text-right">G.total</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($rows as $r)
-                {{-- Main row: Refreshment Expenses aur Total next row mein --}}
+                {{-- Image jaisa: Refreshment Expenses (Debit), Credit, Total sab ek hi row mein --}}
                 <tr class="{{ ($r['vehicle'] ?? '') === 'Opening' ? 'opening-row' : '' }}">
                     <td>{{ $r['dateTime'] ?? '-' }}</td>
                     <td>{{ $r['vehicle'] ?? '-' }}</td>
-                    <td class="text-right">{{ ((float)($r['credit'] ?? 0)) > 0 ? 'Rs. ' . number_format((float)$r['credit'], 2) : '-' }}</td>
-                    <td></td>
-                    <td></td>
+                    <td class="text-right">{{ ((float)($r['debit'] ?? 0)) > 0 ? 'Rs. ' . number_format((float)$r['debit'], 0) : '-' }}</td>
+                    <td class="text-right">{{ ((float)($r['credit'] ?? 0)) > 0 ? 'Rs. ' . number_format((float)$r['credit'], 0) : '-' }}</td>
+                    <td class="text-right">Rs. {{ number_format((float)($r['total'] ?? 0), 0) }}</td>
                     <td>{{ $r['worker'] ?? '-' }}</td>
-                    <td class="text-right">{{ (isset($r['commission']) && $r['commission'] !== '-' && (float)($r['commission'] ?? 0) > 0) ? 'Rs. ' . number_format((float)$r['commission'], 2) : '-' }}</td>
-                    <td class="text-right">Rs. {{ number_format((float)($r['gTotal'] ?? 0), 2) }}</td>
-                </tr>
-                {{-- Next row: Refreshment Expenses | Total (image ke mutabiq) --}}
-                <tr class="expense-total-row">
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td class="text-right">{{ ((float)($r['debit'] ?? 0)) > 0 ? 'Rs. ' . number_format((float)$r['debit'], 2) : '-' }}</td>
-                    <td class="text-right">Rs. {{ number_format((float)($r['total'] ?? 0), 2) }}</td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
+                    <td>{{ $r['bankName'] ?? '-' }}</td>
+                    <td class="text-right">{{ (isset($r['commission']) && $r['commission'] !== '-' && $r['commission'] !== null && (float)($r['commission'] ?? 0) > 0) ? 'Rs. ' . number_format((float)$r['commission'], 0) : '-' }}</td>
+                    <td class="text-right">{{ (isset($r['gTotal']) && $r['gTotal'] !== null && $r['gTotal'] !== '') ? 'Rs. ' . number_format((float)$r['gTotal'], 0) : '-' }}</td>
                 </tr>
                 @if(($r['vehicle'] ?? '') !== 'Opening' && !empty($r['expenseItems'] ?? []))
                 <tr>
-                    <td colspan="8" class="expense-detail">
+                    <td colspan="9" class="expense-detail">
                         <strong>Expenses:</strong><br>
                         @foreach($r['expenseItems'] as $ei)
                             @if(is_array($ei) && isset($ei['name']))
-                                • {{ $ei['name'] ?? 'N/A' }}: {{ (int)($ei['quantity'] ?? 0) }} × Rs.{{ number_format((float)($ei['price'] ?? 0), 2) }} = Rs.{{ number_format((float)($ei['total'] ?? (($ei['quantity'] ?? 0) * ($ei['price'] ?? 0))), 2) }}@if(!$loop->last)<br>@endif
+                                • {{ $ei['name'] ?? 'N/A' }}: {{ (int)($ei['quantity'] ?? 0) }} × Rs.{{ number_format((float)($ei['price'] ?? 0), 0) }} = Rs.{{ number_format((float)($ei['total'] ?? (($ei['quantity'] ?? 0) * ($ei['price'] ?? 0))), 0) }}@if(!$loop->last)<br>@endif
                             @endif
                         @endforeach
-                        <br><strong>Total: Rs. {{ number_format((float)($r['debit'] ?? 0), 2) }}</strong>
+                        <br><strong>Total: Rs. {{ number_format((float)($r['debit'] ?? 0), 0) }}</strong>
                     </td>
                 </tr>
                 @endif
@@ -87,12 +77,13 @@
                 <tr class="footer-row">
                     <td>Total</td>
                     <td>-</td>
-                    <td class="text-right">Rs. {{ number_format($totalCredit ?? 0, 2) }}</td>
-                    <td class="text-right">Rs. {{ number_format($totalDebit ?? 0, 2) }}</td>
-                    <td class="text-right">Rs. {{ number_format($cashOnHand ?? 0, 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($totalDebit ?? 0, 0) }}</td>
+                    <td class="text-right">Rs. {{ number_format($totalCredit ?? 0, 0) }}</td>
+                    <td class="text-right">Rs. {{ number_format($cashOnHand ?? 0, 0) }}</td>
                     <td>-</td>
-                    <td class="text-right">Rs. {{ number_format($totalCommission ?? 0, 2) }}</td>
-                    <td class="text-right">Rs. {{ number_format($sumGtotal ?? 0, 2) }}</td>
+                    <td>-</td>
+                    <td class="text-right">Rs. {{ number_format($totalCommission ?? 0, 0) }}</td>
+                    <td class="text-right">Rs. {{ number_format($sumGtotal ?? 0, 0) }}</td>
                 </tr>
             </tfoot>
         </table>
@@ -103,17 +94,17 @@
                     <td class="label">Total Vehicles</td>
                     <td class="text-right">{{ $totalVehicles ?? 0 }}</td>
                     <td class="label">Total Refreshment Expenses</td>
-                    <td class="text-right">Rs. {{ number_format($totalDebit ?? 0, 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($totalDebit ?? 0, 0) }}</td>
                     <td class="label">Total Credit</td>
-                    <td class="text-right">Rs. {{ number_format($totalCredit ?? 0, 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($totalCredit ?? 0, 0) }}</td>
                 </tr>
                 <tr>
-                    <td class="label">Cash on Hand</td>
-                    <td class="text-right cash-row">Rs. {{ number_format($cashOnHand ?? 0, 2) }}</td>
+                    <td class="label">{{ (isset($paymentFilter) && $paymentFilter === 'bank') ? 'Bank Total' : 'Cash on Hand' }}</td>
+                    <td class="text-right cash-row">Rs. {{ number_format($cashOnHand ?? 0, 0) }}</td>
                     <td class="label">Total Workers</td>
                     <td class="text-right">{{ $totalWorkers ?? 0 }}</td>
                     <td class="label">Total Commission</td>
-                    <td class="text-right">Rs. {{ number_format($totalCommission ?? 0, 2) }}</td>
+                    <td class="text-right">Rs. {{ number_format($totalCommission ?? 0, 0) }}</td>
                 </tr>
             </table>
         </div>

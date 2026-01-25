@@ -873,7 +873,7 @@
                     </svg>
                 </div>
                 <div class="settings-dropdown-content">
-                    <div class="settings-dropdown-title">Add Expense</div>
+                    <div class="settings-dropdown-title">Shop Expenses</div>
                 </div>
             </a>
         </div>
@@ -1330,11 +1330,20 @@
                 store: (jobId) => `{{ url('/car-wash/inspections') }}/${jobId}`,
             },
             expenses: {
+                index: '{{ route("car-wash.expenses.index") }}',
                 show: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
                 store: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
             },
+            shopExpenses: {
+                index: '{{ url("/car-wash/shop-expenses") }}',
+                store: '{{ route("car-wash.shop-expenses.store") }}',
+            },
             banks: {
                 index: '{{ route("car-wash.banks.index") }}',
+            },
+            bankAccounts: {
+                index: '{{ route("car-wash.bank-accounts.index") }}',
+                create: '{{ route("admin.bank-accounts.create") }}',
             },
             cashTransfers: {
                 store: '{{ route("car-wash.cash-transfers.store") }}',
@@ -1546,6 +1555,15 @@
             const [newCustomExpenseName, setNewCustomExpenseName] = useState('');
             const [showExpenseDetailsModal, setShowExpenseDetailsModal] = useState(false);
             const [expenseHistory, setExpenseHistory] = useState([]);
+            const [expenseFilterFrom, setExpenseFilterFrom] = useState(() => new Date().toISOString().split('T')[0]);
+            const [expenseFilterTo, setExpenseFilterTo] = useState(() => new Date().toISOString().split('T')[0]);
+            const [expenseDetailsJobExpenses, setExpenseDetailsJobExpenses] = useState([]);
+            const [expenseDetailsShopExpenses, setExpenseDetailsShopExpenses] = useState([]);
+            const [expenseDetailsLoading, setExpenseDetailsLoading] = useState(false);
+            const [showShopExpensesModal, setShowShopExpensesModal] = useState(false);
+            const [shopExpensesList, setShopExpensesList] = useState([]);
+            const [shopExpenseDate, setShopExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
+            const [shopExpenseForm, setShopExpenseForm] = useState({ category: '', amount: '', notes: '' });
             const [showCompletedJobsModal, setShowCompletedJobsModal] = useState(false);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
@@ -1567,6 +1585,7 @@
             const [selectedRating, setSelectedRating] = useState('');
             const [jobComment, setJobComment] = useState('');
             const [paymentMethod, setPaymentMethod] = useState('cash');
+            const [selectedBankId, setSelectedBankId] = useState(null);
             const [selectedWorkerFilter, setSelectedWorkerFilter] = useState(null);
             const [showWorkerFilterModal, setShowWorkerFilterModal] = useState(false);
             const [showCashTransferModal, setShowCashTransferModal] = useState(false);
@@ -1574,6 +1593,7 @@
             const [transferMethods, setTransferMethods] = useState([
                 { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
             ]);
+            const [bankAccounts, setBankAccounts] = useState([]);
             const [transferAmount, setTransferAmount] = useState('');
             const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
             const [branchUsers, setBranchUsers] = useState([]);
@@ -1614,6 +1634,58 @@
                         // Keep default methods on error
                     });
             }, []);
+
+            // Load login user's branch bank accounts (for Bank tab in complete job modal). Refetch via fetchBankAccounts (e.g. after creating in Admin).
+            const fetchBankAccounts = React.useCallback(() => {
+                if (!API_ROUTES.bankAccounts?.index) return;
+                fetch(API_ROUTES.bankAccounts.index, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(res => res.json())
+                    .then(data => { if (data.success && Array.isArray(data.bankAccounts)) setBankAccounts(data.bankAccounts); })
+                    .catch(err => console.error('Error loading bank accounts:', err));
+            }, []);
+            useEffect(() => { fetchBankAccounts(); }, [fetchBankAccounts]);
+
+            // Shop Expenses: load list when modal opens; listen for legacy button
+            useEffect(() => {
+                if (showShopExpensesModal && API_ROUTES.shopExpenses) {
+                    fetch(API_ROUTES.shopExpenses.index + '?date=' + encodeURIComponent(shopExpenseDate))
+                        .then(r => r.json())
+                        .then(d => { if (d.success) setShopExpensesList(d.expenses || []); })
+                        .catch(() => setShopExpensesList([]));
+                }
+            }, [showShopExpensesModal, shopExpenseDate]);
+            useEffect(() => {
+                const onOpen = () => setShowShopExpensesModal(true);
+                window.addEventListener('openShopExpensesModal', onOpen);
+                return () => window.removeEventListener('openShopExpensesModal', onOpen);
+            }, []);
+
+            // Expense Details Modal: fetch job + shop expenses when modal opens or filters apply
+            const fetchExpenseDetailsReport = React.useCallback((from, to) => {
+                if (!API_ROUTES.expenses?.index || !API_ROUTES.shopExpenses?.index) return;
+                setExpenseDetailsLoading(true);
+                const fromTo = 'from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+                Promise.all([
+                    fetch(API_ROUTES.expenses.index + '?' + fromTo).then(r => r.json()),
+                    fetch(API_ROUTES.shopExpenses.index + '?' + fromTo).then(r => r.json())
+                ]).then(([j, s]) => {
+                    setExpenseDetailsJobExpenses((j.success && j.expenses) ? j.expenses : []);
+                    setExpenseDetailsShopExpenses((s.success && s.expenses) ? s.expenses : []);
+                }).catch(() => {
+                    setExpenseDetailsJobExpenses([]);
+                    setExpenseDetailsShopExpenses([]);
+                }).finally(() => setExpenseDetailsLoading(false));
+            }, []);
+
+            useEffect(() => {
+                if (showExpenseDetailsModal) {
+                    const today = new Date().toISOString().split('T')[0];
+                    setExpenseFilterFrom(today);
+                    setExpenseFilterTo(today);
+                    fetchExpenseDetailsReport(today, today);
+                }
+            }, [showExpenseDetailsModal, fetchExpenseDetailsReport]);
+
             const [currentTime, setCurrentTime] = useState(new Date());
             const [inspectionModalJobId, setInspectionModalJobId] = useState(null);
             const [inspectionData, setInspectionData] = useState({});
@@ -2818,29 +2890,29 @@
                                                 <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Daily Report</span>
                                             </button>
                                             
-                                            {/* ADD EXPENSE */}
+                                            {/* SHOP EXPENSES */}
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
-                                                    alert('Add Expense feature coming soon!');
+                                                    setShowShopExpensesModal(true);
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ' ') {
                                                         e.preventDefault();
                                                         setShowServicesDropdown(false);
-                                                        alert('Add Expense feature coming soon!');
+                                                        setShowShopExpensesModal(true);
                                                     }
                                                 }}
                                                 className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
                                                 role="menuitem"
-                                                aria-label="Add expense (coming soon)"
+                                                aria-label="Shop Expenses"
                                             >
                                                 <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
                                                     <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Add Expense</span>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Shop Expenses</span>
                                             </button>
                                         </div>
                                     )}
@@ -3398,6 +3470,8 @@
                                                 setCompleteModalJobId(null);
                                                 setSelectedRating('');
                                                 setJobComment('');
+                                                setPaymentMethod('cash');
+                                                setSelectedBankId(null);
                                             }
                                         }}>
                                             <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -3414,6 +3488,8 @@
                                                                     setCompleteModalJobId(null);
                                                                     setSelectedRating('');
                                                                     setJobComment('');
+                                                                    setPaymentMethod('cash');
+                                                                    setSelectedBankId(null);
                                                                 }
                                                             }}
                                                             className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
@@ -3528,7 +3604,7 @@
                                                                 <button
                                                                     key={method.value}
                                                                     type="button"
-                                                                    onClick={() => setPaymentMethod(method.value)}
+                                                                    onClick={() => { setPaymentMethod(method.value); if (method.value !== 'bank') setSelectedBankId(null); }}
                                                                     className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all ${
                                                                         paymentMethod === method.value
                                                                             ? `${method.color} text-white border-${method.color.replace('bg-', '')} shadow-lg scale-105`
@@ -3540,6 +3616,45 @@
                                                                 </button>
                                                             ))}
                                                         </div>
+                                                        {paymentMethod === 'bank' && (
+                                                            <div className="mt-2 sm:mt-3 p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl" data-bank-account-box="true">
+                                                                <label className="text-xs font-black text-slate-700 uppercase block mb-2">Bank Account (jis main transfer kiya) — Login user ke accounts</label>
+                                                                {(bankAccounts || []).length === 0 ? (
+                                                                    <div className="text-xs text-amber-700 space-y-1">
+                                                                        <p>Bank account nahi? Pehle create karein, phir yahan list aa jayegi.</p>
+                                                                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                                            <a href={API_ROUTES.bankAccounts?.create || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 underline">
+                                                                                Create Bank Account →
+                                                                            </a>
+                                                                            <span className="text-slate-500">|</span>
+                                                                            <button type="button" onClick={fetchBankAccounts} className="font-bold text-slate-700 hover:text-slate-900 underline">
+                                                                                Refresh list
+                                                                            </button>
+                                                                        </p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-2">
+                                                                        {(bankAccounts || []).map(a => (
+                                                                            <button
+                                                                                key={a.id}
+                                                                                type="button"
+                                                                                onClick={() => setSelectedBankId(selectedBankId === a.id ? null : a.id)}
+                                                                                className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                                                                                    selectedBankId === a.id
+                                                                                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                                                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                                                }`}
+                                                                            >
+                                                                                <div className="text-sm font-bold text-slate-900">{a.bankName}</div>
+                                                                                {a.accountTitle ? <div className="text-xs text-slate-600 mt-0.5">Title: {a.accountTitle}</div> : null}
+                                                                                {a.accountNumber ? <div className="text-xs text-slate-600 font-mono">Account: {a.accountNumber}</div> : null}
+                                                                                {!a.accountTitle && !a.accountNumber ? <div className="text-xs text-slate-500 mt-0.5">Account #{a.id}</div> : null}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     
                                                     {/* Comments Section */}
@@ -3754,7 +3869,8 @@
                                                                     body: JSON.stringify({
                                                                         rating: selectedRating,
                                                                         notes: jobComment || '',
-                                                                        payment_method: paymentMethod
+                                                                        payment_method: paymentMethod,
+                                                                        bank_account_id: (paymentMethod === 'bank' && selectedBankId) ? selectedBankId : undefined
                                                                     })
                                                                 });
                                                                 
@@ -3813,6 +3929,7 @@
                                                             setSelectedRating('');
                                                             setJobComment('');
                                                             setPaymentMethod('cash');
+                                                            setSelectedBankId(null);
                                                         } catch (error) {
                                                             console.error('Error completing job:', error);
                                                             alert('Error completing job. Please try again.');
@@ -4640,130 +4757,98 @@
                                                 </div>
                                             </div>
                                             
-                                            {/* Content */}
+                                            {/* Filters + Download PDF */}
+                                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 md:p-4 border-b border-slate-200 bg-slate-50/80">
+                                                <label className="text-xs font-bold text-slate-600">From</label>
+                                                <input type="date" value={expenseFilterFrom} onChange={(e) => setExpenseFilterFrom(e.target.value)} className="px-2 py-1.5 rounded-lg border-2 border-slate-200 text-sm font-bold" />
+                                                <label className="text-xs font-bold text-slate-600">To</label>
+                                                <input type="date" value={expenseFilterTo} onChange={(e) => setExpenseFilterTo(e.target.value)} className="px-2 py-1.5 rounded-lg border-2 border-slate-200 text-sm font-bold" />
+                                                <button onClick={() => fetchExpenseDetailsReport(expenseFilterFrom, expenseFilterTo)} disabled={expenseDetailsLoading} className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-black uppercase hover:bg-slate-800 disabled:opacity-60">Apply</button>
+                                                <button
+                                                    onClick={() => {
+                                                        const el = document.getElementById('expenseReportPdf');
+                                                        if (el && typeof html2pdf !== 'undefined') {
+                                                            const opt = { margin: 8, filename: 'all-expense-' + expenseFilterFrom + '-to-' + expenseFilterTo + '.pdf', image: { type: 'jpeg', quality: 0.96 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+                                                            html2pdf().set(opt).from(el).save();
+                                                        }
+                                                    }}
+                                                    className="ml-auto px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-black uppercase hover:bg-emerald-700 flex items-center gap-1"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                    Download PDF
+                                                </button>
+                                            </div>
+                                            
+                                            {/* Content - All Expense layout: Job (left) + Shop (right) + Total */}
                                             <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-gradient-to-b from-slate-50 to-white">
-                                                {expenseHistory.length === 0 ? (
-                                                    <div className="text-center py-8 sm:py-12 md:py-16">
-                                                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 md:mb-6">
-                                                            <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                            </svg>
+                                                {expenseDetailsLoading ? (
+                                                    <div className="flex items-center justify-center py-12"><span className="text-slate-500 font-bold">Loading...</span></div>
+                                                ) : (() => {
+                                                    const jobList = expenseDetailsJobExpenses || [];
+                                                    const shopList = expenseDetailsShopExpenses || [];
+                                                    const jobTotal = jobList.reduce((s, e) => s + (parseFloat(e.subtotal) || 0), 0);
+                                                    const shopTotal = shopList.reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
+                                                    const grandTotal = jobTotal + shopTotal;
+                                                    const isEmpty = jobList.length === 0 && shopList.length === 0;
+                                                    if (isEmpty) {
+                                                        return (
+                                                            <div className="text-center py-8 sm:py-12">
+                                                                <p className="text-base sm:text-lg font-black text-slate-700 uppercase">No Expenses</p>
+                                                                <p className="text-xs sm:text-sm text-slate-500 mt-1">No job or shop expenses for the selected date range.</p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                    <div id="expenseReportPdf" className="space-y-4">
+                                                        {/* Two panels: Job (left) | Shop (right) */}
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                                            {/* Total Job Expenses */}
+                                                            <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
+                                                                <div className="bg-slate-700 text-white px-3 py-2 font-black text-sm uppercase">Total Job Expenses</div>
+                                                                <div className="p-2 font-mono font-black text-lg text-slate-800">Rs.{Math.round(jobTotal)}</div>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="w-full text-left text-xs sm:text-sm">
+                                                                        <thead><tr className="border-b border-slate-200 bg-slate-100"><th className="p-2 font-black">Date &amp; Time</th><th className="p-2 font-black">Job Details &amp; User</th><th className="p-2 font-black text-right">Job Expense</th></tr></thead>
+                                                                        <tbody>
+                                                                            {jobList.map((e) => (
+                                                                                <tr key={e.jobId} className="border-b border-slate-100">
+                                                                                    <td className="p-2">{e.dateTime || '-'}</td>
+                                                                                    <td className="p-2">{(e.vehicleNo || '') + ' ' + (e.mobile || '') + ' ' + (e.customerName || '') + ' / ' + (e.workerName || e.userName || '')}</td>
+                                                                                    <td className="p-2 text-right font-bold">Rs.{Math.round(parseFloat(e.subtotal) || 0)}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                            {/* Total Shop Expense */}
+                                                            <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
+                                                                <div className="bg-slate-700 text-white px-3 py-2 font-black text-sm uppercase">Total Shop Expense</div>
+                                                                <div className="p-2 font-mono font-black text-lg text-slate-800">Rs.{Math.round(shopTotal)}</div>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="w-full text-left text-xs sm:text-sm">
+                                                                        <thead><tr className="border-b border-slate-200 bg-slate-100"><th className="p-2 font-black">Date &amp; Time &amp; User</th><th className="p-2 font-black">Expense Detail</th><th className="p-2 font-black text-right">Shop Expense</th></tr></thead>
+                                                                        <tbody>
+                                                                            {shopList.map((e) => (
+                                                                                <tr key={e.id} className="border-b border-slate-100">
+                                                                                    <td className="p-2">{(e.created_at || e.expense_date) + (e.user_name ? ' / ' + e.user_name : '')}</td>
+                                                                                    <td className="p-2">{e.category}{(e.notes ? ' - ' + e.notes : '')}</td>
+                                                                                    <td className="p-2 text-right font-bold text-rose-600">Rs.{Math.round(parseFloat(e.amount) || 0)}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <p className="text-base sm:text-lg md:text-xl font-black text-slate-700 uppercase tracking-wide">No Expenses Yet</p>
-                                                        <p className="text-xs sm:text-sm text-slate-500 mt-1 sm:mt-2">Expenses will appear here once you add them</p>
+                                                        {/* Total Expense (Grand Total) */}
+                                                        <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 rounded-xl p-4 border-2 border-orange-300">
+                                                            <div className="text-white/90 text-xs font-black uppercase">Total Expense</div>
+                                                            <div className="text-2xl sm:text-3xl font-black text-white font-mono">Rs.{Math.round(grandTotal)}</div>
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                                                        {expenseHistory.map((expense, expIdx) => {
-                                                            // Try to get job data from activeJobs if not in expense record
-                                                            const job = activeJobs.find(j => j.id === expense.jobId);
-                                                            const vehicleNo = expense.vehicleNo || job?.vehicleNo || 'N/A';
-                                                            const customerName = expense.customerName || job?.customerName || 'N/A';
-                                                            const mobile = expense.mobile || job?.mobile || 'N/A';
-                                                            
-                                                            return (
-                                                            <div key={expense.id} className="bg-white rounded-2xl sm:rounded-[25px] md:rounded-[30px] border-2 border-slate-200 shadow-xl hover:shadow-2xl transition-all overflow-hidden">
-                                                                {/* Customer Info Header */}
-                                                                <div className="bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 p-3 sm:p-4 md:p-5 border-b-2 border-slate-300">
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-blue-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Vehicle Number</p>
-                                                                            </div>
-                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{vehicleNo}</p>
-                                                                        </div>
-                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-emerald-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Customer Name</p>
-                                                                            </div>
-                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{customerName}</p>
-                                                                        </div>
-                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
-                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-purple-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Mobile Number</p>
-                                                                            </div>
-                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{mobile}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                {/* Items List - Clean Table Style */}
-                                                                <div className="p-3 sm:p-4 md:p-6">
-                                                                    <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
-                                                                        {expense.items.map((item, idx) => (
-                                                                            <div key={idx} className="bg-gradient-to-r from-slate-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all">
-                                                                                <div className="grid grid-cols-12 gap-2 sm:gap-3 md:gap-4 items-center">
-                                                                                    <div className="col-span-2 sm:col-span-1 flex justify-center">
-                                                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-orange-400 to-rose-400 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-md">
-                                                                                            {idx + 1}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="col-span-10 sm:col-span-5">
-                                                                                        <p className="text-xs sm:text-sm font-black text-slate-900 uppercase mb-1 sm:mb-2 truncate">{item.name}</p>
-                                                                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                                                                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                                                                                                Qty: {item.quantity}
-                                                                                            </span>
-                                                                                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                                                                                                Rate: Rs.{typeof item.price === 'number' ? item.price.toFixed(2) : (parseFloat(item.price) || 0).toFixed(2)}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="col-span-12 sm:col-span-6 text-left sm:text-right mt-2 sm:mt-0">
-                                                                                        <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">Rs.{typeof item.subtotal === 'number' ? item.subtotal.toFixed(2) : (parseFloat(item.subtotal) || 0).toFixed(2)}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            );
-                                                        })}
-                                                        
-                                                        {/* Grand Total - All Expenses */}
-                                                        {expenseHistory.length > 0 && (
-                                                            <div className="mt-4 sm:mt-5 md:mt-6 pt-4 sm:pt-5 md:pt-6 border-t-2 sm:border-t-3 md:border-t-4 border-slate-400">
-                                                                <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 rounded-2xl sm:rounded-[25px] md:rounded-[30px] p-4 sm:p-5 md:p-6 border-2 sm:border-3 md:border-4 border-orange-300 shadow-2xl">
-                                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                                                                        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center border-2 border-white/30 flex-shrink-0">
-                                                                                <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                                                </svg>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-0.5 sm:mb-1">Grand Total</p>
-                                                                                <p className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono">
-                                                                                    Rs.{(expenseHistory && Array.isArray(expenseHistory) ? expenseHistory.reduce((sum, exp) => sum + (parseFloat(exp.subtotal) || 0), 0) : 0).toFixed(2)}
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="text-left sm:text-right">
-                                                                            <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-widest mb-0.5 sm:mb-1">Total Records</p>
-                                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">{expenseHistory.length}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
                                             </div>
                                             
                                             {/* Footer */}
@@ -4778,7 +4863,124 @@
                                         </div>
                                     </div>
                                 )}
-                                
+
+                                {/* Shop Expenses Modal */}
+                                {showShopExpensesModal && (
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => setShowShopExpensesModal(false)}>
+                                        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border-2 border-slate-200" onClick={(e) => e.stopPropagation()}>
+                                            <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 text-white">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <h2 className="text-lg sm:text-xl font-black uppercase">Shop Expenses</h2>
+                                                            <p className="text-xs opacity-90">Add and view shop expenses</p>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => setShowShopExpensesModal(false)} className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center">
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6 space-y-4">
+                                                {/* Add form */}
+                                                <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
+                                                    <p className="text-xs font-black text-slate-600 uppercase mb-3">Add Expense</p>
+                                                    <div className="grid gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Date</label>
+                                                            <input type="date" value={shopExpenseDate} onChange={(e) => setShopExpenseDate(e.target.value)}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Category / Description</label>
+                                                            <input type="text" placeholder="e.g. Tea, Supplies, Cleaning" value={shopExpenseForm.category} onChange={(e) => setShopExpenseForm(prev=> ({...prev, category: e.target.value}))}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Amount (Rs.)</label>
+                                                            <input type="number" min="0" step="0.01" placeholder="0" value={shopExpenseForm.amount} onChange={(e) => setShopExpenseForm(prev=> ({...prev, amount: e.target.value}))}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Notes (optional)</label>
+                                                            <textarea rows={2} placeholder="Optional notes" value={shopExpenseForm.notes} onChange={(e) => setShopExpenseForm(prev=> ({...prev, notes: e.target.value}))}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold resize-none" />
+                                                        </div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!shopExpenseForm.category || !shopExpenseForm.amount || parseFloat(shopExpenseForm.amount) <= 0) { alert('Please enter category and amount.'); return; }
+                                                                try {
+                                                                    const res = await fetch(API_ROUTES.shopExpenses.store, {
+                                                                        method: 'POST',
+                                                                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                                                                        body: JSON.stringify({
+                                                                            expense_date: shopExpenseDate,
+                                                                            category: shopExpenseForm.category,
+                                                                            amount: parseFloat(shopExpenseForm.amount),
+                                                                            notes: shopExpenseForm.notes || ''
+                                                                        })
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (data.success) {
+                                                                        setShopExpenseForm({ category: '', amount: '', notes: '' });
+                                                                        const r = await fetch(API_ROUTES.shopExpenses.index + '?date=' + encodeURIComponent(shopExpenseDate));
+                                                                        const d = await r.json();
+                                                                        if (d.success) setShopExpensesList(d.expenses || []);
+                                                                    } else { alert(data.message || 'Failed to add.'); }
+                                                                } catch (e) { alert('Error adding expense.'); }
+                                                            }}
+                                                            className="w-full py-2.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-xl font-black uppercase text-sm hover:from-red-600 hover:to-rose-600"
+                                                        >
+                                                            Add Expense
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {/* List */}
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <p className="text-xs font-black text-slate-600 uppercase">Expenses for {shopExpenseDate}</p>
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const r = await fetch(API_ROUTES.shopExpenses.index + '?date=' + encodeURIComponent(shopExpenseDate));
+                                                                    const d = await r.json();
+                                                                    if (d.success) setShopExpensesList(d.expenses || []);
+                                                                } catch (e) { setShopExpensesList([]); }
+                                                            }}
+                                                            className="text-xs font-bold text-blue-600 hover:underline"
+                                                        >
+                                                            Refresh
+                                                        </button>
+                                                    </div>
+                                                    {shopExpensesList.length === 0 ? (
+                                                        <p className="text-sm text-slate-500 py-4 text-center">No shop expenses for this date.</p>
+                                                    ) : (
+                                                        <ul className="space-y-2">
+                                                            {shopExpensesList.map((e) => (
+                                                                <li key={e.id} className="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200">
+                                                                    <div>
+                                                                        <span className="font-bold text-slate-900">{e.category}</span>
+                                                                        {e.notes ? <span className="block text-xs text-slate-500">{e.notes}</span> : null}
+                                                                    </div>
+                                                                    <span className="font-black text-rose-600">Rs.{Math.round(e.amount || 0)}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                    {shopExpensesList.length > 0 && (
+                                                        <p className="mt-2 text-sm font-black text-slate-700">Total: Rs.{Math.round(shopExpensesList.reduce((s,x)=> s + (parseFloat(x.amount)||0), 0))}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Cash Transfer Modal */}
                                 {showCashTransferModal && (
                                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
@@ -5575,7 +5777,7 @@
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
                                                                                     {job.workerCommission > 0 ? (
                                                                                         <div>
-                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{(Number(job.commissionAmount) || 0).toFixed(2)}</div>
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{Math.round(Number(job.commissionAmount) || 0)}</div>
                                                                                             <div className="text-[8px] sm:text-[9px] text-slate-500">({job.workerCommission}%)</div>
                                                                                         </div>
                                                                                     ) : (
@@ -5741,7 +5943,7 @@
                                                             <div className="space-y-2 sm:space-y-3">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs sm:text-sm font-bold text-slate-700">Total Amount:</span>
-                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">Rs.{totalAmount.toFixed(2)}</span>
+                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">Rs.{Math.round(totalAmount)}</span>
                                                                 </div>
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs sm:text-sm font-bold text-slate-700">Total Jobs:</span>
@@ -5750,7 +5952,7 @@
                                                                 <div className="border-t-2 border-purple-300 pt-2 sm:pt-3 mt-2 sm:mt-3">
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-xs sm:text-sm font-bold text-slate-700">Average = Total Amount ÷ Total Jobs</span>
-                                                                        <span className="text-base sm:text-lg md:text-xl font-black text-purple-700 font-mono">Rs.{averageAmount.toFixed(2)}</span>
+                                                                        <span className="text-base sm:text-lg md:text-xl font-black text-purple-700 font-mono">Rs.{Math.round(averageAmount)}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -5774,7 +5976,7 @@
                                                                                 </div>
                                                                                 <div className="ml-3 flex-shrink-0">
                                                                                     <span className="text-sm sm:text-base font-black text-purple-600 font-mono">
-                                                                                        Rs.{(parseFloat(job.price) || 0).toFixed(2)}
+                                                                                        Rs.{Math.round(parseFloat(job.price) || 0)}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
@@ -5992,13 +6194,13 @@
                                                         </div>
                                                         <div className="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-blue-400">
                                                             <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Amount</p>
-                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
+                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{Math.round(Number(selectedJobForDetail.price) || 0)}</p>
                                                         </div>
                                                         <div className="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-emerald-400">
                                                             <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Commission</p>
                                                             {selectedJobForDetail.workerCommission > 0 ? (
                                                                 <div>
-                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{Math.round(Number(selectedJobForDetail.commissionAmount) || 0)}</p>
                                                                     <p className="text-[9px] sm:text-[10px] md:text-xs text-white/80 mt-0.5 sm:mt-1">({selectedJobForDetail.workerCommission}%)</p>
                                                                 </div>
                                                             ) : (
@@ -6055,12 +6257,12 @@
                                                                             <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{item.name}</p>
                                                                             <p className="text-[10px] sm:text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
                                                                         </div>
-                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{(typeof (item.total || (item.quantity * item.price)) === 'number' ? (item.total || (item.quantity * item.price)) : parseFloat(item.total || (item.quantity * item.price) || 0)).toFixed(2)}</p>
+                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{Math.round(typeof (item.total || (item.quantity * item.price)) === 'number' ? (item.total || (item.quantity * item.price)) : parseFloat(item.total || (item.quantity * item.price) || 0))}</p>
                                                                     </div>
                                                                 ))}
                                                                 <div className="bg-orange-200 p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg border-2 border-orange-300 flex justify-between items-center mt-2 sm:mt-3 md:mt-4">
                                                                     <p className="text-xs sm:text-sm font-black text-orange-900 uppercase">Total Expense</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{Math.round(Number(selectedJobForDetail.expense?.totalAmount) || 0)}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -6072,24 +6274,24 @@
                                                         <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                                                             <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                 <p className="text-xs sm:text-sm font-black text-slate-700">Total Amount:</p>
-                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
+                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{Math.round(Number(selectedJobForDetail.price) || 0)}</p>
                                                             </div>
                                                             {selectedJobForDetail.workerCommission > 0 && (
                                                                 <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                     <p className="text-xs sm:text-sm font-black text-slate-700">Worker Commission ({selectedJobForDetail.workerCommission}%):</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{Math.round(Number(selectedJobForDetail.commissionAmount) || 0)}</p>
                                                                 </div>
                                                             )}
                                                             {selectedJobForDetail.expense && selectedJobForDetail.expense.totalAmount > 0 && (
                                                                 <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                     <p className="text-xs sm:text-sm font-black text-slate-700">Total Expenses:</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{Math.round(Number(selectedJobForDetail.expense?.totalAmount) || 0)}</p>
                                                                 </div>
                                                             )}
                                                             <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-3 sm:p-3.5 md:p-4 rounded-md sm:rounded-lg mt-2 sm:mt-3 md:mt-4 gap-2">
                                                                 <p className="text-sm sm:text-base font-black text-white uppercase">Net Amount:</p>
                                                                 <p className="text-base sm:text-lg md:text-xl font-black text-white font-mono">
-                                                                    Rs.{(Number(selectedJobForDetail.price || 0) - Number(selectedJobForDetail.commissionAmount || 0) - Number(selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
+                                                                    Rs.{Math.round(Number(selectedJobForDetail.price || 0) - Number(selectedJobForDetail.commissionAmount || 0) - Number(selectedJobForDetail.expense?.totalAmount || 0))}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -6352,7 +6554,7 @@
                                                         setSelectedAdditionalPrices(new Set()); // Reset selections
                                                             // Parse base price as number and format to 2 decimal places
                                                             const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
-                                                            setFormData({ ...formData, price: basePrice.toFixed(2) });
+                                                            setFormData({ ...formData, price: Math.round(basePrice) });
                                                         setView('entry');
                                                     }}
                                                 >
@@ -7291,7 +7493,7 @@
                                                                                     total += parseFloat(ap.amount || 0) || 0;
                                                                                 }
                                                                             });
-                                                                            setFormData({ ...formData, price: total.toFixed(2) });
+                                                                            setFormData({ ...formData, price: Math.round(total) });
                                                                         }}
                                                                         className="sr-only"
                                                                     />
@@ -7551,14 +7753,13 @@
                     });
                 }
                 
-                // Handle Add Expense button click
+                // Handle Shop Expenses button click (legacy dropdown)
                 const addExpenseBtn = document.getElementById('addExpenseBtn');
                 if (addExpenseBtn) {
                     addExpenseBtn.addEventListener('click', function(e) {
                         e.preventDefault();
                         settingsDropdown.classList.remove('show');
-                        // Add expense functionality - can be implemented later
-                        alert('Add Expense feature coming soon!');
+                        window.dispatchEvent(new Event('openShopExpensesModal'));
                     });
                 }
                 

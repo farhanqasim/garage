@@ -22,7 +22,7 @@
             <div class="alert alert-info d-flex justify-content-between align-items-center">
                 <div>
                     <strong>Available Cash:</strong> 
-                    <span class="fs-18 fw-bold text-success">Rs {{ number_format($availableCash['available_cash'], 2) }}</span>
+                    <span class="fs-18 fw-bold text-success">Rs {{ number_format($availableCash['available_cash'], 0) }}</span>
                 </div>
                 <div>
                     <small class="text-muted">
@@ -63,7 +63,7 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Pending Commission</label>
                                     <div class="input-group">
-                                        <input type="text" id="pending_commission" class="form-control" value="Rs 0.00" readonly>
+                                        <input type="text" id="pending_commission" class="form-control" value="Rs 0" readonly>
                                         <button type="button" class="btn btn-outline-primary" id="fillPendingCommission">
                                             <i class="ti ti-arrow-down"></i> Fill
                                         </button>
@@ -187,14 +187,14 @@ $(document).ready(function() {
                     method: 'GET',
                     success: function(response) {
                         const pending = parseFloat(response.pending_commission) || 0;
-                        $('#pending_commission').val('Rs ' + pending.toFixed(2));
+                        $('#pending_commission').val('Rs ' + Math.round(pending));
                     },
                     error: function() {
-                        $('#pending_commission').val('Rs 0.00');
+                        $('#pending_commission').val('Rs 0');
                     }
                 });
             } else {
-                $('#pending_commission').val('Rs 0.00');
+                $('#pending_commission').val('Rs 0');
             }
         });
 
@@ -219,7 +219,7 @@ $(document).ready(function() {
         
         if (paymentType !== 'commission' && amount > availableCash) {
             e.preventDefault();
-            alert('Payment amount (Rs ' + amount.toFixed(2) + ') cannot exceed available cash (Rs ' + availableCash.toFixed(2) + ')!');
+            alert('Payment amount (Rs ' + Math.round(amount) + ') cannot exceed available cash (Rs ' + Math.round(availableCash) + ')!');
             $('#amount').focus();
             return false;
         }
