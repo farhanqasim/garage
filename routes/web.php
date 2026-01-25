@@ -82,6 +82,7 @@ Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->m
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
 Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
 Route::get('/car-wash/staff', [HomeController::class, 'carWashStaff'])->name('car.wash.staff')->middleware('auth');
+Route::get('/car-wash/daily-report', [\App\Http\Controllers\CarWashJobController::class, 'dailyReport'])->name('car.wash.daily-report')->middleware('auth');
 
 // Car Wash Web Form Routes (for standard Laravel forms)
 Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function () {
@@ -122,6 +123,8 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/jobs/active', [\App\Http\Controllers\CarWashJobController::class, 'activeJobs'])->name('jobs.active');
     Route::get('/jobs/completed', [\App\Http\Controllers\CarWashJobController::class, 'completedJobs'])->name('jobs.completed');
     Route::get('/jobs/today-stats', [\App\Http\Controllers\CarWashJobController::class, 'todayStats'])->name('jobs.today-stats');
+    Route::get('/daily-report/pdf', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportPdf'])->name('jobs.daily-report-pdf');
+    Route::get('/daily-report/data', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportData'])->name('jobs.daily-report-data');
     Route::get('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'show'])->name('jobs.show');
     Route::post('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'store'])->name('jobs.store');
     Route::put('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'update'])->name('jobs.update');

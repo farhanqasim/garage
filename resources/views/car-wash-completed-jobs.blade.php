@@ -147,12 +147,20 @@
                                     <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">Completed Jobs</h1>
                                     <p className="text-sm opacity-90">{branchName} • {userName}</p>
                                 </div>
-                                <button
-                                    onClick={() => window.location.href = '{{ route("car.wash") }}'}
-                                    className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-black uppercase transition-colors backdrop-blur-sm"
-                                >
-                                    ← Back to Car Wash
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => window.location.href = '{{ route("car.wash") }}'}
+                                        className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-black uppercase transition-colors backdrop-blur-sm"
+                                    >
+                                        ← Back to Car Wash
+                                    </button>
+                                    <button
+                                        onClick={() => window.location.href = '{{ route("car.wash.daily-report") }}'}
+                                        className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-black uppercase transition-colors backdrop-blur-sm"
+                                    >
+                                        Daily Report
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </header>
