@@ -714,7 +714,7 @@
                                                             {service.isDefault && <div className="text-xs text-emerald-600 font-bold mt-1">Default</div>}
                                                         </td>
                                                         <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
-                                                            <div className="text-sm font-black text-blue-600">Rs.{(service.basePrice || service.base_price || 0).toFixed(2)}</div>
+                                                            <div className="text-sm font-black text-blue-600">Rs.{Math.round(service.basePrice || service.base_price || 0)}</div>
                                                         </td>
                                                         <td className="px-4 lg:px-6 py-3 lg:py-4">
                                                             <div className="text-sm text-slate-600">
@@ -878,7 +878,7 @@
                                                     <div className="grid grid-cols-2 gap-3 mb-3">
                                                         <div>
                                                             <div className="text-xs text-slate-500 font-bold mb-1">Base Price</div>
-                                                            <div className="text-sm font-black text-blue-600">Rs.{(service.basePrice || service.base_price || 0).toFixed(2)}</div>
+                                                            <div className="text-sm font-black text-blue-600">Rs.{Math.round(service.basePrice || service.base_price || 0)}</div>
                                                         </div>
                                                         <div>
                                                             <div className="text-xs text-slate-500 font-bold mb-1">Additional</div>

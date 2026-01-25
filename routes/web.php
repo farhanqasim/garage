@@ -134,14 +134,20 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     
     // Inspections Routes
     Route::get('/banks', [BankController::class, 'index'])->name('banks.index');
+    Route::get('/bank-accounts', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsIndex'])->name('bank-accounts.index');
     Route::post('/cash-transfers', [BankController::class, 'storeTransfer'])->name('cash-transfers.store');
 
     Route::get('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'show'])->name('inspections.show');
     Route::post('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'store'])->name('inspections.store');
     
-    // Expenses Routes
+    // Expenses Routes (index with from/to must come before /expenses/{jobId})
+    Route::get('/expenses', [\App\Http\Controllers\CarWashExpenseController::class, 'index'])->name('expenses.index');
     Route::get('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'show'])->name('expenses.show');
     Route::post('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'store'])->name('expenses.store');
+
+    // Shop Expenses Routes (shop-level, not per job)
+    Route::get('/shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'index'])->name('shop-expenses.index');
+    Route::post('/shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'store'])->name('shop-expenses.store');
     
     // Payments Routes
     Route::get('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'index'])->name('payments.index');

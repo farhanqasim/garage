@@ -26,6 +26,9 @@ class CarWashJob extends Model
         'end_time',
         'duration_seconds',
         'notes',
+        'payment_method',
+        'bank_id',
+        'bank_account_id',
     ];
 
     protected $casts = [
@@ -106,5 +109,21 @@ class CarWashJob extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the bank (when commission transferred to bank)
+     */
+    public function bank()
+    {
+        return $this->belongsTo(Bank::class);
+    }
+
+    /**
+     * Get the bank account (when payment transferred to specific account)
+     */
+    public function bankAccount()
+    {
+        return $this->belongsTo(\App\Models\BankAccount::class);
     }
 }
