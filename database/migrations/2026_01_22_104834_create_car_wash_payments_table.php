@@ -27,7 +27,6 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();
-            
             $table->index(['branch_id', 'payment_date']);
             $table->index(['worker_id', 'payment_date']);
             $table->index('payment_type');

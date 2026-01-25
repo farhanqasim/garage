@@ -7,6 +7,7 @@ use App\Models\CarWashJob;
 use App\Models\CarWashWorker;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashJobController extends Controller
@@ -556,5 +557,246 @@ class CarWashJobController extends Controller
                 'todayJobsCount' => $todayJobsCount,
             ]
         ]);
+    }
+
+    /**
+     * Daily Jobs Report page
+     */
+    public function dailyReport(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+        $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
+        $branchName = $branch ? $branch->branch_name : 'All';
+        $userName = $user->name ?? 'Guest';
+        $selectedDate = $request->get('date', today()->format('Y-m-d'));
+
+        return view('car-wash-daily-report', compact('branchName', 'userName', 'selectedDate'));
+    }
+
+    /**
+     * API: Get daily report data (ledger: date&time, vehicle, debit, credit, total, worker, commission)
+     * Query: date (required), customer (vehicle_no), worker (worker_name)
+     */
+    public function dailyReportData(Request $request)
+    {
+        $request->validate(['date' => 'required|date']);
+        $date = $request->date;
+        $customerFilter = $request->get('customer'); // vehicle_no
+        $workerFilter = $request->get('worker');     // worker_name
+
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        $query = CarWashJob::where(function ($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+        })
+            ->where('status', 'completed')
+            ->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date])
+            ->with(['worker', 'expense']);
+
+        if ($customerFilter !== null && $customerFilter !== '') {
+            $query->where('vehicle_no', $customerFilter);
+        }
+        if ($workerFilter !== null && $workerFilter !== '') {
+            $query->where('worker_name', $workerFilter);
+        }
+
+        $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
+
+        // Filter options for the date (from unfiltered data)
+        $allJobsForFilters = CarWashJob::where(function ($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+        })
+            ->where('status', 'completed')
+            ->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date])
+            ->get();
+        $customers = $allJobsForFilters->groupBy('vehicle_no')->keys()->filter()->map(function ($v) use ($allJobsForFilters) {
+            $j = $allJobsForFilters->where('vehicle_no', $v)->first();
+            return ['value' => $v, 'label' => $v . ($j && $j->customer_name ? ' (' . $j->customer_name . ')' : '')];
+        })->values();
+        $workers = $allJobsForFilters->pluck('worker_name')->unique()->filter()->map(function ($w) {
+            return ['value' => $w, 'label' => $w];
+        })->values();
+
+        // Total = Credit - Refreshment Expenses (commission NAHI subtract). G.total = Credit - Refreshment Expenses - Commission (commission subtract).
+        $dateCarbon = Carbon::parse($date);
+        $rows = [];
+        $rows[] = [
+            'dateTime' => $dateCarbon->format('d/m/y') . ' time 12:00am',
+            'vehicle' => 'Opening',
+            'debit' => 0,
+            'credit' => 0,
+            'gTotal' => 0,
+            'total' => 0,
+            'worker' => '-',
+            'commission' => '-',
+            'isOpening' => true,
+        ];
+        $running = 0;
+        $totalDebit = 0;
+        $totalCredit = 0;
+        $commissionSum = 0;
+        $vehicleSet = [];
+        $workerSet = [];
+
+        foreach ($jobs as $job) {
+            $commissionAmount = 0;
+            if ($job->worker && $job->worker->commission) {
+                $commissionAmount = (($job->price ?? 0) * (float) $job->worker->commission) / 100;
+            }
+            $commissionAmount = round($commissionAmount, 2);
+            $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
+            $price = round((float) $job->price, 2);
+            $gTotal = round($price - $expenseAmount - $commissionAmount, 2);
+            $running += ($price - $expenseAmount);
+            $totalDebit += $expenseAmount;
+            $totalCredit += $price;
+            $vehicleSet[$job->vehicle_no ?: 'N/A'] = true;
+            $workerSet[$job->worker_name ?: 'N/A'] = true;
+            $commissionSum += $commissionAmount;
+
+            $dt = $job->end_time ?: $job->created_at;
+            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y') . ' time ' . $dt->format('h:i A') : '-';
+            $rows[] = [
+                'dateTime' => $dateTime,
+                'vehicle' => $job->vehicle_no ?: 'N/A',
+                'debit' => $expenseAmount,
+                'credit' => $price,
+                'gTotal' => $gTotal,
+                'total' => $running,
+                'worker' => $job->worker_name ?: 'N/A',
+                'commission' => $commissionAmount,
+                'jobId' => $job->id,
+                'isOpening' => false,
+            ];
+        }
+
+        $sumGtotal = round($totalCredit - $totalDebit - $commissionSum, 2);
+
+        return response()->json([
+            'success' => true,
+            'date' => $date,
+            'rows' => $rows,
+            'customers' => $customers,
+            'workers' => $workers,
+            'totals' => [
+                'totalVehicles' => count($vehicleSet),
+                'totalDebit' => round($totalDebit, 2),
+                'totalCredit' => round($totalCredit, 2),
+                'cashOnHand' => round($running, 2),
+                'totalWorkers' => count($workerSet),
+                'totalCommission' => round($commissionSum, 2),
+                'sumGtotal' => $sumGtotal,
+            ],
+        ]);
+    }
+
+    /**
+     * Download daily report as PDF (ledger format). Query: date, customer (vehicle_no), worker (worker_name)
+     */
+    public function dailyReportPdf(Request $request)
+    {
+        $request->validate(['date' => 'required|date']);
+        $date = $request->date;
+        $customerFilter = $request->get('customer');
+        $workerFilter = $request->get('worker');
+
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+        $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
+        $branchName = $branch ? $branch->branch_name : 'All';
+
+        $query = CarWashJob::where(function ($q) use ($branchId) {
+            $q->where('branch_id', $branchId)->orWhereNull('branch_id');
+        })
+            ->where('status', 'completed')
+            ->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date])
+            ->with(['worker', 'expense']);
+        if ($customerFilter !== null && $customerFilter !== '') {
+            $query->where('vehicle_no', $customerFilter);
+        }
+        if ($workerFilter !== null && $workerFilter !== '') {
+            $query->where('worker_name', $workerFilter);
+        }
+        $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
+
+        $dateCarbon = Carbon::parse($date);
+        $rows = [];
+        $rows[] = [
+            'dateTime' => $dateCarbon->format('d/m/y') . ' time 12:00am',
+            'vehicle' => 'Opening',
+            'debit' => 0,
+            'credit' => 0,
+            'gTotal' => 0,
+            'total' => 0,
+            'worker' => '-',
+            'commission' => '-',
+            'expenseItems' => [],
+        ];
+        $running = 0;
+        $totalDebit = 0;
+        $totalCredit = 0;
+        $commissionSum = 0;
+        $vehicleSet = [];
+        $workerSet = [];
+
+        foreach ($jobs as $job) {
+            $commissionAmount = 0;
+            if ($job->worker && $job->worker->commission) {
+                $commissionAmount = (($job->price ?? 0) * (float) $job->worker->commission) / 100;
+            }
+            $commissionAmount = round($commissionAmount, 2);
+            $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
+            $price = round((float) $job->price, 2);
+            $gTotal = round($price - $expenseAmount - $commissionAmount, 2);
+            $running += ($price - $expenseAmount);
+            $totalDebit += $expenseAmount;
+            $totalCredit += $price;
+            $vehicleSet[$job->vehicle_no ?: 'N/A'] = true;
+            $workerSet[$job->worker_name ?: 'N/A'] = true;
+            $commissionSum += $commissionAmount;
+
+            $dt = $job->end_time ?: $job->created_at;
+            $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y') . ' time ' . $dt->format('h:i A') : '-';
+            $expenseItems = ($job->expense && is_array($job->expense->expense_items ?? null)) ? $job->expense->expense_items : [];
+            $rows[] = [
+                'dateTime' => $dateTime,
+                'vehicle' => $job->vehicle_no ?: 'N/A',
+                'debit' => $expenseAmount,
+                'credit' => $price,
+                'gTotal' => $gTotal,
+                'total' => $running,
+                'worker' => $job->worker_name ?: 'N/A',
+                'commission' => $commissionAmount,
+                'expenseItems' => $expenseItems,
+            ];
+        }
+
+        $sumGtotal = round($totalCredit - $totalDebit - $commissionSum, 2);
+
+        $data = [
+            'date' => $dateCarbon->format('l, F d, Y'),
+            'dateRaw' => $date,
+            'branchName' => $branchName,
+            'rows' => $rows,
+            'totalVehicles' => count($vehicleSet),
+            'totalDebit' => round($totalDebit, 2),
+            'totalCredit' => round($totalCredit, 2),
+            'cashOnHand' => round($running, 2),
+            'totalWorkers' => count($workerSet),
+            'totalCommission' => round($commissionSum, 2),
+            'sumGtotal' => $sumGtotal,
+        ];
+
+        $pdf = Pdf::loadView('car-wash-daily-report-pdf', $data)
+            ->setPaper('a4', count($rows) > 1 ? 'landscape' : 'portrait')
+            ->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
+            ]);
+
+        return $pdf->download('elite-car-wash-daily-report-' . $date . '.pdf');
     }
 }
