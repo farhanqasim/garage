@@ -38,7 +38,7 @@
                                 </div>
                                 <div>
                                     <p class="mb-0 text-muted">Total Income</p>
-                                    <h4 class="mb-0">Rs {{ number_format($availableCash['total_income'], 2) }}</h4>
+                                    <h4 class="mb-0">Rs {{ number_format($availableCash['total_income'], 0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -49,7 +49,7 @@
                                 </div>
                                 <div>
                                     <p class="mb-0 text-muted">Total Expenses</p>
-                                    <h4 class="mb-0">Rs {{ number_format($availableCash['total_expenses'], 2) }}</h4>
+                                    <h4 class="mb-0">Rs {{ number_format($availableCash['total_expenses'], 0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -60,7 +60,7 @@
                                 </div>
                                 <div>
                                     <p class="mb-0 text-muted">Commission Paid</p>
-                                    <h4 class="mb-0">Rs {{ number_format($availableCash['total_commission_paid'], 2) }}</h4>
+                                    <h4 class="mb-0">Rs {{ number_format($availableCash['total_commission_paid'], 0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                                 </div>
                                 <div>
                                     <p class="mb-0 text-muted">Available Cash</p>
-                                    <h4 class="mb-0 fw-bold">Rs {{ number_format($availableCash['available_cash'], 2) }}</h4>
+                                    <h4 class="mb-0 fw-bold">Rs {{ number_format($availableCash['available_cash'], 0) }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -172,7 +172,7 @@
                                     <small>N/A</small>
                                 @endif
                             </td>
-                            <td><strong>Rs {{ number_format($payment->amount, 2) }}</strong></td>
+                            <td><strong>Rs {{ number_format($payment->amount, 0) }}</strong></td>
                             <td>{{ $payment->paymentMethod->display_name ?? 'N/A' }}</td>
                             <td>
                                 <span class="badge 

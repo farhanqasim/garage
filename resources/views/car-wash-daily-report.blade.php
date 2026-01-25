@@ -26,6 +26,12 @@
         </header>
 
         <main class="max-w-7xl mx-auto p-6">
+            <!-- Tabs: Cash | Bank -->
+            <div class="flex gap-2 mb-4">
+                <button type="button" id="tabCash" class="tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 bg-indigo-600 text-white border-indigo-600">Cash</button>
+                <button type="button" id="tabBank" class="tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 bg-white text-slate-600 border-slate-300 hover:border-indigo-400">Bank</button>
+            </div>
+
             <!-- Date, Filters & Actions -->
             <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6 mb-6">
                 <div class="flex flex-wrap items-end gap-4">
@@ -68,15 +74,15 @@
                 </div>
                 <div class="bg-amber-50 rounded-xl border-2 border-amber-200 p-4 shadow">
                     <p class="text-xs font-black text-amber-800 uppercase">Total Refreshment Expenses</p>
-                    <p id="totDebit" class="text-xl font-black text-amber-800">Rs.0.00</p>
+                    <p id="totDebit" class="text-xl font-black text-amber-800">Rs.0</p>
                 </div>
                 <div class="bg-blue-50 rounded-xl border-2 border-blue-200 p-4 shadow">
                     <p class="text-xs font-black text-blue-700 uppercase">Total Credit</p>
-                    <p id="totCredit" class="text-xl font-black text-blue-700">Rs.0.00</p>
+                    <p id="totCredit" class="text-xl font-black text-blue-700">Rs.0</p>
                 </div>
-                <div class="bg-indigo-100 rounded-xl border-2 border-indigo-300 p-4 shadow">
+                <div id="cashOnHandCard" class="bg-indigo-100 rounded-xl border-2 border-indigo-300 p-4 shadow cursor-pointer hover:bg-indigo-200 hover:border-indigo-400 transition-colors" title="Click for breakdown: kahan say kitna aya">
                     <p class="text-xs font-black text-indigo-900 uppercase">Cash on Hand</p>
-                    <p id="totCashOnHand" class="text-xl font-black text-indigo-900">Rs.0.00</p>
+                    <p id="totCashOnHand" class="text-xl font-black text-indigo-900">Rs.0</p>
                 </div>
                 <div class="bg-white rounded-xl border-2 border-slate-200 p-4 shadow">
                     <p class="text-xs font-black text-slate-500 uppercase">Total Workers</p>
@@ -84,7 +90,7 @@
                 </div>
                 <div class="bg-emerald-50 rounded-xl border-2 border-emerald-200 p-4 shadow">
                     <p class="text-xs font-black text-emerald-800 uppercase">Total Commission</p>
-                    <p id="totCommission" class="text-xl font-black text-emerald-800">Rs.0.00</p>
+                    <p id="totCommission" class="text-xl font-black text-emerald-800">Rs.0</p>
                 </div>
             </div>
 
@@ -96,10 +102,11 @@
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-black uppercase">Date & Time</th>
                                 <th class="px-4 py-3 text-left text-xs font-black uppercase">Vehicle</th>
-                                <th class="px-4 py-3 text-right text-xs font-black uppercase">Credit</th>
                                 <th class="px-4 py-3 text-right text-xs font-black uppercase">Refreshment Expenses</th>
+                                <th class="px-4 py-3 text-right text-xs font-black uppercase">Credit</th>
                                 <th class="px-4 py-3 text-right text-xs font-black uppercase">Total</th>
                                 <th class="px-4 py-3 text-left text-xs font-black uppercase">Worker</th>
+                                <th class="px-4 py-3 text-left text-xs font-black uppercase">Bank</th>
                                 <th class="px-4 py-3 text-right text-xs font-black uppercase">Commission</th>
                                 <th class="px-4 py-3 text-right text-xs font-black uppercase">G.total</th>
                             </tr>
@@ -110,10 +117,11 @@
                             <tr class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-black">
                                 <td class="px-4 py-3">Total</td>
                                 <td class="px-4 py-3">-</td>
-                                <td id="ftCredit" class="px-4 py-3 text-right">Rs.0.00</td>
                                 <td id="ftExpenses" class="px-4 py-3 text-right">Rs.0.00</td>
+                                <td id="ftCredit" class="px-4 py-3 text-right">Rs.0.00</td>
                                 <td id="ftTotal" class="px-4 py-3 text-right">Rs.0.00</td>
                                 <td class="px-4 py-3">-</td>
+                                <td class="col-bank px-4 py-3">-</td>
                                 <td id="ftCommission" class="px-4 py-3 text-right">Rs.0.00</td>
                                 <td id="ftGtotal" class="px-4 py-3 text-right">Rs.0.00</td>
                             </tr>
@@ -133,6 +141,21 @@
                 <p class="text-slate-500">Select a date and click <strong>Load Report</strong>.</p>
             </div>
         </main>
+
+        <!-- Cash on Hand Detail Modal -->
+        <div id="cashOnHandModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+            <div class="bg-white rounded-2xl shadow-2xl border-2 border-indigo-200 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+                <div class="p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center flex-shrink-0">
+                    <h3 class="text-lg sm:text-xl font-black uppercase">Cash on Hand – Breakdown<br><span class="text-sm font-normal opacity-90">Har cheez kahan say kitna aaya</span></h3>
+                    <button type="button" id="cashOnHandModalClose" class="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div id="cashOnHandModalBody" class="p-4 sm:p-5 overflow-y-auto flex-1 text-sm">
+                    <p class="text-slate-500">Load a report first, then click Cash on Hand for details.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -147,6 +170,26 @@
             const tableBody = document.getElementById('reportTableBody');
             const emptyState = document.getElementById('emptyState');
             const loadingState = document.getElementById('loadingState');
+            const tabCash = document.getElementById('tabCash');
+            const tabBank = document.getElementById('tabBank');
+            const cashOnHandCard = document.getElementById('cashOnHandCard');
+            const cashOnHandModal = document.getElementById('cashOnHandModal');
+            const cashOnHandModalBody = document.getElementById('cashOnHandModalBody');
+            const cashOnHandModalClose = document.getElementById('cashOnHandModalClose');
+
+            let paymentTab = 'cash';
+            let lastReportRows = [];
+            let lastReportTotals = {};
+
+            function getPaymentTab() { return paymentTab; }
+            function setPaymentTab(v) {
+                paymentTab = v;
+                tabCash.className = 'tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 ' + (v === 'cash' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-400');
+                tabBank.className = 'tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 ' + (v === 'bank' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-400');
+            }
+            function toggleBankColumn() {
+                document.querySelectorAll('.col-bank').forEach(function(el) { el.classList.toggle('hidden', getPaymentTab() !== 'bank'); });
+            }
 
             const routes = {
                 data: '{{ route("car-wash.jobs.daily-report-data") }}',
@@ -186,11 +229,17 @@
                 const rows = data.rows || [];
                 const hasJobs = rows.some(function(r) { return !r.isOpening; });
 
+                lastReportRows = rows;
+                lastReportTotals = data.totals || {};
+
                 if (rows.length === 0) {
+                    lastReportRows = [];
+                    lastReportTotals = {};
                     emptyState.classList.remove('hidden');
                     tableSection.classList.add('hidden');
                     totalsSection.classList.add('hidden');
                     btnPdf.disabled = true;
+                    toggleBankColumn();
                     return;
                 }
 
@@ -201,55 +250,48 @@
 
                 const t = data.totals || {};
                 document.getElementById('totVehicles').textContent = t.totalVehicles || 0;
-                document.getElementById('totDebit').textContent = 'Rs.' + (t.totalDebit || 0).toFixed(2);
-                document.getElementById('totCredit').textContent = 'Rs.' + (t.totalCredit || 0).toFixed(2);
-                document.getElementById('totCashOnHand').textContent = 'Rs.' + (t.cashOnHand || 0).toFixed(2);
+                document.getElementById('totDebit').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
+                document.getElementById('totCredit').textContent = 'Rs.' + Math.round(t.totalCredit || 0);
+                document.getElementById('totCashOnHand').textContent = 'Rs.' + Math.round(t.cashOnHand || 0);
                 document.getElementById('totWorkers').textContent = t.totalWorkers || 0;
-                document.getElementById('totCommission').textContent = 'Rs.' + (t.totalCommission || 0).toFixed(2);
+                document.getElementById('totCommission').textContent = 'Rs.' + Math.round(t.totalCommission || 0);
+                var cohLabel = (getPaymentTab() === 'bank') ? 'Bank Total' : 'Cash on Hand';
+                cashOnHandCard.querySelector('p:first-of-type').textContent = cohLabel;
                 // Footer row (har column ky nechy sum). Total = no commission. G.total = commission subtract.
-                document.getElementById('ftExpenses').textContent = 'Rs.' + (t.totalDebit || 0).toFixed(2);
-                document.getElementById('ftCredit').textContent = 'Rs.' + (t.totalCredit || 0).toFixed(2);
-                document.getElementById('ftTotal').textContent = 'Rs.' + (t.cashOnHand || 0).toFixed(2);
-                document.getElementById('ftCommission').textContent = 'Rs.' + (t.totalCommission || 0).toFixed(2);
-                document.getElementById('ftGtotal').textContent = 'Rs.' + (t.sumGtotal != null ? t.sumGtotal : ((t.cashOnHand || 0) - (t.totalCommission || 0))).toFixed(2);
+                document.getElementById('ftExpenses').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
+                document.getElementById('ftCredit').textContent = 'Rs.' + Math.round(t.totalCredit || 0);
+                document.getElementById('ftTotal').textContent = 'Rs.' + Math.round(t.cashOnHand || 0);
+                document.getElementById('ftCommission').textContent = 'Rs.' + Math.round(t.totalCommission || 0);
+                document.getElementById('ftGtotal').textContent = 'Rs.' + Math.round(t.sumGtotal != null ? t.sumGtotal : ((t.cashOnHand || 0) - (t.totalCommission || 0)));
 
                 function fmtNum(n) {
                     if (n === 0 || n === '-') return n === 0 ? '0' : '-';
-                    return 'Rs.' + (Number(n) || 0).toFixed(2);
+                    return 'Rs.' + Math.round(Number(n) || 0);
                 }
 
+                // Image jaisa: Credit row (debit empty); Debit row (credit, worker, commission empty). Total running.
                 let html = '';
                 rows.forEach(function(r) {
                     const creditStr = (r.credit || 0) > 0 ? fmtNum(r.credit) : '-';
-                    const gTotalStr = r.gTotal != null ? fmtNum(r.gTotal) : '-';
+                    const gTotalStr = (r.gTotal != null && r.gTotal !== '') ? fmtNum(r.gTotal) : '-';
                     const totalStr = r.total != null ? fmtNum(r.total) : '-';
                     const expenseStr = (r.debit || 0) > 0 ? fmtNum(r.debit) : '-';
-                    const commStr = (r.commission !== '-' && (r.commission || 0) > 0) ? fmtNum(r.commission) : (r.commission || '-');
+                    const commStr = (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) ? fmtNum(r.commission) : '-';
                     const rowClass = r.isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
-                    // Main row: Refreshment Expenses aur Total khali; next row mein aayenge
                     html += '<tr class="' + rowClass + '">' +
                         '<td class="px-4 py-3 text-sm text-slate-700">' + (r.dateTime || '-') + '</td>' +
                         '<td class="px-4 py-3 text-sm font-semibold text-slate-900">' + (r.vehicle || '-') + '</td>' +
+                        '<td class="px-4 py-3 text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500') + '">' + expenseStr + '</td>' +
                         '<td class="px-4 py-3 text-sm text-right ' + ((r.credit || 0) > 0 ? 'font-bold text-blue-600' : 'text-slate-500') + '">' + creditStr + '</td>' +
-                        '<td class="px-4 py-3"></td>' +
-                        '<td class="px-4 py-3"></td>' +
+                        '<td class="px-4 py-3 text-sm text-right font-bold text-slate-900">' + totalStr + '</td>' +
                         '<td class="px-4 py-3 text-sm text-slate-700">' + (r.worker || '-') + '</td>' +
+                        '<td class="col-bank px-4 py-3 text-sm text-slate-700">' + (r.bankName || '-') + '</td>' +
                         '<td class="px-4 py-3 text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + '">' + commStr + '</td>' +
                         '<td class="px-4 py-3 text-sm text-right font-bold text-indigo-600">' + gTotalStr + '</td>' +
                         '</tr>';
-                    // Next row: Refreshment Expenses | Total (image ke mutabiq)
-                    html += '<tr class="bg-slate-50 border-b border-slate-100">' +
-                        '<td class="px-4 py-2"></td>' +
-                        '<td class="px-4 py-2"></td>' +
-                        '<td class="px-4 py-2"></td>' +
-                        '<td class="px-4 py-2 text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-400') + '">' + expenseStr + '</td>' +
-                        '<td class="px-4 py-2 text-sm text-right font-bold text-slate-800">' + totalStr + '</td>' +
-                        '<td class="px-4 py-2"></td>' +
-                        '<td class="px-4 py-2"></td>' +
-                        '<td class="px-4 py-2"></td>' +
-                        '</tr>';
                 });
                 tableBody.innerHTML = html;
+                toggleBankColumn();
             }
 
             function buildUrl(base, params) {
@@ -268,15 +310,16 @@
                 const url = buildUrl(routes.data, {
                     date: date,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || ''
+                    worker: filterWorker.value || '',
+                    payment: getPaymentTab()
                 });
                 fetch(url)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) renderReport(data);
-                        else renderReport({ rows: [], totals: {}, customers: [], workers: [] });
+                        else { lastReportRows = []; lastReportTotals = {}; renderReport({ rows: [], totals: {}, customers: [], workers: [] }); }
                     })
-                    .catch(function() { renderReport({ rows: [], totals: {}, customers: [], workers: [] }); });
+                    .catch(function() { lastReportRows = []; lastReportTotals = {}; renderReport({ rows: [], totals: {}, customers: [], workers: [] }); });
             }
 
             btnLoad.addEventListener('click', loadReport);
@@ -291,12 +334,65 @@
                 const url = buildUrl(routes.pdf, {
                     date: date,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || ''
+                    worker: filterWorker.value || '',
+                    payment: getPaymentTab()
                 });
                 window.location.href = url;
             });
 
+            tabCash.addEventListener('click', function() { setPaymentTab('cash'); loadReport(); });
+            tabBank.addEventListener('click', function() { setPaymentTab('bank'); loadReport(); });
+
             reportDate.addEventListener('change', loadReport);
+
+            function openCashOnHandModal() {
+                var isBank = (getPaymentTab() === 'bank');
+                var titleMain = isBank ? 'Bank Total – Breakdown' : 'Cash on Hand – Breakdown';
+                var titleSub = isBank ? 'Bank ledger' : 'Har cheez kahan say kitna aaya';
+                document.querySelector('#cashOnHandModal h3').innerHTML = titleMain + '<br><span class="text-sm font-normal opacity-90">' + titleSub + '</span>';
+                if (lastReportRows.length === 0) {
+                    cashOnHandModalBody.innerHTML = '<p class="text-slate-500">Load a report first, then click ' + (isBank ? 'Bank Total' : 'Cash on Hand') + ' for details.</p>';
+                } else {
+                    var rows = lastReportRows;
+                    var totals = lastReportTotals;
+                    var html = '<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-indigo-50 border-b-2 border-indigo-200"><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900">#</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900">Kahan say (Source)</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900 text-right">Type</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900 text-right">Kitna (Amount)</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900 text-right">Running Total</th></tr></thead><tbody>';
+                    var sr = 0;
+                    for (var i = 0; i < rows.length; i++) {
+                        var r = rows[i];
+                        if (r.isOpening) {
+                            sr++;
+                            html += '<tr class="border-b border-slate-200 bg-slate-50"><td class="px-3 py-2.5 text-slate-600 font-bold">' + sr + '</td><td class="px-3 py-2.5 font-semibold text-slate-800">Opening</td><td class="px-3 py-2.5 text-right text-slate-500">—</td><td class="px-3 py-2.5 text-right font-mono">Rs.0</td><td class="px-3 py-2.5 text-right font-bold font-mono">Rs.0</td></tr>';
+                        } else if ((r.credit || 0) > 0) {
+                            sr++;
+                            var amt = Math.round(Number(r.credit) || 0);
+                            var run = Math.round(r.total != null ? (Number(r.total) || 0) : 0);
+                            var src = (r.vehicle || '-') + ' • ' + (r.dateTime || '-') + (r.worker ? ' • ' + r.worker : '');
+                            html += '<tr class="border-b border-slate-200 hover:bg-green-50/50"><td class="px-3 py-2.5 text-slate-600 font-bold">' + sr + '</td><td class="px-3 py-2.5 text-slate-800">' + src + '</td><td class="px-3 py-2.5 text-right font-semibold text-green-600">+ Credit</td><td class="px-3 py-2.5 text-right font-mono font-bold text-green-700">+ Rs.' + amt + '</td><td class="px-3 py-2.5 text-right font-bold font-mono">Rs.' + run + '</td></tr>';
+                        } else if ((r.debit || 0) > 0) {
+                            sr++;
+                            var amt = Math.round(Number(r.debit) || 0);
+                            var run = Math.round(r.total != null ? (Number(r.total) || 0) : 0);
+                            var src = (r.vehicle || '-') + ' • ' + (r.dateTime || '-') + ' • Refreshment';
+                            html += '<tr class="border-b border-slate-200 hover:bg-amber-50/50"><td class="px-3 py-2.5 text-slate-600 font-bold">' + sr + '</td><td class="px-3 py-2.5 text-slate-800">' + src + '</td><td class="px-3 py-2.5 text-right font-semibold text-amber-600">− Expense</td><td class="px-3 py-2.5 text-right font-mono font-bold text-amber-700">− Rs.' + amt + '</td><td class="px-3 py-2.5 text-right font-bold font-mono">Rs.' + run + '</td></tr>';
+                        }
+                    }
+                    var coh = Math.round(totals.cashOnHand != null ? (Number(totals.cashOnHand) || 0) : 0);
+                    var footLabel = isBank ? 'Bank Total' : 'Cash on Hand (Total)';
+                    html += '</tbody><tfoot><tr class="bg-indigo-100 border-t-2 border-indigo-300"><td class="px-3 py-3 font-black text-indigo-900" colspan="3">' + footLabel + '</td><td class="px-3 py-3 text-right font-black text-indigo-900 font-mono" colspan="2">Rs.' + coh + '</td></tr></tfoot></table></div>';
+                    cashOnHandModalBody.innerHTML = html;
+                }
+                cashOnHandModal.style.display = 'flex';
+            }
+
+            function closeCashOnHandModal() {
+                cashOnHandModal.style.display = 'none';
+            }
+
+            cashOnHandCard.addEventListener('click', openCashOnHandModal);
+            cashOnHandModalClose.addEventListener('click', closeCashOnHandModal);
+            cashOnHandModal.addEventListener('click', function(e) {
+                if (e.target === cashOnHandModal) closeCashOnHandModal();
+            });
 
             if (reportDate.value) loadReport();
         })();
