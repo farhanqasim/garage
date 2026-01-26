@@ -24,21 +24,15 @@ class CarWashInspectionController extends Controller
 
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
 
-        // Check permission - user must have access to the job's branch
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to add inspection for this job'
             ], 403);
         }
-        
-        // Also allow if job has no branch (global job)
-        if ($job->branch_id === null) {
-            // Allow inspection for global jobs
-        }
 
+        $branchId = $this->getUserBranchId($user);
         // Update or create inspection
         $inspection = CarWashInspection::updateOrCreate(
             ['job_id' => $jobId],
@@ -70,11 +64,8 @@ class CarWashInspectionController extends Controller
     {
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
 
-        // Check permission - user must have access to the job's branch
-        // Allow if: job has no branch (global) OR user has access to job's branch
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to view this inspection'
