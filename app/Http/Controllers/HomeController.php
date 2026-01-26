@@ -8,8 +8,11 @@ use App\Models\CarWashService;
 use App\Models\CarWashWorker;
 use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Traits\HasBranchAccess;
+
 class HomeController extends Controller
 {
+    use HasBranchAccess;
     /**
      * Create a new controller instance.
      *
@@ -119,46 +122,21 @@ public function carWash()
             $branchName = $assignedBranch->branch_name;
         }
     }
-    
-    // Get services for this branch or global services (direct models for Blade loops)
-    $services = CarWashService::where(function($query) use ($branchId) {
-        if ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        } else {
-            // If no branch, show only global services
-            $query->whereNull('branch_id');
-        }
-    })
-    ->where('status', true)
-    ->orderBy('created_at', 'desc')
-    ->get();
-    
-    // Get workers for this branch (direct models for Blade loops)
-    $workers = CarWashWorker::where(function($query) use ($branchId) {
-        if ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        } else {
-            // If no branch, show only global workers
-            $query->whereNull('branch_id');
-        }
-    })
-    ->where('status', true)
-    ->orderBy('name', 'asc')
-    ->get();
-    
-    // Get active jobs for this branch (map to array format for React)
-    $activeJobs = CarWashJob::where(function($query) use ($branchId) {
-        if ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        } else {
-            // If no branch, show only global jobs
-            $query->whereNull('branch_id');
-        }
-    })
-    ->active()
+    if ($user->role === 'admin' && !$branchId) {
+        $branchName = 'All Branches';
+    }
+
+    $svcQuery = CarWashService::query();
+    $this->applyBranchFilter($svcQuery, 'branch_id', $user);
+    $services = $svcQuery->where('status', true)->orderBy('created_at', 'desc')->get();
+
+    $wrkQuery = CarWashWorker::query();
+    $this->applyBranchFilter($wrkQuery, 'branch_id', $user);
+    $workers = $wrkQuery->where('status', true)->orderBy('name', 'asc')->get();
+
+    $jobsQuery = CarWashJob::query();
+    $this->applyBranchFilter($jobsQuery, 'branch_id', $user);
+    $activeJobs = $jobsQuery->active()
     ->orderBy('start_time', 'asc')
     ->get()
     ->map(function($job) {
@@ -176,21 +154,13 @@ public function carWash()
         ];
     });
     
-    // Get today's completed jobs (direct models for Blade loops)
-    $completedJobs = CarWashJob::where(function($query) use ($branchId) {
-        if ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        } else {
-            // If no branch, show only global jobs
-            $query->whereNull('branch_id');
-        }
-    })
-    ->completed()
+    $doneQuery = CarWashJob::query();
+    $this->applyBranchFilter($doneQuery, 'branch_id', $user);
+    $completedJobs = $doneQuery->completed()
     ->whereDate('created_at', today())
     ->orderBy('end_time', 'desc')
     ->get();
-    
+
     return view('car-wash', compact('branchName', 'userName', 'services', 'workers', 'activeJobs', 'completedJobs'));
 }
 
@@ -235,18 +205,13 @@ public function completedJobs()
             $branchName = $assignedBranch->branch_name;
         }
     }
-    
-    // Get ALL completed jobs (not just today's)
-    $completedJobs = CarWashJob::where(function($query) use ($branchId) {
-        if ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        } else {
-            // If no branch, show only global jobs
-            $query->whereNull('branch_id');
-        }
-    })
-    ->completed()
+    if ($user->role === 'admin' && !$branchId) {
+        $branchName = 'All Branches';
+    }
+
+    $query = CarWashJob::query();
+    $this->applyBranchFilter($query, 'branch_id', $user);
+    $completedJobs = $query->completed()
     ->with('worker')
     ->orderBy('end_time', 'desc')
     ->get()
@@ -326,19 +291,13 @@ public function carWashServices()
             $branchName = $assignedBranch->branch_name;
         }
     }
-    
-    // Get ALL services (both active and inactive)
-    $services = CarWashService::where(function($query) use ($branchId) {
-        if ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        } else {
-            // If no branch, show only global services
-            $query->whereNull('branch_id');
-        }
-    })
-    ->orderBy('created_at', 'desc')
-    ->get()
+    if ($user->role === 'admin' && !$branchId) {
+        $branchName = 'All Branches';
+    }
+
+    $svcQuery = CarWashService::query();
+    $this->applyBranchFilter($svcQuery, 'branch_id', $user);
+    $services = $svcQuery->orderBy('created_at', 'desc')->get()
     ->map(function($service) {
         return [
             'id' => $service->id,
@@ -390,38 +349,24 @@ public function carWashServices()
         }
         
         // If still no branch, check assigned branches
-        if (!$branchId) {
-            $assignedBranch = $user->assignedBranches()->first();
-            if ($assignedBranch) {
-                $branchId = $assignedBranch->id;
-                $branchName = $assignedBranch->branch_name;
-            }
+    if (!$branchId) {
+        $assignedBranch = $user->assignedBranches()->first();
+        if ($assignedBranch) {
+            $branchId = $assignedBranch->id;
+            $branchName = $assignedBranch->branch_name;
         }
-        
-        // Get ALL workers (both active and inactive)
-        $workers = CarWashWorker::where(function($query) use ($branchId) {
-            if ($branchId) {
-                $query->where('branch_id', $branchId)
-                      ->orWhereNull('branch_id');
-            } else {
-                // If no branch, show only global workers
-                $query->whereNull('branch_id');
-            }
-        })
-        ->orderBy('name', 'asc')
-        ->get()
-        ->map(function($worker) use ($branchId) {
-            // Get today's completed jobs for this worker
-            // Check both end_time and created_at in case end_time is null
-            $todayCompletedJobs = CarWashJob::where(function($query) use ($branchId) {
-                if ($branchId) {
-                    $query->where('branch_id', $branchId)
-                          ->orWhereNull('branch_id');
-                } else {
-                    $query->whereNull('branch_id');
-                }
-            })
-            ->where('worker_id', $worker->id)
+    }
+    if ($user->role === 'admin' && !$branchId) {
+        $branchName = 'All Branches';
+    }
+
+    $wrkQuery = CarWashWorker::query();
+    $this->applyBranchFilter($wrkQuery, 'branch_id', $user);
+    $workers = $wrkQuery->orderBy('name', 'asc')->get()
+    ->map(function($worker) use ($user) {
+        $jobQuery = CarWashJob::query();
+        $this->applyBranchFilter($jobQuery, 'branch_id', $user);
+        $todayCompletedJobs = $jobQuery->where('worker_id', $worker->id)
             ->where('status', 'completed')
             ->where(function($query) {
                 $query->whereDate('end_time', today())

@@ -25,13 +25,9 @@ class CarWashPaymentController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
 
-        $query = CarWashPayment::with(['worker', 'paymentMethod', 'bankAccount', 'fromAccount', 'toAccount', 'createdBy'])
-            ->where(function($q) use ($branchId) {
-                $q->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-            });
+        $query = CarWashPayment::with(['worker', 'paymentMethod', 'bankAccount', 'fromAccount', 'toAccount', 'createdBy']);
+        $this->applyBranchFilter($query, 'branch_id', $user);
 
         // Filter by payment type
         if ($request->has('payment_type') && $request->payment_type) {
@@ -60,17 +56,12 @@ class CarWashPaymentController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
-        // Get available cash
+        $branchId = $this->getUserBranchId($user);
         $availableCash = $this->getAvailableCash($branchId);
 
-        // Get workers for filter
-        $workers = CarWashWorker::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        })
-        ->where('status', true)
-        ->orderBy('name')
-        ->get();
+        $workersQuery = CarWashWorker::query();
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->where('status', true)->orderBy('name')->get();
 
         return view('car-wash-payments.index', compact('payments', 'availableCash', 'workers'));
     }
@@ -86,13 +77,9 @@ class CarWashPaymentController extends Controller
         $paymentType = $request->get('type', 'commission');
         $workerId = $request->get('worker_id');
 
-        $workers = CarWashWorker::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        })
-        ->where('status', true)
-        ->orderBy('name')
-        ->get();
+        $workersQuery = CarWashWorker::query();
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->where('status', true)->orderBy('name')->get();
 
         $paymentMethods = PaymentMethod::active()->get();
         $bankAccounts = BankAccount::where('status', true)->with('bank')->get();
@@ -242,22 +229,13 @@ class CarWashPaymentController extends Controller
      */
     public function calculatePendingCommission($workerId, $branchId = null)
     {
-        // If branchId not provided, get from current user
+        $user = Auth::user();
         if (!$branchId) {
-            $user = Auth::user();
             $branchId = $this->getUserBranchId($user);
         }
-        
-        $query = CarWashJob::where('worker_id', $workerId)
-            ->where('status', 'completed');
 
-        if ($branchId) {
-            $query->where(function($q) use ($branchId) {
-                $q->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-            });
-        }
-
+        $query = CarWashJob::where('worker_id', $workerId)->where('status', 'completed');
+        $this->applyBranchFilter($query, 'branch_id', $user);
         $completedJobs = $query->get();
 
         $totalCommission = 0;
@@ -274,17 +252,11 @@ class CarWashPaymentController extends Controller
             }
         }
 
-        // Subtract already paid commission
-        $paidCommission = CarWashPayment::where('worker_id', $workerId)
+        $paidQuery = CarWashPayment::where('worker_id', $workerId)
             ->where('payment_type', 'commission')
-            ->where('status', 'completed')
-            ->where(function($q) use ($branchId) {
-                if ($branchId) {
-                    $q->where('branch_id', $branchId)
-                      ->orWhereNull('branch_id');
-                }
-            })
-            ->sum('amount');
+            ->where('status', 'completed');
+        $this->applyBranchFilter($paidQuery, 'branch_id', $user);
+        $paidCommission = $paidQuery->sum('amount');
 
         return max(0, $totalCommission - $paidCommission);
     }
@@ -294,22 +266,13 @@ class CarWashPaymentController extends Controller
      */
     public function getAvailableCash($branchId = null)
     {
-        // If branchId not provided, get from current user
+        $user = Auth::user();
         if (!$branchId) {
-            $user = Auth::user();
             $branchId = $this->getUserBranchId($user);
         }
-        
-        // Calculate total income from completed jobs
-        $query = CarWashJob::where('status', 'completed');
-        
-        if ($branchId) {
-            $query->where(function($q) use ($branchId) {
-                $q->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-            });
-        }
 
+        $query = CarWashJob::where('status', 'completed');
+        $this->applyBranchFilter($query, 'branch_id', $user);
         $completedJobs = $query->get();
         $totalIncome = 0;
 
@@ -319,30 +282,12 @@ class CarWashPaymentController extends Controller
             $totalIncome += $jobPrice + (float) $additionalPrices;
         }
 
-        // Calculate total expenses
-        $expensesQuery = CarWashPayment::where('payment_type', '!=', 'commission')
-            ->where('status', 'completed');
-        
-        if ($branchId) {
-            $expensesQuery->where(function($q) use ($branchId) {
-                $q->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-            });
-        }
-
+        $expensesQuery = CarWashPayment::where('payment_type', '!=', 'commission')->where('status', 'completed');
+        $this->applyBranchFilter($expensesQuery, 'branch_id', $user);
         $totalExpenses = $expensesQuery->sum('amount');
 
-        // Calculate total commission paid
-        $commissionQuery = CarWashPayment::where('payment_type', 'commission')
-            ->where('status', 'completed');
-        
-        if ($branchId) {
-            $commissionQuery->where(function($q) use ($branchId) {
-                $q->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-            });
-        }
-
+        $commissionQuery = CarWashPayment::where('payment_type', 'commission')->where('status', 'completed');
+        $this->applyBranchFilter($commissionQuery, 'branch_id', $user);
         $totalCommissionPaid = $commissionQuery->sum('amount');
 
         // Available cash = Income - Expenses - Commission Paid

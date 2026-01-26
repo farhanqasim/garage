@@ -19,14 +19,12 @@ class CarWashExpenseController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
         $from = $request->get('from', now()->format('Y-m-d'));
         $to = $request->get('to', now()->format('Y-m-d'));
 
-        $jobs = CarWashJob::where(function ($q) use ($branchId) {
-            $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-        })
-            ->completed()
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $jobs = $query->completed()
             ->whereNotNull('end_time')
             ->whereDate('end_time', '>=', $from)
             ->whereDate('end_time', '<=', $to)
@@ -74,17 +72,15 @@ class CarWashExpenseController extends Controller
 
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
 
-        // Check permission - user must have access to the job's branch
-        // Allow if: job has no branch (global) OR user has access to job's branch
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to add expense for this job'
             ], 403);
         }
 
+        $branchId = $this->getUserBranchId($user);
         // Update or create expense
         $expense = CarWashExpense::updateOrCreate(
             ['job_id' => $jobId],
@@ -114,11 +110,8 @@ class CarWashExpenseController extends Controller
     {
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
 
-        // Check permission - user must have access to the job's branch
-        // Allow if: job has no branch (global) OR user has access to job's branch
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to view this expense'
