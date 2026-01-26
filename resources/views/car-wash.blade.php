@@ -7233,42 +7233,69 @@
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
                                                                     console.log('🎯 onresult triggered, results length:', event.results.length);
+                                                                    console.log('🎯 Event details:', event);
                                                                     let allTranscript = ''; // Combined transcript for mobile
                                                                     let hasFinal = false;
                                                                     
                                                                     // Process ALL results - critical for mobile
+                                                                    // Try multiple ways to access transcript (mobile browsers vary)
                                                                     for (let i = 0; i < event.results.length; i++) {
                                                                         const result = event.results[i];
-                                                                        if (result && result.length > 0 && result[0]) {
-                                                                            const transcript = result[0].transcript || '';
+                                                                        let transcript = '';
+                                                                        
+                                                                        // Try different ways to get transcript (mobile compatibility)
+                                                                        if (result && result.length > 0) {
+                                                                            transcript = result[0].transcript || result[0].transcriptText || '';
+                                                                        } else if (result.transcript) {
+                                                                            transcript = result.transcript;
+                                                                        } else if (result[0] && result[0].transcript) {
+                                                                            transcript = result[0].transcript;
+                                                                        }
+                                                                        
+                                                                        if (transcript && transcript.trim()) {
+                                                                            // Add to combined transcript
+                                                                            allTranscript += transcript.trim() + ' ';
                                                                             
-                                                                            if (transcript.trim()) {
-                                                                                // Add to combined transcript
-                                                                                allTranscript += transcript + ' ';
-                                                                                
-                                                                                // Track if we have final results
-                                                                                if (result.isFinal) {
-                                                                                    hasFinal = true;
-                                                                                }
+                                                                            // Track if we have final results
+                                                                            if (result.isFinal) {
+                                                                                hasFinal = true;
                                                                             }
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    // Also try to get transcript from event directly (some mobile browsers)
+                                                                    if (!allTranscript && event.results && event.results.length > 0) {
+                                                                        try {
+                                                                            const firstResult = event.results[0];
+                                                                            if (firstResult && firstResult[0]) {
+                                                                                allTranscript = firstResult[0].transcript || '';
+                                                                            }
+                                                                        } catch (e) {
+                                                                            console.log('Alternative transcript access failed:', e);
                                                                         }
                                                                     }
                                                                     
                                                                     // Process transcript - MOBILE FRIENDLY
                                                                     const processedTranscript = allTranscript.trim();
                                                                     if (processedTranscript) {
-                                                                        // Always store in ref (for fallback)
-                                                                        recognitionTranscriptRef.current = processedTranscript;
+                                                                        // Always store in ref (for fallback) - APPEND for mobile
+                                                                        if (recognitionTranscriptRef.current) {
+                                                                            recognitionTranscriptRef.current += ' ' + processedTranscript;
+                                                                        } else {
+                                                                            recognitionTranscriptRef.current = processedTranscript;
+                                                                        }
                                                                         
                                                                         // Convert to uppercase for customer name
-                                                                        const customerName = processedTranscript.toUpperCase();
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
                                                                         console.log('📝 Transcript captured:', customerName, 'isFinal:', hasFinal);
+                                                                        console.log('📝 Raw transcript:', processedTranscript);
                                                                         
                                                                         // Update formData immediately - CRITICAL for mobile
                                                                         setFormData(prev => {
                                                                             // Always update if we have new transcript
                                                                             const newName = customerName;
                                                                             if (!prev.customerName || newName.length >= prev.customerName.length) {
+                                                                                console.log('✅ Updating customer name to:', newName);
                                                                                 return { ...prev, customerName: newName };
                                                                             }
                                                                             return prev;
@@ -7282,6 +7309,8 @@
                                                                                 setAudioUrl(null);
                                                                             }
                                                                         }
+                                                                    } else {
+                                                                        console.log('⚠️ No transcript found in onresult event');
                                                                     }
                                                                 };
                                                                 
@@ -7313,33 +7342,38 @@
                                                                     console.log('🎤 Speech recognition ended');
                                                                     console.log('📝 Final stored transcript:', recognitionTranscriptRef.current);
                                                                     
-                                                                    // Process transcript with multiple attempts for mobile
-                                                                    const processTranscript = () => {
-                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                            console.log('✅ Processing transcript from onend:', customerName);
-                                                                            setFormData(prev => {
-                                                                                // Always update if we have transcript
-                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                    return { ...prev, customerName: customerName };
-                                                                                }
-                                                                                return prev;
-                                                                            });
-                                                                            setAudioBlob(null);
-                                                                            if (audioUrl) {
-                                                                                URL.revokeObjectURL(audioUrl);
-                                                                                setAudioUrl(null);
+                                                                // Process transcript with multiple attempts for mobile
+                                                                const processTranscript = () => {
+                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        console.log('✅ Processing transcript from onend:', customerName);
+                                                                        setFormData(prev => {
+                                                                            // Always update if we have transcript
+                                                                            if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                console.log('✅ Updated customer name from onend:', customerName);
+                                                                                return { ...prev, customerName: customerName };
                                                                             }
+                                                                            return prev;
+                                                                        });
+                                                                        setAudioBlob(null);
+                                                                        if (audioUrl) {
+                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
                                                                         }
-                                                                    };
-                                                                    
-                                                                    // Try immediately
-                                                                    processTranscript();
-                                                                    
-                                                                    // Try again after delays (mobile browsers process async)
-                                                                    setTimeout(processTranscript, 200);
-                                                                    setTimeout(processTranscript, 500);
-                                                                    setTimeout(processTranscript, 1000);
+                                                                    } else {
+                                                                        console.log('⚠️ No transcript in ref when onend fired');
+                                                                    }
+                                                                };
+                                                                
+                                                                // Try immediately
+                                                                processTranscript();
+                                                                
+                                                                // Try again after delays (mobile browsers process async)
+                                                                setTimeout(processTranscript, 200);
+                                                                setTimeout(processTranscript, 500);
+                                                                setTimeout(processTranscript, 1000);
+                                                                setTimeout(processTranscript, 2000);
+                                                                setTimeout(processTranscript, 3000);
                                                                     
                                                                     // Stop audio recording when speech ends
                                                                     if (recorder && recorder.state !== 'inactive') {
@@ -7362,10 +7396,37 @@
                                                                 
                                                                 // Handle speech start event for mobile (clear transcript on new start)
                                                                 recognitionInstance.onstart = () => {
-                                                                    console.log('🎤 Speech recognition started');
+                                                                    console.log('🎤 Speech recognition STARTED - onstart event fired');
+                                                                    console.log('📱 Recognition state:', recognitionInstance.state);
                                                                     // Clear previous transcript when starting new recognition
                                                                     recognitionTranscriptRef.current = '';
+                                                                    
+                                                                    // For mobile, add extra logging
+                                                                    if (isMobile) {
+                                                                        console.log('📱 Mobile: Speech recognition is now active');
+                                                                    }
                                                                 };
+                                                                
+                                                                // Add speechstart event (some mobile browsers use this)
+                                                                recognitionInstance.onspeechstart = () => {
+                                                                    console.log('🗣️ Speech STARTED - user is speaking');
+                                                                    // On mobile, when speech starts, ensure we're ready to capture
+                                                                    if (isMobile) {
+                                                                        console.log('📱 Mobile: Speech detected, ready to capture transcript');
+                                                                    }
+                                                                };
+                                                                
+                                                                // Add audiostart event
+                                                                recognitionInstance.onaudiostart = () => {
+                                                                    console.log('🎙️ Audio capture started');
+                                                                };
+                                                                
+                                                                // Add soundstart event (some browsers)
+                                                                if (recognitionInstance.onsoundstart) {
+                                                                    recognitionInstance.onsoundstart = () => {
+                                                                        console.log('🔊 Sound detected');
+                                                                    };
+                                                                }
                                                                 
                                                                 setRecognition(recognitionInstance);
                                                                 
@@ -7374,25 +7435,57 @@
                                                                     try {
                                                                         recognitionInstance.start();
                                                                         console.log(`✅ Speech recognition started (attempt ${attempt})`);
+                                                                        console.log(`📱 Recognition state:`, recognitionInstance.state);
+                                                                        console.log(`📱 Browser:`, navigator.userAgent);
                                                                         
-                                                                        // For mobile, check if it actually started
+                                                                        // For mobile, verify it actually started and check state multiple times
                                                                         if (isMobile) {
+                                                                            // Check immediately
                                                                             setTimeout(() => {
-                                                                                if (recognitionInstance && recognitionInstance.state === 'stopped' && attempt < 3) {
-                                                                                    console.log('🔄 Recognition stopped, restarting...');
+                                                                                const state = recognitionInstance.state;
+                                                                                console.log(`📱 Recognition state after 500ms:`, state);
+                                                                                
+                                                                                if (state === 'stopped' && attempt < 3) {
+                                                                                    console.log('🔄 Recognition stopped unexpectedly, restarting...');
                                                                                     startRecognition(attempt + 1);
+                                                                                } else if (state === 'listening') {
+                                                                                    console.log('✅ Recognition is actively listening - ready for speech');
+                                                                                } else if (state === 'starting') {
+                                                                                    console.log('⏳ Recognition is starting...');
+                                                                                }
+                                                                            }, 500);
+                                                                            
+                                                                            // Check after 1 second
+                                                                            setTimeout(() => {
+                                                                                const state = recognitionInstance.state;
+                                                                                console.log(`📱 Recognition state after 1s:`, state);
+                                                                                if (state === 'listening') {
+                                                                                    console.log('✅ Recognition confirmed listening');
                                                                                 }
                                                                             }, 1000);
+                                                                            
+                                                                            // Check again after 2 seconds
+                                                                            setTimeout(() => {
+                                                                                if (recognitionInstance && recognitionInstance.state === 'stopped' && attempt < 3) {
+                                                                                    console.log('🔄 Recognition stopped after 2s, restarting...');
+                                                                                    startRecognition(attempt + 1);
+                                                                                }
+                                                                            }, 2000);
                                                                         }
                                                                     } catch (startError) {
                                                                         console.error(`Error starting speech recognition (attempt ${attempt}):`, startError);
-                                                                        // Retry for mobile (up to 3 attempts)
-                                                                        if (isMobile && attempt < 3) {
+                                                                        console.error(`Error details:`, startError.message, startError.name);
+                                                                        // Retry for mobile (up to 5 attempts for better success rate)
+                                                                        if (isMobile && attempt < 5) {
                                                                             setTimeout(() => {
+                                                                                console.log(`🔄 Retrying recognition start (attempt ${attempt + 1})...`);
                                                                                 startRecognition(attempt + 1);
                                                                             }, 1000 * attempt); // Exponential backoff
                                                                         } else {
                                                                             console.log('⚠️ Speech recognition could not be started after multiple attempts');
+                                                                            console.log('📱 This may be a browser limitation on mobile');
+                                                                            // Even if recognition fails, audio is still recording
+                                                                            console.log('📹 Audio recording will continue without speech-to-text');
                                                                         }
                                                                     }
                                                                 };
@@ -7400,10 +7493,13 @@
                                                                 startRecognition(1);
                                                             } else {
                                                                 console.log('⚠️ Speech recognition not supported in this browser');
-                                                                // Try to use alternative method or show user-friendly message
                                                                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                                                 if (isMobile) {
-                                                                    console.log('📱 Mobile browser - Web Speech API not available. Audio recording will still work.');
+                                                                    console.log('📱 Mobile browser - Web Speech API not available.');
+                                                                    console.log('📱 Browser:', navigator.userAgent);
+                                                                    // On mobile, if speech recognition is not available, we can't do speech-to-text
+                                                                    // But audio will still be recorded
+                                                                    alert('⚠️ Speech-to-text is not available on this mobile browser.\n\nAudio will be recorded, but you may need to type the customer name manually.\n\nFor best results, use Chrome or Firefox on Android.');
                                                                 }
                                                             }
                                                             
@@ -7413,28 +7509,56 @@
                                                             setIsRecording(true);
                                                             
                                                             // Periodic transcript check for mobile (in case onresult doesn't fire properly)
+                                                            // This is CRITICAL for mobile browsers where onresult might not fire
                                                             if (isMobile && recognitionInstance) {
+                                                                let checkCount = 0;
+                                                                let lastTranscript = '';
                                                                 window.transcriptCheckInterval = setInterval(() => {
+                                                                    checkCount++;
+                                                                    const currentTranscript = recognitionTranscriptRef.current || '';
+                                                                    console.log(`🔄 Periodic check #${checkCount} - transcript ref:`, currentTranscript);
+                                                                    console.log(`🔄 Recognition state:`, recognitionInstance ? recognitionInstance.state : 'null');
+                                                                    
                                                                     // Check if we have transcript in ref
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('🔄 Periodic check - found transcript:', customerName);
+                                                                    if (currentTranscript && currentTranscript.trim() && currentTranscript !== lastTranscript) {
+                                                                        const customerName = currentTranscript.trim().toUpperCase();
+                                                                        console.log('✅ Periodic check - found NEW transcript:', customerName);
+                                                                        lastTranscript = currentTranscript;
                                                                         setFormData(prev => {
                                                                             if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                console.log('✅ Updating from periodic check:', customerName);
                                                                                 return { ...prev, customerName: customerName };
                                                                             }
                                                                             return prev;
                                                                         });
                                                                     }
-                                                                }, 1000); // Check every second
-                                                                
-                                                                // Clear interval after 15 seconds
-                                                                setTimeout(() => {
-                                                                    if (window.transcriptCheckInterval) {
+                                                                    
+                                                                    // Also try to access recognition state and results directly (mobile workaround)
+                                                                    try {
+                                                                        if (recognitionInstance) {
+                                                                            const state = recognitionInstance.state;
+                                                                            console.log(`📱 Recognition state: ${state}`);
+                                                                            
+                                                                            if (state === 'listening') {
+                                                                                // Recognition is active, but might not have fired onresult
+                                                                                console.log('🎤 Recognition is listening, waiting for results...');
+                                                                            } else if (state === 'stopped' && checkCount > 5) {
+                                                                                // Recognition stopped but we haven't got results yet
+                                                                                console.log('⚠️ Recognition stopped but no transcript yet');
+                                                                            }
+                                                                        }
+                                                                    } catch (e) {
+                                                                        // Ignore errors accessing state
+                                                                        console.log('Error accessing recognition state:', e);
+                                                                    }
+                                                                    
+                                                                    // Stop checking after 20 seconds
+                                                                    if (checkCount >= 40) { // 40 * 500ms = 20 seconds
                                                                         clearInterval(window.transcriptCheckInterval);
                                                                         window.transcriptCheckInterval = null;
+                                                                        console.log('⏱️ Periodic check stopped after 20 seconds');
                                                                     }
-                                                                }, 15000);
+                                                                }, 500); // Check every 500ms for faster response on mobile
                                                             }
                                                             
                                                             // Fallback: Auto stop after 12 seconds (longer for mobile processing)
@@ -7473,9 +7597,10 @@
                                                                     setTimeout(() => {
                                                                         if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                             const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                            console.log('✅ Timeout - setting customer name:', customerName);
+                                                                            console.log(`✅ Timeout (${delay}ms) - setting customer name:`, customerName);
                                                                             setFormData(prev => {
                                                                                 if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    console.log('✅ Updated customer name from timeout:', customerName);
                                                                                     return { ...prev, customerName: customerName };
                                                                                 }
                                                                                 return prev;
@@ -7485,15 +7610,20 @@
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                                 setAudioUrl(null);
                                                                             }
+                                                                        } else {
+                                                                            console.log(`⚠️ No transcript found at ${delay}ms delay`);
                                                                         }
                                                                     }, delay);
                                                                 };
                                                                 
-                                                                // Try multiple times with increasing delays
+                                                                // Try multiple times with increasing delays (more attempts for mobile)
                                                                 processFinalTranscript(500);
                                                                 processFinalTranscript(1000);
+                                                                processFinalTranscript(1500);
                                                                 processFinalTranscript(2000);
                                                                 processFinalTranscript(3000);
+                                                                processFinalTranscript(4000);
+                                                                processFinalTranscript(5000);
                                                             }, 12000); // 12 seconds for mobile
                                                             
                                                             // Store timeout ID to clear if speech ends early
