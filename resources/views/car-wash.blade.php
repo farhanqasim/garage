@@ -844,6 +844,9 @@
     </style>
 </head>
 <body>
+    <form id="car-wash-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+        @csrf
+    </form>
     <div class="settings-menu-container">
         <div class="settings-dropdown" id="settingsDropdown">
             <a href="{{ route('car.wash.services') }}" class="settings-dropdown-item" id="addNewCategoryBtn">
@@ -1594,6 +1597,7 @@
                 { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
             ]);
             const [bankAccounts, setBankAccounts] = useState([]);
+            const [selectedBankAccountId, setSelectedBankAccountId] = useState(null); // For bank tab in transfer modal
             const [transferAmount, setTransferAmount] = useState('');
             const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
             const [branchUsers, setBranchUsers] = useState([]);
@@ -2914,6 +2918,33 @@
                                                 </div>
                                                 <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Shop Expenses</span>
                                             </button>
+
+                                            {/* LOGOUT */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    var f = document.getElementById('car-wash-logout-form');
+                                                    if (f) f.submit();
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        var f = document.getElementById('car-wash-logout-form');
+                                                        if (f) f.submit();
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-red-50 transition-colors focus:outline-none focus:bg-red-50 focus:ring-2 focus:ring-red-500 text-red-600"
+                                                role="menuitem"
+                                                aria-label="Logout"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black uppercase tracking-wide truncate">Logout</span>
+                                            </button>
                                         </div>
                                     )}
                                 </button>
@@ -3618,17 +3649,21 @@
                                                         </div>
                                                         {paymentMethod === 'bank' && (
                                                             <div className="mt-2 sm:mt-3 p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl" data-bank-account-box="true">
-                                                                <label className="text-xs font-black text-slate-700 uppercase block mb-2">Bank Account (jis main transfer kiya) — Login user ke accounts</label>
+                                                                <label className="text-xs font-black text-slate-700 uppercase block mb-2">
+                                                                    Bank Account (Jis Main Transfer Kiya) — Login User Ke Accounts
+                                                                    {!selectedBankId && <span className="text-red-600 ml-1">*</span>}
+                                                                </label>
                                                                 {(bankAccounts || []).length === 0 ? (
-                                                                    <div className="text-xs text-amber-700 space-y-1">
-                                                                        <p>Bank account nahi? Pehle create karein, phir yahan list aa jayegi.</p>
-                                                                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                                    <div className="text-xs text-amber-700 space-y-1 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                                                        <p className="font-bold">⚠️ Bank account nahi hai!</p>
+                                                                        <p className="mt-1">Pehle account create karein, phir yahan list aa jayegi aur aap send kar sakte hain.</p>
+                                                                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
                                                                             <a href={API_ROUTES.bankAccounts?.create || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 underline">
                                                                                 Create Bank Account →
                                                                             </a>
                                                                             <span className="text-slate-500">|</span>
                                                                             <button type="button" onClick={fetchBankAccounts} className="font-bold text-slate-700 hover:text-slate-900 underline">
-                                                                                Refresh list
+                                                                                Refresh List
                                                                             </button>
                                                                         </p>
                                                                     </div>
@@ -3651,6 +3686,9 @@
                                                                                 {!a.accountTitle && !a.accountNumber ? <div className="text-xs text-slate-500 mt-0.5">Account #{a.id}</div> : null}
                                                                             </button>
                                                                         ))}
+                                                                        {!selectedBankId && (bankAccounts || []).length > 0 && (
+                                                                            <p className="text-xs text-red-600 font-bold mt-2">⚠️ Please select a bank account to continue</p>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -3776,6 +3814,19 @@
                                                             if (!allItemsRated) {
                                                                 alert('Please complete all inspection items before completing the job. All inspection comments must be passed.');
                                                                 return;
+                                                            }
+                                                            
+                                                            // Validate payment method and bank account
+                                                            if (paymentMethod === 'bank') {
+                                                                if (!selectedBankId || selectedBankId === null) {
+                                                                    alert('⚠️ BANK payment method selected!\n\nPlease select a bank account first.\n\nAgar account nahi hai to pehle account create karein, phir send karein.');
+                                                                    return;
+                                                                }
+                                                                // Also check if bank accounts list is empty
+                                                                if ((bankAccounts || []).length === 0) {
+                                                                    alert('⚠️ BANK payment method selected!\n\nKoi bank account nahi hai. Pehle account create karein, phir send karein.');
+                                                                    return;
+                                                                }
                                                             }
                                                             
                                                             try {
@@ -3936,14 +3987,28 @@
                                                         }
                                                     }}
                                                         className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
-                                                            allItemsRated 
+                                                            allItemsRated && (paymentMethod !== 'bank' || selectedBankId) 
                                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700' 
                                                                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                                         }`}
-                                                        disabled={!allItemsRated}
+                                                        disabled={!allItemsRated || (paymentMethod === 'bank' && !selectedBankId)}
                                                     >
-                                                        <span className="hidden sm:inline">{allItemsRated ? 'Confirm & Complete' : 'Complete All Inspections First'}</span>
-                                                        <span className="sm:hidden">{allItemsRated ? 'Complete' : 'Complete Inspections'}</span>
+                                                        <span className="hidden sm:inline">
+                                                            {!allItemsRated 
+                                                                ? 'Complete All Inspections First' 
+                                                                : (paymentMethod === 'bank' && !selectedBankId)
+                                                                    ? 'Select Bank Account First'
+                                                                    : 'Confirm & Complete'
+                                                            }
+                                                        </span>
+                                                        <span className="sm:hidden">
+                                                            {!allItemsRated 
+                                                                ? 'Complete Inspections' 
+                                                                : (paymentMethod === 'bank' && !selectedBankId)
+                                                                    ? 'Select Account'
+                                                                    : 'Complete'
+                                                            }
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -5034,6 +5099,7 @@
                                                     onClick={() => {
                                                         setTransferTab('bank');
                                                         setSelectedTransferMethod(null);
+                                                        setSelectedBankAccountId(null);
                                                     }}
                                                     className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
                                                         transferTab === 'bank'
@@ -5140,12 +5206,36 @@
                                                     </>
                                                 ) : transferTab === 'bank' ? (
                                                     <>
-                                                        {/* Available Cash for Bank Transfer */}
+                                                        {/* Bank Account Balance */}
                                                         <div className="mb-4 sm:mb-5 bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-blue-200">
-                                                            <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Available Cash</div>
-                                                            <div className="text-2xl sm:text-3xl font-black text-blue-600 font-mono">
-                                                                Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
-                                                            </div>
+                                                            {selectedBankAccountId ? (() => {
+                                                                const selectedAccount = bankAccounts.find(a => a.id === selectedBankAccountId);
+                                                                return selectedAccount ? (
+                                                                    <>
+                                                                        <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Bank Account Balance</div>
+                                                                        <div className="text-lg sm:text-xl font-bold text-blue-600 mb-1">{selectedAccount.bankName}</div>
+                                                                        {selectedAccount.accountTitle && (
+                                                                            <div className="text-[10px] sm:text-xs text-blue-600 mb-1">Title: {selectedAccount.accountTitle}</div>
+                                                                        )}
+                                                                        {selectedAccount.accountNumber && (
+                                                                            <div className="text-[10px] sm:text-xs text-blue-600 font-mono mb-2">Account: {selectedAccount.accountNumber}</div>
+                                                                        )}
+                                                                        <div className="text-2xl sm:text-3xl font-black text-blue-600 font-mono">
+                                                                            Rs.{typeof selectedAccount.balance !== 'undefined' ? parseFloat(selectedAccount.balance || 0).toFixed(2) : '0.00'}
+                                                                        </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Select Bank Account</div>
+                                                                        <div className="text-sm text-blue-600">Please select a bank account to view balance</div>
+                                                                    </>
+                                                                );
+                                                            })() : (
+                                                                <>
+                                                                    <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Select Bank Account</div>
+                                                                    <div className="text-sm text-blue-600">Please select a bank account below to view balance</div>
+                                                                </>
+                                                            )}
                                                         </div>
                                                         
                                                         {/* Transfer Amount */}
@@ -5162,46 +5252,56 @@
                                                             />
                                                         </div>
                                                         
-                                                        {/* Bank Transfer - Show All Banks */}
+                                                        {/* Bank Accounts - Show User's Bank Accounts */}
                                                         <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Bank</label>
-                                                            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
-                                                                {transferMethods.filter(method => method.type === 'bank' || method.bankId).map((method) => (
-                                                                    <button
-                                                                        key={method.id}
-                                                                        type="button"
-                                                                        onClick={() => setSelectedTransferMethod(method.id)}
-                                                                        className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all relative ${
-                                                                            selectedTransferMethod === method.id
-                                                                                ? 'bg-blue-500 text-white border-blue-600 shadow-lg scale-105'
-                                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                                                        }`}
-                                                                    >
-                                                                        <div className="mb-1 sm:mb-2 flex items-center justify-center">
-                                                                            <svg className={`w-8 h-8 sm:w-10 sm:h-10 ${selectedTransferMethod === method.id ? 'text-white' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                                                            </svg>
-                                                                        </div>
-                                                                        <div className="text-[10px] sm:text-xs font-black uppercase mb-0.5">{method.name}</div>
-                                                                        {method.subtitle && (
-                                                                            <div className={`text-[8px] sm:text-[9px] font-bold mb-1 ${
-                                                                                selectedTransferMethod === method.id
-                                                                                    ? 'text-blue-100'
-                                                                                    : 'text-slate-400'
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Bank Account</label>
+                                                            {(bankAccounts || []).length === 0 ? (
+                                                                <div className="text-center py-4 text-slate-500 text-sm bg-slate-50 rounded-xl border-2 border-slate-200">
+                                                                    <p className="mb-2">No bank accounts found</p>
+                                                                    <a href={API_ROUTES.bankAccounts?.create || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-bold">
+                                                                        Create Bank Account →
+                                                                    </a>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                                    {(bankAccounts || []).map((account) => (
+                                                                        <button
+                                                                            key={account.id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedBankAccountId(account.id);
+                                                                                setSelectedTransferMethod(null);
+                                                                            }}
+                                                                            className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all text-left ${
+                                                                                selectedBankAccountId === account.id
+                                                                                    ? 'bg-blue-500 text-white border-blue-600 shadow-lg'
+                                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            <div className="font-bold text-sm sm:text-base">{account.bankName}</div>
+                                                                            {account.accountTitle && (
+                                                                                <div className={`text-xs sm:text-sm mt-1 ${
+                                                                                    selectedBankAccountId === account.id ? 'text-blue-100' : 'text-slate-400'
+                                                                                }`}>
+                                                                                    Title: {account.accountTitle}
+                                                                                </div>
+                                                                            )}
+                                                                            {account.accountNumber && (
+                                                                                <div className={`text-xs font-mono mt-0.5 ${
+                                                                                    selectedBankAccountId === account.id ? 'text-blue-100' : 'text-slate-400'
+                                                                                }`}>
+                                                                                    Account: {account.accountNumber}
+                                                                                </div>
+                                                                            )}
+                                                                            <div className={`text-xs sm:text-sm font-bold mt-2 ${
+                                                                                selectedBankAccountId === account.id ? 'text-blue-100' : 'text-slate-600'
                                                                             }`}>
-                                                                                {method.subtitle}
+                                                                                Balance: Rs.{typeof account.balance !== 'undefined' ? parseFloat(account.balance || 0).toFixed(2) : '0.00'}
                                                                             </div>
-                                                                        )}
-                                                                        <div className={`text-[9px] sm:text-[10px] font-bold mt-1 ${
-                                                                            selectedTransferMethod === method.id
-                                                                                ? 'text-blue-100'
-                                                                                : 'text-slate-500'
-                                                                        }`}>
-                                                                            Balance: Rs.{method.balance || 0}
-                                                                        </div>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         
                                                         {/* Add New Bank Button */}
@@ -6976,9 +7076,32 @@
                                                                     mediaRecorder.stop();
                                                                 }
                                                                 if (recognition) {
-                                                                    recognition.stop();
+                                                                    try {
+                                                                        recognition.stop();
+                                                                    } catch (e) {
+                                                                        console.log('Error stopping recognition:', e);
+                                                                    }
                                                                 }
                                                                 setIsRecording(false);
+                                                                
+                                                                // Process transcript immediately when stopping (for mobile)
+                                                                setTimeout(() => {
+                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        console.log('✅ Manual stop - setting customer name:', customerName);
+                                                                        setFormData(prev => {
+                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
+                                                                                return { ...prev, customerName: customerName };
+                                                                            }
+                                                                            return prev;
+                                                                        });
+                                                                        setAudioBlob(null);
+                                                                        if (audioUrl) {
+                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
+                                                                        }
+                                                                    }
+                                                                }, 300);
                                                                 return;
                                                             }
                                                             
@@ -7063,18 +7186,36 @@
                                                             
                                                             if (SpeechRecognition) {
                                                                 recognitionInstance = new SpeechRecognition();
+                                                                // Try to detect mobile and adjust settings
+                                                                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                                                
                                                                 recognitionInstance.lang = 'en-US';
-                                                                recognitionInstance.continuous = true; // Changed to true for mobile compatibility
-                                                                recognitionInstance.interimResults = true; // Changed to true to get results on mobile
+                                                                recognitionInstance.continuous = true; // Keep continuous for mobile
+                                                                recognitionInstance.interimResults = true; // Keep interim for mobile
+                                                                
+                                                                // Mobile-specific settings
+                                                                if (isMobile) {
+                                                                    // On mobile, set maxAlternatives to get better results
+                                                                    if (recognitionInstance.maxAlternatives !== undefined) {
+                                                                        recognitionInstance.maxAlternatives = 1;
+                                                                    }
+                                                                    console.log('📱 Mobile detected - using mobile-optimized speech recognition');
+                                                                }
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
                                                                     let interimTranscript = '';
                                                                     let finalTranscript = '';
+                                                                    let allTranscript = ''; // Combined transcript for mobile
                                                                     
                                                                     // Process all results (mobile browsers may send multiple results)
-                                                                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                                                                        const transcript = event.results[i][0].transcript;
-                                                                        if (event.results[i].isFinal) {
+                                                                    for (let i = 0; i < event.results.length; i++) {
+                                                                        const result = event.results[i];
+                                                                        const transcript = result[0].transcript;
+                                                                        
+                                                                        // Add to combined transcript (for mobile compatibility)
+                                                                        allTranscript += transcript + ' ';
+                                                                        
+                                                                        if (result.isFinal) {
                                                                             finalTranscript += transcript + ' ';
                                                                             // Store in ref for later use
                                                                             recognitionTranscriptRef.current += transcript + ' ';
@@ -7083,7 +7224,18 @@
                                                                         }
                                                                     }
                                                                     
-                                                                    // Update formData immediately for mobile browsers (they may not send final results)
+                                                                    // For mobile: use all transcript (final + interim) if available
+                                                                    const combinedTranscript = allTranscript.trim();
+                                                                    if (combinedTranscript) {
+                                                                        // Store in ref (overwrite for mobile to get latest)
+                                                                        recognitionTranscriptRef.current = combinedTranscript;
+                                                                        const customerName = combinedTranscript.toUpperCase();
+                                                                        console.log('📝 Transcript (mobile-friendly):', customerName);
+                                                                        // Update immediately on mobile
+                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
+                                                                    }
+                                                                    
+                                                                    // Also handle final/interim separately for desktop
                                                                     if (finalTranscript.trim()) {
                                                                         // Final result - use this
                                                                         const customerName = finalTranscript.trim().toUpperCase();
@@ -7094,7 +7246,7 @@
                                                                             URL.revokeObjectURL(audioUrl);
                                                                             setAudioUrl(null);
                                                                         }
-                                                                    } else if (interimTranscript.trim()) {
+                                                                    } else if (interimTranscript.trim() && !combinedTranscript) {
                                                                         // Interim result - update for preview (mobile browsers)
                                                                         const customerName = interimTranscript.trim().toUpperCase();
                                                                         console.log('📝 Interim transcript:', customerName);
@@ -7107,9 +7259,22 @@
                                                                 recognitionInstance.onerror = (event) => {
                                                                     console.error('Speech recognition error:', event.error);
                                                                     // On mobile, some errors are not critical (like no-speech)
-                                                                    if (event.error === 'no-speech' || event.error === 'audio-capture') {
-                                                                        // Don't show alert for these - user might still be speaking
-                                                                        console.log('Speech recognition info:', event.error);
+                                                                    if (event.error === 'no-speech') {
+                                                                        // Don't show alert - user might still be speaking
+                                                                        console.log('⚠️ No speech detected yet - keep speaking');
+                                                                    } else if (event.error === 'audio-capture') {
+                                                                        console.log('⚠️ Audio capture issue - check microphone');
+                                                                    } else if (event.error === 'not-allowed') {
+                                                                        alert('Microphone permission denied. Please allow microphone access in browser settings.');
+                                                                        setIsRecording(false);
+                                                                        if (recorder && recorder.state !== 'inactive') {
+                                                                            recorder.stop();
+                                                                        }
+                                                                        if (stream) {
+                                                                            stream.getTracks().forEach(track => track.stop());
+                                                                        }
+                                                                    } else if (event.error === 'aborted') {
+                                                                        console.log('Speech recognition aborted');
                                                                     } else {
                                                                         console.error('Speech recognition error:', event.error);
                                                                     }
@@ -7151,14 +7316,16 @@
                                                                     }
                                                                 };
                                                                 
-                                                                // Mobile browsers may need onstart event
-                                                                recognitionInstance.onstart = () => {
-                                                                    console.log('🎤 Speech recognition started');
-                                                                };
-                                                                
                                                                 // Mobile browsers may restart recognition automatically
                                                                 recognitionInstance.onnomatch = () => {
-                                                                    console.log('⚠️ No speech match found');
+                                                                    console.log('⚠️ No speech match found - try speaking again');
+                                                                };
+                                                                
+                                                                // Handle speech start event for mobile (clear transcript on new start)
+                                                                recognitionInstance.onstart = () => {
+                                                                    console.log('🎤 Speech recognition started');
+                                                                    // Clear previous transcript when starting new recognition
+                                                                    recognitionTranscriptRef.current = '';
                                                                 };
                                                                 
                                                                 setRecognition(recognitionInstance);
