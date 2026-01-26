@@ -19,23 +19,14 @@ class CarWashWorkerController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        $workers = CarWashWorker::where(function($query) use ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        })
-        ->where('status', true)
-        ->orderBy('name', 'asc')
-        ->get()
-        ->map(function($worker) use ($branchId) {
-            // Get today's completed jobs for this worker
-            // Check both end_time and created_at in case end_time is null
-            $todayCompletedJobs = CarWashJob::where(function($query) use ($branchId) {
-                $query->where('branch_id', $branchId)
-                      ->orWhereNull('branch_id');
-            })
-            ->where('worker_id', $worker->id)
+
+        $workersQuery = CarWashWorker::query();
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->where('status', true)->orderBy('name', 'asc')->get()
+        ->map(function($worker) use ($user) {
+            $jobQuery = CarWashJob::query();
+            $this->applyBranchFilter($jobQuery, 'branch_id', $user);
+            $todayCompletedJobs = $jobQuery->where('worker_id', $worker->id)
             ->where('status', 'completed')
             ->where(function($query) {
                 $query->whereDate('end_time', today())
@@ -230,12 +221,9 @@ class CarWashWorkerController extends Controller
         ]);
 
         $worker = CarWashWorker::findOrFail($id);
-        
-        // Check permission
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($worker->branch_id !== null && $worker->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($worker, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to update this worker'
@@ -350,11 +338,9 @@ class CarWashWorkerController extends Controller
     public function destroy($id)
     {
         $worker = CarWashWorker::findOrFail($id);
-        
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($worker->branch_id !== null && $worker->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($worker, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to delete this worker'

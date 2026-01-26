@@ -21,12 +21,8 @@ class CarWashJobController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        $query = CarWashJob::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        });
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
 
         // Filter by status
         if ($request->has('status')) {
@@ -89,13 +85,9 @@ class CarWashJobController extends Controller
     public function activeJobs()
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        $jobs = CarWashJob::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        })
-        ->active()
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $jobs = $query->active()
         ->orderBy('start_time', 'asc')
         ->get()
         ->map(function($job) {
@@ -127,15 +119,10 @@ class CarWashJobController extends Controller
     public function show($id)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        $job = CarWashJob::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        })
-        ->with(['worker', 'inspection', 'expense'])
-        ->findOrFail($id);
-        
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $job = $query->with(['worker', 'inspection', 'expense'])->findOrFail($id);
+
         // Calculate commission
         $workerCommission = 0;
         $commissionAmount = 0;
@@ -188,9 +175,10 @@ class CarWashJobController extends Controller
         ];
         
         $userName = $user->name ?? 'Guest';
+        $branchId = $this->getUserBranchId($user);
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-        $branchName = $branch ? $branch->branch_name : 'Guest';
-        
+        $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'Guest');
+
         return view('car-wash-job-detail', compact('jobData', 'userName', 'branchName'));
     }
 
@@ -200,12 +188,9 @@ class CarWashJobController extends Controller
     public function completedJobs(Request $request)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        $query = CarWashJob::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        })->completed();
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $query->completed();
 
         if ($request->has('today') && $request->today) {
             $query->today();
@@ -336,18 +321,16 @@ class CarWashJobController extends Controller
     public function complete(Request $request, $id)
     {
         $job = CarWashJob::findOrFail($id);
-        
-        // Check permission
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to complete this job'
             ], 403);
         }
 
+        $branchId = $this->getUserBranchId($user);
         $endTime = now();
         $durationSeconds = $job->start_time ? $endTime->diffInSeconds($job->start_time) : 0;
 
@@ -370,18 +353,19 @@ class CarWashJobController extends Controller
             $updateData['payment_method'] = 'cash';
         }
 
-        // Store bank account when payment is bank (branch ke ya branch_id null)
+        // Store bank account when payment is bank (branch ke ya branch_id null). Admin: any branch.
         if ($pm === 'bank' && $request->filled('bank_account_id')) {
-            $account = BankAccount::where('id', $request->bank_account_id)
-                ->where('account_type', 'bank')
-                ->where(function ($q) use ($branchId) {
+            $accountQuery = BankAccount::where('id', $request->bank_account_id)->where('account_type', 'bank');
+            if ($user->role !== 'admin') {
+                $accountQuery->where(function ($q) use ($branchId) {
                     if ($branchId) {
                         $q->where('branch_id', $branchId)->orWhereNull('branch_id');
                     } else {
                         $q->whereNull('branch_id');
                     }
-                })
-                ->first();
+                });
+            }
+            $account = $accountQuery->first();
             if ($account) {
                 $updateData['bank_account_id'] = $account->id;
                 $updateData['bank_id'] = $account->bank_id;
@@ -430,21 +414,13 @@ class CarWashJobController extends Controller
     public function bankAccountsIndex(Request $request)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
 
         $query = BankAccount::with('bank')
             ->where('account_type', 'bank')
             ->where(function ($q) {
                 $q->where('status', true)->orWhereNull('status');
             });
-
-        if ($branchId) {
-            $query->where(function ($q) use ($branchId) {
-                $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-            });
-        } else {
-            $query->whereNull('branch_id');
-        }
+        $this->applyBranchFilter($query, 'branch_id', $user);
 
         $accounts = $query->orderBy('account_title')
             ->get()
@@ -476,11 +452,9 @@ class CarWashJobController extends Controller
     public function update(Request $request, $id)
     {
         $job = CarWashJob::findOrFail($id);
-        
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to update this job'
@@ -560,11 +534,9 @@ class CarWashJobController extends Controller
     public function cancel($id)
     {
         $job = CarWashJob::findOrFail($id);
-        
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
-        
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to cancel this job'
@@ -588,11 +560,9 @@ class CarWashJobController extends Controller
     public function destroy(Request $request, $id)
     {
         $job = CarWashJob::findOrFail($id);
-        
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+
+        if (!$this->canAccessJobBranch($job, $user)) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
@@ -621,15 +591,9 @@ class CarWashJobController extends Controller
     public function todayStats()
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        $todayJobs = CarWashJob::where(function($q) use ($branchId) {
-            $q->where('branch_id', $branchId)
-              ->orWhereNull('branch_id');
-        })
-        ->today()
-        ->completed()
-        ->get();
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $todayJobs = $query->today()->completed()->get();
 
         $todayRevenue = $todayJobs->sum('price');
         $todayJobsCount = $todayJobs->count();
@@ -651,7 +615,7 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-        $branchName = $branch ? $branch->branch_name : 'All';
+        $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
         $userName = $user->name ?? 'Guest';
         $selectedDate = $request->get('date', today()->format('Y-m-d'));
 
@@ -673,10 +637,8 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
-        $baseQuery = function ($q) use ($branchId, $date, $paymentFilter) {
-            $q->where(function ($q0) use ($branchId) {
-                $q0->where('branch_id', $branchId)->orWhereNull('branch_id');
-            });
+        $baseQuery = function ($q) use ($user, $date, $paymentFilter) {
+            $this->applyBranchFilter($q, 'branch_id', $user);
             $q->where('status', 'completed');
             $q->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date]);
             if ($paymentFilter === 'bank') {
@@ -830,12 +792,10 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-        $branchName = $branch ? $branch->branch_name : 'All';
+        $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
 
-        $baseClosure = function ($q) use ($branchId, $date, $paymentFilter) {
-            $q->where(function ($q0) use ($branchId) {
-                $q0->where('branch_id', $branchId)->orWhereNull('branch_id');
-            });
+        $baseClosure = function ($q) use ($user, $date, $paymentFilter) {
+            $this->applyBranchFilter($q, 'branch_id', $user);
             $q->where('status', 'completed');
             $q->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date]);
             if ($paymentFilter === 'bank') {

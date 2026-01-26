@@ -16,21 +16,9 @@ class CarWashServiceController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        // Get services for this branch or global services (where branch_id is null)
-        $services = CarWashService::where(function($query) use ($branchId) {
-            if ($branchId) {
-                $query->where('branch_id', $branchId)
-                      ->orWhereNull('branch_id');
-            } else {
-                // If no branch, show only global services
-                $query->whereNull('branch_id');
-            }
-        })
-        ->where('status', true)
-        ->orderBy('created_at', 'desc')
-        ->get();
+        $query = CarWashService::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $services = $query->where('status', true)->orderBy('created_at', 'desc')->get();
         
         return response()->json([
             'success' => true,
@@ -54,7 +42,7 @@ class CarWashServiceController extends Controller
         ]);
 
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $service = CarWashService::create([
             'branch_id' => $branchId,
@@ -95,12 +83,9 @@ class CarWashServiceController extends Controller
         ]);
 
         $service = CarWashService::findOrFail($id);
-        
-        // Check if user has permission to update this service
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($service->branch_id !== null && $service->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($service, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to update this service'
@@ -134,12 +119,9 @@ class CarWashServiceController extends Controller
     public function destroy(Request $request, $id)
     {
         $service = CarWashService::findOrFail($id);
-        
-        // Check if user has permission to delete this service
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($service->branch_id !== null && $service->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($service, $user)) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
@@ -180,11 +162,9 @@ class CarWashServiceController extends Controller
     public function toggleStatus($id)
     {
         $service = CarWashService::findOrFail($id);
-        
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
-        
-        if ($service->branch_id !== null && $service->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($service, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to update this service'

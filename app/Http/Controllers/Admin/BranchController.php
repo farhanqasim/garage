@@ -125,6 +125,16 @@ public function store_branches(Request $request)
         'status' => 'active',
     ]);
 
+    // Connect all admin users to this new branch (admin role gets access to already saved branches)
+    try {
+        $adminIds = User::where('role', 'admin')->pluck('id');
+        foreach ($adminIds as $aid) {
+            $branch->users()->syncWithoutDetaching([$aid => ['role' => 'admin']]);
+        }
+    } catch (\Exception $e) {
+        Log::warning('Could not attach admins to new branch: ' . $e->getMessage());
+    }
+
     return redirect()->route('all.branches')->with('success', 'Branch and warehouse created successfully for new user!');
 }
 
@@ -254,7 +264,7 @@ public function store_branches(Request $request)
                 'user_ids' => 'required|array',
                 'user_ids.*' => 'exists:users,id',
                 'user_roles' => 'nullable|array',
-                'user_roles.*' => 'in:manager,staff,worker,other'
+                'user_roles.*' => 'in:admin,manager,staff,worker,other'
             ]);
 
             $userIds = $request->user_ids;
