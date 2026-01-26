@@ -440,6 +440,7 @@ class CarWashJobController extends Controller
                     'accountTitle' => $title,
                     'accountNumber' => $num,
                     'displayLabel' => $label,
+                    'balance' => (float) $a->current_balance, // Get balance from accessor
                 ];
             });
 
