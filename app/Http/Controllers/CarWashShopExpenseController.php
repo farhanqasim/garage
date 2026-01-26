@@ -17,7 +17,6 @@ class CarWashShopExpenseController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $branchId = $this->getUserBranchId($user);
         $from = $request->get('from');
         $to = $request->get('to');
         $date = $request->get('date', now()->format('Y-m-d'));
@@ -32,11 +31,7 @@ class CarWashShopExpenseController extends Controller
             $query->where('expense_date', $date);
         }
 
-        if ($branchId !== null) {
-            $query->where(function ($q) use ($branchId) {
-                $q->where('branch_id', $branchId)->orWhereNull('branch_id');
-            });
-        }
+        $this->applyBranchFilter($query, 'branch_id', $user);
 
         $expenses = $query->get()->map(function ($e) {
             return [
