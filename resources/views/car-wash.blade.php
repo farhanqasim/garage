@@ -7084,24 +7084,38 @@
                                                                 }
                                                                 setIsRecording(false);
                                                                 
-                                                                // Process transcript immediately when stopping (for mobile)
-                                                                setTimeout(() => {
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('✅ Manual stop - setting customer name:', customerName);
-                                                                        setFormData(prev => {
-                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
-                                                                                return { ...prev, customerName: customerName };
+                                                                // Clear periodic check interval if exists
+                                                                if (window.transcriptCheckInterval) {
+                                                                    clearInterval(window.transcriptCheckInterval);
+                                                                    window.transcriptCheckInterval = null;
+                                                                }
+                                                                
+                                                                // Process transcript immediately when stopping (for mobile) - multiple attempts
+                                                                const processManualStop = (delay) => {
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log('✅ Manual stop - setting customer name:', customerName);
+                                                                            setFormData(prev => {
+                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    return { ...prev, customerName: customerName };
+                                                                                }
+                                                                                return prev;
+                                                                            });
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
                                                                             }
-                                                                            return prev;
-                                                                        });
-                                                                        setAudioBlob(null);
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
-                                                                            setAudioUrl(null);
                                                                         }
-                                                                    }
-                                                                }, 300);
+                                                                    }, delay);
+                                                                };
+                                                                
+                                                                // Try immediately and with delays
+                                                                processManualStop(100);
+                                                                processManualStop(300);
+                                                                processManualStop(500);
+                                                                processManualStop(1000);
                                                                 return;
                                                             }
                                                             
@@ -7153,28 +7167,33 @@
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // On mobile, check if we have transcript after recording stops
-                                                                // Sometimes recognition ends before recorder, so check transcript here too
-                                                                // Use ref to get the stored transcript (works across closures)
-                                                                setTimeout(() => {
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('✅ Setting customer name from transcript ref after recording stop:', customerName);
-                                                                        setFormData(prev => {
-                                                                            // Only update if not already set or if this is better
-                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
-                                                                                return { ...prev, customerName: customerName };
+                                                                // On mobile, check if we have transcript after recording stops - multiple attempts
+                                                                const processRecordingStop = (delay) => {
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log('✅ Recording stop - setting customer name:', customerName);
+                                                                            setFormData(prev => {
+                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    return { ...prev, customerName: customerName };
+                                                                                }
+                                                                                return prev;
+                                                                            });
+                                                                            // Clear audio since we have text
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
                                                                             }
-                                                                            return prev;
-                                                                        });
-                                                                        // Clear audio since we have text
-                                                                        setAudioBlob(null);
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
                                                                         }
-                                                                        setAudioUrl(null);
-                                                                    }
-                                                                }, 500); // Small delay to ensure recognition has processed
+                                                                    }, delay);
+                                                                };
+                                                                
+                                                                // Try multiple times with delays
+                                                                processRecordingStop(300);
+                                                                processRecordingStop(500);
+                                                                processRecordingStop(1000);
+                                                                processRecordingStop(2000);
                                                             };
                                                             
                                                             // Clear transcript ref for new recording
@@ -7184,85 +7203,85 @@
                                                             // Check for both standard and webkit prefixes (for iOS Safari)
                                                             const SpeechRecognition = window.SpeechRecognition 
                                                                 || window.webkitSpeechRecognition 
-                                                                || (window.SpeechRecognitionEvent && window.SpeechRecognitionEvent.prototype)
                                                                 || null;
                                                             let recognitionInstance = null;
                                                             
+                                                            // Detect mobile
+                                                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                                            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                                                            
                                                             if (SpeechRecognition) {
                                                                 recognitionInstance = new SpeechRecognition();
-                                                                // Try to detect mobile and adjust settings
-                                                                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                                                 
-                                                                // Set language - try multiple options for better mobile support
+                                                                // Configure for mobile - critical settings
                                                                 recognitionInstance.lang = 'en-US';
+                                                                recognitionInstance.continuous = true; // Must be true for mobile
+                                                                recognitionInstance.interimResults = true; // Must be true for mobile
                                                                 
-                                                                // Mobile-optimized settings
+                                                                // Mobile-specific optimizations
                                                                 if (isMobile) {
-                                                                    // For mobile, use continuous mode with interim results
-                                                                    recognitionInstance.continuous = true;
-                                                                    recognitionInstance.interimResults = true;
-                                                                    // Some mobile browsers work better with these settings
                                                                     if (recognitionInstance.maxAlternatives !== undefined) {
                                                                         recognitionInstance.maxAlternatives = 1;
                                                                     }
+                                                                    // iOS Safari needs special handling
+                                                                    if (isIOS) {
+                                                                        // iOS may need different language code
+                                                                        recognitionInstance.lang = 'en-US';
+                                                                    }
                                                                     console.log('📱 Mobile detected - using mobile-optimized speech recognition');
-                                                                } else {
-                                                                    // Desktop settings
-                                                                    recognitionInstance.continuous = true;
-                                                                    recognitionInstance.interimResults = true;
                                                                 }
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
-                                                                    let interimTranscript = '';
-                                                                    let finalTranscript = '';
+                                                                    console.log('🎯 onresult triggered, results length:', event.results.length);
                                                                     let allTranscript = ''; // Combined transcript for mobile
+                                                                    let hasFinal = false;
                                                                     
-                                                                    // Process all results (mobile browsers may send multiple results)
+                                                                    // Process ALL results - critical for mobile
                                                                     for (let i = 0; i < event.results.length; i++) {
                                                                         const result = event.results[i];
-                                                                        const transcript = result[0].transcript;
-                                                                        
-                                                                        // Add to combined transcript (for mobile compatibility)
-                                                                        allTranscript += transcript + ' ';
-                                                                        
-                                                                        if (result.isFinal) {
-                                                                            finalTranscript += transcript + ' ';
-                                                                            // Store in ref for later use
-                                                                            recognitionTranscriptRef.current += transcript + ' ';
-                                                                        } else {
-                                                                            interimTranscript += transcript;
+                                                                        if (result && result.length > 0 && result[0]) {
+                                                                            const transcript = result[0].transcript || '';
+                                                                            
+                                                                            if (transcript.trim()) {
+                                                                                // Add to combined transcript
+                                                                                allTranscript += transcript + ' ';
+                                                                                
+                                                                                // Track if we have final results
+                                                                                if (result.isFinal) {
+                                                                                    hasFinal = true;
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                     
-                                                                    // For mobile: use all transcript (final + interim) if available
-                                                                    const combinedTranscript = allTranscript.trim();
-                                                                    if (combinedTranscript) {
-                                                                        // Store in ref (overwrite for mobile to get latest)
-                                                                        recognitionTranscriptRef.current = combinedTranscript;
-                                                                        const customerName = combinedTranscript.toUpperCase();
-                                                                        console.log('📝 Transcript (mobile-friendly):', customerName);
-                                                                        // Update immediately on mobile
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
-                                                                    }
-                                                                    
-                                                                    // Also handle final/interim separately for desktop
-                                                                    if (finalTranscript.trim()) {
-                                                                        // Final result - use this
-                                                                        const customerName = finalTranscript.trim().toUpperCase();
-                                                                        console.log('✅ Final transcript:', customerName);
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
-                                                                        setAudioBlob(null); // Clear audio blob when we have text
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
-                                                                            setAudioUrl(null);
+                                                                    // Process transcript - MOBILE FRIENDLY
+                                                                    const processedTranscript = allTranscript.trim();
+                                                                    if (processedTranscript) {
+                                                                        // Always store in ref (for fallback)
+                                                                        recognitionTranscriptRef.current = processedTranscript;
+                                                                        
+                                                                        // Convert to uppercase for customer name
+                                                                        const customerName = processedTranscript.toUpperCase();
+                                                                        console.log('📝 Transcript captured:', customerName, 'isFinal:', hasFinal);
+                                                                        
+                                                                        // Update formData immediately - CRITICAL for mobile
+                                                                        setFormData(prev => {
+                                                                            // Always update if we have new transcript
+                                                                            const newName = customerName;
+                                                                            if (!prev.customerName || newName.length >= prev.customerName.length) {
+                                                                                return { ...prev, customerName: newName };
+                                                                            }
+                                                                            return prev;
+                                                                        });
+                                                                        
+                                                                        // If final, clear audio blob
+                                                                        if (hasFinal) {
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
+                                                                            }
                                                                         }
-                                                                    } else if (interimTranscript.trim() && !combinedTranscript) {
-                                                                        // Interim result - update for preview (mobile browsers)
-                                                                        const customerName = interimTranscript.trim().toUpperCase();
-                                                                        console.log('📝 Interim transcript:', customerName);
-                                                                        // Store interim in ref too (for mobile fallback)
-                                                                        recognitionTranscriptRef.current = customerName;
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
                                                                     }
                                                                 };
                                                                 
@@ -7292,28 +7311,35 @@
                                                                 
                                                                 recognitionInstance.onend = () => {
                                                                     console.log('🎤 Speech recognition ended');
-                                                                    console.log('📝 Stored transcript:', recognitionTranscriptRef.current);
+                                                                    console.log('📝 Final stored transcript:', recognitionTranscriptRef.current);
                                                                     
-                                                                    // Use stored transcript from ref (works for mobile)
-                                                                    // Add delay for mobile browsers that process transcript asynchronously
-                                                                    setTimeout(() => {
+                                                                    // Process transcript with multiple attempts for mobile
+                                                                    const processTranscript = () => {
                                                                         if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                             const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                            console.log('✅ Setting customer name from transcript ref:', customerName);
+                                                                            console.log('✅ Processing transcript from onend:', customerName);
                                                                             setFormData(prev => {
-                                                                                // Only update if not already set or if this is more complete
-                                                                                if (!prev.customerName || customerName.length > prev.customerName.length) {
+                                                                                // Always update if we have transcript
+                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
                                                                                     return { ...prev, customerName: customerName };
                                                                                 }
                                                                                 return prev;
                                                                             });
-                                                                            setAudioBlob(null); // Clear audio blob when we have text
+                                                                            setAudioBlob(null);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                                 setAudioUrl(null);
                                                                             }
                                                                         }
-                                                                    }, 300); // Small delay for mobile processing
+                                                                    };
+                                                                    
+                                                                    // Try immediately
+                                                                    processTranscript();
+                                                                    
+                                                                    // Try again after delays (mobile browsers process async)
+                                                                    setTimeout(processTranscript, 200);
+                                                                    setTimeout(processTranscript, 500);
+                                                                    setTimeout(processTranscript, 1000);
                                                                     
                                                                     // Stop audio recording when speech ends
                                                                     if (recorder && recorder.state !== 'inactive') {
@@ -7343,40 +7369,35 @@
                                                                 
                                                                 setRecognition(recognitionInstance);
                                                                 
-                                                                try {
-                                                                    recognitionInstance.start();
-                                                                    console.log('✅ Speech recognition started successfully');
-                                                                    
-                                                                    // For mobile, sometimes recognition needs a restart after a short delay
-                                                                    if (isMobile) {
-                                                                        // Some mobile browsers need a restart after initial start
-                                                                        setTimeout(() => {
-                                                                            if (recognitionInstance && recognitionInstance.state === 'stopped') {
-                                                                                try {
-                                                                                    recognitionInstance.start();
-                                                                                    console.log('🔄 Restarted speech recognition for mobile');
-                                                                                } catch (e) {
-                                                                                    console.log('Could not restart recognition:', e);
+                                                                // Start recognition with retry logic for mobile
+                                                                const startRecognition = (attempt = 1) => {
+                                                                    try {
+                                                                        recognitionInstance.start();
+                                                                        console.log(`✅ Speech recognition started (attempt ${attempt})`);
+                                                                        
+                                                                        // For mobile, check if it actually started
+                                                                        if (isMobile) {
+                                                                            setTimeout(() => {
+                                                                                if (recognitionInstance && recognitionInstance.state === 'stopped' && attempt < 3) {
+                                                                                    console.log('🔄 Recognition stopped, restarting...');
+                                                                                    startRecognition(attempt + 1);
                                                                                 }
-                                                                            }
-                                                                        }, 500);
+                                                                            }, 1000);
+                                                                        }
+                                                                    } catch (startError) {
+                                                                        console.error(`Error starting speech recognition (attempt ${attempt}):`, startError);
+                                                                        // Retry for mobile (up to 3 attempts)
+                                                                        if (isMobile && attempt < 3) {
+                                                                            setTimeout(() => {
+                                                                                startRecognition(attempt + 1);
+                                                                            }, 1000 * attempt); // Exponential backoff
+                                                                        } else {
+                                                                            console.log('⚠️ Speech recognition could not be started after multiple attempts');
+                                                                        }
                                                                     }
-                                                                } catch (startError) {
-                                                                    console.error('Error starting speech recognition:', startError);
-                                                                    // Try again after a short delay (mobile browsers sometimes need this)
-                                                                    if (isMobile) {
-                                                                        setTimeout(() => {
-                                                                            try {
-                                                                                recognitionInstance.start();
-                                                                                console.log('🔄 Retried speech recognition start for mobile');
-                                                                            } catch (retryError) {
-                                                                                console.log('⚠️ Speech recognition not available on this device');
-                                                                            }
-                                                                        }, 1000);
-                                                                    } else {
-                                                                        console.log('⚠️ Voice recognition not available. Audio will be recorded only.');
-                                                                    }
-                                                                }
+                                                                };
+                                                                
+                                                                startRecognition(1);
                                                             } else {
                                                                 console.log('⚠️ Speech recognition not supported in this browser');
                                                                 // Try to use alternative method or show user-friendly message
@@ -7391,42 +7412,89 @@
                                                             setMediaRecorder(recorder);
                                                             setIsRecording(true);
                                                             
-                                                            // Fallback: Auto stop after 10 seconds if speech doesn't end naturally (longer for mobile to allow processing)
+                                                            // Periodic transcript check for mobile (in case onresult doesn't fire properly)
+                                                            if (isMobile && recognitionInstance) {
+                                                                window.transcriptCheckInterval = setInterval(() => {
+                                                                    // Check if we have transcript in ref
+                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        console.log('🔄 Periodic check - found transcript:', customerName);
+                                                                        setFormData(prev => {
+                                                                            if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                return { ...prev, customerName: customerName };
+                                                                            }
+                                                                            return prev;
+                                                                        });
+                                                                    }
+                                                                }, 1000); // Check every second
+                                                                
+                                                                // Clear interval after 15 seconds
+                                                                setTimeout(() => {
+                                                                    if (window.transcriptCheckInterval) {
+                                                                        clearInterval(window.transcriptCheckInterval);
+                                                                        window.transcriptCheckInterval = null;
+                                                                    }
+                                                                }, 15000);
+                                                            }
+                                                            
+                                                            // Fallback: Auto stop after 12 seconds (longer for mobile processing)
                                                             const recordingTimeout = setTimeout(() => {
-                                                                console.log('⏱️ Recording timeout reached');
-                                                                if (recorder && recorder.state !== 'inactive') {
-                                                                    recorder.stop();
-                                                                }
+                                                                console.log('⏱️ Recording timeout reached (12s)');
+                                                                
+                                                                // Stop recognition first
                                                                 if (recognitionInstance) {
                                                                     try {
-                                                                        if (recognitionInstance.state !== 'inactive') {
+                                                                        if (recognitionInstance.state !== 'inactive' && recognitionInstance.state !== 'stopped') {
                                                                             recognitionInstance.stop();
                                                                         }
                                                                     } catch (e) {
                                                                         console.log('Error stopping recognition:', e);
                                                                     }
                                                                 }
+                                                                
+                                                                // Stop recorder
+                                                                if (recorder && recorder.state !== 'inactive') {
+                                                                    recorder.stop();
+                                                                }
+                                                                
                                                                 setIsRecording(false);
                                                                 if (stream) {
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // Final check - if we have any transcript in ref, use it (with delay for mobile processing)
-                                                                setTimeout(() => {
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('✅ Final timeout check - setting customer name:', customerName);
-                                                                        if (customerName) {
-                                                                            setFormData(prev => ({ ...prev, customerName: customerName }));
+                                                                // Clear periodic check interval if exists
+                                                                if (window.transcriptCheckInterval) {
+                                                                    clearInterval(window.transcriptCheckInterval);
+                                                                    window.transcriptCheckInterval = null;
+                                                                }
+                                                                
+                                                                // Process transcript with multiple attempts
+                                                                const processFinalTranscript = (delay) => {
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log('✅ Timeout - setting customer name:', customerName);
+                                                                            setFormData(prev => {
+                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    return { ...prev, customerName: customerName };
+                                                                                }
+                                                                                return prev;
+                                                                            });
                                                                             setAudioBlob(null);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                                 setAudioUrl(null);
                                                                             }
                                                                         }
-                                                                    }
-                                                                }, 1000); // Extra delay for mobile to process transcript
-                                                            }, 10000); // 10 seconds fallback (longer for mobile to allow speech processing)
+                                                                    }, delay);
+                                                                };
+                                                                
+                                                                // Try multiple times with increasing delays
+                                                                processFinalTranscript(500);
+                                                                processFinalTranscript(1000);
+                                                                processFinalTranscript(2000);
+                                                                processFinalTranscript(3000);
+                                                            }, 12000); // 12 seconds for mobile
                                                             
                                                             // Store timeout ID to clear if speech ends early
                                                             window.currentRecordingTimeout = recordingTimeout;
@@ -7446,6 +7514,7 @@
                                                             ? 'bg-red-500 border-red-500 text-white animate-pulse' 
                                                             : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
                                                     }`}
+                                                    title={isRecording ? 'Click to stop recording' : 'Click to start voice recording'}
                                                 >
                                                     {isRecording ? '⏹️' : '🎤'}
                                                 </button>
@@ -7455,7 +7524,14 @@
                                                     ⚠️ Please enter customer name OR record voice (Required)
                                                 </p>
                                             )}
-                                            {audioBlob && !formData.customerName && (
+                                            {isRecording && (
+                                                <div className="mt-1.5 sm:mt-2">
+                                                    <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1 animate-pulse">
+                                                        🎤 Listening... Speak now
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {audioBlob && !formData.customerName && !isRecording && (
                                                 <div className="mt-1.5 sm:mt-2">
                                                     <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1">
                                                         🎤 Processing voice... Please wait
@@ -7467,7 +7543,7 @@
                                                     )}
                                                 </div>
                                             )}
-                                            {audioBlob && formData.customerName && (
+                                            {formData.customerName && !isRecording && (
                                                 <div className="mt-1.5 sm:mt-2">
                                                     <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
                                                         ✅ Voice recognized: {formData.customerName}
