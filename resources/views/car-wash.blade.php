@@ -7181,7 +7181,11 @@
                                                             recognitionTranscriptRef.current = '';
                                                             
                                                             // Start speech recognition for text
-                                                            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                                                            // Check for both standard and webkit prefixes (for iOS Safari)
+                                                            const SpeechRecognition = window.SpeechRecognition 
+                                                                || window.webkitSpeechRecognition 
+                                                                || (window.SpeechRecognitionEvent && window.SpeechRecognitionEvent.prototype)
+                                                                || null;
                                                             let recognitionInstance = null;
                                                             
                                                             if (SpeechRecognition) {
@@ -7189,17 +7193,23 @@
                                                                 // Try to detect mobile and adjust settings
                                                                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                                                 
+                                                                // Set language - try multiple options for better mobile support
                                                                 recognitionInstance.lang = 'en-US';
-                                                                recognitionInstance.continuous = true; // Keep continuous for mobile
-                                                                recognitionInstance.interimResults = true; // Keep interim for mobile
                                                                 
-                                                                // Mobile-specific settings
+                                                                // Mobile-optimized settings
                                                                 if (isMobile) {
-                                                                    // On mobile, set maxAlternatives to get better results
+                                                                    // For mobile, use continuous mode with interim results
+                                                                    recognitionInstance.continuous = true;
+                                                                    recognitionInstance.interimResults = true;
+                                                                    // Some mobile browsers work better with these settings
                                                                     if (recognitionInstance.maxAlternatives !== undefined) {
                                                                         recognitionInstance.maxAlternatives = 1;
                                                                     }
                                                                     console.log('📱 Mobile detected - using mobile-optimized speech recognition');
+                                                                } else {
+                                                                    // Desktop settings
+                                                                    recognitionInstance.continuous = true;
+                                                                    recognitionInstance.interimResults = true;
                                                                 }
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
@@ -7285,22 +7295,25 @@
                                                                     console.log('📝 Stored transcript:', recognitionTranscriptRef.current);
                                                                     
                                                                     // Use stored transcript from ref (works for mobile)
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('✅ Setting customer name from transcript ref:', customerName);
-                                                                        setFormData(prev => {
-                                                                            // Only update if not already set or if this is more complete
-                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
-                                                                                return { ...prev, customerName: customerName };
+                                                                    // Add delay for mobile browsers that process transcript asynchronously
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log('✅ Setting customer name from transcript ref:', customerName);
+                                                                            setFormData(prev => {
+                                                                                // Only update if not already set or if this is more complete
+                                                                                if (!prev.customerName || customerName.length > prev.customerName.length) {
+                                                                                    return { ...prev, customerName: customerName };
+                                                                                }
+                                                                                return prev;
+                                                                            });
+                                                                            setAudioBlob(null); // Clear audio blob when we have text
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
                                                                             }
-                                                                            return prev;
-                                                                        });
-                                                                        setAudioBlob(null); // Clear audio blob when we have text
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
-                                                                            setAudioUrl(null);
                                                                         }
-                                                                    }
+                                                                    }, 300); // Small delay for mobile processing
                                                                     
                                                                     // Stop audio recording when speech ends
                                                                     if (recorder && recorder.state !== 'inactive') {
@@ -7333,18 +7346,43 @@
                                                                 try {
                                                                     recognitionInstance.start();
                                                                     console.log('✅ Speech recognition started successfully');
+                                                                    
+                                                                    // For mobile, sometimes recognition needs a restart after a short delay
+                                                                    if (isMobile) {
+                                                                        // Some mobile browsers need a restart after initial start
+                                                                        setTimeout(() => {
+                                                                            if (recognitionInstance && recognitionInstance.state === 'stopped') {
+                                                                                try {
+                                                                                    recognitionInstance.start();
+                                                                                    console.log('🔄 Restarted speech recognition for mobile');
+                                                                                } catch (e) {
+                                                                                    console.log('Could not restart recognition:', e);
+                                                                                }
+                                                                            }
+                                                                        }, 500);
+                                                                    }
                                                                 } catch (startError) {
                                                                     console.error('Error starting speech recognition:', startError);
-                                                                    // On mobile, if recognition fails, still allow audio recording
-                                                                    // Don't show alert - just log it, audio will still record
-                                                                    console.log('⚠️ Voice recognition not available. Audio will be recorded only.');
+                                                                    // Try again after a short delay (mobile browsers sometimes need this)
+                                                                    if (isMobile) {
+                                                                        setTimeout(() => {
+                                                                            try {
+                                                                                recognitionInstance.start();
+                                                                                console.log('🔄 Retried speech recognition start for mobile');
+                                                                            } catch (retryError) {
+                                                                                console.log('⚠️ Speech recognition not available on this device');
+                                                                            }
+                                                                        }, 1000);
+                                                                    } else {
+                                                                        console.log('⚠️ Voice recognition not available. Audio will be recorded only.');
+                                                                    }
                                                                 }
                                                             } else {
-                                                                console.log('⚠️ Speech recognition not supported - audio recording only');
-                                                                // Show helpful message on mobile
+                                                                console.log('⚠️ Speech recognition not supported in this browser');
+                                                                // Try to use alternative method or show user-friendly message
                                                                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                                                 if (isMobile) {
-                                                                    console.log('📱 Mobile browser detected - speech recognition may not be available');
+                                                                    console.log('📱 Mobile browser - Web Speech API not available. Audio recording will still work.');
                                                                 }
                                                             }
                                                             
@@ -7353,15 +7391,17 @@
                                                             setMediaRecorder(recorder);
                                                             setIsRecording(true);
                                                             
-                                                            // Fallback: Auto stop after 8 seconds if speech doesn't end naturally (longer for mobile)
+                                                            // Fallback: Auto stop after 10 seconds if speech doesn't end naturally (longer for mobile to allow processing)
                                                             const recordingTimeout = setTimeout(() => {
                                                                 console.log('⏱️ Recording timeout reached');
                                                                 if (recorder && recorder.state !== 'inactive') {
                                                                     recorder.stop();
                                                                 }
-                                                                if (recognitionInstance && recognitionInstance.state !== 'inactive') {
+                                                                if (recognitionInstance) {
                                                                     try {
-                                                                        recognitionInstance.stop();
+                                                                        if (recognitionInstance.state !== 'inactive') {
+                                                                            recognitionInstance.stop();
+                                                                        }
                                                                     } catch (e) {
                                                                         console.log('Error stopping recognition:', e);
                                                                     }
@@ -7371,20 +7411,22 @@
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // Final check - if we have any transcript in ref, use it
-                                                                if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                    const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                    console.log('✅ Final timeout check - setting customer name:', customerName);
-                                                                    if (customerName) {
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
-                                                                        setAudioBlob(null);
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
-                                                                            setAudioUrl(null);
+                                                                // Final check - if we have any transcript in ref, use it (with delay for mobile processing)
+                                                                setTimeout(() => {
+                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        console.log('✅ Final timeout check - setting customer name:', customerName);
+                                                                        if (customerName) {
+                                                                            setFormData(prev => ({ ...prev, customerName: customerName }));
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
+                                                                            }
                                                                         }
                                                                     }
-                                                                }
-                                                            }, 8000); // 8 seconds fallback (longer for mobile)
+                                                                }, 1000); // Extra delay for mobile to process transcript
+                                                            }, 10000); // 10 seconds fallback (longer for mobile to allow speech processing)
                                                             
                                                             // Store timeout ID to clear if speech ends early
                                                             window.currentRecordingTimeout = recordingTimeout;
@@ -7413,24 +7455,23 @@
                                                     ⚠️ Please enter customer name OR record voice (Required)
                                                 </p>
                                             )}
-                                            {audioBlob && (
+                                            {audioBlob && !formData.customerName && (
                                                 <div className="mt-1.5 sm:mt-2">
-                                                    <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
-                                                        ✅ Voice recorded
-                                                        {!formData.customerName && (
-                                                            <span className="text-orange-600 ml-1">(Text not recognized - please type name manually)</span>
-                                                        )}
+                                                    <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1">
+                                                        🎤 Processing voice... Please wait
                                                     </p>
                                                     {audioUrl && (
                                                         <audio controls className="w-full h-7 sm:h-8" src={audioUrl}>
                                                             Your browser does not support audio playback.
                                                         </audio>
                                                     )}
-                                                    {!formData.customerName && (
-                                                        <p className="text-[8px] sm:text-[9px] text-orange-600 font-semibold mt-1">
-                                                            💡 Tip: On mobile, speech recognition may not work. Please type the customer name manually.
-                                                        </p>
-                                                    )}
+                                                </div>
+                                            )}
+                                            {audioBlob && formData.customerName && (
+                                                <div className="mt-1.5 sm:mt-2">
+                                                    <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
+                                                        ✅ Voice recognized: {formData.customerName}
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
