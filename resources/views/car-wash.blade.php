@@ -7051,6 +7051,7 @@
                                             </label>
                                             <div className="flex gap-1.5 sm:gap-2">
                                                 <input
+                                                    id="customerNameInput"
                                                     type="text"
                                                     className={`flex-1 bg-transparent font-bold text-xs outline-none border-2 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 ${
                                                         !formData.customerName && !audioBlob 
@@ -7098,6 +7099,19 @@
                                                                             console.log('✅ Manual stop - setting customer name:', customerName);
                                                                             setFormData(prev => {
                                                                                 if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    // For mobile: Also directly update the input field DOM
+                                                                                    if (isMobile) {
+                                                                                        const customerNameInput = document.getElementById('customerNameInput');
+                                                                                        if (customerNameInput) {
+                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
+                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(inputEvent);
+                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(changeEvent);
+                                                                                            console.log('📱 Mobile: Directly updated input field from manual stop:', customerName);
+                                                                                        }
+                                                                                    }
                                                                                     return { ...prev, customerName: customerName };
                                                                                 }
                                                                                 return prev;
@@ -7175,6 +7189,19 @@
                                                                             console.log('✅ Recording stop - setting customer name:', customerName);
                                                                             setFormData(prev => {
                                                                                 if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    // For mobile: Also directly update the input field DOM
+                                                                                    if (isMobile) {
+                                                                                        const customerNameInput = document.getElementById('customerNameInput');
+                                                                                        if (customerNameInput) {
+                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
+                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(inputEvent);
+                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(changeEvent);
+                                                                                            console.log('📱 Mobile: Directly updated input field from recording stop:', customerName);
+                                                                                        }
+                                                                                    }
                                                                                     return { ...prev, customerName: customerName };
                                                                                 }
                                                                                 return prev;
@@ -7296,6 +7323,50 @@
                                                                             const newName = customerName;
                                                                             if (!prev.customerName || newName.length >= prev.customerName.length) {
                                                                                 console.log('✅ Updating customer name to:', newName);
+                                                                                // For mobile: Also directly update the input field DOM (React state might not update on mobile)
+                                                                                if (isMobile) {
+                                                                                    // Update immediately and with delays
+                                                                                    [0, 50, 100, 200, 500].forEach(delay => {
+                                                                                        setTimeout(() => {
+                                                                                            const customerNameInput = document.getElementById('customerNameInput');
+                                                                                            if (customerNameInput) {
+                                                                                                // Use React's setter directly via nativeValue setter
+                                                                                                try {
+                                                                                                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                                                                                    nativeInputValueSetter.call(customerNameInput, newName);
+                                                                                                } catch (e) {
+                                                                                                    // Fallback to direct assignment
+                                                                                                    customerNameInput.value = newName;
+                                                                                                }
+                                                                                                
+                                                                                                // Trigger input event to ensure React picks it up
+                                                                                                const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                                                                                                customerNameInput.dispatchEvent(inputEvent);
+                                                                                                
+                                                                                                // Also trigger change event
+                                                                                                const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                                                                                customerNameInput.dispatchEvent(changeEvent);
+                                                                                                
+                                                                                                // Also try React's synthetic event
+                                                                                                const syntheticEvent = {
+                                                                                                    target: customerNameInput,
+                                                                                                    currentTarget: customerNameInput,
+                                                                                                    type: 'input',
+                                                                                                    bubbles: true,
+                                                                                                    cancelable: true
+                                                                                                };
+                                                                                                if (customerNameInput.oninput) {
+                                                                                                    customerNameInput.oninput(syntheticEvent);
+                                                                                                }
+                                                                                                
+                                                                                                console.log(`📱 Mobile: Directly updated input field DOM (delay ${delay}ms) to:`, newName);
+                                                                                                console.log('📱 Input field value after update:', customerNameInput.value);
+                                                                                            } else {
+                                                                                                console.log(`⚠️ Customer name input field not found (delay ${delay}ms)`);
+                                                                                            }
+                                                                                        }, delay);
+                                                                                    });
+                                                                                }
                                                                                 return { ...prev, customerName: newName };
                                                                             }
                                                                             return prev;
@@ -7347,14 +7418,27 @@
                                                                     if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                         const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
                                                                         console.log('✅ Processing transcript from onend:', customerName);
-                                                                        setFormData(prev => {
-                                                                            // Always update if we have transcript
-                                                                            if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                console.log('✅ Updated customer name from onend:', customerName);
-                                                                                return { ...prev, customerName: customerName };
-                                                                            }
-                                                                            return prev;
-                                                                        });
+                                                                            setFormData(prev => {
+                                                                                // Always update if we have transcript
+                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
+                                                                                    console.log('✅ Updated customer name from onend:', customerName);
+                                                                                    // For mobile: Also directly update the input field DOM
+                                                                                    if (isMobile) {
+                                                                                        const customerNameInput = document.getElementById('customerNameInput');
+                                                                                        if (customerNameInput) {
+                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
+                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(inputEvent);
+                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(changeEvent);
+                                                                                            console.log('📱 Mobile: Directly updated input field from onend:', customerName);
+                                                                                        }
+                                                                                    }
+                                                                                    return { ...prev, customerName: customerName };
+                                                                                }
+                                                                                return prev;
+                                                                            });
                                                                         setAudioBlob(null);
                                                                         if (audioUrl) {
                                                                             URL.revokeObjectURL(audioUrl);
@@ -7527,6 +7611,21 @@
                                                                         setFormData(prev => {
                                                                             if (!prev.customerName || customerName.length >= prev.customerName.length) {
                                                                                 console.log('✅ Updating from periodic check:', customerName);
+                                                                                // For mobile: Also directly update the input field DOM
+                                                                                if (isMobile) {
+                                                                                    const customerNameInput = document.getElementById('customerNameInput');
+                                                                                    if (customerNameInput) {
+                                                                                        // Use native value setter for React compatibility
+                                                                                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                                                                        nativeInputValueSetter.call(customerNameInput, customerName);
+                                                                                        
+                                                                                        const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                                                                                        customerNameInput.dispatchEvent(inputEvent);
+                                                                                        const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                                                                        customerNameInput.dispatchEvent(changeEvent);
+                                                                                        console.log('📱 Mobile: Directly updated input field from periodic check:', customerName);
+                                                                                    }
+                                                                                }
                                                                                 return { ...prev, customerName: customerName };
                                                                             }
                                                                             return prev;
@@ -7601,6 +7700,19 @@
                                                                             setFormData(prev => {
                                                                                 if (!prev.customerName || customerName.length >= prev.customerName.length) {
                                                                                     console.log('✅ Updated customer name from timeout:', customerName);
+                                                                                    // For mobile: Also directly update the input field DOM
+                                                                                    if (isMobile) {
+                                                                                        const customerNameInput = document.getElementById('customerNameInput');
+                                                                                        if (customerNameInput) {
+                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
+                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(inputEvent);
+                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
+                                                                                            customerNameInput.dispatchEvent(changeEvent);
+                                                                                            console.log('📱 Mobile: Directly updated input field from timeout:', customerName);
+                                                                                        }
+                                                                                    }
                                                                                     return { ...prev, customerName: customerName };
                                                                                 }
                                                                                 return prev;
