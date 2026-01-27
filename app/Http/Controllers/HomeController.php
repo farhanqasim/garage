@@ -90,41 +90,11 @@ public function carWash()
 {
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
-    $branchId = null;
-    $branchName = 'Guest';
     
-    // Get branch ID from session (for assigned users) or owner relationship
-    if (session('selected_branch_id')) {
-        $sessionBranchId = session('selected_branch_id');
-        $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
-        $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
-        
-        if ($isOwner || $isAssigned) {
-            $branch = \App\Models\Branch::find($sessionBranchId);
-            if ($branch) {
-                $branchId = $branch->id;
-                $branchName = $branch->branch_name;
-            }
-        }
-    }
-    
-    // If no branch from session, check if user is owner
-    if (!$branchId && $user->branches) {
-        $branchName = $user->branches->branch_name;
-        $branchId = $user->branches->id;
-    }
-    
-    // If still no branch, check assigned branches
-    if (!$branchId) {
-        $assignedBranch = $user->assignedBranches()->first();
-        if ($assignedBranch) {
-            $branchId = $assignedBranch->id;
-            $branchName = $assignedBranch->branch_name;
-        }
-    }
-    if ($user->role === 'admin' && !$branchId) {
-        $branchName = 'All Branches';
-    }
+    // Get branch info using helper method
+    $branchInfo = $this->getBranchInfoForDisplay($user);
+    $branchId = $branchInfo['id'];
+    $branchName = $branchInfo['name'];
 
     $svcQuery = CarWashService::query();
     $this->applyBranchFilter($svcQuery, 'branch_id', $user);
@@ -173,41 +143,11 @@ public function completedJobs()
 {
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
-    $branchId = null;
-    $branchName = 'Guest';
     
-    // Get branch ID from session (for assigned users) or owner relationship
-    if (session('selected_branch_id')) {
-        $sessionBranchId = session('selected_branch_id');
-        $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
-        $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
-        
-        if ($isOwner || $isAssigned) {
-            $branch = \App\Models\Branch::find($sessionBranchId);
-            if ($branch) {
-                $branchId = $branch->id;
-                $branchName = $branch->branch_name;
-            }
-        }
-    }
-    
-    // If no branch from session, check if user is owner
-    if (!$branchId && $user->branches) {
-        $branchName = $user->branches->branch_name;
-        $branchId = $user->branches->id;
-    }
-    
-    // If still no branch, check assigned branches
-    if (!$branchId) {
-        $assignedBranch = $user->assignedBranches()->first();
-        if ($assignedBranch) {
-            $branchId = $assignedBranch->id;
-            $branchName = $assignedBranch->branch_name;
-        }
-    }
-    if ($user->role === 'admin' && !$branchId) {
-        $branchName = 'All Branches';
-    }
+    // Get branch info using helper method
+    $branchInfo = $this->getBranchInfoForDisplay($user);
+    $branchId = $branchInfo['id'];
+    $branchName = $branchInfo['name'];
 
     $query = CarWashJob::query();
     $this->applyBranchFilter($query, 'branch_id', $user);
@@ -255,45 +195,14 @@ public function completedJobs()
  * @return \Illuminate\Contracts\Support\Renderable
  */
 public function carWashServices()
-
 {
     $user = auth()->user();
     $userName = $user->name ?? 'Guest';
-    $branchId = null;
-    $branchName = 'Guest';
     
-    // Get branch ID from session (for assigned users) or owner relationship
-    if (session('selected_branch_id')) {
-        $sessionBranchId = session('selected_branch_id');
-        $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
-        $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
-        
-        if ($isOwner || $isAssigned) {
-            $branch = \App\Models\Branch::find($sessionBranchId);
-            if ($branch) {
-                $branchId = $branch->id;
-                $branchName = $branch->branch_name;
-            }
-        }
-    }
-    
-    // If no branch from session, check if user is owner
-    if (!$branchId && $user->branches) {
-        $branchName = $user->branches->branch_name;
-        $branchId = $user->branches->id;
-    }
-    
-    // If still no branch, check assigned branches
-    if (!$branchId) {
-        $assignedBranch = $user->assignedBranches()->first();
-        if ($assignedBranch) {
-            $branchId = $assignedBranch->id;
-            $branchName = $assignedBranch->branch_name;
-        }
-    }
-    if ($user->role === 'admin' && !$branchId) {
-        $branchName = 'All Branches';
-    }
+    // Get branch info using helper method
+    $branchInfo = $this->getBranchInfoForDisplay($user);
+    $branchId = $branchInfo['id'];
+    $branchName = $branchInfo['name'];
 
     $svcQuery = CarWashService::query();
     $this->applyBranchFilter($svcQuery, 'branch_id', $user);
@@ -324,41 +233,11 @@ public function carWashServices()
     {
         $user = auth()->user();
         $userName = $user->name ?? 'Guest';
-        $branchId = null;
-        $branchName = 'Guest';
         
-        // Get branch ID from session (for assigned users) or owner relationship
-        if (session('selected_branch_id')) {
-            $sessionBranchId = session('selected_branch_id');
-            $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
-            $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
-            
-            if ($isOwner || $isAssigned) {
-                $branch = \App\Models\Branch::find($sessionBranchId);
-                if ($branch) {
-                    $branchId = $branch->id;
-                    $branchName = $branch->branch_name;
-                }
-            }
-        }
-        
-        // If no branch from session, check if user is owner
-        if (!$branchId && $user->branches) {
-            $branchName = $user->branches->branch_name;
-            $branchId = $user->branches->id;
-        }
-        
-        // If still no branch, check assigned branches
-    if (!$branchId) {
-        $assignedBranch = $user->assignedBranches()->first();
-        if ($assignedBranch) {
-            $branchId = $assignedBranch->id;
-            $branchName = $assignedBranch->branch_name;
-        }
-    }
-    if ($user->role === 'admin' && !$branchId) {
-        $branchName = 'All Branches';
-    }
+        // Get branch info using helper method
+        $branchInfo = $this->getBranchInfoForDisplay($user);
+        $branchId = $branchInfo['id'];
+        $branchName = $branchInfo['name'];
 
     $wrkQuery = CarWashWorker::query();
     $this->applyBranchFilter($wrkQuery, 'branch_id', $user);

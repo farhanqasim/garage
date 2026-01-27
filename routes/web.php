@@ -73,6 +73,10 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/branch/select/complete', [LoginController::class, 'completeBranchSelection'])
         ->name('branch.select.complete');
+    
+    // Branch switching for admin ONLY (can switch to any branch)
+    Route::post('/branch/switch', [LoginController::class, 'switchBranch'])
+        ->name('branch.switch');
 });
      
 // Normal user dashboard

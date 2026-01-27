@@ -4,7 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bank;
+use App\Models\BankAccount;
+use App\Models\BankTransaction;
+use App\Services\CashAccountService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class BankController extends Controller
 {
@@ -122,5 +127,89 @@ class BankController extends Controller
 
         return redirect()->back()
             ->with('success', 'Bank status updated successfully!');
+    }
+
+    /**
+     * Store cash transfer to bank account
+     */
+    public function storeTransfer(Request $request)
+    {
+        $validated = $request->validate([
+            'bank_account_id' => 'required|exists:bank_accounts,id',
+            'amount' => 'required|numeric|min:0.01',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+            ], 401);
+        }
+
+        $bankAccount = BankAccount::findOrFail($validated['bank_account_id']);
+        $amount = (float) $validated['amount'];
+
+        return DB::transaction(function () use ($user, $bankAccount, $amount, $validated) {
+            try {
+                // Get bank name safely
+                $bankName = 'Bank';
+                if ($bankAccount->bank) {
+                    $bankName = $bankAccount->bank->name;
+                }
+                
+                // Get branch ID safely
+                $branchId = null;
+                if (isset($user->branch_id)) {
+                    $branchId = $user->branch_id;
+                }
+                
+                // Get notes safely
+                $notes = "Cash transfer to {$bankName} - {$bankAccount->account_title}";
+                if (isset($validated['notes']) && !empty($validated['notes'])) {
+                    $notes = $validated['notes'];
+                }
+                
+                // Debit from user's cash account
+                $cashAccountService = app(CashAccountService::class);
+                $cashAccountService->debit(
+                    $user->id,
+                    $amount,
+                    'bank_transfer',
+                    $bankAccount->id,
+                    'bank_accounts',
+                    $branchId,
+                    $notes
+                );
+
+                // Credit to bank account
+                $transferNotes = 'Cash deposit';
+                if (isset($validated['notes']) && !empty($validated['notes'])) {
+                    $transferNotes = $validated['notes'];
+                }
+                    
+                BankTransaction::create([
+                    'bank_account_id' => $bankAccount->id,
+                    'transaction_date' => now(),
+                    'description' => "Cash Transfer from {$user->name} - {$transferNotes}",
+                    'amount' => $amount,
+                    'type' => 'credit',
+                    'statement_reference' => 'CASH-TRANSFER-' . time(),
+                    'reconciled' => false,
+                ]);
+
+                $message = "Rs." . number_format($amount, 2) . " transferred to {$bankName} successfully!";
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 500);
+            }
+        });
     }
 }
