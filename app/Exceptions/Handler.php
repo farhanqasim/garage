@@ -61,6 +61,36 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        // Handle branch switch route - ALWAYS return JSON for POST requests
+        if (($request->is('branch/switch') || $request->routeIs('branch.switch')) && $request->isMethod('POST')) {
+            // Always return JSON for branch switch POST requests
+            if ($exception instanceof \Illuminate\Validation\ValidationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $exception->errors()
+                ], 422)->header('Content-Type', 'application/json');
+            }
+            
+            if ($exception instanceof \Illuminate\Auth\AuthenticationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated'
+                ], 401)->header('Content-Type', 'application/json');
+            }
+            
+            // For any other exception in branch switch route, return JSON
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage() ?: 'An error occurred while switching branch',
+                'error' => config('app.debug') ? [
+                    'file' => $exception->getFile(),
+                    'line' => $exception->getLine(),
+                    'trace' => $exception->getTraceAsString()
+                ] : null
+            ], 500)->header('Content-Type', 'application/json');
+        }
+        
         // Handle WebAuthn routes - always return JSON
         if ($request->is('webauthn/*')) {
             if ($exception instanceof \Illuminate\Validation\ValidationException) {

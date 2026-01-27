@@ -124,6 +124,24 @@
             const [completedJobs, setCompletedJobs] = useState(initialCompletedJobs);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
+            const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
+            const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+            const [openDropdownId, setOpenDropdownId] = useState(null);
+
+            // Close dropdown when clicking outside
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (openDropdownId && !event.target.closest('.dropdown-container')) {
+                        setOpenDropdownId(null);
+                    }
+                };
+                if (openDropdownId) {
+                    document.addEventListener('mousedown', handleClickOutside);
+                }
+                return () => {
+                    document.removeEventListener('mousedown', handleClickOutside);
+                };
+            }, [openDropdownId]);
 
             // Load completed jobs from backend
             useEffect(() => {
@@ -140,26 +158,49 @@
             return (
                 <div className="min-h-screen bg-slate-50">
                     {/* Header */}
-                    <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-6 shadow-2xl">
+                    <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-3 sm:p-4 md:p-6 shadow-2xl">
                         <div className="max-w-7xl mx-auto">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">Completed Jobs</h1>
-                                    <p className="text-sm opacity-90">{branchName} • {userName}</p>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tighter mb-1 sm:mb-2">Completed Jobs</h1>
+                                    <p className="text-xs sm:text-sm opacity-90 truncate">{branchName} • {userName}</p>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => window.location.href = '{{ route("car.wash") }}'}
-                                        className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-black uppercase transition-colors backdrop-blur-sm"
-                                    >
-                                        ← Back to Car Wash
-                                    </button>
-                                    <button
-                                        onClick={() => window.location.href = '{{ route("car.wash.daily-report") }}'}
-                                        className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-black uppercase transition-colors backdrop-blur-sm"
-                                    >
-                                        Daily Report
-                                    </button>
+                                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                            onClick={() => window.location.href = '{{ route("car.wash") }}'}
+                                            className="px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm flex-1 sm:flex-initial"
+                                        >
+                                            <span className="hidden sm:inline">← Back to Car Wash</span>
+                                            <span className="sm:hidden">← Back</span>
+                                        </button>
+                                        <button
+                                            onClick={() => window.location.href = '{{ route("car.wash.daily-report") }}'}
+                                            className="px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm flex-1 sm:flex-initial"
+                                        >
+                                            Daily Report
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col gap-1.5 w-full">
+                                        <div className="text-center sm:text-left">
+                                            <span className="text-xs sm:text-sm font-bold uppercase opacity-90">Select Range</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <input 
+                                                type="date" 
+                                                value={dateFrom}
+                                                onChange={(e) => setDateFrom(e.target.value)}
+                                                className="flex-1 px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none placeholder-white/50"
+                                            />
+                                            <span className="text-[10px] font-bold text-white/90 whitespace-nowrap">To</span>
+                                            <input 
+                                                type="date" 
+                                                value={dateTo}
+                                                onChange={(e) => setDateTo(e.target.value)}
+                                                className="flex-1 px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none placeholder-white/50"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -185,10 +226,8 @@
                                             <tr>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Vehicle No</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Customer</th>
+                                                <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Service</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Worker</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
                                                 <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
@@ -210,122 +249,227 @@
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-slate-900">{jobDateTime}</div>
-                                                        <div className="text-xs text-slate-500">{startTime} - {endTime}</div>
+                                                    <td className="px-6 py-4 whitespace-normal leading-tight">
+                                                        {(() => {
+                                                            // Format date as DD/MM/YY
+                                                            const formatDate = (dateStr) => {
+                                                                if (!dateStr) return 'N/A';
+                                                                const date = new Date(dateStr);
+                                                                const day = String(date.getDate()).padStart(2, '0');
+                                                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                                                const year = String(date.getFullYear()).slice(-2);
+                                                                return `${day}/${month}/${year}`;
+                                                            };
+                                                            
+                                                            // Format time as HH:MM AM/PM
+                                                            const formatTime = (dateStr) => {
+                                                                if (!dateStr) return 'N/A';
+                                                                const date = new Date(dateStr);
+                                                                let hours = date.getHours();
+                                                                const minutes = String(date.getMinutes()).padStart(2, '0');
+                                                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                                hours = hours % 12;
+                                                                hours = hours ? hours : 12;
+                                                                return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+                                                            };
+                                                            
+                                                            // Calculate total time
+                                                            const calculateTotalTime = (startStr, endStr) => {
+                                                                if (!startStr || !endStr) return '';
+                                                                const start = new Date(startStr);
+                                                                const end = new Date(endStr);
+                                                                const diffMs = end - start;
+                                                                const diffMins = Math.floor(diffMs / 60000);
+                                                                const hours = Math.floor(diffMins / 60);
+                                                                const mins = diffMins % 60;
+                                                                if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+                                                                if (hours > 0) return `${hours}h`;
+                                                                if (mins > 0) return `${mins}m`;
+                                                                return '';
+                                                            };
+                                                            
+                                                            const jobDate = job.endTime ? formatDate(job.endTime) : 'N/A';
+                                                            const startTimeFormatted = job.startTime ? formatTime(job.startTime) : 'N/A';
+                                                            const endTimeFormatted = job.endTime ? formatTime(job.endTime) : 'N/A';
+                                                            const totalTime = calculateTotalTime(job.startTime, job.endTime);
+                                                            const workerName = job.workerName || job.worker_name || '';
+                                                            
+                                                            return (
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-slate-900">{jobDate}</span>
+                                                                    {startTimeFormatted !== 'N/A' && endTimeFormatted !== 'N/A' && (
+                                                                        <span className="text-[8px] sm:text-[9px] text-slate-600">{startTimeFormatted} - {endTimeFormatted}</span>
+                                                                    )}
+                                                                    {totalTime && (
+                                                                        <span className="text-[8px] sm:text-[9px] font-semibold inline-flex items-center gap-0.5 text-slate-700">
+                                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                            </svg>
+                                                                            {totalTime}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-slate-900">{job.customerName || job.customer_name || 'N/A'}</div>
-                                                        {job.mobile && <div className="text-xs text-slate-500">{job.mobile}</div>}
+                                                    <td className="px-6 py-4 whitespace-normal leading-tight">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-semibold text-slate-900 whitespace-nowrap">{job.vehicleNo || job.vehicle_no || 'N/A'}</span>
+                                                            {job.customerName || job.customer_name ? (
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-600">{job.customerName || job.customer_name}</span>
+                                                            ) : null}
+                                                            {job.mobile ? (
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-500">
+                                                                    {job.mobile}
+                                                                    {job.userName || job.user_name ? (
+                                                                        <>
+                                                                            <br />
+                                                                            <span className="text-[8px] sm:text-[9px] text-slate-400 italic">({job.userName || job.user_name})</span>
+                                                                        </>
+                                                                    ) : null}
+                                                                </span>
+                                                            ) : job.userName || job.user_name ? (
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-400 italic">({job.userName || job.user_name})</span>
+                                                            ) : null}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-black text-blue-600">Rs.{Math.round(job.price || 0)}</div>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                    <td className="px-6 py-4 whitespace-normal leading-tight">
                                                         {job.workerCommission > 0 ? (
-                                                            <div>
+                                                            <div className="flex flex-col">
                                                                 <div className="text-sm font-black text-emerald-600 font-mono">Rs.{Math.round(job.commissionAmount || 0)}</div>
                                                                 <div className="text-xs text-slate-500">({job.workerCommission}%)</div>
+                                                                {(job.workerName || job.worker_name || job.worker) && (
+                                                                    <span className="text-[8px] sm:text-[9px] text-slate-600">({job.workerName || job.worker_name || job.worker})</span>
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <div className="text-sm text-slate-400">-</div>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                        <div className="flex items-center justify-center gap-2">
+                                                        <div className="relative inline-block dropdown-container">
                                                             <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        // Load inspection
-                                                                        let inspection = null;
-                                                                        try {
-                                                                            const inspResponse = await fetch(API_ROUTES.inspections.show(job.id));
-                                                                            if (inspResponse.ok) {
-                                                                                const inspData = await inspResponse.json();
-                                                                                if (inspData.success) inspection = inspData.inspection;
-                                                                            }
-                                                                        } catch (e) {
-                                                                            console.log('No inspection found');
-                                                                        }
-                                                                        
-                                                                        // Load expense
-                                                                        let expense = null;
-                                                                        try {
-                                                                            const expResponse = await fetch(API_ROUTES.expenses.show(job.id));
-                                                                            if (expResponse.ok) {
-                                                                                const expData = await expResponse.json();
-                                                                                if (expData.success) expense = expData.expense;
-                                                                            }
-                                                                        } catch (e) {
-                                                                            console.log('No expense found');
-                                                                        }
-                                                                        
-                                                                        setSelectedJobForDetail({ ...job, inspection, expense });
-                                                                    } catch (error) {
-                                                                        console.error('Error loading job details:', error);
-                                                                        setSelectedJobForDetail(job);
-                                                                    }
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenDropdownId(openDropdownId === job.id ? null : job.id);
                                                                 }}
-                                                                className="px-3 py-2 bg-blue-500 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-600 transition-colors shadow-md"
-                                                                title="View Details"
+                                                                className="px-4 py-2 bg-slate-600 text-white rounded-lg text-xs font-black uppercase hover:bg-slate-700 transition-colors shadow-md flex items-center gap-2"
+                                                                title="Actions"
                                                             >
-                                                                Detail
+                                                                Actions
+                                                                <svg className={`w-4 h-4 transition-transform ${openDropdownId === job.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
                                                             </button>
-                                                            <button
-                                                                onClick={() => setSelectedJobForEdit(job)}
-                                                                className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-xs font-black uppercase hover:bg-emerald-600 transition-colors shadow-md"
-                                                                title="Edit Job"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (confirm(`Are you sure you want to delete job #${jobIdx + 1}?`)) {
-                                                                        try {
-                                                                            const response = await fetch(API_ROUTES.jobs.destroy(job.id), {
-                                                                                method: 'DELETE',
-                                                                                headers: {
-                                                                                    'Content-Type': 'application/json',
-                                                                                    'X-CSRF-TOKEN': csrfToken,
-                                                                                    'Accept': 'application/json'
+                                                            {openDropdownId === job.id && (
+                                                                <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border-2 border-slate-200 z-50 overflow-hidden">
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDropdownId(null);
+                                                                            try {
+                                                                                // Load inspection
+                                                                                let inspection = null;
+                                                                                try {
+                                                                                    const inspResponse = await fetch(API_ROUTES.inspections.show(job.id));
+                                                                                    if (inspResponse.ok) {
+                                                                                        const inspData = await inspResponse.json();
+                                                                                        if (inspData.success) inspection = inspData.inspection;
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    console.log('No inspection found');
                                                                                 }
-                                                                            });
-                                                                            
-                                                                            const result = await response.json();
-                                                                            
-                                                                            if (result.success) {
-                                                                                setCompletedJobs(prev => prev.filter(j => j.id !== job.id));
-                                                                                alert('Job deleted successfully!');
                                                                                 
-                                                                                // Reload completed jobs from backend
-                                                                                const reloadResponse = await fetch(API_ROUTES.jobs.completed);
-                                                                                const reloadData = await reloadResponse.json();
-                                                                                if (reloadData.success && reloadData.jobs) {
-                                                                                    setCompletedJobs(reloadData.jobs);
+                                                                                // Load expense
+                                                                                let expense = null;
+                                                                                try {
+                                                                                    const expResponse = await fetch(API_ROUTES.expenses.show(job.id));
+                                                                                    if (expResponse.ok) {
+                                                                                        const expData = await expResponse.json();
+                                                                                        if (expData.success) expense = expData.expense;
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    console.log('No expense found');
                                                                                 }
-                                                                            } else {
-                                                                                alert('Error deleting job: ' + (result.message || 'Unknown error'));
+                                                                                
+                                                                                setSelectedJobForDetail({ ...job, inspection, expense });
+                                                                            } catch (error) {
+                                                                                console.error('Error loading job details:', error);
+                                                                                setSelectedJobForDetail(job);
                                                                             }
-                                                                        } catch (error) {
-                                                                            console.error('Error deleting job:', error);
-                                                                            alert('Error deleting job. Please try again.');
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className="px-3 py-2 bg-red-500 text-white rounded-lg text-xs font-black uppercase hover:bg-red-600 transition-colors shadow-md"
-                                                                title="Delete Job"
-                                                            >
-                                                                Delete
-                                                            </button>
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                        </svg>
+                                                                        Detail
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDropdownId(null);
+                                                                            setSelectedJobForEdit(job);
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors border-t border-slate-200 flex items-center gap-2"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                        </svg>
+                                                                        Edit
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDropdownId(null);
+                                                                            if (confirm(`Are you sure you want to delete job #${jobIdx + 1}?`)) {
+                                                                                try {
+                                                                                    const response = await fetch(API_ROUTES.jobs.destroy(job.id), {
+                                                                                        method: 'DELETE',
+                                                                                        headers: {
+                                                                                            'Content-Type': 'application/json',
+                                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                                            'Accept': 'application/json'
+                                                                                        }
+                                                                                    });
+                                                                                    
+                                                                                    const result = await response.json();
+                                                                                    
+                                                                                    if (result.success) {
+                                                                                        setCompletedJobs(prev => prev.filter(j => j.id !== job.id));
+                                                                                        alert('Job deleted successfully!');
+                                                                                        
+                                                                                        // Reload completed jobs from backend
+                                                                                        const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                                        const reloadData = await reloadResponse.json();
+                                                                                        if (reloadData.success && reloadData.jobs) {
+                                                                                            setCompletedJobs(reloadData.jobs);
+                                                                                        }
+                                                                                    } else {
+                                                                                        alert('Error deleting job: ' + (result.message || 'Unknown error'));
+                                                                                    }
+                                                                                } catch (error) {
+                                                                                    console.error('Error deleting job:', error);
+                                                                                    alert('Error deleting job. Please try again.');
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 transition-colors border-t border-slate-200 flex items-center gap-2"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        </svg>
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

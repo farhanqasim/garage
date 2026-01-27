@@ -629,8 +629,20 @@ class CarWashJobController extends Controller
      */
     public function dailyReportData(Request $request)
     {
-        $request->validate(['date' => 'required|date']);
-        $date = $request->date;
+        // Support both single date and date range
+        $dateFrom = $request->get('date_from') ?: $request->get('date');
+        $dateTo = $request->get('date_to') ?: $request->get('date');
+        
+        if (!$dateFrom || !$dateTo) {
+            $request->validate(['date' => 'required|date']);
+            $dateFrom = $dateTo = $request->date;
+        } else {
+            $request->validate([
+                'date_from' => 'required|date',
+                'date_to' => 'required|date'
+            ]);
+        }
+        
         $customerFilter = $request->get('customer'); // vehicle_no
         $workerFilter = $request->get('worker');     // worker_name
         $paymentFilter = $request->get('payment');   // 'cash' | 'bank' (default: cash for tab; if empty treat as all for old links)
@@ -638,10 +650,10 @@ class CarWashJobController extends Controller
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
-        $baseQuery = function ($q) use ($user, $date, $paymentFilter) {
+        $baseQuery = function ($q) use ($user, $dateFrom, $dateTo, $paymentFilter) {
             $this->applyBranchFilter($q, 'branch_id', $user);
             $q->where('status', 'completed');
-            $q->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date]);
+            $q->whereBetween(\DB::raw('DATE(COALESCE(end_time, created_at))'), [$dateFrom, $dateTo]);
             if ($paymentFilter === 'bank') {
                 $q->where('payment_method', 'bank');
             } elseif ($paymentFilter === 'cash') {
@@ -651,7 +663,7 @@ class CarWashJobController extends Controller
             }
         };
 
-        $query = CarWashJob::where($baseQuery)->with(['worker', 'expense', 'bank', 'bankAccount.bank']);
+        $query = CarWashJob::where($baseQuery)->with(['worker', 'expense', 'bank', 'bankAccount.bank', 'user']);
         if ($customerFilter !== null && $customerFilter !== '') {
             $query->where('vehicle_no', $customerFilter);
         }
@@ -672,10 +684,35 @@ class CarWashJobController extends Controller
         })->values();
 
         // Image jaisa: Credit ek row, Debit (expense) alag row. Debit row par credit/worker/commission empty; Credit row par debit empty.
-        $dateCarbon = Carbon::parse($date);
+        $dateCarbon = Carbon::parse($dateFrom);
+        $previousDate = $dateCarbon->copy()->subDay();
+        
+        // Get last transaction time from previous date
+        $lastTransactionQuery = function ($q) use ($user, $previousDate) {
+            $this->applyBranchFilter($q, 'branch_id', $user);
+            $q->where('status', 'completed');
+            $q->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$previousDate->format('Y-m-d')]);
+        };
+        $lastTransaction = CarWashJob::where($lastTransactionQuery)
+            ->orderBy('end_time', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+        
+        $openingTime = '12:00AM';
+        if ($lastTransaction) {
+            $lastTime = $lastTransaction->end_time ?: $lastTransaction->created_at;
+            if ($lastTime) {
+                $openingTime = Carbon::parse($lastTime)->format('h:i A');
+            }
+        }
+        
         $rows = [];
         $rows[] = [
-            'dateTime' => $dateCarbon->format('d/m/y') . ' time 12:00am',
+            'dateTime' => $previousDate->format('d/m/y') . ' Time ' . $openingTime,
+            'date' => $previousDate->format('d/m/y'),
+            'startTime' => '-',
+            'endTime' => '-',
+            'totalTime' => '-',
             'vehicle' => 'Opening',
             'debit' => 0,
             'credit' => 0,
@@ -711,30 +748,68 @@ class CarWashJobController extends Controller
             $dt = $job->end_time ?: $job->created_at;
             $dateTime = $dt ? Carbon::parse($dt)->format('d/m/y') . ' time ' . $dt->format('h:i A') : '-';
             $vehicle = $job->vehicle_no ?: 'N/A';
+            $customerName = $job->customer_name ?: null;
+            $mobile = $job->mobile ?: null;
+            $userName = $job->user ? $job->user->name : null;
+            
+            // Calculate start time, end time, and duration
+            $startTime = $job->start_time ? Carbon::parse($job->start_time)->format('h:i A') : '-';
+            $endTime = $job->end_time ? Carbon::parse($job->end_time)->format('h:i A') : '-';
+            $totalTime = '-';
+            if ($job->start_time && $job->end_time) {
+                $start = Carbon::parse($job->start_time);
+                $end = Carbon::parse($job->end_time);
+                $diff = $start->diff($end);
+                $hours = $diff->h;
+                $minutes = $diff->i;
+                if ($hours > 0) {
+                    $totalTime = $hours . 'h ' . $minutes . 'm';
+                } else {
+                    $totalTime = $minutes . 'm';
+                }
+            }
+            $dateOnly = $dt ? Carbon::parse($dt)->format('d/m/y') : '-';
 
             // Row 1: Credit (debit empty, credit=price, worker, bank, commission, gTotal)
             $running += $price;
-            // Bank column: full bank account detail (Bank - Title (Number)) when bankAccount; else bank name
+            // Bank column: separate fields for bank name, account title, and account number
             $bankName = '-';
+            $bankNameOnly = null;
+            $bankAccountTitle = null;
+            $bankAccountNumber = null;
             if ($job->bankAccount) {
                 $b = $job->bankAccount;
-                $bn = $b->bank ? $b->bank->name : 'N/A';
-                $t = $b->account_title ?? '';
-                $n = $b->account_number ?? '';
-                $label = trim($bn . ($t ? ' - ' . $t : '') . ($n ? ' (' . $n . ')' : ''));
-                $bankName = ($label === '' || (!$t && !$n)) ? ($bn . ' — #' . $b->id) : $label;
+                $bankNameOnly = $b->bank ? $b->bank->name : 'N/A';
+                $bankAccountTitle = $b->account_title ?? '';
+                $bankAccountNumber = $b->account_number ?? '';
+                if ($bankNameOnly && ($bankAccountTitle || $bankAccountNumber)) {
+                    $bankName = $bankNameOnly; // Will be formatted in frontend
+                } else {
+                    $bankName = $bankNameOnly ?: '-';
+                }
             } elseif ($job->bank) {
-                $bankName = $job->bank->name;
+                $bankNameOnly = $job->bank->name;
+                $bankName = $bankNameOnly;
             }
             $rows[] = [
                 'dateTime' => $dateTime,
+                'date' => $dateOnly,
+                'startTime' => $startTime,
+                'endTime' => $endTime,
+                'totalTime' => $totalTime,
                 'vehicle' => $vehicle,
+                'customerName' => $customerName,
+                'mobile' => $mobile,
+                'userName' => $userName,
                 'debit' => 0,
                 'credit' => $price,
                 'gTotal' => $gTotal,
                 'total' => $running,
                 'worker' => $job->worker_name ?: 'N/A',
                 'bankName' => $bankName,
+                'bankNameOnly' => $bankNameOnly,
+                'bankAccountTitle' => $bankAccountTitle,
+                'bankAccountNumber' => $bankAccountNumber,
                 'commission' => $commissionAmount,
                 'jobId' => $job->id,
                 'isOpening' => false,
@@ -745,13 +820,23 @@ class CarWashJobController extends Controller
                 $running -= $expenseAmount;
                 $rows[] = [
                     'dateTime' => $dateTime,
+                    'date' => $dateOnly,
+                    'startTime' => '-',
+                    'endTime' => '-',
+                    'totalTime' => '-',
                     'vehicle' => $vehicle,
+                    'customerName' => $customerName,
+                    'mobile' => $mobile,
+                    'userName' => $userName,
                     'debit' => $expenseAmount,
                     'credit' => 0,
                     'gTotal' => null,
                     'total' => $running,
                     'worker' => '-',
                     'bankName' => '-',
+                    'bankNameOnly' => null,
+                    'bankAccountTitle' => null,
+                    'bankAccountNumber' => null,
                     'commission' => '-',
                     'jobId' => $job->id,
                     'isOpening' => false,
@@ -763,7 +848,8 @@ class CarWashJobController extends Controller
 
         return response()->json([
             'success' => true,
-            'date' => $date,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
             'rows' => $rows,
             'customers' => $customers,
             'workers' => $workers,
@@ -784,8 +870,20 @@ class CarWashJobController extends Controller
      */
     public function dailyReportPdf(Request $request)
     {
-        $request->validate(['date' => 'required|date']);
-        $date = $request->date;
+        // Support both single date and date range
+        $dateFrom = $request->get('date_from') ?: $request->get('date');
+        $dateTo = $request->get('date_to') ?: $request->get('date');
+        
+        if (!$dateFrom || !$dateTo) {
+            $request->validate(['date' => 'required|date']);
+            $dateFrom = $dateTo = $request->date;
+        } else {
+            $request->validate([
+                'date_from' => 'required|date',
+                'date_to' => 'required|date'
+            ]);
+        }
+        
         $customerFilter = $request->get('customer');
         $workerFilter = $request->get('worker');
         $paymentFilter = $request->get('payment');
@@ -795,10 +893,10 @@ class CarWashJobController extends Controller
         $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
         $branchName = ($user->role === 'admin' && !$branchId) ? 'All Branches' : ($branch ? $branch->branch_name : 'All');
 
-        $baseClosure = function ($q) use ($user, $date, $paymentFilter) {
+        $baseClosure = function ($q) use ($user, $dateFrom, $dateTo, $paymentFilter) {
             $this->applyBranchFilter($q, 'branch_id', $user);
             $q->where('status', 'completed');
-            $q->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$date]);
+            $q->whereBetween(\DB::raw('DATE(COALESCE(end_time, created_at))'), [$dateFrom, $dateTo]);
             if ($paymentFilter === 'bank') {
                 $q->where('payment_method', 'bank');
             } elseif ($paymentFilter === 'cash') {
@@ -817,10 +915,31 @@ class CarWashJobController extends Controller
         }
         $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
 
-        $dateCarbon = Carbon::parse($date);
+        $dateCarbon = Carbon::parse($dateFrom);
+        $previousDate = $dateCarbon->copy()->subDay();
+        
+        // Get last transaction time from previous date
+        $lastTransactionQuery = function ($q) use ($user, $previousDate) {
+            $this->applyBranchFilter($q, 'branch_id', $user);
+            $q->where('status', 'completed');
+            $q->whereRaw('DATE(COALESCE(end_time, created_at)) = ?', [$previousDate->format('Y-m-d')]);
+        };
+        $lastTransaction = CarWashJob::where($lastTransactionQuery)
+            ->orderBy('end_time', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+        
+        $openingTime = '12:00AM';
+        if ($lastTransaction) {
+            $lastTime = $lastTransaction->end_time ?: $lastTransaction->created_at;
+            if ($lastTime) {
+                $openingTime = Carbon::parse($lastTime)->format('h:i A');
+            }
+        }
+        
         $rows = [];
         $rows[] = [
-            'dateTime' => $dateCarbon->format('d/m/y') . ' time 12:00am',
+            'dateTime' => $previousDate->format('d/m/y') . ' Time ' . $openingTime,
             'vehicle' => 'Opening',
             'debit' => 0,
             'credit' => 0,
@@ -906,7 +1025,7 @@ class CarWashJobController extends Controller
 
         $data = [
             'date' => $dateCarbon->format('l, F d, Y'),
-            'dateRaw' => $date,
+            'dateRaw' => $dateFrom,
             'branchName' => $branchName,
             'paymentFilter' => $paymentFilter ?? 'cash',
             'rows' => $rows,
@@ -927,6 +1046,15 @@ class CarWashJobController extends Controller
                 'defaultFont' => 'DejaVu Sans',
             ]);
 
-        return $pdf->download('elite-car-wash-daily-report-' . $date . '.pdf');
+        // Format date with current system time for filename
+        $currentDateTime = Carbon::now();
+        $currentTime = $currentDateTime->format('h-i-A'); // e.g., 09-24-PM
+        $currentDate = $currentDateTime->format('d-M-y'); // e.g., 27-Jan-26
+        $dateFromFormatted = Carbon::parse($dateFrom)->format('d-M-y');
+        $dateToFormatted = Carbon::parse($dateTo)->format('d-M-y');
+        $dateForFilename = $dateFrom === $dateTo 
+            ? $dateFromFormatted . '-' . $currentTime 
+            : $dateFromFormatted . '_to_' . $dateToFormatted . '-' . $currentTime;
+        return $pdf->download('elite-car-wash-daily-Report-' . $dateForFilename . '.pdf');
     }
 }

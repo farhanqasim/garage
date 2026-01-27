@@ -1327,6 +1327,8 @@
                 complete: (id) => `{{ url('/car-wash/jobs') }}/${id}/complete`,
                 cancel: (id) => `{{ url('/car-wash/jobs') }}/${id}/cancel`,
                 destroy: (id) => `{{ url('/car-wash/jobs') }}/${id}`,
+                dailyReportData: '{{ route("car-wash.jobs.daily-report-data") }}',
+                dailyReportPdf: '{{ route("car-wash.jobs.daily-report-pdf") }}',
             },
             inspections: {
                 show: (jobId) => `{{ url('/car-wash/inspections') }}/${jobId}`,
@@ -1568,6 +1570,7 @@
             const [shopExpenseDate, setShopExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
             const [shopExpenseForm, setShopExpenseForm] = useState({ category: '', amount: '', notes: '' });
             const [showCompletedJobsModal, setShowCompletedJobsModal] = useState(false);
+            const [showDailyReportModal, setShowDailyReportModal] = useState(false);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
             const [completedJobs, setCompletedJobs] = useState(() => {
@@ -1592,7 +1595,7 @@
             const [selectedWorkerFilter, setSelectedWorkerFilter] = useState(null);
             const [showWorkerFilterModal, setShowWorkerFilterModal] = useState(false);
             const [showCashTransferModal, setShowCashTransferModal] = useState(false);
-            const [transferTab, setTransferTab] = useState('cash'); // 'cash', 'bank', or 'user'
+            const [transferTab, setTransferTab] = useState('cash'); // 'cash' or 'bank' (user merged into cash)
             const [transferMethods, setTransferMethods] = useState([
                 { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
             ]);
@@ -1603,6 +1606,17 @@
             const [branchUsers, setBranchUsers] = useState([]);
             const [selectedUserId, setSelectedUserId] = useState(null);
             const [transferNote, setTransferNote] = useState('');
+            
+            // Daily Report Modal States
+            const [dailyReportDate, setDailyReportDate] = useState(() => new Date().toISOString().split('T')[0]);
+            const [dailyReportCustomer, setDailyReportCustomer] = useState('');
+            const [dailyReportWorker, setDailyReportWorker] = useState('');
+            const [dailyReportData, setDailyReportData] = useState(null);
+            const [dailyReportLoading, setDailyReportLoading] = useState(false);
+            const [dailyReportCustomers, setDailyReportCustomers] = useState([]);
+            const [dailyReportWorkers, setDailyReportWorkers] = useState([]);
+            const [dailyReportBankBalance, setDailyReportBankBalance] = useState(0);
+            const [dailyReportCashBalance, setDailyReportCashBalance] = useState(0);
             
             // Load banks/transfer methods from API
             useEffect(() => {
@@ -1638,6 +1652,28 @@
                         // Keep default methods on error
                     });
             }, []);
+            
+            // Automatically load branch users when transfer modal opens on cash tab
+            useEffect(() => {
+                if (showCashTransferModal && transferTab === 'cash') {
+                    // Load branch users automatically when modal opens
+                    fetch(API_ROUTES.payments.branchUsers, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.users) {
+                                setBranchUsers(data.users);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading branch users:', err);
+                        });
+                }
+            }, [showCashTransferModal, transferTab]);
 
             // Load login user's branch bank accounts (for Bank tab in complete job modal). Refetch via fetchBankAccounts (e.g. after creating in Admin).
             const fetchBankAccounts = React.useCallback(() => {
@@ -1689,6 +1725,134 @@
                     fetchExpenseDetailsReport(today, today);
                 }
             }, [showExpenseDetailsModal, fetchExpenseDetailsReport]);
+
+            // Load Daily Report Data (merged Cash + Bank)
+            const loadDailyReport = React.useCallback(() => {
+                if (!dailyReportDate || !API_ROUTES.jobs?.dailyReportData) return;
+                setDailyReportLoading(true);
+                // Fetch both cash and bank data separately, then merge
+                const baseParams = {
+                    date: dailyReportDate,
+                    customer: dailyReportCustomer || '',
+                    worker: dailyReportWorker || ''
+                };
+                
+                Promise.all([
+                    // Fetch cash data
+                    fetch(API_ROUTES.jobs.dailyReportData + '?' + new URLSearchParams({...baseParams, payment: 'cash'}).toString()).then(r => r.json()),
+                    // Fetch bank data
+                    fetch(API_ROUTES.jobs.dailyReportData + '?' + new URLSearchParams({...baseParams, payment: 'bank'}).toString()).then(r => r.json())
+                ])
+                    .then(([cashData, bankData]) => {
+                        if (cashData.success || bankData.success) {
+                            // Get opening row from cash data (or bank if cash has no data)
+                            const openingRow = (cashData.rows || []).find(r => r.isOpening) || (bankData.rows || []).find(r => r.isOpening);
+                            
+                            // Merge all non-opening rows from both
+                            const cashRows = (cashData.rows || []).filter(r => !r.isOpening);
+                            const bankRows = (bankData.rows || []).filter(r => !r.isOpening);
+                            const mergedRows = openingRow ? [openingRow, ...cashRows, ...bankRows] : [...cashRows, ...bankRows];
+                            
+                            // Merge totals - combine all values
+                            const cashTotals = cashData.totals || {};
+                            const bankTotals = bankData.totals || {};
+                            const mergedTotals = {
+                                totalVehicles: Math.max(cashTotals.totalVehicles || 0, bankTotals.totalVehicles || 0),
+                                totalDebit: (cashTotals.totalDebit || 0) + (bankTotals.totalDebit || 0),
+                                totalCredit: (cashTotals.totalCredit || 0) + (bankTotals.totalCredit || 0),
+                                cashOnHand: (cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0),
+                                totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
+                                totalCommission: (cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0),
+                                sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0))
+                            };
+                            
+                            // Merge customers and workers (unique)
+                            const allCustomers = [...(cashData.customers || []), ...(bankData.customers || [])];
+                            const uniqueCustomers = Array.from(new Map(allCustomers.map(c => [c.value, c])).values());
+                            
+                            const allWorkers = [...(cashData.workers || []), ...(bankData.workers || [])];
+                            const uniqueWorkers = Array.from(new Map(allWorkers.map(w => [w.value, w])).values());
+                            
+                            setDailyReportData({
+                                success: true,
+                                rows: mergedRows,
+                                totals: mergedTotals,
+                                customers: uniqueCustomers,
+                                workers: uniqueWorkers
+                            });
+                            setDailyReportCustomers(uniqueCustomers);
+                            setDailyReportWorkers(uniqueWorkers);
+                        } else {
+                            setDailyReportData(null);
+                            setDailyReportCustomers([]);
+                            setDailyReportWorkers([]);
+                        }
+                    })
+                    .catch(() => {
+                        setDailyReportData(null);
+                        setDailyReportCustomers([]);
+                        setDailyReportWorkers([]);
+                    })
+                    .finally(() => setDailyReportLoading(false));
+            }, [dailyReportDate, dailyReportCustomer, dailyReportWorker]);
+
+            // Load bank balance for daily report modal
+            const loadDailyReportBankBalance = React.useCallback(() => {
+                if (!API_ROUTES.bankAccounts?.index) return;
+                fetch(API_ROUTES.bankAccounts.index, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.bankAccounts) {
+                            const totalBalance = data.bankAccounts.reduce((sum, acc) => {
+                                return sum + (parseFloat(acc.balance) || 0);
+                            }, 0);
+                            setDailyReportBankBalance(Math.round(totalBalance));
+                        } else {
+                            setDailyReportBankBalance(0);
+                        }
+                    })
+                    .catch(() => {
+                        setDailyReportBankBalance(0);
+                    });
+            }, []);
+
+            // Load cash account balance for daily report modal
+            const loadDailyReportCashBalance = React.useCallback(() => {
+                if (!API_ROUTES.payments?.cashAccountBalance) return;
+                fetch(API_ROUTES.payments.cashAccountBalance, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            setDailyReportCashBalance(Math.round(parseFloat(data.balance) || 0));
+                        } else {
+                            setDailyReportCashBalance(0);
+                        }
+                    })
+                    .catch(() => {
+                        setDailyReportCashBalance(0);
+                    });
+            }, []);
+
+            useEffect(() => {
+                if (showDailyReportModal) {
+                    loadDailyReportBankBalance();
+                    loadDailyReportCashBalance();
+                    const timer = setTimeout(() => {
+                        loadDailyReport();
+                    }, 100);
+                    return () => clearTimeout(timer);
+                }
+            }, [showDailyReportModal, dailyReportDate, dailyReportCustomer, dailyReportWorker, loadDailyReport, loadDailyReportBankBalance, loadDailyReportCashBalance]);
 
             const [currentTime, setCurrentTime] = useState(new Date());
             const [inspectionModalJobId, setInspectionModalJobId] = useState(null);
@@ -2991,9 +3155,9 @@
                                         setShowCompletedJobsModal(true);
                                     }
                                 }}
-                                onClick={() => setShowCompletedJobsModal(true)}
-                                title="Click or long press to view completed jobs"
-                                aria-label="Total revenue today. Click to view details"
+                                onClick={() => setShowDailyReportModal(true)}
+                                title="Click to view daily report"
+                                aria-label="Total revenue today. Click to view daily report"
                             >
                                 <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
                                 <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
@@ -5082,9 +5246,25 @@
                                             <div className="flex border-b border-slate-200 bg-slate-50">
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
+                                                    onClick={async () => {
                                                         setTransferTab('cash');
                                                         setSelectedTransferMethod(null);
+                                                        setSelectedUserId(null);
+                                                        // Load branch users when switching to cash tab
+                                                        try {
+                                                            const response = await fetch(API_ROUTES.payments.branchUsers, {
+                                                                headers: {
+                                                                    'Accept': 'application/json',
+                                                                    'X-Requested-With': 'XMLHttpRequest'
+                                                                }
+                                                            });
+                                                            const data = await response.json();
+                                                            if (data.success && data.users) {
+                                                                setBranchUsers(data.users);
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error loading branch users:', error);
+                                                        }
                                                     }}
                                                     className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
                                                         transferTab === 'cash'
@@ -5108,35 +5288,6 @@
                                                     }`}
                                                 >
                                                     Bank
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        setTransferTab('user');
-                                                        setSelectedUserId(null);
-                                                        // Load branch users when switching to user tab
-                                                        try {
-                                                            const response = await fetch(API_ROUTES.payments.branchUsers, {
-                                                                headers: {
-                                                                    'Accept': 'application/json',
-                                                                    'X-Requested-With': 'XMLHttpRequest'
-                                                                }
-                                                            });
-                                                            const data = await response.json();
-                                                            if (data.success && data.users) {
-                                                                setBranchUsers(data.users);
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error loading branch users:', error);
-                                                        }
-                                                    }}
-                                                    className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
-                                                        transferTab === 'user'
-                                                            ? 'bg-green-500 text-white border-b-2 border-green-600'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    User
                                                 </button>
                                             </div>
                                             
@@ -5166,15 +5317,18 @@
                                                             />
                                                         </div>
                                                         
-                                                        {/* Transfer Methods - Only Cash Methods */}
+                                                        {/* Transfer Methods - Cash Methods */}
                                                         <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Transfer Method</label>
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Cash Transfer Method</label>
                                                             <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                                                                 {transferMethods.filter(method => method.type === 'cash').map((method) => (
                                                                     <button
                                                                         key={method.id}
                                                                         type="button"
-                                                                        onClick={() => setSelectedTransferMethod(method.id)}
+                                                                        onClick={() => {
+                                                                            setSelectedTransferMethod(method.id);
+                                                                            setSelectedUserId(null); // Clear user selection when cash method is selected
+                                                                        }}
                                                                         className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all relative ${
                                                                             selectedTransferMethod === method.id
                                                                                 ? 'bg-yellow-500 text-white border-yellow-600 shadow-lg scale-105'
@@ -5203,6 +5357,70 @@
                                                                 ))}
                                                             </div>
                                                         </div>
+                                                        
+                                                        {/* Divider */}
+                                                        <div className="mb-4 sm:mb-5 flex items-center gap-2">
+                                                            <div className="flex-1 border-t border-slate-300"></div>
+                                                            <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase">OR</span>
+                                                            <div className="flex-1 border-t border-slate-300"></div>
+                                                        </div>
+                                                        
+                                                        {/* Select User */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer to User</label>
+                                                            {branchUsers.length === 0 ? (
+                                                                <div className="text-center py-4 text-slate-500 text-sm bg-slate-50 rounded-xl border-2 border-slate-200">
+                                                                    No users found in your branch
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                                    {branchUsers.map((user) => (
+                                                                        <button
+                                                                            key={user.id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedUserId(user.id);
+                                                                                setSelectedTransferMethod(null); // Clear cash method selection when user is selected
+                                                                            }}
+                                                                            className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all text-left ${
+                                                                                selectedUserId === user.id
+                                                                                    ? 'bg-green-500 text-white border-green-600 shadow-lg'
+                                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            <div className="font-bold text-sm sm:text-base">{user.name}</div>
+                                                                            <div className={`text-xs sm:text-sm mt-1 ${
+                                                                                selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
+                                                                            }`}>
+                                                                                {user.email}
+                                                                            </div>
+                                                                            {user.phone && (
+                                                                                <div className={`text-xs mt-0.5 ${
+                                                                                    selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
+                                                                                }`}>
+                                                                                    {user.phone}
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Transfer Note - Only show when user is selected */}
+                                                        {selectedUserId && (
+                                                            <div className="mb-4 sm:mb-5">
+                                                                <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Note (Optional)</label>
+                                                                <textarea
+                                                                    value={transferNote}
+                                                                    onChange={(e) => setTransferNote(e.target.value)}
+                                                                    placeholder="Add a note for this transfer..."
+                                                                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-green-500 focus:outline-none"
+                                                                    rows="2"
+                                                                    maxLength="500"
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </>
                                                 ) : transferTab === 'bank' ? (
                                                     <>
@@ -5371,82 +5589,6 @@
                                                             </button>
                                                         </div>
                                                     </>
-                                                ) : transferTab === 'user' ? (
-                                                    <>
-                                                        {/* Available Cash for User Transfer */}
-                                                        <div className="mb-4 sm:mb-5 bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-green-200">
-                                                            <div className="text-xs sm:text-sm font-bold text-green-700 uppercase mb-1">Available Cash</div>
-                                                            <div className="text-2xl sm:text-3xl font-black text-green-600 font-mono">
-                                                                Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Transfer Amount */}
-                                                        <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer Amount</label>
-                                                            <input
-                                                                type="number"
-                                                                value={transferAmount}
-                                                                onChange={(e) => setTransferAmount(e.target.value)}
-                                                                placeholder="Enter amount"
-                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-green-500 focus:outline-none font-mono"
-                                                                min="0"
-                                                                max={stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
-                                                            />
-                                                        </div>
-                                                        
-                                                        {/* Select User */}
-                                                        <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select User</label>
-                                                            {branchUsers.length === 0 ? (
-                                                                <div className="text-center py-4 text-slate-500 text-sm">
-                                                                    No users found in your branch
-                                                                </div>
-                                                            ) : (
-                                                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                                                    {branchUsers.map((user) => (
-                                                                        <button
-                                                                            key={user.id}
-                                                                            type="button"
-                                                                            onClick={() => setSelectedUserId(user.id)}
-                                                                            className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all text-left ${
-                                                                                selectedUserId === user.id
-                                                                                    ? 'bg-green-500 text-white border-green-600 shadow-lg'
-                                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                                                            }`}
-                                                                        >
-                                                                            <div className="font-bold text-sm sm:text-base">{user.name}</div>
-                                                                            <div className={`text-xs sm:text-sm mt-1 ${
-                                                                                selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
-                                                                            }`}>
-                                                                                {user.email}
-                                                                            </div>
-                                                                            {user.phone && (
-                                                                                <div className={`text-xs mt-0.5 ${
-                                                                                    selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
-                                                                                }`}>
-                                                                                    {user.phone}
-                                                                                </div>
-                                                                            )}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        
-                                                        {/* Transfer Note */}
-                                                        <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Note (Optional)</label>
-                                                            <textarea
-                                                                value={transferNote}
-                                                                onChange={(e) => setTransferNote(e.target.value)}
-                                                                placeholder="Add a note for this transfer..."
-                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-green-500 focus:outline-none"
-                                                                rows="2"
-                                                                maxLength="500"
-                                                            />
-                                                        </div>
-                                                    </>
                                                 ) : null}
                                             </div>
                                             
@@ -5467,13 +5609,8 @@
                                                             return;
                                                         }
                                                         
-                                                        // Handle user transfer
-                                                        if (transferTab === 'user') {
-                                                            if (!selectedUserId) {
-                                                                alert('Please select a user to transfer to.');
-                                                                return;
-                                                            }
-                                                            
+                                                        // Handle user transfer (if user is selected in cash tab)
+                                                        if (transferTab === 'cash' && selectedUserId) {
                                                             try {
                                                                 const response = await fetch(API_ROUTES.payments.transferToUser, {
                                                                     method: 'POST',
@@ -5506,6 +5643,7 @@
                                                                 setTransferAmount('');
                                                                 setSelectedUserId(null);
                                                                 setTransferNote('');
+                                                                setSelectedTransferMethod(null);
                                                             } catch (error) {
                                                                 console.error('Error transferring cash:', error);
                                                                 alert('Error transferring cash. Please try again.');
@@ -5513,18 +5651,76 @@
                                                             return;
                                                         }
                                                         
-                                                        // Handle cash/bank transfer (existing logic)
-                                                        if (!selectedTransferMethod) {
-                                                            alert('Please select a transfer method.');
+                                                        // Handle cash transfer method (if cash method is selected)
+                                                        if (transferTab === 'cash' && !selectedTransferMethod && !selectedUserId) {
+                                                            alert('Please select a cash transfer method or a user to transfer to.');
                                                             return;
                                                         }
                                                         
-                                                        // Transfer cash
-                                                        try {
-                                                            const selectedMethod = transferMethods.find(m => m.id === selectedTransferMethod);
-                                                            
-                                                            // If it's a bank transfer (has bankId), save to database
-                                                            if (selectedMethod?.bankId) {
+                                                        // Handle bank transfer validation
+                                                        if (transferTab === 'bank' && !selectedBankAccountId) {
+                                                            alert('Please select a bank account.');
+                                                            return;
+                                                        }
+                                                        
+                                                        // Transfer cash to cash method
+                                                        if (transferTab === 'cash' && selectedTransferMethod) {
+                                                            try {
+                                                                const selectedMethod = transferMethods.find(m => m.id === selectedTransferMethod);
+                                                                
+                                                                // If it's a bank transfer (has bankId), save to database
+                                                                if (selectedMethod?.bankId) {
+                                                                    const response = await fetch(API_ROUTES.cashTransfers.store, {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                            'Accept': 'application/json'
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            bank_id: selectedMethod.bankId,
+                                                                            amount: amount,
+                                                                            notes: `Cash transfer to ${selectedMethod.name}`
+                                                                        })
+                                                                    });
+                                                                    
+                                                                    const result = await response.json();
+                                                                    
+                                                                    if (!result.success) {
+                                                                        alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                        return;
+                                                                    }
+                                                                }
+                                                                
+                                                                // Refresh cash balance from database after transfer
+                                                                refreshCashBalance();
+                                                                
+                                                                // Update transfer method balance
+                                                                setTransferMethods(prev => prev.map(method => 
+                                                                    method.id === selectedTransferMethod
+                                                                        ? { ...method, balance: (method.balance || 0) + amount }
+                                                                        : method
+                                                                ));
+                                                                
+                                                                alert(`Rs.${amount} transferred to ${selectedMethod?.name || 'selected method'} successfully!`);
+                                                                
+                                                                setShowCashTransferModal(false);
+                                                                setTransferAmount('');
+                                                                setSelectedTransferMethod(null);
+                                                                setSelectedUserId(null);
+                                                                setTransferNote('');
+                                                            } catch (error) {
+                                                                console.error('Error transferring cash:', error);
+                                                                alert('Error transferring cash. Please try again.');
+                                                            }
+                                                            return;
+                                                        }
+                                                        
+                                                        // Handle bank transfer
+                                                        if (transferTab === 'bank' && selectedBankAccountId) {
+                                                            try {
+                                                                const selectedAccount = bankAccounts.find(a => a.id === selectedBankAccountId);
+                                                                
                                                                 const response = await fetch(API_ROUTES.cashTransfers.store, {
                                                                     method: 'POST',
                                                                     headers: {
@@ -5533,9 +5729,9 @@
                                                                         'Accept': 'application/json'
                                                                     },
                                                                     body: JSON.stringify({
-                                                                        bank_id: selectedMethod.bankId,
+                                                                        bank_account_id: selectedBankAccountId,
                                                                         amount: amount,
-                                                                        notes: `Cash transfer to ${selectedMethod.name}`
+                                                                        notes: `Cash transfer to ${selectedAccount?.bankName || 'Bank Account'}`
                                                                     })
                                                                 });
                                                                 
@@ -5545,37 +5741,39 @@
                                                                     alert('Error transferring cash: ' + (result.message || 'Unknown error'));
                                                                     return;
                                                                 }
+                                                                
+                                                                // Refresh cash balance from database after transfer
+                                                                refreshCashBalance();
+                                                                
+                                                                // Refresh bank accounts to update balance
+                                                                fetchBankAccounts();
+                                                                
+                                                                alert(result.message || `Rs.${amount} transferred to ${selectedAccount?.bankName || 'Bank Account'} successfully!`);
+                                                                
+                                                                setShowCashTransferModal(false);
+                                                                setTransferAmount('');
+                                                                setSelectedBankAccountId(null);
+                                                                setSelectedTransferMethod(null);
+                                                                setSelectedUserId(null);
+                                                                setTransferNote('');
+                                                            } catch (error) {
+                                                                console.error('Error transferring cash to bank:', error);
+                                                                alert('Error transferring cash to bank. Please try again.');
                                                             }
-                                                            
-                                                            // Refresh cash balance from database after transfer
-                                                            refreshCashBalance();
-                                                            
-                                                            // Update transfer method balance
-                                                            setTransferMethods(prev => prev.map(method => 
-                                                                method.id === selectedTransferMethod
-                                                                    ? { ...method, balance: (method.balance || 0) + amount }
-                                                                    : method
-                                                            ));
-                                                            
-                                                            alert(`Rs.${amount} transferred to ${selectedMethod?.name || 'selected method'} successfully!`);
-                                                            
-                                                            setShowCashTransferModal(false);
-                                                            setTransferAmount('');
-                                                            setSelectedTransferMethod(null);
-                                                        } catch (error) {
-                                                            console.error('Error transferring cash:', error);
-                                                            alert('Error transferring cash. Please try again.');
+                                                            return;
                                                         }
                                                     }}
                                                     className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
                                                         transferTab === 'cash'
-                                                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
-                                                            : transferTab === 'bank'
-                                                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
-                                                            : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
+                                                            ? selectedUserId 
+                                                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
+                                                                : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
+                                                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
                                                     }`}
                                                 >
-                                                    {transferTab === 'cash' ? 'Transfer Cash' : transferTab === 'bank' ? 'Transfer to Bank' : 'Transfer to User'}
+                                                    {transferTab === 'cash' 
+                                                        ? (selectedUserId ? 'Transfer to User' : 'Transfer Cash')
+                                                        : 'Transfer to Bank'}
                                                 </button>
                                             </div>
                                         </div>
@@ -5998,6 +6196,226 @@
                                                     <button
                                                         onClick={() => setShowCompletedJobsModal(false)}
                                                         className="px-4 sm:px-6 py-1.5 sm:py-2 md:py-2.5 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                                                    >
+                                                        Close
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Daily Report Modal */}
+                                {showDailyReportModal && (
+                                    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-0 overflow-y-auto" onClick={() => setShowDailyReportModal(false)}>
+                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-none sm:rounded-xl md:rounded-[60px] lg:rounded-[70px] shadow-[0_25px_100px_-12px_rgba(0,0,0,0.5)] w-full min-h-full sm:min-h-0 sm:h-auto sm:max-h-[98vh] sm:max-w-7xl sm:my-4 overflow-hidden flex flex-col border-0 sm:border-2 md:border-[6px] border-blue-300/60 relative" onClick={(e) => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="relative p-2 sm:p-3 md:p-5 lg:p-6 bg-gradient-to-br from-blue-600 via-indigo-600 via-purple-600 to-blue-600 text-white overflow-hidden flex-shrink-0">
+                                                <div className="absolute inset-0">
+                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl -mr-32 -mt-32"></div>
+                                                    <div className="absolute bottom-0 left-0 w-56 h-56 bg-white/10 rounded-full blur-2xl -ml-28 -mb-28"></div>
+                                                </div>
+                                                <div className="relative flex items-center justify-between z-10 gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h2 className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black uppercase tracking-tight drop-shadow-lg truncate">
+                                                            DAILY JOBS REPORT
+                                                        </h2>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setShowDailyReportModal(false)}
+                                                        className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-xl border-2 border-white/50 hover:scale-110 hover:rotate-90 shadow-lg flex-shrink-0"
+                                                        aria-label="Close daily report modal"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Filters */}
+                                            <div className="p-2 sm:p-3 md:p-4 lg:p-5 bg-white border-b-2 border-slate-200 flex-shrink-0">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+                                                    <div className="sm:col-span-1">
+                                                        <label className="block text-[10px] sm:text-xs md:text-sm font-black text-slate-700 uppercase mb-1 sm:mb-2">Report Date</label>
+                                                        <input
+                                                            type="date"
+                                                            value={dailyReportDate}
+                                                            onChange={(e) => setDailyReportDate(e.target.value)}
+                                                            className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 border-2 border-slate-300 rounded-lg sm:rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-[11px] sm:text-xs md:text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="sm:col-span-1">
+                                                        <label className="block text-[10px] sm:text-xs md:text-sm font-black text-slate-700 uppercase mb-1 sm:mb-2">Customer (Vehicle)</label>
+                                                        <select
+                                                            value={dailyReportCustomer}
+                                                            onChange={(e) => setDailyReportCustomer(e.target.value)}
+                                                            className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 border-2 border-slate-300 rounded-lg sm:rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-[11px] sm:text-xs md:text-sm"
+                                                        >
+                                                            <option value="">All</option>
+                                                            {dailyReportCustomers.map((c) => (
+                                                                <option key={c.value} value={c.value}>
+                                                                    {c.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="sm:col-span-1">
+                                                        <label className="block text-[10px] sm:text-xs md:text-sm font-black text-slate-700 uppercase mb-1 sm:mb-2">Worker</label>
+                                                        <select
+                                                            value={dailyReportWorker}
+                                                            onChange={(e) => setDailyReportWorker(e.target.value)}
+                                                            className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 border-2 border-slate-300 rounded-lg sm:rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-[11px] sm:text-xs md:text-sm"
+                                                        >
+                                                            <option value="">All</option>
+                                                            {dailyReportWorkers.map((w) => (
+                                                                <option key={w.value} value={w.value}>
+                                                                    {w.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="sm:col-span-1 lg:col-span-2 xl:col-span-1 flex flex-col sm:flex-row gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={loadDailyReport}
+                                                            className="flex-1 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-black uppercase transition-colors"
+                                                        >
+                                                            Load Report
+                                                        </button>
+                                                        {dailyReportData && dailyReportData.totals && (
+                                                            <a
+                                                                href={API_ROUTES.jobs.dailyReportPdf + '?date=' + encodeURIComponent(dailyReportDate) + '&customer=' + encodeURIComponent(dailyReportCustomer || '') + '&worker=' + encodeURIComponent(dailyReportWorker || '')}
+                                                                target="_blank"
+                                                                className="flex-1 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-black uppercase transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                                                            >
+                                                                <svg className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                                <span className="hidden sm:inline">Download PDF</span>
+                                                                <span className="sm:hidden">PDF</span>
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Summary Cards */}
+                                            {dailyReportData && dailyReportData.totals && (
+                                                <div className="p-2 sm:p-3 md:p-4 lg:p-5 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b-2 border-slate-200 flex-shrink-0 overflow-x-auto">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4 min-w-max sm:min-w-0">
+                                                        <div className="bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-slate-500 uppercase leading-tight">Total Vehicles</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-slate-900 mt-0.5 sm:mt-1">{dailyReportData.totals.totalVehicles || 0}</p>
+                                                        </div>
+                                                        <div className="bg-amber-50 rounded-lg sm:rounded-xl border-2 border-amber-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-amber-800 uppercase leading-tight">Total Refreshment Expenses</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-amber-800 mt-0.5 sm:mt-1">Rs.{Math.round(dailyReportData.totals.totalDebit || 0)}</p>
+                                                        </div>
+                                                        <div className="bg-blue-50 rounded-lg sm:rounded-xl border-2 border-blue-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-blue-700 uppercase leading-tight">Total Credit</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-blue-700 mt-0.5 sm:mt-1">Rs.{Math.round(dailyReportData.totals.totalCredit || 0)}</p>
+                                                        </div>
+                                                        <div className="bg-indigo-100 rounded-lg sm:rounded-xl border-2 border-indigo-300 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-indigo-900 uppercase leading-tight">Cash on Hand</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-indigo-900 mt-0.5 sm:mt-1">Rs.{dailyReportCashBalance}</p>
+                                                        </div>
+                                                        <div className="bg-purple-100 rounded-lg sm:rounded-xl border-2 border-purple-300 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-purple-900 uppercase leading-tight">Bank Balance</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-purple-900 mt-0.5 sm:mt-1">Rs.{dailyReportBankBalance}</p>
+                                                        </div>
+                                                        <div className="bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-slate-500 uppercase leading-tight">Total Workers</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-slate-900 mt-0.5 sm:mt-1">{dailyReportData.totals.totalWorkers || 0}</p>
+                                                        </div>
+                                                        <div className="bg-emerald-50 rounded-lg sm:rounded-xl border-2 border-emerald-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
+                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-emerald-800 uppercase leading-tight">Total Commission</p>
+                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-emerald-800 mt-0.5 sm:mt-1">Rs.{Math.round(dailyReportData.totals.totalCommission || 0)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Content - Report Table */}
+                                            <div className="flex-1 overflow-y-auto overflow-x-auto p-1 sm:p-2 md:p-4 lg:p-6 bg-gradient-to-b from-slate-50 via-white to-slate-50 max-h-[calc(100vh-400px)] sm:max-h-[calc(100vh-450px)] md:max-h-[calc(100vh-500px)]">
+                                                {!dailyReportData || !dailyReportData.rows || dailyReportData.rows.length === 0 ? (
+                                                    <div className="text-center py-6 sm:py-8 md:py-12 lg:py-16">
+                                                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 md:mb-6 shadow-lg">
+                                                            <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-16 lg:h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                            </svg>
+                                                        </div>
+                                                        <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-black text-slate-800 uppercase mb-1 sm:mb-2">No Data Available</p>
+                                                        <p className="text-[10px] sm:text-xs md:text-sm text-slate-500 px-4">No jobs found for the selected date and filters</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                                                        <div className="overflow-x-auto -mx-1 sm:mx-0">
+                                                            <table className="w-full min-w-[600px] sm:min-w-[800px]">
+                                                                <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
+                                                                    <tr>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Date & Time</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Vehicle</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Debit</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Credit</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Total</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Worker</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Bank</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Commission</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">G. Total</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-200">
+                                                                    {dailyReportData.rows.map((row, idx) => {
+                                                                        const fmtNum = (n) => {
+                                                                            if (n === 0 || n === '-') return n === 0 ? '0' : '-';
+                                                                            return 'Rs.' + Math.round(Number(n) || 0);
+                                                                        };
+                                                                        const creditStr = (row.credit || 0) > 0 ? fmtNum(row.credit) : '-';
+                                                                        const gTotalStr = (row.gTotal != null && row.gTotal !== '') ? fmtNum(row.gTotal) : '-';
+                                                                        const totalStr = row.total != null ? fmtNum(row.total) : '-';
+                                                                        const expenseStr = (row.debit || 0) > 0 ? fmtNum(row.debit) : '-';
+                                                                        const commStr = (row.commission !== '-' && row.commission != null && (row.commission || 0) > 0) ? fmtNum(row.commission) : '-';
+                                                                        const rowClass = row.isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
+                                                                        return (
+                                                                            <tr key={idx} className={rowClass}>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-700 whitespace-nowrap">{row.dateTime || '-'}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-slate-900 whitespace-nowrap">{row.vehicle || '-'}</td>
+                                                                                <td className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right whitespace-nowrap ${(row.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500'}`}>{expenseStr}</td>
+                                                                                <td className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right whitespace-nowrap ${(row.credit || 0) > 0 ? 'font-bold text-blue-600' : 'text-slate-500'}`}>{creditStr}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right font-bold text-slate-900 whitespace-nowrap">{totalStr}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-700 whitespace-nowrap">{row.worker || '-'}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-700 whitespace-nowrap">{row.bankName || '-'}</td>
+                                                                                <td className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right whitespace-nowrap ${(row.commission !== '-' && (row.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500'}`}>{commStr}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right font-bold text-indigo-600 whitespace-nowrap">{gTotalStr}</td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                    {dailyReportData.totals && (
+                                                                        <tr className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                                                                            <td colSpan="2" className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-900 uppercase whitespace-nowrap">Totals</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-amber-700 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.totalDebit || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-blue-600 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.totalCredit || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-slate-900 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.cashOnHand || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm whitespace-nowrap"></td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm whitespace-nowrap"></td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-emerald-600 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.totalCommission || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-indigo-600 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.sumGtotal != null ? dailyReportData.totals.sumGtotal : ((dailyReportData.totals.cashOnHand || 0) - (dailyReportData.totals.totalCommission || 0)))}</td>
+                                                                        </tr>
+                                                                    )}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="p-2 sm:p-3 md:p-4 lg:p-5 border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 flex-shrink-0">
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        onClick={() => setShowDailyReportModal(false)}
+                                                        className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-2.5 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-black uppercase hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                                                     >
                                                         Close
                                                     </button>

@@ -26,104 +26,112 @@
         </header>
 
         <main class="max-w-7xl mx-auto p-6">
-            <!-- Tabs: Cash | Bank -->
-            <div class="flex gap-2 mb-4">
-                <button type="button" id="tabCash" class="tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 bg-indigo-600 text-white border-indigo-600">Cash</button>
-                <button type="button" id="tabBank" class="tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 bg-white text-slate-600 border-slate-300 hover:border-indigo-400">Bank</button>
-            </div>
-
             <!-- Date, Filters & Actions -->
             <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6 mb-6">
                 <div class="flex flex-wrap items-end gap-4">
-                    <div>
-                        <label class="block text-sm font-black text-slate-700 uppercase mb-2">Report Date</label>
-                        <input type="date" id="reportDate" value="{{ $selectedDate }}"
-                            class="px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none" />
+                    <div class="flex-1">
+                        <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Select Range</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="date" id="reportDateFrom" value="{{ $selectedDate }}"
+                                class="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs" />
+                            <span class="text-[10px] font-bold text-slate-600 whitespace-nowrap">To</span>
+                            <input type="date" id="reportDateTo" value="{{ $selectedDate }}"
+                                class="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs" />
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-black text-slate-700 uppercase mb-2">Customer (Vehicle)</label>
-                        <select id="filterCustomer" class="px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none min-w-[180px]">
-                            <option value="">All</option>
-                        </select>
+                    <div class="flex items-end gap-4 flex-1">
+                        <div class="flex-1">
+                            <label class="block text-sm font-bold text-slate-700 uppercase mb-2" style="font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';">Customer (Vehicle)</label>
+                            <select id="filterCustomer" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center" style="font-family: 'Segoe UI Emoji';">Worker</label>
+                            <select id="filterWorker" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
+                                <option value="">All</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-black text-slate-700 uppercase mb-2">Worker</label>
-                        <select id="filterWorker" class="px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none min-w-[160px]">
-                            <option value="">All</option>
-                        </select>
+                    <div class="flex items-end gap-2">
+                        <button type="button" id="btnDownloadPdf" disabled
+                            class="px-5 py-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span class="hidden sm:inline">Download PDF</span>
+                            <span class="sm:hidden">PDF</span>
+                        </button>
+                        <button type="button" id="btnSendWhatsApp" disabled
+                            class="px-5 py-2.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                            </svg>
+                            <span class="hidden sm:inline">Send WhatsApp</span>
+                            <span class="sm:hidden">WA</span>
+                        </button>
                     </div>
-                    <button type="button" id="btnLoadReport"
-                        class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black uppercase transition-colors">
-                        Load Report
-                    </button>
-                    <button type="button" id="btnDownloadPdf" disabled
-                        class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black uppercase transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download PDF
-                    </button>
                 </div>
             </div>
 
-            <!-- Summary (like image: total vehicles, total debit, total credit, cash on hand, total workers, total commission) -->
-            <div id="totalsSection" class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6 hidden">
-                <div class="bg-white rounded-xl border-2 border-slate-200 p-4 shadow">
-                    <p class="text-xs font-black text-slate-500 uppercase">Total Vehicles</p>
-                    <p id="totVehicles" class="text-xl font-black text-slate-900">0</p>
+            <!-- Summary (like image: total vehicles, total debit, total credit, cash on hand, bank balance, total workers, total commission) -->
+            <div id="totalsSection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6 hidden">
+                <div class="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
+                    <p class="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Vehicles</p>
+                    <p id="totVehicles" class="text-base sm:text-lg font-black text-slate-900">0</p>
                 </div>
-                <div class="bg-amber-50 rounded-xl border-2 border-amber-200 p-4 shadow">
-                    <p class="text-xs font-black text-amber-800 uppercase">Total Refreshment Expenses</p>
-                    <p id="totDebit" class="text-xl font-black text-amber-800">Rs.0</p>
+                <div class="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
+                    <p class="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Workers</p>
+                    <p id="totWorkers" class="text-base sm:text-lg font-black text-slate-900">0</p>
                 </div>
-                <div class="bg-blue-50 rounded-xl border-2 border-blue-200 p-4 shadow">
-                    <p class="text-xs font-black text-blue-700 uppercase">Total Credit</p>
-                    <p id="totCredit" class="text-xl font-black text-blue-700">Rs.0</p>
+                <div id="cashOnHandCard" class="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg border-2 border-indigo-400 p-2.5 sm:p-3 shadow-sm cursor-pointer hover:bg-indigo-200 hover:border-indigo-500 hover:shadow transition-all" title="Click for breakdown: kahan say kitna aya">
+                    <p class="text-[9px] sm:text-[10px] font-bold text-indigo-900 uppercase mb-1">Cash on Hand</p>
+                    <p id="totCashOnHand" class="text-base sm:text-lg font-black text-indigo-900">Rs.0</p>
                 </div>
-                <div id="cashOnHandCard" class="bg-indigo-100 rounded-xl border-2 border-indigo-300 p-4 shadow cursor-pointer hover:bg-indigo-200 hover:border-indigo-400 transition-colors" title="Click for breakdown: kahan say kitna aya">
-                    <p class="text-xs font-black text-indigo-900 uppercase">Cash on Hand</p>
-                    <p id="totCashOnHand" class="text-xl font-black text-indigo-900">Rs.0</p>
+                <div id="bankBalanceCard" class="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg border-2 border-purple-400 p-2.5 sm:p-3 shadow-sm cursor-pointer hover:bg-purple-200 hover:border-purple-500 hover:shadow transition-all" title="Bank Account Balance">
+                    <p class="text-[9px] sm:text-[10px] font-bold text-purple-900 uppercase mb-1">Bank Balance</p>
+                    <p id="totBankBalance" class="text-base sm:text-lg font-black text-purple-900">Rs.0</p>
                 </div>
-                <div class="bg-white rounded-xl border-2 border-slate-200 p-4 shadow">
-                    <p class="text-xs font-black text-slate-500 uppercase">Total Workers</p>
-                    <p id="totWorkers" class="text-xl font-black text-slate-900">0</p>
+                <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
+                    <p class="text-[9px] sm:text-[10px] font-bold text-amber-800 uppercase mb-1">Ref Expence</p>
+                    <p id="totDebit" class="text-base sm:text-lg font-black text-amber-800">Rs.0</p>
                 </div>
-                <div class="bg-emerald-50 rounded-xl border-2 border-emerald-200 p-4 shadow">
-                    <p class="text-xs font-black text-emerald-800 uppercase">Total Commission</p>
-                    <p id="totCommission" class="text-xl font-black text-emerald-800">Rs.0</p>
+                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
+                    <p class="text-[9px] sm:text-[10px] font-bold text-emerald-800 uppercase mb-1">Commission</p>
+                    <p id="totCommission" class="text-base sm:text-lg font-black text-emerald-800">Rs.0</p>
                 </div>
             </div>
 
             <!-- Ledger Table: Date & Time | Vehicle | Debit | Credit | Total | Worker | Commission -->
             <div id="tableSection" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 overflow-hidden hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full">
+                    <table class="w-full min-w-[1200px] sm:min-w-[1400px]">
                         <thead class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-black uppercase">Date & Time</th>
-                                <th class="px-4 py-3 text-left text-xs font-black uppercase">Vehicle</th>
-                                <th class="px-4 py-3 text-right text-xs font-black uppercase">Refreshment Expenses</th>
-                                <th class="px-4 py-3 text-right text-xs font-black uppercase">Credit</th>
-                                <th class="px-4 py-3 text-right text-xs font-black uppercase">Total</th>
-                                <th class="px-4 py-3 text-left text-xs font-black uppercase">Worker</th>
-                                <th class="px-4 py-3 text-left text-xs font-black uppercase">Bank</th>
-                                <th class="px-4 py-3 text-right text-xs font-black uppercase">Commission</th>
-                                <th class="px-4 py-3 text-right text-xs font-black uppercase">G.total</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Date & Time</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Vehicle</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">REF EXPENCE</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-indigo-500/50">Cash Credit</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-indigo-500/50">Cash Total</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-purple-500/50">Bank Credit</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-purple-500/50">Bank Total</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Commission</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">G.total</th>
                             </tr>
                         </thead>
                         <tbody id="reportTableBody" class="divide-y divide-slate-200">
                         </tbody>
                         <tfoot>
                             <tr class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-black">
-                                <td class="px-4 py-3">Total</td>
-                                <td class="px-4 py-3">-</td>
-                                <td id="ftExpenses" class="px-4 py-3 text-right">Rs.0.00</td>
-                                <td id="ftCredit" class="px-4 py-3 text-right">Rs.0.00</td>
-                                <td id="ftTotal" class="px-4 py-3 text-right">Rs.0.00</td>
-                                <td class="px-4 py-3">-</td>
-                                <td class="col-bank px-4 py-3">-</td>
-                                <td id="ftCommission" class="px-4 py-3 text-right">Rs.0.00</td>
-                                <td id="ftGtotal" class="px-4 py-3 text-right">Rs.0.00</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap font-bold">TOTAL</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">-</td>
+                                <td id="ftExpenses" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
+                                <td id="ftCashCredit" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-indigo-500/30">Rs.0.00</td>
+                                <td id="ftCashTotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-indigo-500/30">Rs.0.00</td>
+                                <td id="ftBankCredit" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-purple-500/30">Rs.0.00</td>
+                                <td id="ftBankTotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-purple-500/30">Rs.0.00</td>
+                                <td id="ftCommission" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
+                                <td id="ftGtotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -142,17 +150,104 @@
             </div>
         </main>
 
-        <!-- Cash on Hand Detail Modal -->
-        <div id="cashOnHandModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
-            <div class="bg-white rounded-2xl shadow-2xl border-2 border-indigo-200 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
-                <div class="p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center flex-shrink-0">
-                    <h3 class="text-lg sm:text-xl font-black uppercase">Cash on Hand – Breakdown<br><span class="text-sm font-normal opacity-90">Har cheez kahan say kitna aaya</span></h3>
-                    <button type="button" id="cashOnHandModalClose" class="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0">
+        <!-- Cash Transfer Modal -->
+        <div id="cashTransferModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+            <div class="bg-white rounded-2xl shadow-2xl border-2 border-yellow-200 w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+                <div class="p-4 sm:p-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h3 class="text-lg sm:text-xl font-black uppercase">Money Transfer</h3>
+                        <p class="text-xs sm:text-sm opacity-90 mt-1">Transfer money to different accounts</p>
+                    </div>
+                    <button type="button" id="cashTransferModalClose" class="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <div id="cashOnHandModalBody" class="p-4 sm:p-5 overflow-y-auto flex-1 text-sm">
-                    <p class="text-slate-500">Load a report first, then click Cash on Hand for details.</p>
+                <div class="p-4 sm:p-5 overflow-y-auto flex-1">
+                    <!-- Available Cash -->
+                    <div class="mb-5 bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-xl border-2 border-yellow-200">
+                        <div class="text-xs sm:text-sm font-bold text-yellow-700 uppercase mb-1">Available Cash</div>
+                        <div class="text-2xl sm:text-3xl font-black text-yellow-600 font-mono" id="modalCashBalance">Rs.0</div>
+                    </div>
+                    
+                    <!-- Transfer Amount -->
+                    <div class="mb-5">
+                        <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer Amount</label>
+                        <input type="number" id="transferAmount" placeholder="Enter amount" 
+                            class="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-yellow-500 focus:outline-none font-mono" 
+                            min="0" step="0.01" />
+                    </div>
+                    
+                    <!-- Transfer To User -->
+                    <div class="mb-5">
+                        <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer To User</label>
+                        <select id="transferToUser" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-yellow-500 focus:outline-none">
+                            <option value="">Select User</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Transfer Note -->
+                    <div class="mb-5">
+                        <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Note (Optional)</label>
+                        <textarea id="transferNote" rows="2" placeholder="Add a note about this transfer"
+                            class="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-yellow-500 focus:outline-none resize-none"></textarea>
+                    </div>
+                    
+                    <!-- Transfer Button -->
+                    <button type="button" id="btnTransferCash" 
+                        class="w-full px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl text-sm font-black uppercase transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Transfer Cash
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Transfer Modal -->
+        <div id="bankTransferModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+            <div class="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+                <div class="p-4 sm:p-5 bg-gradient-to-r from-purple-500 to-purple-600 text-white flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h3 class="text-lg sm:text-xl font-black uppercase">Bank Transfer</h3>
+                        <p class="text-xs sm:text-sm opacity-90 mt-1">Transfer cash to bank account</p>
+                    </div>
+                    <button type="button" id="bankTransferModalClose" class="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-4 sm:p-5 overflow-y-auto flex-1">
+                    <!-- Bank Account Balance -->
+                    <div class="mb-5 bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border-2 border-purple-200">
+                        <div class="text-xs sm:text-sm font-bold text-purple-700 uppercase mb-1">Bank Account Balance</div>
+                        <div class="text-2xl sm:text-3xl font-black text-purple-600 font-mono" id="modalBankBalance">Rs.0</div>
+                    </div>
+                    
+                    <!-- Transfer Amount -->
+                    <div class="mb-5">
+                        <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer Amount</label>
+                        <input type="number" id="bankTransferAmount" placeholder="Enter amount" 
+                            class="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none font-mono" 
+                            min="0" step="0.01" />
+                    </div>
+                    
+                    <!-- Transfer To Bank Account -->
+                    <div class="mb-5">
+                        <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer To Bank Account</label>
+                        <select id="transferToBankAccount" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-purple-500 focus:outline-none">
+                            <option value="">Select Bank Account</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Transfer Note -->
+                    <div class="mb-5">
+                        <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Note (Optional)</label>
+                        <textarea id="bankTransferNote" rows="2" placeholder="Add a note about this transfer"
+                            class="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none resize-none"></textarea>
+                    </div>
+                    
+                    <!-- Transfer Button -->
+                    <button type="button" id="btnTransferBank" 
+                        class="w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-black uppercase transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Transfer to Bank
+                    </button>
                 </div>
             </div>
         </div>
@@ -160,41 +255,86 @@
 
     <script>
         (function() {
-            const reportDate = document.getElementById('reportDate');
+            const reportDateFrom = document.getElementById('reportDateFrom');
+            const reportDateTo = document.getElementById('reportDateTo');
             const filterCustomer = document.getElementById('filterCustomer');
             const filterWorker = document.getElementById('filterWorker');
-            const btnLoad = document.getElementById('btnLoadReport');
             const btnPdf = document.getElementById('btnDownloadPdf');
+            const btnSendWhatsApp = document.getElementById('btnSendWhatsApp');
             const totalsSection = document.getElementById('totalsSection');
             const tableSection = document.getElementById('tableSection');
             const tableBody = document.getElementById('reportTableBody');
             const emptyState = document.getElementById('emptyState');
             const loadingState = document.getElementById('loadingState');
-            const tabCash = document.getElementById('tabCash');
-            const tabBank = document.getElementById('tabBank');
             const cashOnHandCard = document.getElementById('cashOnHandCard');
-            const cashOnHandModal = document.getElementById('cashOnHandModal');
-            const cashOnHandModalBody = document.getElementById('cashOnHandModalBody');
-            const cashOnHandModalClose = document.getElementById('cashOnHandModalClose');
+            const bankBalanceCard = document.getElementById('bankBalanceCard');
+            const cashTransferModal = document.getElementById('cashTransferModal');
+            const cashTransferModalClose = document.getElementById('cashTransferModalClose');
+            const modalCashBalance = document.getElementById('modalCashBalance');
+            const transferAmount = document.getElementById('transferAmount');
+            const transferToUser = document.getElementById('transferToUser');
+            const transferNote = document.getElementById('transferNote');
+            const btnTransferCash = document.getElementById('btnTransferCash');
+            
+            const bankTransferModal = document.getElementById('bankTransferModal');
+            const bankTransferModalClose = document.getElementById('bankTransferModalClose');
+            const modalBankBalance = document.getElementById('modalBankBalance');
+            const bankTransferAmount = document.getElementById('bankTransferAmount');
+            const transferToBankAccount = document.getElementById('transferToBankAccount');
+            const bankTransferNote = document.getElementById('bankTransferNote');
+            const btnTransferBank = document.getElementById('btnTransferBank');
 
-            let paymentTab = 'cash';
             let lastReportRows = [];
             let lastReportTotals = {};
-
-            function getPaymentTab() { return paymentTab; }
-            function setPaymentTab(v) {
-                paymentTab = v;
-                tabCash.className = 'tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 ' + (v === 'cash' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-400');
-                tabBank.className = 'tab-payment px-5 py-2.5 rounded-xl text-sm font-black uppercase transition-all border-2 ' + (v === 'bank' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-300 hover:border-indigo-400');
-            }
-            function toggleBankColumn() {
-                document.querySelectorAll('.col-bank').forEach(function(el) { el.classList.toggle('hidden', getPaymentTab() !== 'bank'); });
-            }
+            let bankBalance = 0;
 
             const routes = {
                 data: '{{ route("car-wash.jobs.daily-report-data") }}',
-                pdf: '{{ route("car-wash.jobs.daily-report-pdf") }}'
+                pdf: '{{ route("car-wash.jobs.daily-report-pdf") }}',
+                bankAccounts: '{{ route("car-wash.bank-accounts.index") }}',
+                cashAccountBalance: '{{ route("car-wash.payments.cash-account-balance") }}',
+                branchUsers: '{{ route("car-wash.payments.branch-users") }}',
+                transferToUser: '{{ route("car-wash.payments.transfer-to-user") }}',
+                cashTransfers: '{{ route("car-wash.cash-transfers.store") }}'
             };
+
+            // Load bank account balance
+            function loadBankBalance() {
+                fetch(routes.bankAccounts)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success && data.bankAccounts) {
+                            bankBalance = data.bankAccounts.reduce(function(sum, acc) {
+                                return sum + (parseFloat(acc.balance) || 0);
+                            }, 0);
+                            document.getElementById('totBankBalance').textContent = 'Rs.' + Math.round(bankBalance);
+                        } else {
+                            bankBalance = 0;
+                            document.getElementById('totBankBalance').textContent = 'Rs.0';
+                        }
+                    })
+                    .catch(function() {
+                        bankBalance = 0;
+                        document.getElementById('totBankBalance').textContent = 'Rs.0';
+                    });
+            }
+
+            // Load actual cash account balance
+            function loadCashAccountBalance() {
+                fetch(routes.cashAccountBalance)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var balance = Math.round(parseFloat(data.balance) || 0);
+                            document.getElementById('totCashOnHand').textContent = 'Rs.' + balance;
+                        } else {
+                            document.getElementById('totCashOnHand').textContent = 'Rs.0';
+                        }
+                    })
+                    .catch(function() {
+                        document.getElementById('totCashOnHand').textContent = 'Rs.0';
+                    });
+            }
 
             function showLoading() {
                 loadingState.classList.remove('hidden');
@@ -239,7 +379,7 @@
                     tableSection.classList.add('hidden');
                     totalsSection.classList.add('hidden');
                     btnPdf.disabled = true;
-                    toggleBankColumn();
+                    btnSendWhatsApp.disabled = true;
                     return;
                 }
 
@@ -247,20 +387,25 @@
                 tableSection.classList.remove('hidden');
                 totalsSection.classList.remove('hidden');
                 btnPdf.disabled = false;
+                btnSendWhatsApp.disabled = false;
 
                 const t = data.totals || {};
+                const cashT = data.cashTotals || {};
+                const bankT = data.bankTotals || {};
+                
                 document.getElementById('totVehicles').textContent = t.totalVehicles || 0;
                 document.getElementById('totDebit').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
-                document.getElementById('totCredit').textContent = 'Rs.' + Math.round(t.totalCredit || 0);
-                document.getElementById('totCashOnHand').textContent = 'Rs.' + Math.round(t.cashOnHand || 0);
+                // Total Credit card removed - data still available in t.totalCredit if needed
+                // Cash on Hand card will show actual cash account balance (loaded separately)
                 document.getElementById('totWorkers').textContent = t.totalWorkers || 0;
                 document.getElementById('totCommission').textContent = 'Rs.' + Math.round(t.totalCommission || 0);
-                var cohLabel = (getPaymentTab() === 'bank') ? 'Bank Total' : 'Cash on Hand';
-                cashOnHandCard.querySelector('p:first-of-type').textContent = cohLabel;
-                // Footer row (har column ky nechy sum). Total = no commission. G.total = commission subtract.
+                
+                // All totals in single footer row
                 document.getElementById('ftExpenses').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
-                document.getElementById('ftCredit').textContent = 'Rs.' + Math.round(t.totalCredit || 0);
-                document.getElementById('ftTotal').textContent = 'Rs.' + Math.round(t.cashOnHand || 0);
+                document.getElementById('ftCashCredit').textContent = 'Rs.' + Math.round(cashT.totalCredit || 0);
+                document.getElementById('ftCashTotal').textContent = 'Rs.' + Math.round(cashT.cashOnHand || 0);
+                document.getElementById('ftBankCredit').textContent = 'Rs.' + Math.round(bankT.totalCredit || 0);
+                document.getElementById('ftBankTotal').textContent = 'Rs.' + Math.round(bankT.cashOnHand || 0);
                 document.getElementById('ftCommission').textContent = 'Rs.' + Math.round(t.totalCommission || 0);
                 document.getElementById('ftGtotal').textContent = 'Rs.' + Math.round(t.sumGtotal != null ? t.sumGtotal : ((t.cashOnHand || 0) - (t.totalCommission || 0)));
 
@@ -272,26 +417,110 @@
                 // Image jaisa: Credit row (debit empty); Debit row (credit, worker, commission empty). Total running.
                 let html = '';
                 rows.forEach(function(r) {
+                    const isCash = r.paymentType === 'cash';
+                    const isBank = r.paymentType === 'bank';
+                    const isOpening = r.isOpening;
+                    
                     const creditStr = (r.credit || 0) > 0 ? fmtNum(r.credit) : '-';
                     const gTotalStr = (r.gTotal != null && r.gTotal !== '') ? fmtNum(r.gTotal) : '-';
                     const totalStr = r.total != null ? fmtNum(r.total) : '-';
                     const expenseStr = (r.debit || 0) > 0 ? fmtNum(r.debit) : '-';
                     const commStr = (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) ? fmtNum(r.commission) : '-';
-                    const rowClass = r.isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
+                    const rowClass = isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
+                    
+                    // Cash columns with user name
+                    let cashCreditStr = (isCash && (r.credit || 0) > 0) ? fmtNum(r.credit) : '-';
+                    if (isCash && (r.credit || 0) > 0 && r.userName) {
+                        cashCreditStr = '<div class="flex flex-col items-end">' +
+                            '<span>' + fmtNum(r.credit) + '</span>' +
+                            '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.userName + ')</span>' +
+                            '</div>';
+                    }
+                    const cashTotalStr = (isCash && r.total != null) ? fmtNum(r.total) : '-';
+                    
+                    // Bank columns with bank details and user name
+                    let bankCreditStr = (isBank && (r.credit || 0) > 0) ? fmtNum(r.credit) : '-';
+                    if (isBank && (r.credit || 0) > 0 && (r.bankNameOnly || r.bankAccountTitle || r.bankAccountNumber)) {
+                        bankCreditStr = '<div class="flex flex-col items-end">' +
+                            '<span>' + fmtNum(r.credit) + '</span>';
+                        if (r.bankNameOnly) {
+                            bankCreditStr += '<span class="text-[8px] sm:text-[9px] text-slate-600">' + r.bankNameOnly + '</span>';
+                        }
+                        if (r.bankAccountTitle) {
+                            bankCreditStr += '<span class="text-[8px] sm:text-[9px] text-slate-500">' + r.bankAccountTitle + '</span>';
+                        }
+                        if (r.bankAccountNumber) {
+                            bankCreditStr += '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.bankAccountNumber + ')</span>';
+                        }
+                        if (r.userName) {
+                            bankCreditStr += '<span class="text-[8px] sm:text-[9px] text-slate-400 italic">(' + r.userName + ')</span>';
+                        }
+                        bankCreditStr += '</div>';
+                    } else if (isBank && (r.credit || 0) > 0 && r.userName) {
+                        bankCreditStr = '<div class="flex flex-col items-end">' +
+                            '<span>' + fmtNum(r.credit) + '</span>' +
+                            '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.userName + ')</span>' +
+                            '</div>';
+                    }
+                    const bankTotalStr = (isBank && r.total != null) ? fmtNum(r.total) : '-';
+                    
+                    // Format date & time: Date first, then time on same line or below
+                    let dateTimeStr = '-';
+                    if (r.isOpening) {
+                        dateTimeStr = '<span class="font-bold">' + (r.date || (r.dateTime ? r.dateTime.split(' time ')[0] : '-')) + '</span> <span class="text-[8px] sm:text-[9px]">Time 12:00AM</span>';
+                    } else if (r.startTime && r.endTime && r.totalTime && r.startTime !== '-' && r.endTime !== '-' && r.totalTime !== '-') {
+                        dateTimeStr = '<span class="font-bold">' + (r.date || (r.dateTime ? r.dateTime.split(' time ')[0] : '-')) + '</span><br>' + 
+                                     '<span class="text-[8px] sm:text-[9px]">' + r.startTime + ' - ' + r.endTime + '</span><br>' +
+                                     '<span class="text-[8px] sm:text-[9px] font-semibold inline-flex items-center gap-0.5"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' + r.totalTime + '</span>';
+                        // Add worker name below total time in parentheses
+                        if (r.worker && r.worker !== '-') {
+                            dateTimeStr += '<br><span class="text-[8px] sm:text-[9px] text-slate-600">(' + r.worker + ')</span>';
+                        }
+                    } else {
+                        const datePart = r.date || (r.dateTime ? r.dateTime.split(' time ')[0] : '-');
+                        const timePart = r.dateTime && r.dateTime.includes(' time ') ? r.dateTime.split(' time ')[1] : '';
+                        dateTimeStr = '<span class="font-bold">' + datePart + '</span>' + (timePart ? ' <span class="text-[8px] sm:text-[9px]">Time ' + timePart + '</span>' : '');
+                        // Add worker name if available in parentheses
+                        if (r.worker && r.worker !== '-') {
+                            dateTimeStr += '<br><span class="text-[8px] sm:text-[9px] text-slate-600">(' + r.worker + ')</span>';
+                        }
+                    }
+                    
+                    // Format vehicle with customer name, mobile, and user name
+                    let vehicleStr = (r.vehicle || '-');
+                    if (!r.isOpening && (r.customerName || r.mobile || r.userName)) {
+                        vehicleStr = '<div class="flex flex-col">' +
+                            '<span class="font-semibold">' + (r.vehicle || '-') + '</span>';
+                        if (r.customerName) {
+                            vehicleStr += '<span class="text-[8px] sm:text-[9px] text-slate-600">' + r.customerName + '</span>';
+                        }
+                        if (r.mobile) {
+                            vehicleStr += '<span class="text-[8px] sm:text-[9px] text-slate-500">' + r.mobile;
+                            // Add user name in parentheses below mobile
+                            if (r.userName) {
+                                vehicleStr += '<br><span class="text-[8px] sm:text-[9px] text-slate-400 italic">(' + r.userName + ')</span>';
+                            }
+                            vehicleStr += '</span>';
+                        } else if (r.userName) {
+                            // If no mobile but has user name
+                            vehicleStr += '<span class="text-[8px] sm:text-[9px] text-slate-400 italic">(' + r.userName + ')</span>';
+                        }
+                        vehicleStr += '</div>';
+                    }
+                    
                     html += '<tr class="' + rowClass + '">' +
-                        '<td class="px-4 py-3 text-sm text-slate-700">' + (r.dateTime || '-') + '</td>' +
-                        '<td class="px-4 py-3 text-sm font-semibold text-slate-900">' + (r.vehicle || '-') + '</td>' +
-                        '<td class="px-4 py-3 text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500') + '">' + expenseStr + '</td>' +
-                        '<td class="px-4 py-3 text-sm text-right ' + ((r.credit || 0) > 0 ? 'font-bold text-blue-600' : 'text-slate-500') + '">' + creditStr + '</td>' +
-                        '<td class="px-4 py-3 text-sm text-right font-bold text-slate-900">' + totalStr + '</td>' +
-                        '<td class="px-4 py-3 text-sm text-slate-700">' + (r.worker || '-') + '</td>' +
-                        '<td class="col-bank px-4 py-3 text-sm text-slate-700">' + (r.bankName || '-') + '</td>' +
-                        '<td class="px-4 py-3 text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + '">' + commStr + '</td>' +
-                        '<td class="px-4 py-3 text-sm text-right font-bold text-indigo-600">' + gTotalStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-slate-700 whitespace-normal leading-tight">' + dateTimeStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-slate-900 whitespace-normal leading-tight">' + vehicleStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500') + ' whitespace-nowrap">' + expenseStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && (r.credit || 0) > 0 ? 'font-bold text-indigo-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + cashCreditStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && r.total != null ? 'font-bold text-indigo-700' : 'text-slate-500') + ' whitespace-nowrap">' + cashTotalStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && (r.credit || 0) > 0 ? 'font-bold text-purple-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + bankCreditStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && r.total != null ? 'font-bold text-purple-700' : 'text-slate-500') + ' whitespace-nowrap">' + bankTotalStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + ' whitespace-nowrap">' + commStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right font-bold text-indigo-600 whitespace-nowrap">' + gTotalStr + '</td>' +
                         '</tr>';
                 });
                 tableBody.innerHTML = html;
-                toggleBankColumn();
             }
 
             function buildUrl(base, params) {
@@ -304,97 +533,427 @@
             }
 
             function loadReport() {
-                const date = reportDate.value;
-                if (!date) return;
+                const dateFrom = reportDateFrom.value;
+                const dateTo = reportDateTo.value;
+                if (!dateFrom || !dateTo) return;
                 showLoading();
-                const url = buildUrl(routes.data, {
-                    date: date,
+                
+                // Fetch both cash and bank data, then merge
+                const baseParams = {
+                    date_from: dateFrom,
+                    date_to: dateTo,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || '',
-                    payment: getPaymentTab()
-                });
-                fetch(url)
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data.success) renderReport(data);
-                        else { lastReportRows = []; lastReportTotals = {}; renderReport({ rows: [], totals: {}, customers: [], workers: [] }); }
+                    worker: filterWorker.value || ''
+                };
+                
+                Promise.all([
+                    fetch(buildUrl(routes.data, {...baseParams, payment: 'cash'})).then(r => r.json()),
+                    fetch(buildUrl(routes.data, {...baseParams, payment: 'bank'})).then(r => r.json())
+                ])
+                    .then(function([cashData, bankData]) {
+                        if (cashData.success || bankData.success) {
+                            // Get opening row from cash data (or bank if cash has no data)
+                            const openingRow = (cashData.rows || []).find(r => r.isOpening) || (bankData.rows || []).find(r => r.isOpening);
+                            
+                            // Merge all non-opening rows from both, mark payment type
+                            const cashRows = (cashData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: 'cash'}));
+                            const bankRows = (bankData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: 'bank'}));
+                            const mergedRows = openingRow ? [openingRow, ...cashRows, ...bankRows] : [...cashRows, ...bankRows];
+                            
+                            // Merge totals
+                            const cashTotals = cashData.totals || {};
+                            const bankTotals = bankData.totals || {};
+                            const mergedTotals = {
+                                totalVehicles: Math.max(cashTotals.totalVehicles || 0, bankTotals.totalVehicles || 0),
+                                totalDebit: (cashTotals.totalDebit || 0) + (bankTotals.totalDebit || 0),
+                                totalCredit: (cashTotals.totalCredit || 0) + (bankTotals.totalCredit || 0),
+                                cashOnHand: (cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0),
+                                totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
+                                totalCommission: (cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0),
+                                sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0))
+                            };
+                            
+                            // Merge customers and workers (unique)
+                            const allCustomers = [...(cashData.customers || []), ...(bankData.customers || [])];
+                            const uniqueCustomers = Array.from(new Map(allCustomers.map(c => [c.value, c])).values());
+                            
+                            const allWorkers = [...(cashData.workers || []), ...(bankData.workers || [])];
+                            const uniqueWorkers = Array.from(new Map(allWorkers.map(w => [w.value, w])).values());
+                            
+                            renderReport({
+                                success: true,
+                                rows: mergedRows,
+                                totals: mergedTotals,
+                                cashTotals: cashTotals,
+                                bankTotals: bankTotals,
+                                customers: uniqueCustomers,
+                                workers: uniqueWorkers
+                            });
+                            // Reload cash account balance after report is rendered
+                            loadCashAccountBalance();
+                        } else {
+                            lastReportRows = [];
+                            lastReportTotals = {};
+                            renderReport({ rows: [], totals: {}, customers: [], workers: [] });
+                            loadCashAccountBalance();
+                        }
                     })
-                    .catch(function() { lastReportRows = []; lastReportTotals = {}; renderReport({ rows: [], totals: {}, customers: [], workers: [] }); });
+                    .catch(function() {
+                        lastReportRows = [];
+                        lastReportTotals = {};
+                        renderReport({ rows: [], totals: {}, customers: [], workers: [] });
+                        loadCashAccountBalance();
+                    });
             }
-
-            btnLoad.addEventListener('click', loadReport);
 
             filterCustomer.addEventListener('change', loadReport);
             filterWorker.addEventListener('change', loadReport);
 
             btnPdf.addEventListener('click', function() {
                 if (btnPdf.disabled) return;
-                const date = reportDate.value;
-                if (!date) return;
+                const dateFrom = reportDateFrom.value;
+                const dateTo = reportDateTo.value;
+                if (!dateFrom || !dateTo) return;
                 const url = buildUrl(routes.pdf, {
-                    date: date,
+                    date_from: dateFrom,
+                    date_to: dateTo,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || '',
-                    payment: getPaymentTab()
+                    worker: filterWorker.value || ''
                 });
                 window.location.href = url;
             });
 
-            tabCash.addEventListener('click', function() { setPaymentTab('cash'); loadReport(); });
-            tabBank.addEventListener('click', function() { setPaymentTab('bank'); loadReport(); });
-
-            reportDate.addEventListener('change', loadReport);
-
-            function openCashOnHandModal() {
-                var isBank = (getPaymentTab() === 'bank');
-                var titleMain = isBank ? 'Bank Total – Breakdown' : 'Cash on Hand – Breakdown';
-                var titleSub = isBank ? 'Bank ledger' : 'Har cheez kahan say kitna aaya';
-                document.querySelector('#cashOnHandModal h3').innerHTML = titleMain + '<br><span class="text-sm font-normal opacity-90">' + titleSub + '</span>';
-                if (lastReportRows.length === 0) {
-                    cashOnHandModalBody.innerHTML = '<p class="text-slate-500">Load a report first, then click ' + (isBank ? 'Bank Total' : 'Cash on Hand') + ' for details.</p>';
-                } else {
-                    var rows = lastReportRows;
-                    var totals = lastReportTotals;
-                    var html = '<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-indigo-50 border-b-2 border-indigo-200"><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900">#</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900">Kahan say (Source)</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900 text-right">Type</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900 text-right">Kitna (Amount)</th><th class="px-3 py-2.5 text-xs font-black uppercase text-indigo-900 text-right">Running Total</th></tr></thead><tbody>';
-                    var sr = 0;
-                    for (var i = 0; i < rows.length; i++) {
-                        var r = rows[i];
-                        if (r.isOpening) {
-                            sr++;
-                            html += '<tr class="border-b border-slate-200 bg-slate-50"><td class="px-3 py-2.5 text-slate-600 font-bold">' + sr + '</td><td class="px-3 py-2.5 font-semibold text-slate-800">Opening</td><td class="px-3 py-2.5 text-right text-slate-500">—</td><td class="px-3 py-2.5 text-right font-mono">Rs.0</td><td class="px-3 py-2.5 text-right font-bold font-mono">Rs.0</td></tr>';
-                        } else if ((r.credit || 0) > 0) {
-                            sr++;
-                            var amt = Math.round(Number(r.credit) || 0);
-                            var run = Math.round(r.total != null ? (Number(r.total) || 0) : 0);
-                            var src = (r.vehicle || '-') + ' • ' + (r.dateTime || '-') + (r.worker ? ' • ' + r.worker : '');
-                            html += '<tr class="border-b border-slate-200 hover:bg-green-50/50"><td class="px-3 py-2.5 text-slate-600 font-bold">' + sr + '</td><td class="px-3 py-2.5 text-slate-800">' + src + '</td><td class="px-3 py-2.5 text-right font-semibold text-green-600">+ Credit</td><td class="px-3 py-2.5 text-right font-mono font-bold text-green-700">+ Rs.' + amt + '</td><td class="px-3 py-2.5 text-right font-bold font-mono">Rs.' + run + '</td></tr>';
-                        } else if ((r.debit || 0) > 0) {
-                            sr++;
-                            var amt = Math.round(Number(r.debit) || 0);
-                            var run = Math.round(r.total != null ? (Number(r.total) || 0) : 0);
-                            var src = (r.vehicle || '-') + ' • ' + (r.dateTime || '-') + ' • Refreshment';
-                            html += '<tr class="border-b border-slate-200 hover:bg-amber-50/50"><td class="px-3 py-2.5 text-slate-600 font-bold">' + sr + '</td><td class="px-3 py-2.5 text-slate-800">' + src + '</td><td class="px-3 py-2.5 text-right font-semibold text-amber-600">− Expense</td><td class="px-3 py-2.5 text-right font-mono font-bold text-amber-700">− Rs.' + amt + '</td><td class="px-3 py-2.5 text-right font-bold font-mono">Rs.' + run + '</td></tr>';
-                        }
-                    }
-                    var coh = Math.round(totals.cashOnHand != null ? (Number(totals.cashOnHand) || 0) : 0);
-                    var footLabel = isBank ? 'Bank Total' : 'Cash on Hand (Total)';
-                    html += '</tbody><tfoot><tr class="bg-indigo-100 border-t-2 border-indigo-300"><td class="px-3 py-3 font-black text-indigo-900" colspan="3">' + footLabel + '</td><td class="px-3 py-3 text-right font-black text-indigo-900 font-mono" colspan="2">Rs.' + coh + '</td></tr></tfoot></table></div>';
-                    cashOnHandModalBody.innerHTML = html;
-                }
-                cashOnHandModal.style.display = 'flex';
-            }
-
-            function closeCashOnHandModal() {
-                cashOnHandModal.style.display = 'none';
-            }
-
-            cashOnHandCard.addEventListener('click', openCashOnHandModal);
-            cashOnHandModalClose.addEventListener('click', closeCashOnHandModal);
-            cashOnHandModal.addEventListener('click', function(e) {
-                if (e.target === cashOnHandModal) closeCashOnHandModal();
+            btnSendWhatsApp.addEventListener('click', function() {
+                if (btnSendWhatsApp.disabled) return;
+                const dateFrom = reportDateFrom.value;
+                const dateTo = reportDateTo.value;
+                if (!dateFrom || !dateTo) return;
+                
+                // Build PDF URL
+                const pdfUrl = buildUrl(routes.pdf, {
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    customer: filterCustomer.value || '',
+                    worker: filterWorker.value || ''
+                });
+                
+                // Format dates for message
+                const formatDate = function(dateStr) {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    return day + '/' + month + '/' + year;
+                };
+                
+                const dateFromFormatted = formatDate(dateFrom);
+                const dateToFormatted = formatDate(dateTo);
+                const dateRange = dateFromFormatted === dateToFormatted ? dateFromFormatted : dateFromFormatted + ' to ' + dateToFormatted;
+                
+                // Create full PDF URL
+                const fullPdfUrl = pdfUrl.startsWith('http') ? pdfUrl : window.location.origin + pdfUrl;
+                
+                // Create WhatsApp message
+                const message = encodeURIComponent(
+                    '📊 *Daily Jobs Report*\n\n' +
+                    '📅 Date Range: ' + dateRange + '\n\n' +
+                    '📄 PDF Report:\n' + fullPdfUrl + '\n\n' +
+                    'Please find the daily jobs report PDF link above.'
+                );
+                
+                // Open WhatsApp with pre-filled message
+                const whatsappNumber = '923350899908';
+                const whatsappUrl = 'https://wa.me/' + whatsappNumber + '?text=' + message;
+                window.open(whatsappUrl, '_blank');
             });
 
-            if (reportDate.value) loadReport();
+            reportDateFrom.addEventListener('change', loadReport);
+            reportDateTo.addEventListener('change', loadReport);
+
+
+            // Load cash balance
+            function loadCashBalance() {
+                fetch(routes.cashAccountBalance)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var balance = Math.round(parseFloat(data.balance) || 0);
+                            modalCashBalance.textContent = 'Rs.' + balance;
+                            transferAmount.max = balance;
+                        } else {
+                            modalCashBalance.textContent = 'Rs.0';
+                            transferAmount.max = 0;
+                        }
+                    })
+                    .catch(function() {
+                        modalCashBalance.textContent = 'Rs.0';
+                        transferAmount.max = 0;
+                    });
+            }
+
+            // Load branch users
+            function loadBranchUsers() {
+                fetch(routes.branchUsers)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        transferToUser.innerHTML = '<option value="">Select User</option>';
+                        if (data.success && data.users) {
+                            data.users.forEach(function(user) {
+                                var option = document.createElement('option');
+                                option.value = user.id;
+                                option.textContent = user.name + (user.email ? ' (' + user.email + ')' : '');
+                                transferToUser.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(function() {
+                        transferToUser.innerHTML = '<option value="">Select User</option>';
+                    });
+            }
+
+            function openCashTransferModal() {
+                loadCashBalance();
+                loadBranchUsers();
+                transferAmount.value = '';
+                transferToUser.value = '';
+                transferNote.value = '';
+                cashTransferModal.style.display = 'flex';
+            }
+
+            function closeCashTransferModal() {
+                cashTransferModal.style.display = 'none';
+                transferAmount.value = '';
+                transferToUser.value = '';
+                transferNote.value = '';
+            }
+
+            // Transfer cash
+            btnTransferCash.addEventListener('click', function() {
+                var amount = parseFloat(transferAmount.value);
+                var userId = transferToUser.value;
+                var note = transferNote.value.trim();
+
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+
+                if (!userId) {
+                    alert('Please select a user to transfer to');
+                    return;
+                }
+
+                var maxAmount = parseFloat(transferAmount.max) || 0;
+                if (amount > maxAmount) {
+                    alert('Amount cannot exceed available cash balance');
+                    return;
+                }
+
+                btnTransferCash.disabled = true;
+                btnTransferCash.textContent = 'Transferring...';
+
+                fetch(routes.transferToUser, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        amount: amount,
+                        note: note || null
+                    })
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            alert('Rs.' + amount + ' transferred successfully!');
+                            closeCashTransferModal();
+                            loadCashBalance();
+                            loadCashAccountBalance(); // Update the card balance
+                            // Reload report if it's loaded
+                            if (reportDate.value) {
+                                loadReport();
+                            }
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to transfer cash'));
+                        }
+                    })
+                    .catch(function() {
+                        alert('Error transferring cash. Please try again.');
+                    })
+                    .finally(function() {
+                        btnTransferCash.disabled = false;
+                        btnTransferCash.textContent = 'Transfer Cash';
+                    });
+            });
+
+            // Load bank accounts for transfer
+            function loadBankAccountsForTransfer() {
+                fetch(routes.bankAccounts)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        transferToBankAccount.innerHTML = '<option value="">Select Bank Account</option>';
+                        if (data.success && data.bankAccounts) {
+                            data.bankAccounts.forEach(function(account) {
+                                var option = document.createElement('option');
+                                option.value = account.id;
+                                option.textContent = account.displayLabel || (account.bankName + ' - ' + (account.accountTitle || account.accountNumber || ''));
+                                transferToBankAccount.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(function() {
+                        transferToBankAccount.innerHTML = '<option value="">Select Bank Account</option>';
+                    });
+            }
+
+            function openBankTransferModal() {
+                loadBankBalanceForModal();
+                loadBankAccountsForTransfer();
+                bankTransferAmount.value = '';
+                transferToBankAccount.value = '';
+                bankTransferNote.value = '';
+                bankTransferModal.style.display = 'flex';
+            }
+
+            function closeBankTransferModal() {
+                bankTransferModal.style.display = 'none';
+                bankTransferAmount.value = '';
+                transferToBankAccount.value = '';
+                bankTransferNote.value = '';
+            }
+
+            // Load bank account balance for modal
+            function loadBankBalanceForModal() {
+                fetch(routes.bankAccounts)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success && data.bankAccounts) {
+                            var totalBalance = data.bankAccounts.reduce(function(sum, acc) {
+                                return sum + (parseFloat(acc.balance) || 0);
+                            }, 0);
+                            var balance = Math.round(totalBalance);
+                            modalBankBalance.textContent = 'Rs.' + balance;
+                            // For bank transfer, we still need cash balance to validate transfer amount
+                            loadCashBalanceForBankTransfer();
+                        } else {
+                            modalBankBalance.textContent = 'Rs.0';
+                            bankTransferAmount.max = 0;
+                        }
+                    })
+                    .catch(function() {
+                        modalBankBalance.textContent = 'Rs.0';
+                        bankTransferAmount.max = 0;
+                    });
+            }
+
+            // Load cash balance for bank transfer validation (hidden, used for max amount)
+            function loadCashBalanceForBankTransfer() {
+                fetch(routes.cashAccountBalance)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var balance = parseFloat(data.balance) || 0;
+                            bankTransferAmount.max = balance;
+                        } else {
+                            bankTransferAmount.max = 0;
+                        }
+                    })
+                    .catch(function() {
+                        bankTransferAmount.max = 0;
+                    });
+            }
+
+            // Transfer to bank
+            btnTransferBank.addEventListener('click', function() {
+                var amount = parseFloat(bankTransferAmount.value);
+                var bankAccountId = transferToBankAccount.value;
+                var note = bankTransferNote.value.trim();
+
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+
+                if (!bankAccountId) {
+                    alert('Please select a bank account to transfer to');
+                    return;
+                }
+
+                var maxAmount = parseFloat(bankTransferAmount.max) || 0;
+                if (amount > maxAmount) {
+                    alert('Amount cannot exceed available cash balance');
+                    return;
+                }
+
+                btnTransferBank.disabled = true;
+                btnTransferBank.textContent = 'Transferring...';
+
+                fetch(routes.cashTransfers, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bank_account_id: bankAccountId,
+                        amount: amount,
+                        notes: note || null
+                    })
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var selectedAccount = Array.from(transferToBankAccount.options).find(opt => opt.value === bankAccountId);
+                            var accountName = selectedAccount ? selectedAccount.textContent : 'Bank Account';
+                            alert('Rs.' + amount + ' transferred to ' + accountName + ' successfully!');
+                            closeBankTransferModal();
+                            loadBankBalanceForModal();
+                            loadBankBalance();
+                            loadCashAccountBalance(); // Update the card balance after bank transfer
+                            // Reload report if it's loaded
+                            if (reportDate.value) {
+                                loadReport();
+                            }
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to transfer to bank'));
+                        }
+                    })
+                    .catch(function() {
+                        alert('Error transferring to bank. Please try again.');
+                    })
+                    .finally(function() {
+                        btnTransferBank.disabled = false;
+                        btnTransferBank.textContent = 'Transfer to Bank';
+                    });
+            });
+
+            cashOnHandCard.addEventListener('click', openCashTransferModal);
+            bankBalanceCard.addEventListener('click', openBankTransferModal);
+            cashTransferModalClose.addEventListener('click', closeCashTransferModal);
+            cashTransferModal.addEventListener('click', function(e) {
+                if (e.target === cashTransferModal) closeCashTransferModal();
+            });
+            bankTransferModalClose.addEventListener('click', closeBankTransferModal);
+            bankTransferModal.addEventListener('click', function(e) {
+                if (e.target === bankTransferModal) closeBankTransferModal();
+            });
+
+            // Load bank balance and cash account balance on page load
+            loadBankBalance();
+            loadCashAccountBalance();
+            
+            if (reportDateFrom.value && reportDateTo.value) {
+                loadReport();
+            } else {
+                // Load balances even if no report date
+                loadBankBalance();
+                loadCashAccountBalance();
+            }
         })();
     </script>
 </body>

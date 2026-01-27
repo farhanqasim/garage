@@ -9,6 +9,7 @@ use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class LoginController extends Controller
 {
@@ -281,5 +282,162 @@ class LoginController extends Controller
         session()->forget('pending_branches');
         
         return redirect()->intended($this->redirectPath());
+    }
+
+    /**
+     * Switch branch for admin users (can switch to any branch)
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    public function switchBranch(Request $request)
+    {
+        // Check if this is an AJAX/JSON request - use multiple methods for reliability
+        $acceptHeader = $request->header('Accept', '');
+        $isAjax = $request->ajax() || 
+                  $request->wantsJson() || 
+                  $request->header('X-Requested-With') === 'XMLHttpRequest' ||
+                  (strpos($acceptHeader, 'application/json') !== false);
+        
+        // Force JSON response for AJAX requests
+        if ($isAjax) {
+            $request->headers->set('Accept', 'application/json');
+        }
+        
+        try {
+            // Check if user is authenticated
+            if (!Auth::check()) {
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not authenticated',
+                    ], 401)->header('Content-Type', 'application/json');
+                }
+                return redirect()->route('login')->with('error', 'Please login first.');
+            }
+
+            $user = Auth::user();
+
+            // STRICT CHECK: Only admin can switch branches - no exceptions
+            if (!$user || $user->role !== 'admin') {
+                Log::warning('Unauthorized branch switch attempt', [
+                    'user_id' => $user ? $user->id : 'null',
+                    'user_role' => $user ? $user->role : 'null',
+                    'ip' => $request->ip(),
+                ]);
+                
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Access denied. Only admin users can switch branches.',
+                    ], 403)->header('Content-Type', 'application/json');
+                }
+                return redirect()->back()->with('error', 'Access denied. Only admin users can switch branches.');
+            }
+
+            // Get branch_id from request (can be null for "All Branches")
+            $branchId = $request->input('branch_id');
+            
+            // If branch_id is null or empty, clear branch selection
+            if (empty($branchId) || $branchId === 'null' || $branchId === null) {
+                session()->forget(['selected_branch_id', 'selected_branch_name', 'selected_branch_code']);
+
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Branch selection cleared (viewing all branches)',
+                    ])->header('Content-Type', 'application/json');
+                }
+
+                return redirect()->back()->with('success', 'Branch selection cleared');
+            }
+
+            // Validate branch_id exists
+            $request->validate([
+                'branch_id' => 'required|exists:branches,id',
+            ]);
+
+            // Find and switch to branch
+            $branch = Branch::find($branchId);
+            
+            if (!$branch) {
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Branch not found',
+                    ], 404)->header('Content-Type', 'application/json');
+                }
+                return redirect()->back()->with('error', 'Branch not found');
+            }
+
+            if ($branch->status !== 'active') {
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Branch is not active',
+                    ], 400)->header('Content-Type', 'application/json');
+                }
+                return redirect()->back()->with('error', 'Branch is not active');
+            }
+
+            // Store selected branch in session
+            session([
+                'selected_branch_id' => $branch->id,
+                'selected_branch_name' => $branch->branch_name,
+                'selected_branch_code' => $branch->branch_code,
+            ]);
+
+            if ($isAjax) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Switched to {$branch->branch_name}",
+                    'branch' => [
+                        'id' => $branch->id,
+                        'name' => $branch->branch_name,
+                        'code' => $branch->branch_code,
+                    ],
+                ])->header('Content-Type', 'application/json');
+            }
+
+            return redirect()->back()->with('success', "Switched to {$branch->branch_name}");
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Branch switch validation error', [
+                'errors' => $e->errors(),
+                'request' => $request->all(),
+            ]);
+            
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $e->getMessage(),
+                    'errors' => $e->errors(),
+                ], 422)->header('Content-Type', 'application/json');
+            }
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Branch switch error: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'branch_id' => $request->input('branch_id'),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request_data' => $request->all(),
+                'headers' => $request->headers->all(),
+            ]);
+
+            // Always return JSON for AJAX requests, even on exceptions
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An error occurred: ' . $e->getMessage(),
+                    'error_details' => config('app.debug') ? [
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ] : null,
+                ], 500)->header('Content-Type', 'application/json');
+            }
+            return redirect()->back()->with('error', 'An error occurred while switching branch');
+        }
     }
 }
