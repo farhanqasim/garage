@@ -111,6 +111,9 @@
                                                 <strong>Step 1 (pehli baar):</strong> Email &amp; password upar daalein → "Sign in with Fingerprint" click karein → jab browser/device puche to <strong>pehle finger sensor par lagayein</strong> (ya Windows Hello / device passcode) — fingerprint save ho jayegi.<br>
                                                 <strong>Step 2 (agli baar):</strong> Email &amp; password daalein, phir isi button par click karein aur finger lagayein — login ho jayega.
                                             </small>
+                                            <div class="alert alert-warning py-2 px-3 small mt-2 d-md-none" id="mobileBiometricNote" role="alert">
+                                                <strong>Mobile:</strong> Fingerprint use karne ke liye jab aapke phone par <strong>Biometric / Fingerprint permission</strong> puche to <strong>Allow</strong> karein. Tabhi finger se login ho sakta hai.
+                                            </div>
                                         </div>
 
                                         <!-- Forgot Password -->
