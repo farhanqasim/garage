@@ -85,6 +85,7 @@ Route::get('/users', [HomeController::class, 'users'])->name('users');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
 Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
+Route::get('/car-wash/services/rate-list', [\App\Http\Controllers\CarWashServiceController::class, 'rateList'])->name('car.wash.services.rate-list')->middleware('auth');
 Route::get('/car-wash/staff', [HomeController::class, 'carWashStaff'])->name('car.wash.staff')->middleware('auth');
 Route::get('/car-wash/daily-report', [\App\Http\Controllers\CarWashJobController::class, 'dailyReport'])->name('car.wash.daily-report')->middleware('auth');
 

@@ -1055,6 +1055,13 @@ class CarWashJobController extends Controller
         $dateForFilename = $dateFrom === $dateTo 
             ? $dateFromFormatted . '-' . $currentTime 
             : $dateFromFormatted . '_to_' . $dateToFormatted . '-' . $currentTime;
+        
+        // Check if inline display is requested (for WhatsApp links)
+        $inline = $request->get('inline', false);
+        if ($inline) {
+            return $pdf->stream('elite-car-wash-daily-Report-' . $dateForFilename . '.pdf');
+        }
+        
         return $pdf->download('elite-car-wash-daily-Report-' . $dateForFilename . '.pdf');
     }
 }

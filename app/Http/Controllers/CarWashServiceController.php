@@ -26,6 +26,18 @@ class CarWashServiceController extends Controller
         ]);
     }
 
+    /**
+     * Show rate list page (A4 print / PDF view)
+     */
+    public function rateList()
+    {
+        $user = Auth::user();
+        $query = CarWashService::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $services = $query->where('status', true)->orderBy('created_at', 'desc')->get();
+        return view('car-wash-services-rate-list', compact('services'));
+    }
+
 
     /**
      * Store a new service

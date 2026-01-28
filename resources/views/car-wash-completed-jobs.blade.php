@@ -89,6 +89,9 @@
                 display: none !important;
             }
         }
+        .worker-label {
+            font-family: 'Segoe UI Emoji', ui-sans-serif, system-ui, sans-serif;
+        }
     </style>
     
     <!-- html2pdf library for PDF download -->
@@ -126,7 +129,19 @@
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
             const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+            const [selectedWorker, setSelectedWorker] = useState('');
             const [openDropdownId, setOpenDropdownId] = useState(null);
+            
+            // Get unique workers from completed jobs
+            const uniqueWorkers = [...new Set(completedJobs.map(job => job.workerName || job.worker_name || job.worker).filter(Boolean))].sort();
+            
+            // Filter jobs based on date range and worker
+            const filteredJobs = completedJobs.filter(job => {
+                const jobDate = job.endTime ? new Date(job.endTime).toISOString().split('T')[0] : (job.created_at ? new Date(job.created_at).toISOString().split('T')[0] : '');
+                const dateMatch = jobDate >= dateFrom && jobDate <= dateTo;
+                const workerMatch = !selectedWorker || (job.workerName || job.worker_name || job.worker || '').toUpperCase() === selectedWorker.toUpperCase();
+                return dateMatch && workerMatch;
+            });
 
             // Close dropdown when clicking outside
             useEffect(() => {
@@ -186,20 +201,35 @@
                                             <span className="text-xs sm:text-sm font-bold uppercase opacity-90">Select Range</span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            <input 
-                                                type="date" 
+                                            <input
+                                                type="date"
                                                 value={dateFrom}
                                                 onChange={(e) => setDateFrom(e.target.value)}
                                                 className="flex-1 px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none placeholder-white/50"
                                             />
                                             <span className="text-[10px] font-bold text-white/90 whitespace-nowrap">To</span>
-                                            <input 
-                                                type="date" 
+                                            <input
+                                                type="date"
                                                 value={dateTo}
                                                 onChange={(e) => setDateTo(e.target.value)}
                                                 className="flex-1 px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none placeholder-white/50"
                                             />
                                         </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1.5 w-full">
+                                        <div className="text-center sm:text-left">
+                                            <span className="text-xs sm:text-sm font-bold uppercase opacity-90 worker-label">Worker</span>
+                                        </div>
+                                        <select
+                                            value={selectedWorker}
+                                            onChange={(e) => setSelectedWorker(e.target.value)}
+                                            className="w-full px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none"
+                                        >
+                                            <option value="" className="bg-slate-800 text-white">All</option>
+                                            {uniqueWorkers.map((worker, idx) => (
+                                                <option key={idx} value={worker} className="bg-slate-800 text-white">{worker}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -227,14 +257,13 @@
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
                                                 <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Service</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
                                                 <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-slate-200">
-                                            {completedJobs.map((job, jobIdx) => {
+                                            {filteredJobs.map((job, jobIdx) => {
                                                 const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                 const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                 const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
@@ -314,6 +343,9 @@
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-normal leading-tight">
                                                         <div className="flex flex-col">
+                                                            {(job.serviceName || job.service_name || job.service) && (
+                                                                <span className="text-sm font-black text-slate-900 mb-0.5 whitespace-nowrap">{(job.serviceName || job.service_name || job.service).replace(/\s+/g, '-')}</span>
+                                                            )}
                                                             <span className="font-semibold text-slate-900 whitespace-nowrap">{job.vehicleNo || job.vehicle_no || 'N/A'}</span>
                                                             {job.customerName || job.customer_name ? (
                                                                 <span className="text-[8px] sm:text-[9px] text-slate-600">{job.customerName || job.customer_name}</span>
@@ -332,9 +364,6 @@
                                                                 <span className="text-[8px] sm:text-[9px] text-slate-400 italic">({job.userName || job.user_name})</span>
                                                             ) : null}
                                                         </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-black text-blue-600">Rs.{Math.round(job.price || 0)}</div>
