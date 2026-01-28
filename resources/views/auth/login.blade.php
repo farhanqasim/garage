@@ -114,6 +114,13 @@
                                             <div class="alert alert-warning py-2 px-3 small mt-2 d-md-none" id="mobileBiometricNote" role="alert">
                                                 <strong>Mobile:</strong> Fingerprint use karne ke liye jab aapke phone par <strong>Biometric / Fingerprint permission</strong> puche to <strong>Allow</strong> karein. Tabhi finger se login ho sakta hai.
                                             </div>
+                                            <div class="mt-2 pt-2 border-top border-light">
+                                                <button type="button" id="btnBiometricPermission" class="btn btn-outline-success btn-sm w-100 d-flex align-items-center justify-content-center gap-2" title="Mobile par pehle isse ON karein taake phone ki biometric is app ke sath use ho sake">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c4.97 0 9-4.03 9-9v-1a1 1 0 00-1-1h-2a1 1 0 00-1 1v1c0 2.76-2.24 5-5 5s-5-2.24-5-5v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1c0 4.97 4.03 9 9 9z"/><path d="M12 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3z"/></svg>
+                                                    <span>Biometric Permission ON</span>
+                                                </button>
+                                                <small class="text-muted d-block mt-1 text-center">Mobile: Pehle is button ko ON karein — phone ki pehle se maujood biometric is app ke sath access ho jayegi.</small>
+                                            </div>
                                         </div>
 
                                         <!-- Forgot Password -->
@@ -581,6 +588,68 @@
                                         .catch(function() {
                                             btnFingerprint.disabled = false;
                                             btnFingerprint.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 11c0 2.21-.9 4-2 4s-2-1.79-2-4 .9-4 2-4 2 1.79 2 4z"/><path d="M12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4"/></svg><span>Sign in with Fingerprint</span>';
+                                        });
+                                    });
+                                })();
+
+                                // Biometric Permission ON – mobile par pehle se maujood biometric ko is app ke sath access / ON karein
+                                (function() {
+                                    var btnBioPerm = document.getElementById('btnBiometricPermission');
+                                    if (!btnBioPerm || typeof PublicKeyCredential === 'undefined') return;
+                                    function base64urlToBuffer(base64url) {
+                                        var base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+                                        var pad = base64.length % 4;
+                                        if (pad) base64 += new Array(5 - pad).join('=');
+                                        var binary = atob(base64);
+                                        var bytes = new Uint8Array(binary.length);
+                                        for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                        return bytes.buffer;
+                                    }
+                                    btnBioPerm.addEventListener('click', function() {
+                                        var origText = btnBioPerm.innerHTML;
+                                        btnBioPerm.disabled = true;
+                                        btnBioPerm.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Biometric ON...';
+                                        fetch('{{ route("webauthn.login.conditional.options") }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                'Accept': 'application/json'
+                                            },
+                                            body: JSON.stringify({})
+                                        })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                            if (!data.success || !data.options) {
+                                                btnBioPerm.disabled = false;
+                                                btnBioPerm.innerHTML = origText;
+                                                alert('Abhi biometric permission request nahi bhej sakte. Pehle email + password daal kar "Sign in with Fingerprint" use karein — usi waqt biometric is app ke sath ON ho jayegi.');
+                                                return;
+                                            }
+                                            var opt = data.options;
+                                            var challenge = base64urlToBuffer(opt.challenge);
+                                            var getOpt = {
+                                                challenge: challenge,
+                                                timeout: opt.timeout || 60000,
+                                                rpId: opt.rpId,
+                                                allowCredentials: [],
+                                                userVerification: opt.userVerification || 'preferred'
+                                            };
+                                            return navigator.credentials.get({ publicKey: getOpt, mediation: 'optional' });
+                                        })
+                                        .then(function(cred) {
+                                            btnBioPerm.disabled = false;
+                                            btnBioPerm.innerHTML = origText;
+                                            if (cred) {
+                                                alert('Biometric ON ho gaya. Ab finger se login kar sakte hain (pehle ek baar email + password se "Sign in with Fingerprint" save karein).');
+                                            } else {
+                                                alert('Jab device puche "Use fingerprint / Face" ya "Allow" par tap karein — tab mobile biometric is app ke sath use ho jayegi.');
+                                            }
+                                        })
+                                        .catch(function(err) {
+                                            btnBioPerm.disabled = false;
+                                            btnBioPerm.innerHTML = origText;
+                                            alert('Biometric permission: Jab phone puche to "Allow" ya "Use biometric" select karein. Phir "Sign in with Fingerprint" use karke login kar sakte hain.');
                                         });
                                     });
                                 })();
