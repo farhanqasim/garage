@@ -62,6 +62,7 @@
         window.tailwind = { config: { suppressWarnings: true } };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <!-- React and ReactDOM (Production builds to avoid DevTools warning) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -1308,6 +1309,7 @@
             services: {
                 index: '{{ route("car-wash.services.index") }}',
                 store: '{{ route("car-wash.services.store") }}',
+                rateList: '{{ route("car.wash.services.rate-list") }}',
                 update: (id) => `{{ url('/car-wash/services') }}/${id}`,
                 destroy: (id) => `{{ url('/car-wash/services') }}/${id}`,
             },
@@ -6205,139 +6207,186 @@
                                     </div>
                                 )}
                                 
-                                {/* Daily Report Modal */}
+                                {/* Daily Report Modal - same design as Daily Report page (max-w-7xl, Select Range, Customer, Worker, Download PNG/PDF/WA, totals, table) */}
                                 {showDailyReportModal && (
-                                    <div className="fixed inset-0 bg-gradient-to-br from-black/80 via-slate-900/90 to-black/80 backdrop-blur-xl z-50 flex items-center justify-center p-0 overflow-y-auto" onClick={() => setShowDailyReportModal(false)}>
-                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-none sm:rounded-xl md:rounded-[60px] lg:rounded-[70px] shadow-[0_25px_100px_-12px_rgba(0,0,0,0.5)] w-full min-h-full sm:min-h-0 sm:h-auto sm:max-h-[98vh] sm:max-w-7xl sm:my-4 overflow-hidden flex flex-col border-0 sm:border-2 md:border-[6px] border-blue-300/60 relative" onClick={(e) => e.stopPropagation()}>
-                                            {/* Header */}
-                                            <div className="relative p-2 sm:p-3 md:p-5 lg:p-6 bg-gradient-to-br from-blue-600 via-indigo-600 via-purple-600 to-blue-600 text-white overflow-hidden flex-shrink-0">
-                                                <div className="absolute inset-0">
-                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl -mr-32 -mt-32"></div>
-                                                    <div className="absolute bottom-0 left-0 w-56 h-56 bg-white/10 rounded-full blur-2xl -ml-28 -mb-28"></div>
-                                                </div>
-                                                <div className="relative flex items-center justify-between z-10 gap-2">
-                                                    <div className="flex-1 min-w-0">
-                                                        <h2 className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl font-black uppercase tracking-tight drop-shadow-lg truncate">
-                                                            DAILY JOBS REPORT
-                                                        </h2>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => setShowDailyReportModal(false)}
-                                                        className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-xl border-2 border-white/50 hover:scale-110 hover:rotate-90 shadow-lg flex-shrink-0"
-                                                        aria-label="Close daily report modal"
-                                                    >
-                                                        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto" onClick={() => setShowDailyReportModal(false)}>
+                                        <main className="max-w-7xl mx-auto p-4 sm:p-6 bg-slate-50 min-h-screen" onClick={(e) => e.stopPropagation()}>
+                                            {/* Top bar: title + close */}
+                                            <div className="flex items-center justify-between gap-4 mb-4 sm:mb-6">
+                                                <h1 className="text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-tight text-slate-900">Daily Report</h1>
+                                                <button
+                                                    onClick={() => setShowDailyReportModal(false)}
+                                                    className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-200 hover:bg-slate-300 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+                                                    aria-label="Close daily report"
+                                                >
+                                                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
                                             </div>
 
-                                            {/* Filters */}
-                                            <div className="p-2 sm:p-3 md:p-4 lg:p-5 bg-white border-b-2 border-slate-200 flex-shrink-0">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
-                                                    <div className="sm:col-span-1">
-                                                        <label className="block text-[10px] sm:text-xs md:text-sm font-black text-slate-700 uppercase mb-1 sm:mb-2">Report Date</label>
-                                                        <input
-                                                            type="date"
-                                                            value={dailyReportDate}
-                                                            onChange={(e) => setDailyReportDate(e.target.value)}
-                                                            className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 border-2 border-slate-300 rounded-lg sm:rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-[11px] sm:text-xs md:text-sm"
-                                                        />
+                                            {/* Filters card - same as daily report page: Select Range, Customer (Vehicle), Worker, Download PNG / PDF / WhatsApp */}
+                                            <div className="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-4 sm:p-6 mb-4 sm:mb-6">
+                                                <div className="flex flex-wrap items-end gap-4">
+                                                    <div className="flex-1 min-w-[140px]">
+                                                        <label className="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Select Range</label>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <input
+                                                                type="date"
+                                                                value={dailyReportDate}
+                                                                onChange={(e) => setDailyReportDate(e.target.value)}
+                                                                className="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs"
+                                                            />
+                                                            <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">To</span>
+                                                            <input
+                                                                type="date"
+                                                                value={dailyReportDate}
+                                                                onChange={(e) => setDailyReportDate(e.target.value)}
+                                                                className="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs"
+                                                            />
+                                                        </div>
                                                     </div>
-                                                    <div className="sm:col-span-1">
-                                                        <label className="block text-[10px] sm:text-xs md:text-sm font-black text-slate-700 uppercase mb-1 sm:mb-2">Customer (Vehicle)</label>
-                                                        <select
-                                                            value={dailyReportCustomer}
-                                                            onChange={(e) => setDailyReportCustomer(e.target.value)}
-                                                            className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 border-2 border-slate-300 rounded-lg sm:rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-[11px] sm:text-xs md:text-sm"
-                                                        >
-                                                            <option value="">All</option>
-                                                            {dailyReportCustomers.map((c) => (
-                                                                <option key={c.value} value={c.value}>
-                                                                    {c.label}
-                                                                </option>
-                                                            ))}
-                                                        </select>
+                                                    <div className="flex items-end gap-4 flex-1 flex-wrap">
+                                                        <div className="flex-1 min-w-[120px]">
+                                                            <label className="block text-sm font-bold text-slate-700 uppercase mb-2">Customer (Vehicle)</label>
+                                                            <select
+                                                                value={dailyReportCustomer}
+                                                                onChange={(e) => setDailyReportCustomer(e.target.value)}
+                                                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-sm"
+                                                            >
+                                                                <option value="">All</option>
+                                                                {dailyReportCustomers.map((c) => (
+                                                                    <option key={c.value} value={c.value}>{c.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="flex-1 min-w-[120px]">
+                                                            <label className="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Worker</label>
+                                                            <select
+                                                                value={dailyReportWorker}
+                                                                onChange={(e) => setDailyReportWorker(e.target.value)}
+                                                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-sm"
+                                                            >
+                                                                <option value="">All</option>
+                                                                {dailyReportWorkers.map((w) => (
+                                                                    <option key={w.value} value={w.value}>{w.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
-                                                    <div className="sm:col-span-1">
-                                                        <label className="block text-[10px] sm:text-xs md:text-sm font-black text-slate-700 uppercase mb-1 sm:mb-2">Worker</label>
-                                                        <select
-                                                            value={dailyReportWorker}
-                                                            onChange={(e) => setDailyReportWorker(e.target.value)}
-                                                            className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 border-2 border-slate-300 rounded-lg sm:rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-[11px] sm:text-xs md:text-sm"
-                                                        >
-                                                            <option value="">All</option>
-                                                            {dailyReportWorkers.map((w) => (
-                                                                <option key={w.value} value={w.value}>
-                                                                    {w.label}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                    <div className="sm:col-span-1 lg:col-span-2 xl:col-span-1 flex flex-col sm:flex-row gap-2">
+                                                    <div className="flex items-end gap-2 flex-wrap">
                                                         <button
                                                             type="button"
                                                             onClick={loadDailyReport}
-                                                            className="flex-1 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-black uppercase transition-colors"
+                                                            className="px-5 py-2.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
                                                         >
-                                                            Load Report
+                                                            Load
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (typeof html2canvas === 'undefined') {
+                                                                    alert('PNG download feature loading... Please wait a moment and try again.');
+                                                                    return;
+                                                                }
+                                                                const tableSection = document.querySelector('[data-daily-report-table]');
+                                                                if (!tableSection) {
+                                                                    alert('Report table not found. Please load the report first.');
+                                                                    return;
+                                                                }
+                                                                html2canvas(tableSection, {
+                                                                    scale: 1,
+                                                                    useCORS: true,
+                                                                    backgroundColor: '#ffffff',
+                                                                    logging: false
+                                                                }).then(canvas => {
+                                                                    const link = document.createElement('a');
+                                                                    link.download = 'daily-report-' + dailyReportDate + '.png';
+                                                                    link.href = canvas.toDataURL('image/png');
+                                                                    link.click();
+                                                                }).catch(err => {
+                                                                    console.error('PNG generation error:', err);
+                                                                    alert('Error generating PNG. Please try again.');
+                                                                });
+                                                            }}
+                                                            className="px-5 py-2.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                            <span className="hidden sm:inline">Download PNG</span>
+                                                            <span className="sm:hidden">PNG</span>
                                                         </button>
                                                         {dailyReportData && dailyReportData.totals && (
                                                             <a
                                                                 href={API_ROUTES.jobs.dailyReportPdf + '?date=' + encodeURIComponent(dailyReportDate) + '&customer=' + encodeURIComponent(dailyReportCustomer || '') + '&worker=' + encodeURIComponent(dailyReportWorker || '')}
                                                                 target="_blank"
-                                                                className="flex-1 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-black uppercase transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                                                                rel="noopener noreferrer"
+                                                                className="px-5 py-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
                                                             >
-                                                                <svg className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                </svg>
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                                                 <span className="hidden sm:inline">Download PDF</span>
                                                                 <span className="sm:hidden">PDF</span>
                                                             </a>
                                                         )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (!dailyReportDate) {
+                                                                    alert('Please select a date first.');
+                                                                    return;
+                                                                }
+                                                                const pdfUrl = API_ROUTES.jobs.dailyReportPdf + '?date=' + encodeURIComponent(dailyReportDate) + '&customer=' + encodeURIComponent(dailyReportCustomer || '') + '&worker=' + encodeURIComponent(dailyReportWorker || '');
+                                                                const fullPdfUrl = window.location.origin + pdfUrl;
+                                                                const dateRange = dailyReportDate;
+                                                                const messageText = '📊 *Daily Jobs Report*\n\n' +
+                                                                    '📅 Date: ' + dateRange + '\n\n' +
+                                                                    '📄 PDF Report:\n' + fullPdfUrl + '\n\n' +
+                                                                    'Please click the link above to view the PDF report in your browser.';
+                                                                const whatsappNumber = '923350899908';
+                                                                const whatsappUrl = 'https://wa.me/' + whatsappNumber + '?text=' + encodeURIComponent(messageText);
+                                                                window.open(whatsappUrl, '_blank');
+                                                            }}
+                                                            className="px-5 py-2.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                                            <span className="hidden sm:inline">Send WhatsApp</span>
+                                                            <span className="sm:hidden">WA</span>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Summary Cards */}
+                                            {/* Summary cards - same order as page: Total Vehicles, Total Workers, Cash on Hand, Bank Balance, Ref Expence, Commission */}
                                             {dailyReportData && dailyReportData.totals && (
-                                                <div className="p-2 sm:p-3 md:p-4 lg:p-5 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b-2 border-slate-200 flex-shrink-0 overflow-x-auto">
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4 min-w-max sm:min-w-0">
-                                                        <div className="bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-slate-500 uppercase leading-tight">Total Vehicles</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-slate-900 mt-0.5 sm:mt-1">{dailyReportData.totals.totalVehicles || 0}</p>
-                                                        </div>
-                                                        <div className="bg-amber-50 rounded-lg sm:rounded-xl border-2 border-amber-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-amber-800 uppercase leading-tight">Total Refreshment Expenses</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-amber-800 mt-0.5 sm:mt-1">Rs.{Math.round(dailyReportData.totals.totalDebit || 0)}</p>
-                                                        </div>
-                                                        <div className="bg-blue-50 rounded-lg sm:rounded-xl border-2 border-blue-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-blue-700 uppercase leading-tight">Total Credit</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-blue-700 mt-0.5 sm:mt-1">Rs.{Math.round(dailyReportData.totals.totalCredit || 0)}</p>
-                                                        </div>
-                                                        <div className="bg-indigo-100 rounded-lg sm:rounded-xl border-2 border-indigo-300 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-indigo-900 uppercase leading-tight">Cash on Hand</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-indigo-900 mt-0.5 sm:mt-1">Rs.{dailyReportCashBalance}</p>
-                                                        </div>
-                                                        <div className="bg-purple-100 rounded-lg sm:rounded-xl border-2 border-purple-300 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-purple-900 uppercase leading-tight">Bank Balance</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-purple-900 mt-0.5 sm:mt-1">Rs.{dailyReportBankBalance}</p>
-                                                        </div>
-                                                        <div className="bg-white rounded-lg sm:rounded-xl border-2 border-slate-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-slate-500 uppercase leading-tight">Total Workers</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-slate-900 mt-0.5 sm:mt-1">{dailyReportData.totals.totalWorkers || 0}</p>
-                                                        </div>
-                                                        <div className="bg-emerald-50 rounded-lg sm:rounded-xl border-2 border-emerald-200 p-2 sm:p-3 md:p-4 shadow min-w-[100px] sm:min-w-0">
-                                                            <p className="text-[9px] sm:text-[10px] md:text-xs font-black text-emerald-800 uppercase leading-tight">Total Commission</p>
-                                                            <p className="text-sm sm:text-base md:text-lg lg:text-xl font-black text-emerald-800 mt-0.5 sm:mt-1">Rs.{Math.round(dailyReportData.totals.totalCommission || 0)}</p>
-                                                        </div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                                                    <div className="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Vehicles</p>
+                                                        <p className="text-base sm:text-lg font-black text-slate-900">{dailyReportData.totals.totalVehicles || 0}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Workers</p>
+                                                        <p className="text-base sm:text-lg font-black text-slate-900">{dailyReportData.totals.totalWorkers || 0}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg border-2 border-indigo-400 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-indigo-900 uppercase mb-1">Cash on Hand</p>
+                                                        <p className="text-base sm:text-lg font-black text-indigo-900">Rs.{dailyReportCashBalance}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg border-2 border-purple-400 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-purple-900 uppercase mb-1">Bank Balance</p>
+                                                        <p className="text-base sm:text-lg font-black text-purple-900">Rs.{dailyReportBankBalance}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-amber-800 uppercase mb-1">Ref Expence</p>
+                                                        <p className="text-base sm:text-lg font-black text-amber-800">Rs.{Math.round(dailyReportData.totals.totalDebit || 0)}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-emerald-800 uppercase mb-1">Commission</p>
+                                                        <p className="text-base sm:text-lg font-black text-emerald-800">Rs.{Math.round(dailyReportData.totals.totalCommission || 0)}</p>
                                                     </div>
                                                 </div>
                                             )}
 
                                             {/* Content - Report Table */}
-                                            <div className="flex-1 overflow-y-auto overflow-x-auto p-1 sm:p-2 md:p-4 lg:p-6 bg-gradient-to-b from-slate-50 via-white to-slate-50 max-h-[calc(100vh-400px)] sm:max-h-[calc(100vh-450px)] md:max-h-[calc(100vh-500px)]">
+                                            <div className="overflow-x-auto p-2 sm:p-4 bg-white rounded-2xl shadow-xl border-2 border-slate-200 mb-4" data-daily-report-table>
                                                 {!dailyReportData || !dailyReportData.rows || dailyReportData.rows.length === 0 ? (
                                                     <div className="text-center py-6 sm:py-8 md:py-12 lg:py-16">
                                                         <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 md:mb-6 shadow-lg">
@@ -6411,17 +6460,15 @@
                                             </div>
 
                                             {/* Footer */}
-                                            <div className="p-2 sm:p-3 md:p-4 lg:p-5 border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 flex-shrink-0">
-                                                <div className="flex justify-end">
-                                                    <button
-                                                        onClick={() => setShowDailyReportModal(false)}
-                                                        className="px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-2.5 bg-gradient-to-r from-slate-600 to-slate-700 text-white rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-black uppercase hover:from-slate-700 hover:to-slate-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-                                                    >
-                                                        Close
-                                                    </button>
-                                                </div>
+                                            <div className="pt-4 border-t-2 border-slate-200 flex justify-end">
+                                                <button
+                                                    onClick={() => setShowDailyReportModal(false)}
+                                                    className="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl text-sm font-black uppercase transition-colors shadow-md"
+                                                >
+                                                    Close
+                                                </button>
                                             </div>
-                                        </div>
+                                        </main>
                                     </div>
                                 )}
                                 
@@ -8484,10 +8531,22 @@
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                         </button>
-                        <button className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300">
-                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                let rateListUrl = API_ROUTES.services && API_ROUTES.services.rateList ? API_ROUTES.services.rateList : '';
+                                if (!rateListUrl) return;
+                                if (rateListUrl.startsWith('/')) rateListUrl = window.location.origin + rateListUrl;
+                                rateListUrl += (rateListUrl.indexOf('?') >= 0 ? '&' : '?') + 'return_url=' + encodeURIComponent(window.location.href);
+                                window.open(rateListUrl, '_blank');
+                            }}
+                            className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
+                            title="View Rate List"
+                        >
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
+                            <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Price List</span>
                         </button>
                     </nav>
                 </div>
