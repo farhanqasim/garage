@@ -6,6 +6,7 @@
     <title>Daily Report - Elite Car Wash</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen">
     <div id="root" class="min-h-screen">
@@ -14,7 +15,7 @@
             <div class="max-w-7xl mx-auto">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 class="text-3xl font-black uppercase tracking-tighter mb-1">Daily Jobs Report</h1>
+                        <h1 class="text-3xl font-black uppercase tracking-tighter mb-1">Daily Report</h1>
                         <p class="text-sm opacity-90">{{ $branchName }} • {{ $userName }}</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
@@ -54,6 +55,14 @@
                         </div>
                     </div>
                     <div class="flex items-end gap-2">
+                        <button type="button" id="btnDownloadPng" disabled
+                            class="px-5 py-2.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="hidden sm:inline">Download PNG</span>
+                            <span class="sm:hidden">PNG</span>
+                        </button>
                         <button type="button" id="btnDownloadPdf" disabled
                             class="px-5 py-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg">
                             <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,6 +158,39 @@
                 <p class="text-slate-500">Select a date and click <strong>Load Report</strong>.</p>
             </div>
         </main>
+
+        <!-- PNG Preview Modal -->
+        <div id="pngPreviewModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
+            <div class="bg-white rounded-2xl shadow-2xl border-2 border-slate-200 w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
+                <div class="p-4 sm:p-5 bg-gradient-to-r from-blue-500 to-blue-600 text-white flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h3 class="text-lg sm:text-xl font-black uppercase">PNG Preview</h3>
+                        <p class="text-xs sm:text-sm opacity-90 mt-1">Review before downloading</p>
+                    </div>
+                    <button type="button" id="pngPreviewModalClose" class="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="p-4 sm:p-5 overflow-auto flex-1 bg-slate-50 flex items-center justify-center">
+                    <img id="pngPreviewImage" src="" alt="PNG Preview" class="max-w-full max-h-full object-contain shadow-lg rounded-lg" style="display: none;">
+                    <div id="pngPreviewLoading" class="text-center">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+                        <p class="mt-4 text-slate-600 font-bold">Generating preview...</p>
+                    </div>
+                </div>
+                <div class="p-4 sm:p-5 bg-slate-100 border-t-2 border-slate-200 flex justify-end gap-3 flex-shrink-0">
+                    <button type="button" id="pngPreviewDownload" class="px-6 py-3 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-sm font-black uppercase transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg" style="display: none;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PNG
+                    </button>
+                    <button type="button" id="pngPreviewCancel" class="px-6 py-3 bg-slate-500 hover:bg-slate-600 text-white rounded-xl text-sm font-black uppercase transition-all duration-200">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Cash Transfer Modal -->
         <div id="cashTransferModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="display: none;">
@@ -259,6 +301,7 @@
             const reportDateTo = document.getElementById('reportDateTo');
             const filterCustomer = document.getElementById('filterCustomer');
             const filterWorker = document.getElementById('filterWorker');
+            const btnPng = document.getElementById('btnDownloadPng');
             const btnPdf = document.getElementById('btnDownloadPdf');
             const btnSendWhatsApp = document.getElementById('btnSendWhatsApp');
             const totalsSection = document.getElementById('totalsSection');
@@ -283,6 +326,15 @@
             const transferToBankAccount = document.getElementById('transferToBankAccount');
             const bankTransferNote = document.getElementById('bankTransferNote');
             const btnTransferBank = document.getElementById('btnTransferBank');
+            
+            const pngPreviewModal = document.getElementById('pngPreviewModal');
+            const pngPreviewModalClose = document.getElementById('pngPreviewModalClose');
+            const pngPreviewImage = document.getElementById('pngPreviewImage');
+            const pngPreviewLoading = document.getElementById('pngPreviewLoading');
+            const pngPreviewDownload = document.getElementById('pngPreviewDownload');
+            const pngPreviewCancel = document.getElementById('pngPreviewCancel');
+            let currentPngBlob = null;
+            let currentPngFilename = '';
 
             let lastReportRows = [];
             let lastReportTotals = {};
@@ -378,6 +430,7 @@
                     emptyState.classList.remove('hidden');
                     tableSection.classList.add('hidden');
                     totalsSection.classList.add('hidden');
+                    btnPng.disabled = true;
                     btnPdf.disabled = true;
                     btnSendWhatsApp.disabled = true;
                     return;
@@ -386,6 +439,7 @@
                 emptyState.classList.add('hidden');
                 tableSection.classList.remove('hidden');
                 totalsSection.classList.remove('hidden');
+                btnPng.disabled = false;
                 btnPdf.disabled = false;
                 btnSendWhatsApp.disabled = false;
 
@@ -425,7 +479,14 @@
                     const gTotalStr = (r.gTotal != null && r.gTotal !== '') ? fmtNum(r.gTotal) : '-';
                     const totalStr = r.total != null ? fmtNum(r.total) : '-';
                     const expenseStr = (r.debit || 0) > 0 ? fmtNum(r.debit) : '-';
-                    const commStr = (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) ? fmtNum(r.commission) : '-';
+                    let commStr = (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) ? fmtNum(r.commission) : '-';
+                    // Add worker name below commission if available and not opening row
+                    if (!isOpening && (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) && r.worker && r.worker !== '-') {
+                        commStr = '<div class="flex flex-col items-end">' +
+                            '<span>' + fmtNum(r.commission) + '</span>' +
+                            '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.worker + ')</span>' +
+                            '</div>';
+                    }
                     const rowClass = isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
                     
                     // Cash columns with user name
@@ -467,7 +528,13 @@
                     // Format date & time: Date first, then time on same line or below
                     let dateTimeStr = '-';
                     if (r.isOpening) {
-                        dateTimeStr = '<span class="font-bold">' + (r.date || (r.dateTime ? r.dateTime.split(' time ')[0] : '-')) + '</span> <span class="text-[8px] sm:text-[9px]">Time 12:00AM</span>';
+                        // Extract date and time from dateTime field (format: "d/m/y Time h:i A")
+                        const datePart = r.date || (r.dateTime ? r.dateTime.split(' Time ')[0] : '-');
+                        let timePart = '12:00AM'; // Default fallback
+                        if (r.dateTime && r.dateTime.includes(' Time ')) {
+                            timePart = r.dateTime.split(' Time ')[1] || '12:00AM';
+                        }
+                        dateTimeStr = '<span class="font-bold">' + datePart + '</span> <span class="text-[8px] sm:text-[9px]">Time ' + timePart + '</span>';
                     } else if (r.startTime && r.endTime && r.totalTime && r.startTime !== '-' && r.endTime !== '-' && r.totalTime !== '-') {
                         dateTimeStr = '<span class="font-bold">' + (r.date || (r.dateTime ? r.dateTime.split(' time ')[0] : '-')) + '</span><br>' + 
                                      '<span class="text-[8px] sm:text-[9px]">' + r.startTime + ' - ' + r.endTime + '</span><br>' +
@@ -516,7 +583,7 @@
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && r.total != null ? 'font-bold text-indigo-700' : 'text-slate-500') + ' whitespace-nowrap">' + cashTotalStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && (r.credit || 0) > 0 ? 'font-bold text-purple-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + bankCreditStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && r.total != null ? 'font-bold text-purple-700' : 'text-slate-500') + ' whitespace-nowrap">' + bankTotalStr + '</td>' +
-                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + ' whitespace-nowrap">' + commStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + commStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right font-bold text-indigo-600 whitespace-nowrap">' + gTotalStr + '</td>' +
                         '</tr>';
                 });
@@ -609,6 +676,166 @@
             filterCustomer.addEventListener('change', loadReport);
             filterWorker.addEventListener('change', loadReport);
 
+            btnPng.addEventListener('click', function() {
+                if (btnPng.disabled) return;
+                const tableSection = document.getElementById('tableSection');
+                if (!tableSection) {
+                    alert('No data to download');
+                    return;
+                }
+                
+                // Open preview modal immediately with loading state
+                pngPreviewModal.style.display = 'flex';
+                pngPreviewImage.style.display = 'none';
+                pngPreviewLoading.style.display = 'block';
+                pngPreviewDownload.style.display = 'none';
+                
+                // Show loading state on button
+                const originalText = btnPng.innerHTML;
+                btnPng.disabled = true;
+                btnPng.innerHTML = '<span>Generating...</span>';
+                
+                // A4 Landscape dimensions in pixels (at 96 DPI)
+                // A4 Landscape: 297mm x 210mm = 1123px x 794px
+                const a4LandscapeWidth = 1123;
+                const a4LandscapeHeight = 794;
+                
+                // Get the actual scrollable width and height of the table
+                const table = tableSection.querySelector('table');
+                const tableContainer = tableSection.querySelector('.overflow-x-auto');
+                
+                // Temporarily remove overflow to get full table width including all columns
+                const originalTableSectionOverflow = tableSection.style.overflow;
+                const originalTableSectionWidth = tableSection.style.width;
+                const originalContainerOverflow = tableContainer ? tableContainer.style.overflow : '';
+                const originalContainerWidth = tableContainer ? tableContainer.style.width : '';
+                
+                // Make container and table section show full width
+                tableSection.style.overflow = 'visible';
+                tableSection.style.width = 'auto';
+                if (tableContainer) {
+                    tableContainer.style.overflow = 'visible';
+                    tableContainer.style.width = 'auto';
+                }
+                
+                // Force browser to recalculate layout
+                void tableSection.offsetWidth;
+                
+                // Get the actual full width including all columns (Date & Time to G.TOTAL)
+                let actualWidth = table ? table.scrollWidth : tableSection.scrollWidth;
+                let actualHeight = table ? table.scrollHeight : tableSection.scrollHeight;
+                
+                // Ensure we capture at least the minimum table width
+                if (table) {
+                    actualWidth = Math.max(actualWidth, table.offsetWidth, 1400); // min-w-[1400px] from table class
+                }
+                
+                // Use html2canvas to capture the table section with optimized settings for faster generation
+                html2canvas(tableSection, {
+                    scale: 1, // Reduced to 1 for fastest generation (will be scaled up later if needed)
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    width: actualWidth,
+                    height: actualHeight,
+                    windowWidth: actualWidth,
+                    windowHeight: actualHeight,
+                    scrollX: 0,
+                    scrollY: 0,
+                    x: 0,
+                    y: 0,
+                    removeContainer: true,
+                    allowTaint: false,
+                    foreignObjectRendering: false, // Disable for faster rendering
+                    imageTimeout: 0, // No timeout for images
+                    ignoreElements: function(element) {
+                        // Ignore hidden elements and non-essential elements
+                        if (element.classList && element.classList.contains('hidden')) return true;
+                        // Ignore elements outside viewport if possible
+                        return false;
+                    }
+                }).then(function(canvas) {
+                    // Restore original styles
+                    tableSection.style.overflow = originalTableSectionOverflow;
+                    tableSection.style.width = originalTableSectionWidth;
+                    if (tableContainer) {
+                        tableContainer.style.overflow = originalContainerOverflow;
+                        tableContainer.style.width = originalContainerWidth;
+                    }
+                    // Calculate scale to fit A4 landscape
+                    const originalWidth = canvas.width;
+                    const originalHeight = canvas.height;
+                    
+                    // Calculate scale to fit within A4 landscape dimensions
+                    // Use both width and height to ensure everything fits
+                    const scaleX = a4LandscapeWidth / originalWidth;
+                    const scaleY = a4LandscapeHeight / originalHeight;
+                    const scale = Math.min(scaleX, scaleY); // Use the smaller scale to fit both dimensions
+                    
+                    // Create new canvas with A4 landscape dimensions
+                    const a4Canvas = document.createElement('canvas');
+                    a4Canvas.width = a4LandscapeWidth;
+                    a4Canvas.height = a4LandscapeHeight;
+                    const ctx = a4Canvas.getContext('2d');
+                    
+                    // Fill with white background
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, a4LandscapeWidth, a4LandscapeHeight);
+                    
+                    // Calculate scaled dimensions
+                    const scaledWidth = originalWidth * scale;
+                    const scaledHeight = originalHeight * scale;
+                    
+                    // Center the image on A4 canvas
+                    const x = (a4LandscapeWidth - scaledWidth) / 2;
+                    const y = (a4LandscapeHeight - scaledHeight) / 2;
+                    
+                    // Draw the scaled canvas onto A4 canvas with optimized quality
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'low'; // Set to 'low' for fastest processing
+                    ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+                    
+                    // Convert canvas to blob
+                    a4Canvas.toBlob(function(blob) {
+                        // Generate filename with date range and time
+                        const dateFrom = reportDateFrom.value;
+                        const dateTo = reportDateTo.value;
+                        const now = new Date();
+                        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).replace(':', '-');
+                        const dateStr = dateFrom === dateTo ? dateFrom : dateFrom + '_to_' + dateTo;
+                        currentPngFilename = 'elite-car-wash-daily-Report-' + dateStr + '-' + timeStr + '.png';
+                        
+                        // Store blob for download
+                        currentPngBlob = blob;
+                        
+                        // Show preview in modal
+                        const previewUrl = URL.createObjectURL(blob);
+                        pngPreviewImage.src = previewUrl;
+                        pngPreviewImage.style.display = 'block';
+                        pngPreviewLoading.style.display = 'none';
+                        pngPreviewDownload.style.display = 'flex';
+                        
+                        // Restore button state
+                        btnPng.disabled = false;
+                        btnPng.innerHTML = originalText;
+                    }, 'image/png', 1.0); // Maximum quality
+                }).catch(function(error) {
+                    console.error('Error generating PNG:', error);
+                    alert('Error generating PNG. Please try again.');
+                    
+                    // Restore original styles in case of error
+                    tableSection.style.overflow = originalTableSectionOverflow;
+                    tableSection.style.width = originalTableSectionWidth;
+                    if (tableContainer) {
+                        tableContainer.style.overflow = originalContainerOverflow;
+                        tableContainer.style.width = originalContainerWidth;
+                    }
+                    
+                    btnPng.disabled = false;
+                    btnPng.innerHTML = originalText;
+                });
+            });
+
             btnPdf.addEventListener('click', function() {
                 if (btnPdf.disabled) return;
                 const dateFrom = reportDateFrom.value;
@@ -629,12 +856,13 @@
                 const dateTo = reportDateTo.value;
                 if (!dateFrom || !dateTo) return;
                 
-                // Build PDF URL
+                // Build PDF URL with inline parameter for browser viewing
                 const pdfUrl = buildUrl(routes.pdf, {
                     date_from: dateFrom,
                     date_to: dateTo,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || ''
+                    worker: filterWorker.value || '',
+                    inline: '1' // Add inline parameter to open PDF in browser instead of download
                 });
                 
                 // Format dates for message
@@ -651,20 +879,27 @@
                 const dateToFormatted = formatDate(dateTo);
                 const dateRange = dateFromFormatted === dateToFormatted ? dateFromFormatted : dateFromFormatted + ' to ' + dateToFormatted;
                 
-                // Create full PDF URL
-                const fullPdfUrl = pdfUrl.startsWith('http') ? pdfUrl : window.location.origin + pdfUrl;
+                // Create full PDF URL - ensure it's a complete URL
+                let fullPdfUrl = pdfUrl;
+                if (!fullPdfUrl.startsWith('http://') && !fullPdfUrl.startsWith('https://')) {
+                    // If it starts with /, it's a relative URL
+                    if (fullPdfUrl.startsWith('/')) {
+                        fullPdfUrl = window.location.origin + fullPdfUrl;
+                    } else {
+                        // Otherwise prepend origin
+                        fullPdfUrl = window.location.origin + '/' + fullPdfUrl;
+                    }
+                }
                 
-                // Create WhatsApp message
-                const message = encodeURIComponent(
-                    '📊 *Daily Jobs Report*\n\n' +
+                // Create WhatsApp message with the PDF link (don't encode the entire message, encode separately)
+                const messageText = '📊 *Daily Jobs Report*\n\n' +
                     '📅 Date Range: ' + dateRange + '\n\n' +
                     '📄 PDF Report:\n' + fullPdfUrl + '\n\n' +
-                    'Please find the daily jobs report PDF link above.'
-                );
+                    'Please click the link above to view the PDF report in your browser.';
                 
                 // Open WhatsApp with pre-filled message
                 const whatsappNumber = '923350899908';
-                const whatsappUrl = 'https://wa.me/' + whatsappNumber + '?text=' + message;
+                const whatsappUrl = 'https://wa.me/' + whatsappNumber + '?text=' + encodeURIComponent(messageText);
                 window.open(whatsappUrl, '_blank');
             });
 
@@ -941,6 +1176,40 @@
             bankTransferModalClose.addEventListener('click', closeBankTransferModal);
             bankTransferModal.addEventListener('click', function(e) {
                 if (e.target === bankTransferModal) closeBankTransferModal();
+            });
+            
+            // PNG Preview Modal handlers
+            function closePngPreviewModal() {
+                pngPreviewModal.style.display = 'none';
+                if (pngPreviewImage.src) {
+                    URL.revokeObjectURL(pngPreviewImage.src);
+                    pngPreviewImage.src = '';
+                    pngPreviewImage.style.display = 'none';
+                }
+                pngPreviewLoading.style.display = 'block';
+                pngPreviewDownload.style.display = 'none';
+                currentPngBlob = null;
+                currentPngFilename = '';
+            }
+            
+            pngPreviewModalClose.addEventListener('click', closePngPreviewModal);
+            pngPreviewCancel.addEventListener('click', closePngPreviewModal);
+            pngPreviewModal.addEventListener('click', function(e) {
+                if (e.target === pngPreviewModal) closePngPreviewModal();
+            });
+            
+            pngPreviewDownload.addEventListener('click', function() {
+                if (currentPngBlob) {
+                    const url = URL.createObjectURL(currentPngBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = currentPngFilename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    closePngPreviewModal();
+                }
             });
 
             // Load bank balance and cash account balance on page load
