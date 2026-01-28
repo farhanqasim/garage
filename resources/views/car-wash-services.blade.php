@@ -219,6 +219,23 @@
             height: 24px;
         }
         
+        .icon-option img.tractor-icon {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+        
+        @media (min-width: 640px) {
+            .icon-option img.tractor-icon {
+                width: 56px;
+                height: 56px;
+            }
+        }
+        
+        .tractor-icon-white {
+            filter: brightness(0) invert(1);
+        }
+        
         .theme-selector {
             margin-bottom: 28px;
         }
@@ -393,6 +410,7 @@
         $servicesRoute = route("car-wash.services.index");
         $storeRoute = route("car-wash.services.store");
         $carWashRoute = route("car.wash");
+        $rateListRoute = route("car.wash.services.rate-list");
     @endphp
     
     <script type="text/babel">
@@ -408,6 +426,7 @@
             services: {
                 index: '{!! $servicesRoute !!}',
                 store: '{!! $storeRoute !!}',
+                rateList: '{!! $rateListRoute !!}',
                 update: (id) => `/car-wash/services/${id}`,
                 destroy: (id) => `/car-wash/services/${id}`,
                 toggleStatus: (id) => `/car-wash/services/${id}/toggle-status`,
@@ -416,6 +435,103 @@
 
         // Helper function to get icon SVG
         const getIconSVG = (iconName) => {
+            if (iconName === 'tractor') {
+                return (
+                    <div className="flex flex-col items-center justify-center">
+                        <img 
+                            src={window.location.origin + '/images/icons/tractor.png'} 
+                            alt="Tractor" 
+                            className="w-10 h-10 object-contain tractor-icon-white"
+                            onLoad={(e) => {
+                                // Remove background using advanced canvas processing
+                                const img = e.target;
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                canvas.width = img.naturalWidth;
+                                canvas.height = img.naturalHeight;
+                                ctx.drawImage(img, 0, 0);
+                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                const data = imageData.data;
+                                
+                                // Sample corner and edge pixels to detect background color
+                                const samplePoints = [];
+                                const edgeSize = Math.min(5, Math.floor(canvas.width / 10), Math.floor(canvas.height / 10));
+                                for (let y = 0; y < edgeSize; y++) {
+                                    for (let x = 0; x < canvas.width; x++) {
+                                        samplePoints.push([x, y]); // Top edge
+                                        samplePoints.push([x, canvas.height - 1 - y]); // Bottom edge
+                                    }
+                                }
+                                for (let x = 0; x < edgeSize; x++) {
+                                    for (let y = edgeSize; y < canvas.height - edgeSize; y++) {
+                                        samplePoints.push([x, y]); // Left edge
+                                        samplePoints.push([canvas.width - 1 - x, y]); // Right edge
+                                    }
+                                }
+                                
+                                const bgColors = samplePoints.map(([x, y]) => {
+                                    const idx = (y * canvas.width + x) * 4;
+                                    return {
+                                        r: data[idx],
+                                        g: data[idx + 1],
+                                        b: data[idx + 2]
+                                    };
+                                });
+                                
+                                // Find average background color
+                                const avgBg = {
+                                    r: Math.round(bgColors.reduce((sum, c) => sum + c.r, 0) / bgColors.length),
+                                    g: Math.round(bgColors.reduce((sum, c) => sum + c.g, 0) / bgColors.length),
+                                    b: Math.round(bgColors.reduce((sum, c) => sum + c.b, 0) / bgColors.length)
+                                };
+                                
+                                // More aggressive background removal
+                                const tolerance = 60; // Increased tolerance
+                                for (let i = 0; i < data.length; i += 4) {
+                                    const r = data[i];
+                                    const g = data[i + 1];
+                                    const b = data[i + 2];
+                                    
+                                    // Calculate distance from background color
+                                    const dist = Math.sqrt(
+                                        Math.pow(r - avgBg.r, 2) +
+                                        Math.pow(g - avgBg.g, 2) +
+                                        Math.pow(b - avgBg.b, 2)
+                                    );
+                                    
+                                    // Check for white/light backgrounds (more aggressive)
+                                    const isWhite = r > 200 && g > 200 && b > 200;
+                                    const isLightGray = r > 180 && g > 180 && b > 180 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30;
+                                    
+                                    // Check for black/dark backgrounds (more aggressive)
+                                    const isBlack = r < 50 && g < 50 && b < 50;
+                                    const isDarkGray = r < 80 && g < 80 && b < 80 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30;
+                                    
+                                    // Make transparent if close to background or white/black/grays
+                                    if (dist < tolerance || isWhite || isBlack || isLightGray || isDarkGray) {
+                                        data[i + 3] = 0; // Set alpha to 0 (transparent)
+                                    }
+                                }
+                                
+                                ctx.putImageData(imageData, 0, 0);
+                                img.src = canvas.toDataURL('image/png');
+                            }}
+                            onError={(e) => {
+                                // Fallback to SVG if image fails to load
+                                e.target.style.display = 'none';
+                                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                                svg.setAttribute('width', '24');
+                                svg.setAttribute('height', '24');
+                                svg.setAttribute('fill', 'currentColor');
+                                svg.setAttribute('viewBox', '0 0 24 24');
+                                e.target.parentElement.appendChild(svg);
+                            }}
+                        />
+                        <span className="text-[8px] font-bold text-white uppercase leading-none -mt-1">CD-70</span>
+                    </div>
+                );
+            }
+            
             const iconMap = {
                 'car': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
                 'bus': <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 16c0 .88.39 1.67 1 2.22V20a1 1 0 001 1h1a1 1 0 001-1v-1h8v1a1 1 0 001 1h1a1 1 0 001-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.31-2.69-6-6-6H6C2.69 0 0 2.69 0 6v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z"/></svg>,
@@ -450,6 +566,7 @@
             });
             const [selectedServiceForEdit, setSelectedServiceForEdit] = useState(null);
             const [showAddModal, setShowAddModal] = useState(false);
+            const [showPriceListModal, setShowPriceListModal] = useState(false);
             
             // Initialize and update additional prices container display
             useEffect(() => {
@@ -633,23 +750,34 @@
                                     <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tighter mb-1 sm:mb-2">Services Management</h1>
                                     <p className="text-xs sm:text-sm opacity-90 truncate">{branchName} • {userName}</p>
                                 </div>
-                                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                                <div className="flex flex-col gap-3 w-full sm:w-auto">
+                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                                        <button
+                                            onClick={() => setShowAddModal(true)}
+                                            className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm flex items-center justify-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            <span className="hidden sm:inline">Add Service</span>
+                                            <span className="sm:hidden">Add</span>
+                                        </button>
+                                        <button
+                                            onClick={() => window.location.href = '{!! $carWashRoute !!}'}
+                                            className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm"
+                                        >
+                                            <span className="hidden sm:inline">← Back to Car Wash</span>
+                                            <span className="sm:hidden">← Back</span>
+                                        </button>
+                                    </div>
                                     <button
-                                        onClick={() => setShowAddModal(true)}
-                                        className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm flex items-center justify-center gap-2"
+                                        onClick={() => setShowPriceListModal(true)}
+                                        className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm flex items-center justify-center gap-2 w-full sm:w-auto"
                                     >
                                         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
-                                        <span className="hidden sm:inline">Add Service</span>
-                                        <span className="sm:hidden">Add</span>
-                                    </button>
-                                    <button
-                                        onClick={() => window.location.href = '{!! $carWashRoute !!}'}
-                                        className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors backdrop-blur-sm"
-                                    >
-                                        <span className="hidden sm:inline">← Back to Car Wash</span>
-                                        <span className="sm:hidden">← Back</span>
+                                        <span>Update Price List</span>
                                     </button>
                                 </div>
                             </div>
@@ -702,12 +830,38 @@
                                                         backgroundColor: serviceColorValue,
                                                         color: 'white'
                                                     };
+                                                    const handleOrderChangeDesktop = (e) => {
+                                                        const newOrder = parseInt(e.target.value, 10);
+                                                        if (isNaN(newOrder) || newOrder < 1 || newOrder > services.length) return;
+                                                        
+                                                        const newServices = [...services];
+                                                        const currentIdx = newServices.findIndex(s => (s.id || idx) === (service.id || idx));
+                                                        if (currentIdx === -1) return;
+                                                        
+                                                        const [moved] = newServices.splice(currentIdx, 1);
+                                                        newServices.splice(newOrder - 1, 0, moved);
+                                                        
+                                                        // Update all order boxes
+                                                        newServices.forEach((s, i) => {
+                                                            const orderBox = document.querySelector(`[data-service-id-desktop="${s.id || i}"] .order-box-desktop`);
+                                                            if (orderBox) orderBox.value = i + 1;
+                                                        });
+                                                        
+                                                        setServices(newServices);
+                                                    };
+                                                    
                                                     return (
-                                                    <tr key={service.id || idx} className="hover:opacity-90 transition-all" style={rowStyle}>
+                                                    <tr key={service.id || idx} data-service-id-desktop={service.id || idx} className="hover:opacity-90 transition-all" style={rowStyle}>
                                                         <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
-                                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-lg" style={iconStyle}>
-                                                                {idx + 1}
-                                                            </div>
+                                                            <input 
+                                                                type="number" 
+                                                                className="order-box-desktop w-10 h-10 text-center font-black text-sm border-2 border-slate-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                                                                min="1" 
+                                                                max={services.length} 
+                                                                value={idx + 1}
+                                                                onChange={handleOrderChangeDesktop}
+                                                                aria-label="Order"
+                                                            />
                                                         </td>
                                                         <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                                                             <div className="text-sm font-black text-slate-900">{service.label || 'N/A'}</div>
@@ -843,6 +997,25 @@
                                     {/* Mobile Card View */}
                                     <div className="md:hidden p-3 sm:p-4 space-y-3">
                                         {services.map((service, idx) => {
+                                            const handleOrderChange = (e) => {
+                                                const newOrder = parseInt(e.target.value, 10);
+                                                if (isNaN(newOrder) || newOrder < 1 || newOrder > services.length) return;
+                                                
+                                                const newServices = [...services];
+                                                const currentIdx = newServices.findIndex(s => (s.id || idx) === (service.id || idx));
+                                                if (currentIdx === -1) return;
+                                                
+                                                const [moved] = newServices.splice(currentIdx, 1);
+                                                newServices.splice(newOrder - 1, 0, moved);
+                                                
+                                                // Update all order boxes
+                                                newServices.forEach((s, i) => {
+                                                    const orderBox = document.querySelector(`[data-service-id="${s.id || i}"] .order-box-mobile`);
+                                                    if (orderBox) orderBox.value = i + 1;
+                                                });
+                                                
+                                                setServices(newServices);
+                                            };
                                             const serviceColorValue = service.colorValue || service.color_value || '#3b82f6';
                                             const hexToRgba = (hex, alpha) => {
                                                 const r = parseInt(hex.slice(1, 3), 16);
@@ -859,37 +1032,51 @@
                                                 color: 'white'
                                             };
                                             return (
-                                                <div key={service.id || idx} className="bg-white rounded-xl shadow-md p-4 border-2 border-slate-100" style={cardStyle}>
+                                                <div 
+                                                    key={service.id || idx} 
+                                                    data-service-id={service.id || idx}
+                                                    className="bg-white rounded-xl shadow-md p-4 border-2 border-slate-100" 
+                                                    style={cardStyle}
+                                                >
+                                                    <div className="flex items-center justify-end mb-1">
+                                                        <input 
+                                                            type="number" 
+                                                            className="order-box-mobile w-10 h-10 text-center font-black text-sm border-2 border-slate-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                                                            min="1" 
+                                                            max={services.length} 
+                                                            value={idx + 1}
+                                                            onChange={handleOrderChange}
+                                                            aria-label="Order"
+                                                        />
+                                                    </div>
                                                     <div className="flex items-start justify-between mb-3">
-                                                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                                                            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0" style={iconStyle}>
-                                                                {idx + 1}
+                                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                            <div className="w-14 h-14 rounded-lg flex items-center justify-center text-white shadow-lg flex-shrink-0" style={iconStyle}>
+                                                                {getIconSVG(service.icon || 'car')}
                                                             </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="text-base font-black text-slate-900 truncate">{service.label || 'N/A'}</div>
+                                                            <div className="flex-1 min-w-0 -mt-3">
+                                                                <div className="text-base font-black text-slate-900 whitespace-nowrap overflow-x-auto">{service.label || 'N/A'}</div>
                                                                 {service.isDefault && <div className="text-xs text-emerald-600 font-bold mt-0.5">Default</div>}
                                                             </div>
                                                         </div>
-                                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-lg flex-shrink-0" style={iconStyle}>
-                                                            {getIconSVG(service.icon || 'car')}
+                                                        <div className="flex-shrink-0 ml-2 text-right mt-8">
+                                                            {(service.additionalPrices || service.additional_prices || []).length > 0 ? (
+                                                                <div className="flex flex-col gap-0.5 items-end">
+                                                                    {(service.additionalPrices || service.additional_prices).map((price, pIdx) => (
+                                                                        <div key={pIdx} className="text-xs font-bold text-slate-700 whitespace-nowrap">
+                                                                            {price.label || 'N/A'}: Rs.{Math.round(price.amount || 0)}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-xs text-slate-400">None</span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="grid grid-cols-2 gap-3 mb-3">
-                                                        <div>
-                                                            <div className="text-xs text-slate-500 font-bold mb-1">Base Price</div>
-                                                            <div className="text-sm font-black text-blue-600">Rs.{Math.round(service.basePrice || service.base_price || 0)}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-xs text-slate-500 font-bold mb-1">Additional</div>
-                                                            <div className="text-sm text-slate-600">
-                                                                {(service.additionalPrices || service.additional_prices || []).length > 0 ? (
-                                                                    <span className="font-bold">{(service.additionalPrices || service.additional_prices).length} items</span>
-                                                                ) : (
-                                                                    <span className="text-slate-400">None</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                                    <div className="mb-3">
+                                                        <div className="text-xs text-slate-500 font-bold mb-1">Base Price</div>
+                                                        <div className="text-sm font-black text-blue-600">Rs.{Math.round(service.basePrice || service.base_price || 0)}</div>
                                                     </div>
                                                     
                                                     <div className="flex items-center justify-between pt-3 border-t border-slate-200">
@@ -1052,7 +1239,34 @@
                                             const additionalPricesContainer = document.getElementById('additionalPricesContainer');
                                             
                                             const label = labelInput ? labelInput.value.trim().toUpperCase() : '';
-                                            const basePrice = basePriceInput ? parseFloat(basePriceInput.value) || 0 : 0;
+                                            const basePriceValue = basePriceInput ? basePriceInput.value.trim() : '';
+                                            const basePrice = parseFloat(basePriceValue) || 0;
+                                            
+                                            // Validate category name is required
+                                            if (!label || label.length === 0) {
+                                                alert('Category Name is required');
+                                                if (labelInput) {
+                                                    labelInput.focus();
+                                                    labelInput.style.border = '2px solid red';
+                                                    setTimeout(() => {
+                                                        labelInput.style.border = '';
+                                                    }, 3000);
+                                                }
+                                                return;
+                                            }
+                                            
+                                            // Validate base price is required
+                                            if (!basePriceValue || basePrice <= 0) {
+                                                alert('Base Price is required and must be greater than 0');
+                                                if (basePriceInput) {
+                                                    basePriceInput.focus();
+                                                    basePriceInput.style.border = '2px solid red';
+                                                    setTimeout(() => {
+                                                        basePriceInput.style.border = '';
+                                                    }, 3000);
+                                                }
+                                                return;
+                                            }
                                             const icon = selectedIconInput ? selectedIconInput.value : 'car';
                                             const colorValue = selectedThemeColorInput ? selectedThemeColorInput.value : '#3b82f6';
                                             const colorClass = selectedThemeClassInput ? selectedThemeClassInput.value : 'bg-blue-600';
@@ -1156,7 +1370,7 @@
                                     >
                                         {/* Category Name */}
                                         <div className="space-y-2">
-                                            <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-2">CATEGORY NAME</label>
+                                            <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-2">CATEGORY NAME <span className="text-red-500">*</span></label>
                                             <input 
                                                 type="text" 
                                                 id="serviceLabel"
@@ -1164,6 +1378,14 @@
                                                 className="w-full px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 md:py-4 border-none rounded-xl sm:rounded-2xl bg-slate-100 focus:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm sm:text-base font-semibold text-slate-900 uppercase"
                                                 placeholder="e.g. Engine Detail"
                                                 required
+                                                onInvalid={(e) => {
+                                                    e.target.setCustomValidity('Category Name is required');
+                                                }}
+                                                onInput={(e) => {
+                                                    e.target.setCustomValidity('');
+                                                    // Remove error styling on input
+                                                    e.target.style.border = '';
+                                                }}
                                                 onChange={(e) => {
                                                     const previewLabel = document.getElementById('previewLabel');
                                                     if (previewLabel) {
@@ -1175,17 +1397,23 @@
                                         
                                         {/* Base Price */}
                                         <div className="space-y-2">
-                                            <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-2">BASE PRICE (RS.)</label>
+                                            <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-2">BASE PRICE (RS.) <span className="text-red-500">*</span></label>
                                             <input 
                                                 type="number" 
                                                 id="serviceBasePrice"
                                                 defaultValue={selectedServiceForEdit?.basePrice || selectedServiceForEdit?.base_price || 0}
                                                 className="w-full px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 md:py-4 border-none rounded-xl sm:rounded-2xl bg-slate-100 focus:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm sm:text-base font-semibold text-slate-900"
-                                                placeholder="0"
-                                                min="0"
+                                                placeholder="Enter base price"
+                                                min="1"
                                                 step="1"
                                                 required
-                                                onChange={(e) => {
+                                                onInvalid={(e) => {
+                                                    e.target.setCustomValidity('Base Price is required and must be greater than 0');
+                                                }}
+                                                onInput={(e) => {
+                                                    e.target.setCustomValidity('');
+                                                    // Remove error styling on input
+                                                    e.target.style.border = '';
                                                     const previewPrice = document.getElementById('previewPrice');
                                                     if (previewPrice) {
                                                         previewPrice.textContent = '· RS.' + (e.target.value || 0);
@@ -1295,28 +1523,98 @@
                                                             </svg>
                                                         )}
                                                         {iconName === 'tractor' && (
-                                                            <svg width="32" height="32" fill={(selectedServiceForEdit && selectedServiceForEdit.icon === iconName) ? "#10b981" : "#ec4899"} viewBox="0 0 24 24">
-                                                                <rect x="3" y="7" width="15" height="7" rx="1" fill="currentColor"/>
-                                                                <line x1="4" y1="9" x2="4" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
-                                                                <line x1="5.5" y1="9" x2="5.5" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
-                                                                <line x1="7" y1="9" x2="7" y2="11" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
-                                                                <line x1="7" y1="7" x2="7" y2="9" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
-                                                                <line x1="11" y1="7" x2="11" y2="9" stroke="currentColor" strokeWidth="0.8" opacity="0.6"/>
-                                                                <path d="M3 7 L3 5 L4 5 L4 6.5" stroke="currentColor" strokeWidth="2" fill="none"/>
-                                                                <circle cx="6" cy="17" r="3.5" fill="currentColor" opacity="0.2"/>
-                                                                <circle cx="6" cy="17" r="2.5" fill="currentColor" opacity="0.4"/>
-                                                                <circle cx="6" cy="17" r="1.2" fill="currentColor"/>
-                                                                <path d="M6 13.5 L6 20.5 M2.5 17 L9.5 17" stroke="currentColor" strokeWidth="1" opacity="0.7"/>
-                                                                <circle cx="16" cy="17" r="4.5" fill="currentColor" opacity="0.2"/>
-                                                                <circle cx="16" cy="17" r="3.2" fill="currentColor" opacity="0.4"/>
-                                                                <circle cx="16" cy="17" r="1.3" fill="currentColor"/>
-                                                                <path d="M16 12.5 L16 21.5 M11.5 17 L20.5 17" stroke="currentColor" strokeWidth="1.2" opacity="0.7"/>
-                                                                <circle cx="9.5" cy="9.5" r="1.5" fill="currentColor"/>
-                                                                <rect x="8.5" y="11" width="2.5" height="3" rx="0.5" fill="currentColor"/>
-                                                                <circle cx="11.5" cy="12" r="1" fill="currentColor" opacity="0.8"/>
-                                                                <line x1="11.5" y1="11" x2="11.5" y2="13" stroke="currentColor" strokeWidth="0.8" opacity="0.9"/>
-                                                                <rect x="13" y="11.5" width="2" height="2.5" rx="0.3" fill="currentColor" opacity="0.7"/>
-                                                            </svg>
+                                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                                <img 
+                                                                    src={window.location.origin + '/images/icons/tractor.png'} 
+                                                                    alt="Tractor" 
+                                                                    className="tractor-icon"
+                                                                    onLoad={(e) => {
+                                                                        // Remove background using advanced canvas processing
+                                                                        const img = e.target;
+                                                                        const canvas = document.createElement('canvas');
+                                                                        const ctx = canvas.getContext('2d');
+                                                                        canvas.width = img.naturalWidth;
+                                                                        canvas.height = img.naturalHeight;
+                                                                        ctx.drawImage(img, 0, 0);
+                                                                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                                                        const data = imageData.data;
+                                                                        
+                                                                        // Sample corner and edge pixels to detect background color
+                                                                        const samplePoints = [];
+                                                                        const edgeSize = Math.min(5, Math.floor(canvas.width / 10), Math.floor(canvas.height / 10));
+                                                                        for (let y = 0; y < edgeSize; y++) {
+                                                                            for (let x = 0; x < canvas.width; x++) {
+                                                                                samplePoints.push([x, y]); // Top edge
+                                                                                samplePoints.push([x, canvas.height - 1 - y]); // Bottom edge
+                                                                            }
+                                                                        }
+                                                                        for (let x = 0; x < edgeSize; x++) {
+                                                                            for (let y = edgeSize; y < canvas.height - edgeSize; y++) {
+                                                                                samplePoints.push([x, y]); // Left edge
+                                                                                samplePoints.push([canvas.width - 1 - x, y]); // Right edge
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        const bgColors = samplePoints.map(([x, y]) => {
+                                                                            const idx = (y * canvas.width + x) * 4;
+                                                                            return {
+                                                                                r: data[idx],
+                                                                                g: data[idx + 1],
+                                                                                b: data[idx + 2]
+                                                                            };
+                                                                        });
+                                                                        
+                                                                        // Find average background color
+                                                                        const avgBg = {
+                                                                            r: Math.round(bgColors.reduce((sum, c) => sum + c.r, 0) / bgColors.length),
+                                                                            g: Math.round(bgColors.reduce((sum, c) => sum + c.g, 0) / bgColors.length),
+                                                                            b: Math.round(bgColors.reduce((sum, c) => sum + c.b, 0) / bgColors.length)
+                                                                        };
+                                                                        
+                                                                        // More aggressive background removal
+                                                                        const tolerance = 60; // Increased tolerance
+                                                                        for (let i = 0; i < data.length; i += 4) {
+                                                                            const r = data[i];
+                                                                            const g = data[i + 1];
+                                                                            const b = data[i + 2];
+                                                                            
+                                                                            // Calculate distance from background color
+                                                                            const dist = Math.sqrt(
+                                                                                Math.pow(r - avgBg.r, 2) +
+                                                                                Math.pow(g - avgBg.g, 2) +
+                                                                                Math.pow(b - avgBg.b, 2)
+                                                                            );
+                                                                            
+                                                                            // Check for white/light backgrounds (more aggressive)
+                                                                            const isWhite = r > 200 && g > 200 && b > 200;
+                                                                            const isLightGray = r > 180 && g > 180 && b > 180 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30;
+                                                                            
+                                                                            // Check for black/dark backgrounds (more aggressive)
+                                                                            const isBlack = r < 50 && g < 50 && b < 50;
+                                                                            const isDarkGray = r < 80 && g < 80 && b < 80 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30;
+                                                                            
+                                                                            // Make transparent if close to background or white/black/grays
+                                                                            if (dist < tolerance || isWhite || isBlack || isLightGray || isDarkGray) {
+                                                                                data[i + 3] = 0; // Set alpha to 0 (transparent)
+                                                                            }
+                                                                        }
+                                                                        
+                                                                        ctx.putImageData(imageData, 0, 0);
+                                                                        img.src = canvas.toDataURL('image/png');
+                                                                    }}
+                                                                    onError={(e) => {
+                                                                        // Fallback to SVG if image fails to load
+                                                                        e.target.style.display = 'none';
+                                                                        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                                                                        svg.setAttribute('width', '32');
+                                                                        svg.setAttribute('height', '32');
+                                                                        svg.setAttribute('fill', (selectedServiceForEdit && selectedServiceForEdit.icon === iconName) ? "#10b981" : "#ec4899");
+                                                                        svg.setAttribute('viewBox', '0 0 24 24');
+                                                                        e.target.parentElement.appendChild(svg);
+                                                                    }}
+                                                                />
+                                                                <span className="text-[8px] sm:text-[9px] font-bold text-slate-600 uppercase">CD-70</span>
+                                                            </div>
                                                         )}
                                                         {iconName === 'luxury-car' && (
                                                             <svg width="32" height="32" fill={(selectedServiceForEdit && selectedServiceForEdit.icon === iconName) ? "#10b981" : "#8b5cf6"} viewBox="0 0 24 24">
@@ -1504,6 +1802,295 @@
                                             </button>
                                         </div>
                                     </form>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Update Price List Modal */}
+                    {showPriceListModal && (
+                        <div 
+                            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4"
+                            onClick={() => setShowPriceListModal(false)}
+                        >
+                            <div 
+                                className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="p-4 sm:p-5 md:p-6 border-b border-slate-200 bg-emerald-600 text-white flex-shrink-0">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">
+                                                UPDATE PRICE LIST
+                                            </h2>
+                                            <p className="text-xs sm:text-sm opacity-90 mt-1">
+                                                BULK UPDATE BASE PRICES AND ADDITIONAL PRICES FOR ALL SERVICES
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowPriceListModal(false)}
+                                            className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
+                                        >
+                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6">
+                                    <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+                                        <p className="text-xs sm:text-sm text-blue-800 font-semibold">
+                                            💡 <strong>Tip:</strong> Update base prices and additional prices for all services at once. Changes will be saved when you click "Save All Changes".
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        {services.map((service, idx) => {
+                                            const serviceId = 'priceList_' + (service.id || idx);
+                                            const serviceColorValue = service.colorValue || service.color_value || '#3b82f6';
+                                            const iconStyle = { 
+                                                backgroundColor: serviceColorValue,
+                                                color: 'white'
+                                            };
+                                            return (
+                                                <div key={service.id || idx} className="bg-white rounded-xl p-4 sm:p-5 border-2 border-slate-200 hover:border-emerald-300 transition-colors shadow-sm hover:shadow-md">
+                                                    <div className="mb-3 flex items-center gap-3 pb-2 border-b-2 border-slate-200">
+                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center text-white shadow flex-shrink-0" style={iconStyle}>
+                                                            {getIconSVG(service.icon || 'car')}
+                                                        </div>
+                                                        <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase flex-1">{service.label || 'N/A'}</h3>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold text-slate-600 w-24 sm:w-28">Base Rate</span>
+                                                            <input
+                                                                type="number"
+                                                                id={`${serviceId}_basePrice`}
+                                                                defaultValue={service.basePrice || service.base_price || 0}
+                                                                min="0"
+                                                                step="1"
+                                                                className="flex-1 max-w-[120px] px-3 py-2 border-2 border-slate-300 rounded-lg bg-white text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                                placeholder="0"
+                                                            />
+                                                            <span className="text-xs font-bold text-slate-600">Rs.</span>
+                                                        </div>
+                                                        
+                                                        <div>
+                                                            <span className="text-xs font-bold text-slate-600 block mb-2">Additional</span>
+                                                            <div id={`${serviceId}_additionalPrices`} className="space-y-2 mb-3">
+                                                                {(service.additionalPrices || service.additional_prices || []).length > 0 ? (
+                                                                    (service.additionalPrices || service.additional_prices || []).map((priceItem, priceIdx) => (
+                                                                        <div key={priceIdx} className="flex gap-1 items-center bg-white p-1.5 rounded-lg border border-slate-200">
+                                                                            <input
+                                                                                type="text"
+                                                                                defaultValue={priceItem.label || ''}
+                                                                                placeholder="Label (e.g., Premium, Deluxe)"
+                                                                                className="flex-1 px-2 py-2 border border-slate-200 rounded-md bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all capitalize"
+                                                                            />
+                                                                            <span className="text-xs font-black text-slate-600 -ml-0.5">Rs.</span>
+                                                                            <input
+                                                                                type="number"
+                                                                                defaultValue={priceItem.amount || 0}
+                                                                                placeholder="0"
+                                                                                min="0"
+                                                                                step="1"
+                                                                                className="w-16 sm:w-20 px-2 py-2 border border-slate-200 rounded-md bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                                                                            />
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => e.target.closest('div').remove()}
+                                                                                className="px-2 py-2 bg-red-500 text-white rounded-md text-xs font-bold hover:bg-red-600 transition-colors flex-shrink-0"
+                                                                                title="Remove this price"
+                                                                            >
+                                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                                </svg>
+                                                                            </button>
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <p className="text-xs text-slate-400 italic py-2">No additional prices. Click "Add Price" to add one.</p>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const container = document.getElementById(`${serviceId}_additionalPrices`);
+                                                                    const emptyMsg = container.querySelector('p.text-slate-400');
+                                                                    if (emptyMsg) emptyMsg.remove();
+                                                                    
+                                                                    const newDiv = document.createElement('div');
+                                                                    newDiv.className = 'flex gap-1 items-center bg-white p-1.5 rounded-lg border border-slate-200';
+                                                                    newDiv.innerHTML = `
+                                                                        <input type="text" placeholder="label" class="flex-1 px-2 py-2 border border-slate-200 rounded-md bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all capitalize" />
+                                                                        <input type="number" placeholder="0" min="0" step="1" class="w-16 sm:w-20 px-2 py-2 border border-slate-200 rounded-md bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all" />
+                                                                        <button type="button" onclick="this.closest('div').remove()" class="px-2 py-2 bg-red-500 text-white rounded-md text-xs font-bold hover:bg-red-600 transition-colors flex-shrink-0" title="Remove">
+                                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    `;
+                                                                    container.appendChild(newDiv);
+                                                                    newDiv.querySelector('input[type="text"]').focus();
+                                                                }}
+                                                                className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-bold uppercase hover:bg-emerald-600 transition-colors"
+                                                            >
+                                                                + Add
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                
+                                <div className="p-4 sm:p-5 md:p-6 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 flex-shrink-0">
+                                    <div className="flex flex-row flex-wrap gap-3 items-center justify-end">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                let rateListUrl = API_ROUTES.services.rateList;
+                                                if (!rateListUrl || rateListUrl === '' || rateListUrl === 'undefined') {
+                                                    alert('Rate list route not configured. Please contact administrator.');
+                                                    return;
+                                                }
+                                                if (rateListUrl.startsWith('/')) {
+                                                    rateListUrl = window.location.origin + rateListUrl;
+                                                }
+                                                rateListUrl += (rateListUrl.indexOf('?') >= 0 ? '&' : '?') + 'return_url=' + encodeURIComponent(window.location.href);
+                                                const printWin = window.open(rateListUrl, '_blank');
+                                                if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
+                                                    alert('Please allow popups for this site to view the rate list (A4 PDF).');
+                                                } else {
+                                                    printWin.focus();
+                                                }
+                                            }}
+                                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl text-xs font-bold uppercase hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center gap-1.5"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                            </svg>
+                                            View Rate List
+                                        </button>
+                                        <button
+                                            onClick={() => setShowPriceListModal(false)}
+                                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-500 text-white rounded-lg sm:rounded-xl text-xs font-bold uppercase hover:bg-slate-600 transition-colors shadow-md flex items-center justify-center gap-1.5"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={async (event) => {
+                                                const saveButton = event.target.closest('button');
+                                                const originalText = saveButton.innerHTML;
+                                                saveButton.disabled = true;
+                                                saveButton.innerHTML = '<svg class="animate-spin h-5 w-5 inline-block mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Saving...';
+                                                
+                                                const updates = [];
+                                                
+                                                services.forEach((service, idx) => {
+                                                    const serviceId = 'priceList_' + (service.id || idx);
+                                                    const basePriceInput = document.getElementById(`${serviceId}_basePrice`);
+                                                    const additionalContainer = document.getElementById(`${serviceId}_additionalPrices`);
+                                                    
+                                                    if (basePriceInput) {
+                                                        const basePrice = parseFloat(basePriceInput.value) || 0;
+                                                        const additionalPrices = [];
+                                                        
+                                                        if (additionalContainer) {
+                                                            additionalContainer.querySelectorAll('div.flex').forEach(div => {
+                                                                const labelInput = div.querySelector('input[type="text"]');
+                                                                const amountInput = div.querySelector('input[type="number"]');
+                                                                if (labelInput && amountInput) {
+                                                                    const label = labelInput.value.trim();
+                                                                    const amount = parseFloat(amountInput.value) || 0;
+                                                                    if (label) {
+                                                                        additionalPrices.push({ label, amount });
+                                                                    }
+                                                                }
+                                                            });
+                                                        }
+                                                        
+                                                        updates.push({
+                                                            id: service.id,
+                                                            label: service.label || service.label || '',
+                                                            base_price: basePrice,
+                                                            additional_prices: additionalPrices,
+                                                            icon: service.icon || 'car',
+                                                            color: service.color || 'bg-blue-600',
+                                                            color_value: service.colorValue || service.color_value || '#3b82f6'
+                                                        });
+                                                    }
+                                                });
+                                                
+                                                if (updates.length === 0) {
+                                                    alert('No changes to save');
+                                                    saveButton.disabled = false;
+                                                    saveButton.innerHTML = originalText;
+                                                    return;
+                                                }
+                                                
+                                                try {
+                                                    const promises = updates.map(async (update) => {
+                                                        const response = await fetch(API_ROUTES.services.update(update.id), {
+                                                            method: 'PUT',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-CSRF-TOKEN': csrfToken,
+                                                                'Accept': 'application/json'
+                                                            },
+                                                            body: JSON.stringify(update)
+                                                        });
+                                                        
+                                                        if (!response.ok) {
+                                                            const errorData = await response.json().catch(() => ({}));
+                                                            throw new Error(errorData.message || `Failed to update service ${update.id}`);
+                                                        }
+                                                        
+                                                        return await response.json();
+                                                    });
+                                                    
+                                                    const results = await Promise.all(promises);
+                                                    
+                                                    // Check if all updates were successful
+                                                    const allSuccess = results.every(result => result.success !== false);
+                                                    
+                                                    if (allSuccess) {
+                                                        // Show success message
+                                                        saveButton.innerHTML = '✓ Saved!';
+                                                        saveButton.className = 'px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg sm:rounded-xl text-xs font-bold uppercase transition-colors shadow-md flex items-center justify-center gap-1.5';
+                                                        
+                                                        // Close modal and reload
+                                                        setShowPriceListModal(false);
+                                                        setTimeout(() => {
+                                                            window.location.reload();
+                                                        }, 500);
+                                                    } else {
+                                                        throw new Error('Some updates failed');
+                                                    }
+                                                } catch (error) {
+                                                    console.error('Error updating prices:', error);
+                                                    alert('Error updating prices: ' + (error.message || 'Please try again.'));
+                                                    saveButton.disabled = false;
+                                                    saveButton.innerHTML = originalText;
+                                                }
+                                            }}
+                                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-lg sm:rounded-xl text-xs font-bold uppercase hover:bg-emerald-700 transition-colors shadow-md flex items-center justify-center gap-1.5"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Save All Changes
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-3 text-center">
+                                        {services.length} service{services.length !== 1 ? 's' : ''} will be updated
+                                    </p>
                                 </div>
                             </div>
                         </div>
