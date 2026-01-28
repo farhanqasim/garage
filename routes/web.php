@@ -55,9 +55,10 @@ Auth::routes();
 // Get user branch by email (for login form auto-detection)
 Route::post('/get-user-branch', [LoginController::class, 'getUserBranchByEmail'])->name('get.user.branch');
 
-// WebAuthn Routes
+// WebAuthn Routes (fingerprint / passkey login)
 Route::prefix('webauthn')->name('webauthn.')->group(function () {
     Route::post('/login/options', [WebAuthnController::class, 'getLoginOptions'])->name('login.options');
+    Route::post('/login/conditional-options', [WebAuthnController::class, 'getConditionalOptions'])->name('login.conditional.options');
     Route::post('/login/verify', [WebAuthnController::class, 'verifyLogin'])->name('login.verify');
     Route::post('/register/verify', [WebAuthnController::class, 'verifyRegister'])->name('register.verify');
 });

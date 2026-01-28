@@ -11,7 +11,6 @@
         th { background: #1e293b; color: #fff; font-weight: 700; }
         tr:nth-child(even) { background: #f1f5f9; }
         tbody td { font-weight: bold; }
-        tbody td .order-box { width: 36px; height: 28px; text-align: center; font-weight: bold; font-size: 12px; border: 1px solid #333; border-radius: 4px; padding: 2px; }
         h1 { text-align: center; margin-bottom: 16px; }
         .print-hint { text-align: center; margin-top: 20px; font-size: 10px; color: #64748b; }
         .close-btn { position: fixed; top: 15px; right: 15px; width: 40px; height: 40px; background: #ef4444; color: white; border: none; border-radius: 50%; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; transition: background 0.2s; }
@@ -31,7 +30,6 @@
     <table>
         <thead>
             <tr>
-                <th>#</th>
                 <th>Service</th>
                 <th>Base Rate</th>
                 <th>Premium Service Rate</th>
@@ -39,8 +37,7 @@
         </thead>
         <tbody>
             @foreach($services as $index => $service)
-            <tr data-row-order="{{ $index + 1 }}">
-                <td><input type="number" class="order-box" min="1" max="{{ count($services) }}" value="{{ $index + 1 }}" aria-label="Order"></td>
+            <tr>
                 <td>{{ $service->label ?? 'N/A' }}</td>
                 <td>{{ number_format((float) ($service->base_price ?? $service->basePrice ?? 0), 0) }}</td>
                 <td>
@@ -69,21 +66,6 @@
             };
         })();
         window.onload = function() {
-            var tbody = document.querySelector('table tbody');
-            var orderInputs = tbody ? tbody.querySelectorAll('.order-box') : [];
-            function sortRows() {
-                var rows = Array.from(tbody.querySelectorAll('tr'));
-                rows.sort(function(a, b) {
-                    var aVal = parseInt(a.querySelector('.order-box').value, 10) || 999;
-                    var bVal = parseInt(b.querySelector('.order-box').value, 10) || 999;
-                    return aVal - bVal;
-                });
-                rows.forEach(function(r) { tbody.appendChild(r); });
-            }
-            orderInputs.forEach(function(inp) {
-                inp.addEventListener('change', sortRows);
-                inp.addEventListener('input', sortRows);
-            });
             setTimeout(function() { window.print(); }, 300);
         };
     </script>
