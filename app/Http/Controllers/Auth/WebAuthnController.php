@@ -15,6 +15,31 @@ use Illuminate\Support\Facades\Log;
 class WebAuthnController extends Controller
 {
     /**
+     * Get options for conditional UI (passkey / fingerprint autofill).
+     * No email/password required - browser shows saved passkeys for this site.
+     * Used when user clicks "Sign in with Fingerprint" or when browser suggests passkey.
+     */
+    public function getConditionalOptions(Request $request)
+    {
+        $challenge = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(random_bytes(32)));
+        Session::put('webauthn_conditional_challenge', $challenge);
+        Session::put('webauthn_conditional_timestamp', now()->timestamp);
+
+        $options = [
+            'challenge' => $challenge,
+            'timeout' => 60000,
+            'rpId' => $this->getRpId(),
+            'allowCredentials' => [], // Empty = browser shows all passkeys for this site (Windows Hello, mobile fingerprint, etc.)
+            'userVerification' => 'preferred',
+        ];
+
+        return response()->json([
+            'success' => true,
+            'options' => $options,
+        ]);
+    }
+
+    /**
      * Get login options for WebAuthn authentication.
      * This generates a challenge that the client will use to authenticate.
      */
@@ -162,29 +187,41 @@ class WebAuthnController extends Controller
             ], 422);
         }
 
-        // Get challenge from session
+        $credential = $request->input('credential');
+        $credentialId = $credential['id']; // Already base64url encoded from client
+
+        // Support two flows: (1) session from getLoginOptions(email,password) or (2) conditional UI (no session – find user by credential_id)
         $storedChallenge = Session::get('webauthn_login_challenge');
         $userId = Session::get('webauthn_login_user_id');
         $timestamp = Session::get('webauthn_login_timestamp');
 
-        if (!$storedChallenge || !$userId) {
+        $conditionalChallenge = Session::get('webauthn_conditional_challenge');
+        $conditionalTimestamp = Session::get('webauthn_conditional_timestamp');
+
+        if ($userId && $storedChallenge) {
+            // Flow 1: login options were fetched with email+password
+            if ($timestamp && (now()->timestamp - $timestamp) > 300) {
+                Session::forget(['webauthn_login_challenge', 'webauthn_login_user_id', 'webauthn_login_timestamp']);
+                return response()->json(['success' => false, 'message' => 'Challenge expired'], 400);
+            }
+        } elseif ($conditionalChallenge) {
+            // Flow 2: conditional UI (fingerprint / passkey only) – find user by credential_id
+            if ($conditionalTimestamp && (now()->timestamp - $conditionalTimestamp) > 300) {
+                Session::forget(['webauthn_conditional_challenge', 'webauthn_conditional_timestamp']);
+                return response()->json(['success' => false, 'message' => 'Challenge expired'], 400);
+            }
+            $storedChallenge = $conditionalChallenge;
+            $webauthnCredential = WebAuthnCredential::where('credential_id', $credentialId)->first();
+            if (!$webauthnCredential) {
+                return response()->json(['success' => false, 'message' => 'Credential not found'], 404);
+            }
+            $userId = $webauthnCredential->user_id;
+        } else {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid or expired challenge'
             ], 400);
         }
-
-        // Check challenge expiration (5 minutes)
-        if ($timestamp && (now()->timestamp - $timestamp) > 300) {
-            Session::forget(['webauthn_login_challenge', 'webauthn_login_user_id', 'webauthn_login_timestamp']);
-            return response()->json([
-                'success' => false,
-                'message' => 'Challenge expired'
-            ], 400);
-        }
-
-        $credential = $request->input('credential');
-        $credentialId = $credential['id']; // Already base64url encoded from client
 
         // Find the credential in database (stored as base64url)
         $webauthnCredential = WebAuthnCredential::where('credential_id', $credentialId)
@@ -293,8 +330,8 @@ class WebAuthnController extends Controller
             $webauthnCredential->save();
         }
 
-        // Clear session challenge
-        Session::forget(['webauthn_login_challenge', 'webauthn_login_user_id', 'webauthn_login_timestamp']);
+        // Clear session challenge (both flows)
+        Session::forget(['webauthn_login_challenge', 'webauthn_login_user_id', 'webauthn_login_timestamp', 'webauthn_conditional_challenge', 'webauthn_conditional_timestamp']);
 
         // Log the user in
         $user = User::find($userId);

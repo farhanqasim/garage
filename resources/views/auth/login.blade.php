@@ -97,6 +97,22 @@
                                             <button type="submit" class="btn btn-login w-100">Sign In</button>
                                         </div>
 
+                                        <!-- Sign in with Fingerprint — pehle save, phir login -->
+                                        <div class="mb-3" id="webauthnSection">
+                                            <div class="text-center text-muted small mb-2">— or —</div>
+                                            <div class="alert alert-info py-2 px-3 small mb-2" role="alert">
+                                                <strong>Fingerprint login:</strong> Pehli baar fingerprint <strong>save</strong> karein (neeche steps), uske baad agli dafa finger se hi login ho sakta hai.
+                                            </div>
+                                            <button type="button" id="btnFingerprintLogin" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2" title="Pehle email + password daalein, phir click karein. Pehli baar finger lagayenge to save hogi.">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11c0 2.21-.9 4-2 4s-2-1.79-2-4 .9-4 2-4 2 1.79 2 4z"/><path d="M12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/></svg>
+                                                <span>Sign in with Fingerprint</span>
+                                            </button>
+                                            <small class="text-muted d-block mt-2 text-center">
+                                                <strong>Step 1 (pehli baar):</strong> Email &amp; password upar daalein → "Sign in with Fingerprint" click karein → jab browser/device puche to <strong>pehle finger sensor par lagayein</strong> (ya Windows Hello / device passcode) — fingerprint save ho jayegi.<br>
+                                                <strong>Step 2 (agli baar):</strong> Email &amp; password daalein, phir isi button par click karein aur finger lagayein — login ho jayega.
+                                            </small>
+                                        </div>
+
                                         <!-- Forgot Password -->
 
 
@@ -328,6 +344,243 @@
                                         }, 500);
                                     @endif
                                 }
+
+                                // Fingerprint / WebAuthn login
+                                (function() {
+                                    var btnFingerprint = document.getElementById('btnFingerprintLogin');
+                                    if (!btnFingerprint) return;
+                                    if (typeof PublicKeyCredential === 'undefined') {
+                                        btnFingerprint.disabled = true;
+                                        btnFingerprint.title = 'Fingerprint login is not supported in this browser. Use Chrome, Edge, or Safari.';
+                                        return;
+                                    }
+                                    function base64urlToBuffer(base64url) {
+                                        var base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+                                        var pad = base64.length % 4;
+                                        if (pad) base64 += new Array(5 - pad).join('=');
+                                        var binary = atob(base64);
+                                        var bytes = new Uint8Array(binary.length);
+                                        for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                        return bytes.buffer;
+                                    }
+                                    function bufferToBase64url(buffer) {
+                                        var bytes = new Uint8Array(buffer);
+                                        var binary = '';
+                                        for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                                        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                                    }
+                                    btnFingerprint.addEventListener('click', function() {
+                                        var emailEl = document.getElementById('emailInput');
+                                        var passwordEl = document.querySelector('input[name="password"]');
+                                        var email = emailEl && emailEl.value ? emailEl.value.trim() : '';
+                                        var password = passwordEl ? passwordEl.value : '';
+                                        btnFingerprint.disabled = true;
+                                        btnFingerprint.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Use fingerprint...';
+
+                                        // Step 1: Try fingerprint-only (conditional UI) – no password needed if user already has passkey
+                                        function tryConditionalLogin() {
+                                            return fetch('{{ route("webauthn.login.conditional.options") }}', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                    'Accept': 'application/json'
+                                                },
+                                                body: JSON.stringify({})
+                                            })
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(data) {
+                                                if (!data.success || !data.options) return null;
+                                                var opt = data.options;
+                                                var challenge = base64urlToBuffer(opt.challenge);
+                                                var getOpt = {
+                                                    challenge: challenge,
+                                                    timeout: opt.timeout || 60000,
+                                                    rpId: opt.rpId,
+                                                    allowCredentials: [],
+                                                    userVerification: opt.userVerification || 'preferred'
+                                                };
+                                                return navigator.credentials.get({ publicKey: getOpt, mediation: 'conditional' });
+                                            })
+                                            .then(function(cred) {
+                                                if (!cred) return null;
+                                                var response = cred.response;
+                                                return fetch('{{ route("webauthn.login.verify") }}', {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                        'Accept': 'application/json'
+                                                    },
+                                                    body: JSON.stringify({
+                                                        credential: {
+                                                            id: cred.id,
+                                                            response: {
+                                                                authenticatorData: bufferToBase64url(response.authenticatorData),
+                                                                clientDataJSON: bufferToBase64url(response.clientDataJSON),
+                                                                signature: bufferToBase64url(response.signature),
+                                                                userHandle: response.userHandle ? bufferToBase64url(response.userHandle) : null
+                                                            }
+                                                        },
+                                                        remember: document.getElementById('remember') && document.getElementById('remember').checked
+                                                    })
+                                                });
+                                            });
+                                        }
+
+                                        tryConditionalLogin()
+                                        .then(function(res) {
+                                            if (res && res.ok) return res.json();
+                                            if (res && res.status === 404) return null; // no passkey selected
+                                            return null;
+                                        })
+                                        .then(function(data) {
+                                            if (data && data.success && data.redirect) {
+                                                window.location.href = data.redirect;
+                                                return true;
+                                            }
+                                            return false;
+                                        })
+                                        .then(function(didLogin) {
+                                            if (didLogin) return;
+                                            // Step 2: No passkey or user cancelled – require email + password and either login or register fingerprint
+                                            if (!email || !password) {
+                                                btnFingerprint.disabled = false;
+                                                btnFingerprint.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 11c0 2.21-.9 4-2 4s-2-1.79-2-4 .9-4 2-4 2 1.79 2 4z"/><path d="M12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4"/></svg><span>Sign in with Fingerprint</span>';
+                                                alert('Pehle email aur password daalein, phir is button ko click karein.\n\nPehli baar: fingerprint save hogi (finger lagayein jab puche).\nAgli dafa: finger se hi login ho sakta hai.');
+                                                if (emailEl) emailEl.focus();
+                                                return;
+                                            }
+                                            btnFingerprint.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Checking...';
+                                            return fetch('{{ route("webauthn.login.options") }}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                'Accept': 'application/json'
+                                            },
+                                            body: JSON.stringify({ email: email, password: password })
+                                        })
+                                        .then(function(r) { return r.json(); })
+                                        .then(function(data) {
+                                            if (!data.success) {
+                                                btnFingerprint.disabled = false;
+                                                btnFingerprint.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 11c0 2.21-.9 4-2 4s-2-1.79-2-4 .9-4 2-4 2 1.79 2 4z"/><path d="M12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4"/></svg><span>Sign in with Fingerprint</span>';
+                                                alert(data.message || 'Email ya password galat. Sahi daal kar phir "Sign in with Fingerprint" try karein.');
+                                                return;
+                                            }
+                                            if (data.mode === 'register') {
+                                                btnFingerprint.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Register fingerprint...';
+                                                var opt = data.options;
+                                                var challenge = base64urlToBuffer(opt.challenge);
+                                                var pubKey = {
+                                                    challenge: challenge,
+                                                    rp: opt.rp,
+                                                    user: {
+                                                        id: base64urlToBuffer(opt.user.id),
+                                                        name: opt.user.name,
+                                                        displayName: opt.user.displayName || opt.user.name
+                                                    },
+                                                    pubKeyCredParams: opt.pubKeyCredParams || [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+                                                    timeout: opt.timeout || 60000,
+                                                    attestation: opt.attestation || 'none',
+                                                    authenticatorSelection: opt.authenticatorSelection || { userVerification: 'preferred' }
+                                                };
+                                                return navigator.credentials.create({ publicKey: pubKey })
+                                                    .then(function(cred) {
+                                                        if (!cred) throw new Error('No credential returned');
+                                                        var response = cred.response;
+                                                        var attestationObj = response.attestationObject;
+                                                        var clientDataJSON = response.clientDataJSON;
+                                                        return fetch('{{ route("webauthn.register.verify") }}', {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                                'Accept': 'application/json'
+                                                            },
+                                                            body: JSON.stringify({
+                                                                credential: {
+                                                                    id: cred.id,
+                                                                    response: {
+                                                                        attestationObject: bufferToBase64url(attestationObj),
+                                                                        clientDataJSON: bufferToBase64url(clientDataJSON)
+                                                                    }
+                                                                },
+                                                                device_name: 'Fingerprint / Biometric',
+                                                                remember: document.getElementById('remember') && document.getElementById('remember').checked
+                                                            })
+                                                        });
+                                                    });
+                                            }
+                                            btnFingerprint.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Use your fingerprint...';
+                                            var opt = data.options;
+                                            var challenge = base64urlToBuffer(opt.challenge);
+                                            var allowCredentials = (opt.allowCredentials || []).map(function(c) {
+                                                return { type: 'public-key', id: base64urlToBuffer(c.id) };
+                                            });
+                                            var getOpt = {
+                                                challenge: challenge,
+                                                timeout: opt.timeout || 60000,
+                                                rpId: opt.rpId,
+                                                allowCredentials: allowCredentials.length ? allowCredentials : undefined,
+                                                userVerification: opt.userVerification || 'preferred'
+                                            };
+                                            return navigator.credentials.get({ publicKey: getOpt })
+                                                .then(function(cred) {
+                                                    if (!cred) throw new Error('No credential returned');
+                                                    var response = cred.response;
+                                                    return fetch('{{ route("webauthn.login.verify") }}', {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json',
+                                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                            'Accept': 'application/json'
+                                                        },
+                                                        body: JSON.stringify({
+                                                            credential: {
+                                                                id: cred.id,
+                                                                response: {
+                                                                    authenticatorData: bufferToBase64url(response.authenticatorData),
+                                                                    clientDataJSON: bufferToBase64url(response.clientDataJSON),
+                                                                    signature: bufferToBase64url(response.signature),
+                                                                    userHandle: response.userHandle ? bufferToBase64url(response.userHandle) : null
+                                                                }
+                                                            },
+                                                            remember: document.getElementById('remember') && document.getElementById('remember').checked
+                                                        })
+                                                    });
+                                                });
+                                        })
+                                        .then(function(res) {
+                                            if (!res) return;
+                                            if (res.ok) return res.json();
+                                            return res.json().then(function(j) { throw new Error(j.message || 'Verification failed'); });
+                                        })
+                                        .then(function(data) {
+                                            if (!data) return;
+                                            if (data.redirect) {
+                                                window.location.href = data.redirect;
+                                                return;
+                                            }
+                                            if (data.success) {
+                                                window.location.href = (data.redirect || '/home');
+                                                return;
+                                            }
+                                            throw new Error(data.message || 'Login failed');
+                                        })
+                                        .catch(function(err) {
+                                            btnFingerprint.disabled = false;
+                                            btnFingerprint.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 11c0 2.21-.9 4-2 4s-2-1.79-2-4 .9-4 2-4 2 1.79 2 4z"/><path d="M12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4"/></svg><span>Sign in with Fingerprint</span>';
+                                            alert(err.message || 'Fingerprint cancel ya fail. Login ke liye upar "Sign In" button use karein (password se), ya phir dubara try karein: pehle fingerprint save karein (email + password daal kar is button par click, phir finger lagayein).');
+                                        });
+                                        })
+                                        .catch(function() {
+                                            btnFingerprint.disabled = false;
+                                            btnFingerprint.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 11c0 2.21-.9 4-2 4s-2-1.79-2-4 .9-4 2-4 2 1.79 2 4z"/><path d="M12 18c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4"/></svg><span>Sign in with Fingerprint</span>';
+                                        });
+                                    });
+                                })();
                             });
                         </script>
 
