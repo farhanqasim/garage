@@ -121,6 +121,16 @@
             expenses: {
                 show: (jobId) => `/car-wash/expenses/${jobId}`,
             },
+            payments: {
+                store: '{{ route("car-wash.payments.store") }}',
+                reverseLastForWorker: '{{ route("car-wash.payments.reverse-last-for-worker") }}',
+                cashAccountBalance: '{{ route("car-wash.payments.cash-account-balance") }}',
+                pendingCommission: (workerId) => '{{ url("/car-wash/payments/pending-commission") }}/' + workerId,
+                cashMethod: '{{ route("car-wash.payments.cash-method") }}',
+            },
+            workers: {
+                cashTimeline: (workerId) => '{{ url("/car-wash/workers") }}/' + workerId + '/cash-timeline',
+            },
         };
 
         function App() {
@@ -131,6 +141,14 @@
             const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
             const [selectedWorker, setSelectedWorker] = useState('');
             const [openDropdownId, setOpenDropdownId] = useState(null);
+            const [showCashPayModal, setShowCashPayModal] = useState(false);
+            const [userCashBalance, setUserCashBalance] = useState(null);
+            const [workerPendingCommission, setWorkerPendingCommission] = useState(null);
+            const [cashPayLoading, setCashPayLoading] = useState(false);
+            const [cashPaySending, setCashPaySending] = useState(false);
+            const [cashMethodId, setCashMethodId] = useState(null);
+            const [cashTimelineTransactions, setCashTimelineTransactions] = useState([]);
+            const [cashTimelineLoading, setCashTimelineLoading] = useState(false);
             
             // Get unique workers from completed jobs
             const uniqueWorkers = [...new Set(completedJobs.map(job => job.workerName || job.worker_name || job.worker).filter(Boolean))].sort();
@@ -169,6 +187,32 @@
                     })
                     .catch(err => console.error('Error loading completed jobs:', err));
             }, []);
+
+            // Load worker cash timeline when a worker is selected (Commission / Pay / Total balance)
+            useEffect(() => {
+                if (!selectedWorker) {
+                    setCashTimelineTransactions([]);
+                    return;
+                }
+                const jobWithWorker = completedJobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
+                const workerId = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
+                if (!workerId) {
+                    setCashTimelineTransactions([]);
+                    return;
+                }
+                setCashTimelineLoading(true);
+                fetch(API_ROUTES.workers.cashTimeline(workerId), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.transactions) {
+                            setCashTimelineTransactions(data.transactions);
+                        } else {
+                            setCashTimelineTransactions([]);
+                        }
+                    })
+                    .catch(() => setCashTimelineTransactions([]))
+                    .finally(() => setCashTimelineLoading(false));
+            }, [selectedWorker, completedJobs]);
 
             return (
                 <div className="min-h-screen bg-slate-50">
@@ -216,25 +260,147 @@
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex flex-col gap-1.5 w-full">
+                                    <div className="flex flex-col gap-1.5 w-full sm:w-auto">
                                         <div className="text-center sm:text-left">
                                             <span className="text-xs sm:text-sm font-bold uppercase opacity-90 worker-label">Worker</span>
                                         </div>
-                                        <select
-                                            value={selectedWorker}
-                                            onChange={(e) => setSelectedWorker(e.target.value)}
-                                            className="w-full px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none"
-                                        >
-                                            <option value="" className="bg-slate-800 text-white">All</option>
-                                            {uniqueWorkers.map((worker, idx) => (
-                                                <option key={idx} value={worker} className="bg-slate-800 text-white">{worker}</option>
-                                            ))}
-                                        </select>
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={selectedWorker}
+                                                onChange={(e) => setSelectedWorker(e.target.value)}
+                                                className="flex-1 min-w-0 px-2 py-1.5 border-2 border-white/30 bg-white/10 rounded-lg text-white text-xs font-bold focus:border-white/50 focus:outline-none"
+                                            >
+                                                <option value="" className="bg-slate-800 text-white">All</option>
+                                                {uniqueWorkers.map((worker, idx) => (
+                                                    <option key={idx} value={worker} className="bg-slate-800 text-white">{worker}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                disabled={!selectedWorker}
+                                                onClick={async () => {
+                                                    if (!selectedWorker) return;
+                                                    const jobWithWorker = completedJobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
+                                                    const workerId = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
+                                                    if (!workerId) {
+                                                        alert('Worker ID not found. Please try another worker or refresh the page.');
+                                                        return;
+                                                    }
+                                                    setShowCashPayModal(true);
+                                                    setCashPayLoading(true);
+                                                    setUserCashBalance(null);
+                                                    setWorkerPendingCommission(null);
+                                                    try {
+                                                        const [balanceRes, commissionRes, methodRes] = await Promise.all([
+                                                            fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
+                                                            fetch(API_ROUTES.payments.pendingCommission(workerId), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
+                                                            fetch(API_ROUTES.payments.cashMethod, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
+                                                        ]);
+                                                        const balanceData = balanceRes.ok ? await balanceRes.json() : {};
+                                                        const commissionData = commissionRes.ok ? await commissionRes.json() : {};
+                                                        const methodData = methodRes.ok ? await methodRes.json() : {};
+                                                        setUserCashBalance(balanceData.balance != null ? balanceData.balance : null);
+                                                        setWorkerPendingCommission(commissionData.pending_commission != null ? commissionData.pending_commission : null);
+                                                        setCashMethodId(methodData.id || null);
+                                                    } catch (e) {
+                                                        console.error(e);
+                                                        alert('Failed to load cash pay data.');
+                                                    }
+                                                    setCashPayLoading(false);
+                                                }}
+                                                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white text-xs font-black uppercase transition-colors whitespace-nowrap flex-shrink-0"
+                                                title={selectedWorker ? 'Pay commission by cash to selected worker' : 'Select a worker first'}
+                                            >
+                                                Cash Pay
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </header>
+
+                    {/* Cash Pay Modal */}
+                    {showCashPayModal && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !cashPaySending && setShowCashPayModal(false)}>
+                            <div className="bg-white rounded-2xl shadow-2xl border-2 border-slate-200 w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 sm:p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
+                                    <h3 className="text-lg font-black uppercase">Cash Pay – {selectedWorker}</h3>
+                                    <p className="text-xs opacity-90 mt-0.5">Pay commission from your cash account</p>
+                                </div>
+                                <div className="p-4 sm:p-6 space-y-4">
+                                    {cashPayLoading ? (
+                                        <div className="text-center py-6 text-slate-500 font-bold">Loading…</div>
+                                    ) : (
+                                        <>
+                                            <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
+                                                <p className="text-xs font-bold text-slate-500 uppercase mb-1">Your cash account</p>
+                                                <p className="text-xl font-black text-slate-900 font-mono">
+                                                    Rs.{userCashBalance != null ? Number(userCashBalance).toFixed(2) : '—'}
+                                                </p>
+                                            </div>
+                                            <div className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-200">
+                                                <p className="text-xs font-bold text-emerald-700 uppercase mb-1">Worker total commission (pending)</p>
+                                                <p className="text-xl font-black text-emerald-800 font-mono">
+                                                    Rs.{workerPendingCommission != null ? Number(workerPendingCommission).toFixed(2) : '—'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                disabled={cashPaySending || userCashBalance == null || workerPendingCommission == null || workerPendingCommission <= 0 || !cashMethodId || (userCashBalance != null && Number(userCashBalance) < Number(workerPendingCommission))}
+                                                onClick={async () => {
+                                                    const jobWithWorker = completedJobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
+                                                    const workerId = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
+                                                    if (!workerId || !cashMethodId || workerPendingCommission == null || workerPendingCommission <= 0) return;
+                                                    setCashPaySending(true);
+                                                    try {
+                                                        const today = new Date().toISOString().split('T')[0];
+                                                        const formData = new FormData();
+                                                        formData.append('_token', csrfToken);
+                                                        formData.append('payment_type', 'commission');
+                                                        formData.append('worker_id', workerId);
+                                                        formData.append('amount', Number(workerPendingCommission));
+                                                        formData.append('payment_date', today);
+                                                        formData.append('payment_method_id', cashMethodId);
+                                                        formData.append('notes', 'Cash pay from Completed Jobs – ' + selectedWorker);
+                                                        const jobIdsForWorker = completedJobs.filter(j => (j.workerId ?? j.worker_id) == workerId && (j.commissionAmount > 0)).map(j => j.id);
+                                                        jobIdsForWorker.forEach(id => formData.append('job_ids[]', id));
+                                                        const res = await fetch(API_ROUTES.payments.store, {
+                                                            method: 'POST',
+                                                            body: formData,
+                                                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                                                        });
+                                                        const data = res.ok ? await res.json() : {};
+                                                        if (data.success) {
+                                                            setShowCashPayModal(false);
+                                                            const listRes = await fetch(API_ROUTES.jobs.completed);
+                                                            const listData = listRes.ok ? await listRes.json() : {};
+                                                            if (listData.success && listData.jobs) setCompletedJobs(listData.jobs);
+                                                            alert('Payment successful.');
+                                                        } else {
+                                                            alert(data.message || 'Payment failed.');
+                                                        }
+                                                    } catch (e) {
+                                                        console.error(e);
+                                                        alert('Payment failed.');
+                                                    }
+                                                    setCashPaySending(false);
+                                                }}
+                                                className="w-full py-3 sm:py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase rounded-xl transition-colors"
+                                            >
+                                                {cashPaySending ? 'Paying…' : 'Pay'}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+                                    <button type="button" onClick={() => !cashPaySending && setShowCashPayModal(false)} disabled={cashPaySending} className="px-4 py-2 text-slate-600 font-bold hover:text-slate-900 disabled:opacity-50">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Main Content */}
                     <main className="max-w-7xl mx-auto p-6">
@@ -259,6 +425,8 @@
                                                 <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission Paid</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Total Balance</th>
                                                 <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
                                             </tr>
                                         </thead>
@@ -381,6 +549,25 @@
                                                             <div className="text-sm text-slate-400">-</div>
                                                         )}
                                                     </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex flex-col">
+                                                            {(job.commissionPaid != null && Number(job.commissionPaid) > 0) ? (
+                                                                <>
+                                                                    <span className="text-sm font-black text-emerald-700 font-mono">{Math.round(Number(job.commissionPaid))}</span>
+                                                                    <span className="text-xs font-bold text-slate-500 uppercase mt-0.5">paid</span>
+                                                                </>
+                                                            ) : (job.commissionAmount != null && job.commissionAmount > 0) ? (
+                                                                <span className="text-sm font-mono text-slate-500">0</span>
+                                                            ) : (
+                                                                <span className="text-sm text-slate-400">—</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-black text-slate-800 font-mono">
+                                                            {job.workerBalance != null ? `Rs.${Number(job.workerBalance).toFixed(2)}` : '—'}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-center">
                                                         <div className="relative inline-block dropdown-container">
                                                             <button
@@ -497,6 +684,54 @@
                                                                         </svg>
                                                                         Delete
                                                                     </button>
+                                                                    {(job.workerId != null || job.worker_id != null) && (job.commissionAmount > 0 || job.workerCommission > 0) && (
+                                                                        <button
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                setOpenDropdownId(null);
+                                                                                const wid = job.workerId ?? job.worker_id;
+                                                                                if (!confirm('Reverse the last cash commission payment for this worker? Only commission payment will be reversed. Your cash will be refunded and the amount added back to the worker\'s balance.')) return;
+                                                                                try {
+                                                                                    const response = await fetch(API_ROUTES.payments.reverseLastForWorker, {
+                                                                                        method: 'POST',
+                                                                                        headers: {
+                                                                                            'Content-Type': 'application/json',
+                                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                                            'Accept': 'application/json'
+                                                                                        },
+                                                                                        body: JSON.stringify({ worker_id: wid, job_id: job.id })
+                                                                                    });
+                                                                                    const result = await response.json();
+                                                                                    if (result.success) {
+                                                                                        alert('Commission payment reversed successfully.');
+                                                                                        const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                                        const reloadData = await reloadResponse.json();
+                                                                                        if (reloadData.success && reloadData.jobs) setCompletedJobs(reloadData.jobs);
+                                                                                        if (selectedWorker) {
+                                                                                            const jobWithWorker = reloadData.jobs && reloadData.jobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
+                                                                                            const sid = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
+                                                                                            if (sid) {
+                                                                                                const tlRes = await fetch(API_ROUTES.workers.cashTimeline(sid), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                const tlData = await tlRes.json();
+                                                                                                if (tlData.success && tlData.transactions) setCashTimelineTransactions(tlData.transactions);
+                                                                                            }
+                                                                                        }
+                                                                                    } else {
+                                                                                        alert('Error: ' + (result.message || 'Could not reverse commission payment.'));
+                                                                                    }
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    alert('Error reversing commission payment. Please try again.');
+                                                                                }
+                                                                            }}
+                                                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-amber-700 hover:bg-amber-50 transition-colors border-t border-slate-200 flex items-center gap-2"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                                            </svg>
+                                                                            Reverse commission payment
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -505,7 +740,74 @@
                                                 );
                                             })}
                                         </tbody>
+                                        <tfoot className="bg-slate-100 border-t-2 border-slate-300">
+                                            <tr>
+                                                <td className="px-6 py-3 text-xs font-black text-slate-600 uppercase" colSpan="5">Total earning (commission sum)</td>
+                                                                <td className="px-6 py-3 whitespace-nowrap">
+                                                    <div className="text-sm font-black text-emerald-700 font-mono">
+                                                        Rs.{filteredJobs.reduce((sum, j) => sum + (Number(j.commissionPaid) || 0), 0).toFixed(2)}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-3"></td>
+                                                <td className="px-6 py-3"></td>
+                                            </tr>
+                                        </tfoot>
                                     </table>
+                                </div>
+                            )}
+
+                            {/* Commission / Pay / Total balance (running) – when a worker is selected */}
+                            {selectedWorker && (
+                                <div className="mt-6 bg-white rounded-3xl shadow-xl border-2 border-slate-200 overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                                        <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Commission / Pay / Total balance</h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">{selectedWorker} – running balance</p>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        {cashTimelineLoading ? (
+                                            <div className="p-8 text-center text-slate-500 font-bold">Loading…</div>
+                                        ) : (
+                                            <table className="w-full min-w-[320px]">
+                                                <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
+                                                    <tr>
+                                                        <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider">Commission</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider">Pay</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-black uppercase tracking-wider">Total balance</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-slate-200">
+                                                    {(() => {
+                                                        let running = 0;
+                                                        return cashTimelineTransactions.length === 0 ? (
+                                                            <tr><td colSpan="3" className="px-6 py-8 text-center text-slate-500">No transactions yet.</td></tr>
+                                                        ) : (
+                                                            cashTimelineTransactions.map((tx, idx) => {
+                                                                if (tx.type === 'credit') {
+                                                                    running += Number(tx.amount) || 0;
+                                                                    return (
+                                                                        <tr key={idx} className="hover:bg-slate-50">
+                                                                            <td className="px-6 py-3 text-sm font-black text-slate-800 font-mono">{Math.round(tx.amount)}</td>
+                                                                            <td className="px-6 py-3 text-slate-400">—</td>
+                                                                            <td className="px-6 py-3 text-sm font-black text-emerald-700 font-mono">{Math.round(running)}</td>
+                                                                        </tr>
+                                                                    );
+                                                                } else {
+                                                                    running -= Number(tx.amount) || 0;
+                                                                    return (
+                                                                        <tr key={idx} className="hover:bg-slate-50">
+                                                                            <td className="px-6 py-3 text-slate-400">—</td>
+                                                                            <td className="px-6 py-3 text-sm font-black text-slate-800 font-mono">{Math.round(tx.amount)}</td>
+                                                                            <td className="px-6 py-3 text-sm font-black text-emerald-700 font-mono">{Math.round(running)}</td>
+                                                                        </tr>
+                                                                    );
+                                                                }
+                                                            })
+                                                        );
+                                                    })()}
+                                                </tbody>
+                                            </table>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>

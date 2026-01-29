@@ -359,33 +359,19 @@
                             bankBalance = data.bankAccounts.reduce(function(sum, acc) {
                                 return sum + (parseFloat(acc.balance) || 0);
                             }, 0);
-                            document.getElementById('totBankBalance').textContent = 'Rs.' + Math.round(bankBalance);
+                            // totBankBalance is set from report (ftBankTotal) in renderReport – do not overwrite here
                         } else {
                             bankBalance = 0;
-                            document.getElementById('totBankBalance').textContent = 'Rs.0';
                         }
                     })
                     .catch(function() {
                         bankBalance = 0;
-                        document.getElementById('totBankBalance').textContent = 'Rs.0';
                     });
             }
 
-            // Load actual cash account balance
+            // Cash on Hand card shows report's ftCashTotal (cashT.cashOnHand), not API balance – set only in renderReport()
             function loadCashAccountBalance() {
-                fetch(routes.cashAccountBalance)
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data.success) {
-                            var balance = Math.round(parseFloat(data.balance) || 0);
-                            document.getElementById('totCashOnHand').textContent = 'Rs.' + balance;
-                        } else {
-                            document.getElementById('totCashOnHand').textContent = 'Rs.0';
-                        }
-                    })
-                    .catch(function() {
-                        document.getElementById('totCashOnHand').textContent = 'Rs.0';
-                    });
+                // Do not update totCashOnHand here – it is set from the daily report table total (ftCashTotal)
             }
 
             function showLoading() {
@@ -430,6 +416,9 @@
                     emptyState.classList.remove('hidden');
                     tableSection.classList.add('hidden');
                     totalsSection.classList.add('hidden');
+                    document.getElementById('totCashOnHand').textContent = 'Rs.0';
+                    document.getElementById('totBankBalance').textContent = 'Rs.0';
+                    document.getElementById('totCommission').textContent = 'Rs.0';
                     btnPng.disabled = true;
                     btnPdf.disabled = true;
                     btnSendWhatsApp.disabled = true;
@@ -452,15 +441,21 @@
                 // Total Credit card removed - data still available in t.totalCredit if needed
                 // Cash on Hand card will show actual cash account balance (loaded separately)
                 document.getElementById('totWorkers').textContent = t.totalWorkers || 0;
-                document.getElementById('totCommission').textContent = 'Rs.' + Math.round(t.totalCommission || 0);
+                const commissionVal = Math.round(t.totalCommission || 0);
+                document.getElementById('totCommission').textContent = 'Rs.' + commissionVal;
                 
                 // All totals in single footer row
                 document.getElementById('ftExpenses').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
-                document.getElementById('ftCashCredit').textContent = 'Rs.' + Math.round(cashT.totalCredit || 0);
-                document.getElementById('ftCashTotal').textContent = 'Rs.' + Math.round(cashT.cashOnHand || 0);
+                const cashCreditVal = Math.round(cashT.totalCredit || 0);
+                const cashTotalVal = Math.round(cashT.cashOnHand || 0);
+                document.getElementById('ftCashCredit').textContent = 'Rs.' + cashCreditVal;
+                document.getElementById('ftCashTotal').textContent = 'Rs.' + cashTotalVal;
+                document.getElementById('totCashOnHand').textContent = 'Rs.' + cashTotalVal;
+                const bankTotalVal = Math.round(bankT.cashOnHand || 0);
                 document.getElementById('ftBankCredit').textContent = 'Rs.' + Math.round(bankT.totalCredit || 0);
-                document.getElementById('ftBankTotal').textContent = 'Rs.' + Math.round(bankT.cashOnHand || 0);
-                document.getElementById('ftCommission').textContent = 'Rs.' + Math.round(t.totalCommission || 0);
+                document.getElementById('ftBankTotal').textContent = 'Rs.' + bankTotalVal;
+                document.getElementById('totBankBalance').textContent = 'Rs.' + bankTotalVal;
+                document.getElementById('ftCommission').textContent = 'Rs.' + commissionVal;
                 document.getElementById('ftGtotal').textContent = 'Rs.' + Math.round(t.sumGtotal != null ? t.sumGtotal : ((t.cashOnHand || 0) - (t.totalCommission || 0)));
 
                 function fmtNum(n) {
@@ -523,7 +518,7 @@
                             '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.userName + ')</span>' +
                             '</div>';
                     }
-                    const bankTotalStr = (isBank && r.total != null) ? fmtNum(r.total) : '-';
+                    const bankTotalStr = (r.isOpening && (bankT.cashOnHand != null || bankT.cashOnHand === 0)) ? fmtNum(bankT.cashOnHand) : ((isBank && r.total != null) ? fmtNum(r.total) : '-');
                     
                     // Format date & time: Date first, then time on same line or below
                     let dateTimeStr = '-';
@@ -582,7 +577,7 @@
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && (r.credit || 0) > 0 ? 'font-bold text-indigo-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + cashCreditStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && r.total != null ? 'font-bold text-indigo-700' : 'text-slate-500') + ' whitespace-nowrap">' + cashTotalStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && (r.credit || 0) > 0 ? 'font-bold text-purple-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + bankCreditStr + '</td>' +
-                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && r.total != null ? 'font-bold text-purple-700' : 'text-slate-500') + ' whitespace-nowrap">' + bankTotalStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((isBank && r.total != null) || (r.isOpening && (bankT.cashOnHand != null || bankT.cashOnHand === 0)) ? 'font-bold text-purple-700' : 'text-slate-500') + ' whitespace-nowrap">' + bankTotalStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + commStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right font-bold text-indigo-600 whitespace-nowrap">' + gTotalStr + '</td>' +
                         '</tr>';
@@ -637,6 +632,7 @@
                                 cashOnHand: (cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0),
                                 totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
                                 totalCommission: (cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0),
+                                pendingCommission: (cashTotals.pendingCommission || 0) + (bankTotals.pendingCommission || 0),
                                 sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0))
                             };
                             

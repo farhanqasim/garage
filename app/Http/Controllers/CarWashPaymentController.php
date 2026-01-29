@@ -9,6 +9,9 @@ use App\Models\PaymentMethod;
 use App\Models\BankAccount;
 use App\Models\BankTransaction;
 use App\Models\Branch;
+use App\Models\WorkerCashAccount;
+use App\Models\WorkerCashTransaction;
+use App\Services\CashAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -118,6 +121,8 @@ class CarWashPaymentController extends Controller
             'payment_method_id' => 'nullable|exists:payment_methods,id',
             'bank_account_id' => 'nullable|exists:bank_accounts,id',
             'worker_id' => 'nullable|exists:car_wash_workers,id',
+            'job_ids' => 'nullable|array',
+            'job_ids.*' => 'exists:car_wash_jobs,id',
             'transaction_id' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
@@ -127,6 +132,11 @@ class CarWashPaymentController extends Controller
             $request->validate([
                 'worker_id' => 'required|exists:car_wash_workers,id',
             ]);
+            // When commission: bank_account_id required only if payment method requires bank
+            $paymentMethod = $request->payment_method_id ? PaymentMethod::find($request->payment_method_id) : null;
+            if ($paymentMethod && $paymentMethod->requires_bank_account && !$request->bank_account_id) {
+                $request->validate(['bank_account_id' => 'required|exists:bank_accounts,id']);
+            }
         }
 
         if ($request->payment_type === 'cash_transfer') {
@@ -144,9 +154,116 @@ class CarWashPaymentController extends Controller
 
         DB::beginTransaction();
         try {
+            $payment = null;
+            $jobIds = $request->job_ids && is_array($request->job_ids) ? array_values(array_filter($request->job_ids)) : [];
+            $paymentMethod = $request->payment_method_id ? PaymentMethod::find($request->payment_method_id) : null;
+            $methodCode = $paymentMethod ? strtolower($paymentMethod->code ?? '') : '';
+            $isCashCommission = ($request->payment_type === 'commission' && $methodCode === 'cash');
+
+            // Cash Pay from Completed Jobs: create one payment per (unpaid) job so we can show commission paid per job and zero when reversed
+            if ($isCashCommission && $request->worker_id && count($jobIds) > 0) {
+                $worker = CarWashWorker::find($request->worker_id);
+                if (!$worker || !$this->canAccessResourceBranch($worker, $user)) {
+                    throw new \Exception('Worker not found or access denied.');
+                }
+                $this->applyBranchFilter(CarWashJob::whereIn('id', $jobIds), 'branch_id', $user);
+                $jobs = CarWashJob::with('worker')->whereIn('id', $jobIds)->where('worker_id', $request->worker_id)->get();
+                $paymentsToCreate = [];
+                foreach ($jobs as $job) {
+                    if (!$this->canAccessResourceBranch($job, $user)) {
+                        continue;
+                    }
+                    $existing = CarWashPayment::where('car_wash_job_id', $job->id)->whereIn('status', ['completed'])->exists();
+                    if ($existing) {
+                        continue;
+                    }
+                    $workerCommission = $job->worker ? (float) ($job->worker->commission ?? 0) : 0;
+                    if ($workerCommission <= 0) {
+                        continue;
+                    }
+                    $jobPrice = (float) ($job->price ?? 0);
+                    $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
+                    $totalJobPrice = $jobPrice + (float) $additionalPrices;
+                    $commissionAmount = round(($totalJobPrice * $workerCommission) / 100, 2);
+                    if ($commissionAmount <= 0) {
+                        continue;
+                    }
+                    $paymentsToCreate[] = ['job' => $job, 'amount' => $commissionAmount];
+                }
+                if (count($paymentsToCreate) === 0) {
+                    throw new \Exception('No unpaid jobs found for this worker with the given job IDs.');
+                }
+                $totalAmount = array_sum(array_column($paymentsToCreate, 'amount'));
+                if (abs((float) $request->amount - $totalAmount) > 0.02) {
+                    throw new \Exception('Amount does not match sum of job commissions (Rs ' . number_format($totalAmount, 2) . ').');
+                }
+                $createdPayments = [];
+                foreach ($paymentsToCreate as $item) {
+                    $p = CarWashPayment::create([
+                        'branch_id' => $branchId,
+                        'worker_id' => $request->worker_id,
+                        'car_wash_job_id' => $item['job']->id,
+                        'payment_type' => 'commission',
+                        'amount' => $item['amount'],
+                        'payment_method_id' => $request->payment_method_id,
+                        'bank_account_id' => $request->bank_account_id,
+                        'from_account_id' => null,
+                        'to_account_id' => null,
+                        'transaction_id' => $request->transaction_id,
+                        'payment_date' => $request->payment_date,
+                        'status' => 'completed',
+                        'notes' => $request->notes,
+                        'created_by' => $user->id,
+                    ]);
+                    $createdPayments[] = $p;
+                }
+                $firstPayment = $createdPayments[0];
+                $cashService = app(CashAccountService::class);
+                $cashService->debit(
+                    $user->id,
+                    $totalAmount,
+                    'commission',
+                    $firstPayment->id,
+                    'car_wash_payments',
+                    $branchId,
+                    $request->notes ?? "Commission payment (" . count($paymentsToCreate) . " jobs) to worker #{$request->worker_id}"
+                );
+                $workerCash = WorkerCashAccount::where('worker_id', $request->worker_id)->lockForUpdate()->first();
+                if (!$workerCash) {
+                    throw new \Exception("Worker cash account not found. Create it from Staff page.");
+                }
+                if ($workerCash->balance < $totalAmount) {
+                    throw new \Exception("Worker cash balance (Rs " . number_format($workerCash->balance, 2) . ") is less than payment amount (Rs " . number_format($totalAmount, 2) . ").");
+                }
+                $workerCash->balance -= $totalAmount;
+                $workerCash->total_paid = (float) $workerCash->total_paid + $totalAmount;
+                $workerCash->save();
+                foreach ($createdPayments as $p) {
+                    WorkerCashTransaction::create([
+                        'worker_id' => $request->worker_id,
+                        'amount' => $p->amount,
+                        'type' => 'debit',
+                        'reference_type' => 'car_wash_payments',
+                        'reference_id' => $p->id,
+                        'note' => $request->notes ?? "Commission payment #{$p->id}",
+                    ]);
+                }
+                DB::commit();
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Payment created successfully',
+                        'payment' => $firstPayment->load(['worker', 'paymentMethod', 'bankAccount']),
+                        'payments_count' => count($paymentsToCreate),
+                    ]);
+                }
+                return redirect()->route('car-wash.payments.index')->with('success', 'Payment created successfully');
+            }
+
             $payment = CarWashPayment::create([
                 'branch_id' => $branchId,
                 'worker_id' => $request->worker_id,
+                'car_wash_job_id' => null,
                 'payment_type' => $request->payment_type,
                 'amount' => $request->amount,
                 'payment_method_id' => $request->payment_method_id,
@@ -196,6 +313,92 @@ class CarWashPaymentController extends Controller
                 ]);
             }
 
+            // Commission: debit from logged-in user's cash or bank (pay from user's account)
+            if ($request->payment_type === 'commission') {
+                $worker = $request->worker_id ? CarWashWorker::find($request->worker_id) : null;
+                $paymentMethod = $request->payment_method_id ? PaymentMethod::find($request->payment_method_id) : null;
+                $methodCode = $paymentMethod ? strtolower($paymentMethod->code ?? '') : '';
+                $isCash = ($methodCode === 'cash');
+                if ($isCash) {
+                    $cashService = app(CashAccountService::class);
+                    $cashService->debit(
+                        $user->id,
+                        (float) $request->amount,
+                        'commission',
+                        $payment->id,
+                        'car_wash_payments',
+                        $branchId,
+                        $request->notes ?? "Commission payment to worker #{$request->worker_id}"
+                    );
+                    // Debit worker's cash account (we're paying them – balance = earned - paid)
+                    if ($worker) {
+                        $workerCash = WorkerCashAccount::where('worker_id', $worker->id)->lockForUpdate()->first();
+                        if (!$workerCash) {
+                            throw new \Exception("Worker cash account not found. Create it from Staff page.");
+                        }
+                        $amount = (float) $request->amount;
+                        if ($workerCash->balance < $amount) {
+                            throw new \Exception("Worker cash balance (Rs " . number_format($workerCash->balance, 2) . ") is less than payment amount (Rs " . number_format($amount, 2) . ").");
+                        }
+                        $workerCash->balance -= $amount;
+                        $workerCash->total_paid = (float) $workerCash->total_paid + $amount;
+                        $workerCash->save();
+                        WorkerCashTransaction::create([
+                            'worker_id' => $worker->id,
+                            'amount' => $amount,
+                            'type' => 'debit',
+                            'reference_type' => 'car_wash_payments',
+                            'reference_id' => $payment->id,
+                            'note' => $request->notes ?? "Commission payment #{$payment->id}",
+                        ]);
+                    }
+                } elseif ($request->bank_account_id) {
+                    BankTransaction::create([
+                        'bank_account_id' => $request->bank_account_id,
+                        'transaction_date' => $request->payment_date,
+                        'description' => "Commission payment - " . ($request->notes ?? ''),
+                        'amount' => $request->amount,
+                        'type' => 'debit',
+                        'statement_reference' => $request->transaction_id ?? 'COMMISSION-' . $payment->id,
+                        'reconciled' => false,
+                    ]);
+                    // If worker has linked bank account (from Bank module), credit it so worker's account has separate history
+                    if ($worker && $worker->bank_account_id) {
+                        BankTransaction::create([
+                            'bank_account_id' => $worker->bank_account_id,
+                            'transaction_date' => $request->payment_date,
+                            'description' => "Commission credit - " . ($worker->name) . ($request->notes ? ' - ' . $request->notes : ''),
+                            'amount' => $request->amount,
+                            'type' => 'credit',
+                            'statement_reference' => $request->transaction_id ?? 'COMMISSION-' . $payment->id,
+                            'reconciled' => false,
+                        ]);
+                        $payment->update(['to_account_id' => $worker->bank_account_id]);
+                    }
+                    // Worker cash account: total_paid += amount, balance -= amount (kitna pay kiya / kitna bacha)
+                    if ($worker) {
+                        $workerCash = WorkerCashAccount::where('worker_id', $worker->id)->lockForUpdate()->first();
+                        if ($workerCash) {
+                            $amount = (float) $request->amount;
+                            if ($workerCash->balance < $amount) {
+                                throw new \Exception("Worker pending balance (Rs " . number_format($workerCash->balance, 2) . ") is less than payment amount (Rs " . number_format($amount, 2) . ").");
+                            }
+                            $workerCash->balance -= $amount;
+                            $workerCash->total_paid = (float) $workerCash->total_paid + $amount;
+                            $workerCash->save();
+                            WorkerCashTransaction::create([
+                                'worker_id' => $worker->id,
+                                'amount' => $amount,
+                                'type' => 'debit',
+                                'reference_type' => 'car_wash_payments',
+                                'reference_id' => $payment->id,
+                                'note' => ($request->notes ?? "Commission payment #{$payment->id}") . ' (Bank)',
+                            ]);
+                        }
+                    }
+                }
+            }
+
             DB::commit();
 
             if ($request->ajax() || $request->wantsJson()) {
@@ -225,10 +428,134 @@ class CarWashPaymentController extends Controller
     }
 
     /**
-     * Calculate pending commission for a worker
+     * Worker Bank Accounts page: workers linked to system bank accounts with separate history
+     */
+    public function workerBankAccounts()
+    {
+        $user = Auth::user();
+        $workersQuery = CarWashWorker::with(['bankAccount.bank', 'branch'])
+            ->whereNotNull('bank_account_id');
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->orderBy('name')->get()->map(function ($worker) {
+            $account = $worker->bankAccount;
+            $transactions = $account
+                ? BankTransaction::where('bank_account_id', $account->id)
+                    ->orderBy('transaction_date', 'desc')
+                    ->orderBy('id', 'desc')
+                    ->limit(50)
+                    ->get()
+                : collect();
+            $credits = $account ? BankTransaction::where('bank_account_id', $account->id)->where('type', 'credit')->sum('amount') : 0;
+            $debits = $account ? BankTransaction::where('bank_account_id', $account->id)->where('type', 'debit')->sum('amount') : 0;
+            $opening = $account ? (float) ($account->opening_balance ?? 0) : 0;
+            $balance = $opening + $credits - $debits;
+            return [
+                'worker' => $worker,
+                'account' => $account,
+                'transactions' => $transactions,
+                'balance' => round($balance, 2),
+            ];
+        });
+        return view('car-wash-worker-bank-accounts', compact('workers'));
+    }
+
+    /**
+     * Worker Cash Accounts page: workers with cash account – commission paid by cash is credited here
+     */
+    public function workerCashAccounts()
+    {
+        $user = Auth::user();
+        $workersQuery = CarWashWorker::with(['workerCashAccount', 'branch']);
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->orderBy('name')->get()->map(function ($worker) {
+            $cashAccount = $worker->workerCashAccount;
+            $transactions = $cashAccount
+                ? WorkerCashTransaction::where('worker_id', $worker->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(50)
+                    ->get()
+                : collect();
+            $balance = $cashAccount ? (float) $cashAccount->balance : 0;
+            $totalEarned = $cashAccount ? (float) $cashAccount->total_earned : 0;
+            $totalPaid = $cashAccount ? (float) $cashAccount->total_paid : 0;
+            return [
+                'worker' => $worker,
+                'cash_account' => $cashAccount,
+                'transactions' => $transactions,
+                'balance' => round($balance, 2),
+                'total_earned' => round($totalEarned, 2),
+                'total_paid' => round($totalPaid, 2),
+            ];
+        });
+        return view('car-wash-worker-cash-accounts', compact('workers'));
+    }
+
+    /**
+     * Worker cash timeline (credits + debits) for Commission / Pay / Running balance table (API)
+     */
+    public function workerCashTimeline($workerId)
+    {
+        $user = Auth::user();
+        $q = CarWashWorker::where('id', $workerId);
+        $this->applyBranchFilter($q, 'branch_id', $user);
+        $worker = $q->first();
+        if (!$worker) {
+            return response()->json(['success' => false, 'transactions' => []], 404);
+        }
+        $transactions = WorkerCashTransaction::where('worker_id', $worker->id)
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($tx) {
+                return [
+                    'type' => $tx->type,
+                    'amount' => (float) $tx->amount,
+                    'createdAt' => $tx->created_at->toISOString(),
+                    'referenceType' => $tx->reference_type,
+                    'referenceId' => $tx->reference_id,
+                    'note' => $tx->note,
+                ];
+            });
+        return response()->json([
+            'success' => true,
+            'transactions' => $transactions,
+        ]);
+    }
+
+    /**
+     * Print transaction history for one worker (opens in new window for printing)
+     */
+    public function workerCashAccountPrint(CarWashWorker $worker)
+    {
+        $user = Auth::user();
+        $q = CarWashWorker::where('id', $worker->id);
+        $this->applyBranchFilter($q, 'branch_id', $user);
+        $worker = $q->first();
+        if (!$worker) {
+            abort(404);
+        }
+        $cashAccount = $worker->workerCashAccount;
+        $transactions = $cashAccount
+            ? WorkerCashTransaction::where('worker_id', $worker->id)
+                ->orderBy('created_at', 'desc')
+                ->get()
+            : collect();
+        $balance = $cashAccount ? (float) $cashAccount->balance : 0;
+        $totalEarned = $cashAccount ? (float) $cashAccount->total_earned : 0;
+        $totalPaid = $cashAccount ? (float) $cashAccount->total_paid : 0;
+        return view('car-wash-worker-cash-account-print', compact('worker', 'cashAccount', 'transactions', 'balance', 'totalEarned', 'totalPaid'));
+    }
+
+    /**
+     * Calculate pending commission for a worker.
+     * Uses worker cash account balance when available (total_earned - total_paid); else jobs - payments.
      */
     public function calculatePendingCommission($workerId, $branchId = null)
     {
+        $worker = CarWashWorker::find($workerId);
+        if ($worker && $worker->workerCashAccount) {
+            return max(0, (float) $worker->workerCashAccount->balance);
+        }
+
         $user = Auth::user();
         if (!$branchId) {
             $branchId = $this->getUserBranchId($user);
@@ -240,13 +567,12 @@ class CarWashPaymentController extends Controller
 
         $totalCommission = 0;
         foreach ($completedJobs as $job) {
-            $worker = $job->worker;
-            if ($worker && $worker->commission) {
+            $w = $job->worker;
+            if ($w && $w->commission) {
                 $jobPrice = (float) ($job->price ?? 0);
                 $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
                 $totalJobPrice = $jobPrice + (float) $additionalPrices;
-                
-                $commissionPercentage = (float) $worker->commission;
+                $commissionPercentage = (float) $w->commission;
                 $commissionAmount = ($totalJobPrice * $commissionPercentage) / 100;
                 $totalCommission += $commissionAmount;
             }
@@ -299,6 +625,18 @@ class CarWashPaymentController extends Controller
             'total_commission_paid' => $totalCommissionPaid,
             'available_cash' => max(0, $availableCash),
         ];
+    }
+
+    /**
+     * Get Cash payment method id (for commission pay by cash)
+     */
+    public function getCashMethod()
+    {
+        $method = \App\Models\PaymentMethod::whereRaw('LOWER(code) = ?', ['cash'])->where('is_active', true)->first();
+        return response()->json([
+            'success' => (bool) $method,
+            'id' => $method ? $method->id : null,
+        ]);
     }
 
     /**
@@ -389,6 +727,101 @@ class CarWashPaymentController extends Controller
             'success' => true,
             'users' => $users
         ]);
+    }
+
+    /**
+     * Reverse the last cash commission payment for a worker (API).
+     * Only commission payments are reversed; no other payment types (cash transfer, bank, etc.).
+     * Credits the payer's cash account and the worker's cash balance; marks the payment as reversed.
+     */
+    public function reverseLastForWorker(Request $request)
+    {
+        $request->validate([
+            'worker_id' => 'required|exists:car_wash_workers,id',
+            'job_id' => 'nullable|exists:car_wash_jobs,id',
+        ]);
+
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+        $workerId = (int) $request->worker_id;
+        $jobId = $request->has('job_id') && $request->job_id ? (int) $request->job_id : null;
+
+        $worker = CarWashWorker::find($workerId);
+        if (!$worker || !$this->canAccessResourceBranch($worker, $user)) {
+            return response()->json(['success' => false, 'message' => 'Worker not found or access denied.'], 404);
+        }
+
+        $paymentMethod = PaymentMethod::whereRaw('LOWER(code) = ?', ['cash'])->where('is_active', true)->first();
+        if (!$paymentMethod) {
+            return response()->json(['success' => false, 'message' => 'Cash payment method not found.'], 400);
+        }
+
+        // Only commission payments – never reverse cash transfer, bank transfer, expense, etc.
+        $query = CarWashPayment::where('worker_id', $workerId)
+            ->where('payment_type', 'commission')
+            ->where('status', 'completed')
+            ->where('payment_method_id', $paymentMethod->id);
+        if ($jobId) {
+            $query->where('car_wash_job_id', $jobId);
+        }
+        $payment = $query->orderBy('created_at', 'desc')->first();
+
+        if (!$payment || !$this->canAccessResourceBranch($payment, $user)) {
+            return response()->json(['success' => false, 'message' => 'No cash commission payment found to reverse for this worker.'], 404);
+        }
+
+        $amount = (float) $payment->amount;
+        $createdBy = (int) $payment->created_by;
+
+        DB::beginTransaction();
+        try {
+            // Credit payer's (created_by) cash account (type must be one of: job_payment, cash_transfer, bank_transfer, commission, admin_adjustment)
+            $cashService = app(CashAccountService::class);
+            $cashService->credit(
+                $createdBy,
+                $amount,
+                'admin_adjustment',
+                $payment->id,
+                'car_wash_payments',
+                $branchId,
+                "Reversal of commission payment #{$payment->id} to worker #{$workerId}"
+            );
+
+            // Credit worker's cash balance and reduce total_paid
+            $workerCash = WorkerCashAccount::where('worker_id', $workerId)->lockForUpdate()->first();
+            if (!$workerCash) {
+                throw new \Exception('Worker cash account not found.');
+            }
+            $workerCash->balance += $amount;
+            $workerCash->total_paid = max(0, (float) $workerCash->total_paid - $amount);
+            $workerCash->save();
+
+            WorkerCashTransaction::create([
+                'worker_id' => $workerId,
+                'amount' => $amount,
+                'type' => 'credit',
+                'reference_type' => 'car_wash_payments',
+                'reference_id' => $payment->id,
+                'note' => "Reversal of payment #{$payment->id}",
+            ]);
+
+            $payment->update(['status' => 'reversed']);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment reversed successfully.',
+                'payment_id' => $payment->id,
+                'amount' => $amount,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reverse payment: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
