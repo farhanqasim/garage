@@ -84,6 +84,19 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <style>
+        /* Remove Bootstrap modal backdrop */
+        .modal-backdrop {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+        .modal-backdrop.fade {
+            display: none !important;
+        }
+        .modal-backdrop.show {
+            display: none !important;
+        }
+        
         body {
             margin: 0;
             padding: 0;
@@ -1602,6 +1615,7 @@
                 { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
             ]);
             const [bankAccounts, setBankAccounts] = useState([]);
+            const [bankBalanceTotal, setBankBalanceTotal] = useState(0); // Login user's total bank account balance for header
             const [selectedBankAccountId, setSelectedBankAccountId] = useState(null); // For bank tab in transfer modal
             const [transferAmount, setTransferAmount] = useState('');
             const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
@@ -1682,7 +1696,13 @@
                 if (!API_ROUTES.bankAccounts?.index) return;
                 fetch(API_ROUTES.bankAccounts.index, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(res => res.json())
-                    .then(data => { if (data.success && Array.isArray(data.bankAccounts)) setBankAccounts(data.bankAccounts); })
+                    .then(data => {
+                        if (data.success && Array.isArray(data.bankAccounts)) {
+                            setBankAccounts(data.bankAccounts);
+                            const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                            setBankBalanceTotal(total);
+                        }
+                    })
                     .catch(err => console.error('Error loading bank accounts:', err));
             }, []);
             useEffect(() => { fetchBankAccounts(); }, [fetchBankAccounts]);
@@ -1868,7 +1888,62 @@
             const [audioUrl, setAudioUrl] = useState(null);
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
+            const [speechNetworkError, setSpeechNetworkError] = useState(false);
             const recognitionTranscriptRef = React.useRef(''); // Store transcript for mobile compatibility
+            const customerNameInputRef = React.useRef(null);   // Direct ref to input so voice text always applies
+
+            // Apply voice transcript to customer name – jo bola jay wo customer name input mein auto likh jay
+            const applyCustomerNameFromTranscript = React.useCallback((text) => {
+                const name = (text && typeof text === 'string') ? String(text).trim().toUpperCase() : '';
+                if (!name) {
+                    console.log('⚠️ applyCustomerNameFromTranscript: Empty text, skipping');
+                    return;
+                }
+                console.log('✅ applyCustomerNameFromTranscript called with:', name);
+                recognitionTranscriptRef.current = name;
+                
+                // Step 1: Update React state FIRST (so controlled input gets value)
+                setFormData(prev => {
+                    console.log('✅ setFormData: Setting customerName to', name);
+                    return { ...prev, customerName: name };
+                });
+                
+                // Step 2: Force DOM update immediately and repeatedly to ensure it sticks
+                const forceInputUpdate = function(attemptNum) {
+                    const input = customerNameInputRef.current || document.getElementById('customerNameInput');
+                    if (!input) {
+                        console.log('⚠️ Input not found (attempt ' + attemptNum + ')');
+                        return;
+                    }
+                    try {
+                        // Set value directly
+                        input.value = name;
+                        // Trigger React's onChange by simulating user input
+                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+                        if (nativeInputValueSetter && nativeInputValueSetter.set) {
+                            nativeInputValueSetter.set.call(input, name);
+                        }
+                        // Fire events so React sees the change
+                        input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                        console.log('✅ Input updated (attempt ' + attemptNum + '), value:', input.value);
+                    } catch (e) {
+                        console.error('Error updating input:', e);
+                        input.value = name;
+                    }
+                };
+                
+                // Update immediately and with delays
+                forceInputUpdate(1);
+                setTimeout(function() { forceInputUpdate(2); }, 0);
+                setTimeout(function() { forceInputUpdate(3); }, 50);
+                setTimeout(function() { forceInputUpdate(4); }, 150);
+                setTimeout(function() { forceInputUpdate(5); }, 300);
+                setTimeout(function() { forceInputUpdate(6); }, 600);
+                setTimeout(function() { forceInputUpdate(7); }, 1000);
+                setTimeout(function() { forceInputUpdate(8); }, 2000);
+            }, []);
+
             const [activeJobs, setActiveJobs] = useState(() => {
                 // Use backend active jobs from database only
                 return initialActiveJobs && Array.isArray(initialActiveJobs) ? initialActiveJobs : [];
@@ -3126,46 +3201,12 @@
                         </div>
                         
                         <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
-                            <button
-                                type="button"
-                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-                                onMouseDown={(e) => {
-                                    const startTime = Date.now();
-                                    const handleMouseUp = () => {
-                                        const duration = Date.now() - startTime;
-                                        if (duration >= 500) { // 500ms = long press
-                                            setShowSaleDetailsModal(true);
-                                        }
-                                    };
-                                    document.addEventListener('mouseup', handleMouseUp, { once: true });
-                                }}
-                                onTouchStart={(e) => {
-                                    const startTime = Date.now();
-                                    const touch = e.touches[0];
-                                    const handleTouchEnd = () => {
-                                        const duration = Date.now() - startTime;
-                                        if (duration >= 500) { // 500ms = long press
-                                            e.preventDefault();
-                                            setShowSaleDetailsModal(true);
-                                        }
-                                    };
-                                    document.addEventListener('touchend', handleTouchEnd, { once: true });
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        setShowCompletedJobsModal(true);
-                                    }
-                                }}
-                                onClick={() => setShowDailyReportModal(true)}
-                                title="Click to view daily report"
-                                aria-label="Total revenue today. Click to view daily report"
-                            >
-                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
-                                <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
-                                    Rs.{stats && typeof stats.todayRevenue !== 'undefined' ? stats.todayRevenue : 0}
+                            <div className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center" role="status" aria-label="Bank balance">
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Bank</p>
+                                <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Bank account balance">
+                                    Rs.{typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0}
                                 </p>
-                            </button>
+                            </div>
                             <button
                                 type="button"
                                 className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
@@ -3206,12 +3247,46 @@
                                     Rs.{stats && typeof stats.todayExpensesTotal !== 'undefined' ? stats.todayExpensesTotal : 0}
                                 </p>
                             </button>
-                            <div className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center" role="status" aria-label="Grand total today">
-                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">G. Total</p>
-                                <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Grand total amount">
-                                    Rs.{stats && typeof stats.todayGrandTotal !== 'undefined' ? stats.todayGrandTotal : 0}
+                            <button
+                                type="button"
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                                onMouseDown={(e) => {
+                                    const startTime = Date.now();
+                                    const handleMouseUp = () => {
+                                        const duration = Date.now() - startTime;
+                                        if (duration >= 500) { // 500ms = long press
+                                            setShowSaleDetailsModal(true);
+                                        }
+                                    };
+                                    document.addEventListener('mouseup', handleMouseUp, { once: true });
+                                }}
+                                onTouchStart={(e) => {
+                                    const startTime = Date.now();
+                                    const touch = e.touches[0];
+                                    const handleTouchEnd = () => {
+                                        const duration = Date.now() - startTime;
+                                        if (duration >= 500) { // 500ms = long press
+                                            e.preventDefault();
+                                            setShowSaleDetailsModal(true);
+                                        }
+                                    };
+                                    document.addEventListener('touchend', handleTouchEnd, { once: true });
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        window.location.href = '{{ route("car.wash.daily-report") }}';
+                                    }
+                                }}
+                                onClick={() => { window.location.href = '{{ route("car.wash.daily-report") }}'; }}
+                                title="Click to view daily report"
+                                aria-label="Total revenue today. Click to view daily report"
+                            >
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
+                                <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
+                                    Rs.{stats && typeof stats.todayRevenue !== 'undefined' ? stats.todayRevenue : 0}
                                 </p>
-                            </div>
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setShowCashTransferModal(true)}
@@ -4202,11 +4277,26 @@
                                     ];
                                     
                                     const getStatusIcon = (status) => {
+                                        const pct = parseInt(status, 10);
+                                        if (!isNaN(pct)) {
+                                            if (pct >= 90) return { icon: pct + '%', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+                                            if (pct >= 70) return { icon: pct + '%', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
+                                            if (pct >= 40) return { icon: pct + '%', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
+                                            if (pct >= 10) return { icon: pct + '%', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' };
+                                        }
                                         if (status === 'excellent') return { icon: '⭐', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
                                         if (status === 'good') return { icon: '✅', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
                                         if (status === 'average') return { icon: '⚠️', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
                                         if (status === 'poor') return { icon: '❌', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' };
                                         return { icon: '⚪', color: 'text-slate-400', bg: 'bg-slate-50', border: 'border-slate-200' };
+                                    };
+                                    const percentageOptions = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+                                    const getSelectStyle = (pct) => {
+                                        if (pct >= 90) return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-blue-400 focus:ring-blue-500';
+                                        if (pct >= 70) return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-400 focus:ring-green-500';
+                                        if (pct >= 40) return 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white border-yellow-400 focus:ring-yellow-500';
+                                        if (pct >= 10) return 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-400 focus:ring-red-500';
+                                        return 'bg-slate-50 text-slate-700 border-slate-300 focus:ring-slate-500 hover:bg-slate-100';
                                     };
                                     
                                     return (
@@ -4266,131 +4356,53 @@
                                                                     
                                                                     <div>
                                                                         {(() => {
-                                                                            // Calculate status counts and percentages for all items
-                                                                            const statusCounts = {
-                                                                                excellent: 0,
-                                                                                good: 0,
-                                                                                average: 0,
-                                                                                poor: 0,
-                                                                                total: 0
-                                                                            };
-                                                                            
-                                                                            inspectionItems.forEach((inspectionItem) => {
-                                                                                const itemData = inspectionData[inspectionItem.id];
-                                                                                if (itemData && itemData.status && itemData.status !== '') {
-                                                                                    statusCounts[itemData.status] = (statusCounts[itemData.status] || 0) + 1;
-                                                                                    statusCounts.total++;
-                                                                                }
-                                                                            });
-                                                                            
-                                                                            const calculatePercentage = (count) => {
-                                                                                if (statusCounts.total === 0) return 0;
-                                                                                return Math.round((count / statusCounts.total) * 100);
-                                                                            };
-                                                                            
-                                                                            const statusOptions = {
-                                                                                'excellent': { 
-                                                                                    label: 'Excellent', 
-                                                                                    icon: '⭐', 
-                                                                                    gradient: 'from-blue-500 via-blue-600 to-indigo-600',
-                                                                                    hoverGradient: 'hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700',
-                                                                                    shadow: 'shadow-blue-500/50',
-                                                                                    border: 'border-blue-400/60',
-                                                                                    count: statusCounts.excellent,
-                                                                                    percentage: calculatePercentage(statusCounts.excellent)
-                                                                                },
-                                                                                'good': { 
-                                                                                    label: 'Good', 
-                                                                                    icon: '✅', 
-                                                                                    gradient: 'from-green-500 via-emerald-600 to-teal-600',
-                                                                                    hoverGradient: 'hover:from-green-600 hover:via-emerald-700 hover:to-teal-700',
-                                                                                    shadow: 'shadow-green-500/50',
-                                                                                    border: 'border-green-400/60',
-                                                                                    count: statusCounts.good,
-                                                                                    percentage: calculatePercentage(statusCounts.good)
-                                                                                },
-                                                                                'average': { 
-                                                                                    label: 'Average', 
-                                                                                    icon: '⚠️', 
-                                                                                    gradient: 'from-yellow-500 via-amber-600 to-orange-600',
-                                                                                    hoverGradient: 'hover:from-yellow-600 hover:via-amber-700 hover:to-orange-700',
-                                                                                    shadow: 'shadow-yellow-500/50',
-                                                                                    border: 'border-yellow-400/60',
-                                                                                    count: statusCounts.average,
-                                                                                    percentage: calculatePercentage(statusCounts.average)
-                                                                                },
-                                                                                'poor': { 
-                                                                                    label: 'Poor', 
-                                                                                    icon: '❌', 
-                                                                                    gradient: 'from-red-500 via-rose-600 to-pink-600',
-                                                                                    hoverGradient: 'hover:from-red-600 hover:via-rose-700 hover:to-pink-700',
-                                                                                    shadow: 'shadow-red-500/50',
-                                                                                    border: 'border-red-400/60',
-                                                                                    count: statusCounts.poor,
-                                                                                    percentage: calculatePercentage(statusCounts.poor)
-                                                                                }
-                                                                            };
-                                                                            
-                                                                            // Dropdown with percentages
+                                                                            const statusToPct = { excellent: '100', good: '80', average: '50', poor: '20' };
+                                                                            const displayValue = statusToPct[itemData.status] || itemData.status || '';
                                                                             return (
-                                                                                <div className="relative">
-                                                                                    <select
-                                                                                        value={itemData.status || ''}
-                                                                                        onChange={(e) => {
-                                                                                            setInspectionData(prev => ({
-                                                                                                ...prev,
-                                                                                                [item.id]: { ...prev[item.id], status: e.target.value }
-                                                                                            }));
-                                                                                        }}
-                                                                                        className={`w-full px-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl border-2 font-black text-sm sm:text-base transition-all duration-200 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                                                                                            itemData.status === 'excellent' 
-                                                                                                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-blue-400 focus:ring-blue-500' 
-                                                                                            : itemData.status === 'good'
-                                                                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-400 focus:ring-green-500'
-                                                                                            : itemData.status === 'average'
-                                                                                                ? 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white border-yellow-400 focus:ring-yellow-500'
-                                                                                            : itemData.status === 'poor'
-                                                                                                ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-400 focus:ring-red-500'
-                                                                                            : 'bg-slate-50 text-slate-700 border-slate-300 focus:ring-slate-500 hover:bg-slate-100'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <option value="" className="bg-white text-slate-700">Select Status</option>
-                                                                                        {Object.entries(statusOptions).map(([value, status]) => (
-                                                                                            <option 
-                                                                                                key={value} 
-                                                                                                value={value}
-                                                                                                className={`${
-                                                                                                    value === 'excellent' ? 'bg-blue-50 text-blue-700' :
-                                                                                                    value === 'good' ? 'bg-green-50 text-green-700' :
-                                                                                                    value === 'average' ? 'bg-yellow-50 text-yellow-700' :
-                                                                                                    'bg-red-50 text-red-700'
-                                                                                                }`}
-                                                                                            >
-                                                                                                {status.icon} {status.label} {statusCounts.total > 0 ? `(${status.percentage}% - ${status.count} items)` : ''}
-                                                                                            </option>
-                                                                                        ))}
-                                                                                    </select>
-                                                                                    {/* Custom dropdown arrow */}
-                                                                                    <div className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                                                                                        <svg className={`w-5 h-5 ${itemData.status ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                                                                                        </svg>
-                                                                                    </div>
-                                                                                    
-                                                                                    {/* Selected status display */}
-                                                                                    {itemData.status && itemData.status !== '' && (
-                                                                                        <div className="mt-2 flex items-center gap-2">
-                                                                                            <span className="text-xs sm:text-sm text-slate-600 font-bold">
-                                                                                                Selected: {statusOptions[itemData.status].icon} {statusOptions[itemData.status].label}
-                                                                                                {statusCounts.total > 0 && (
-                                                                                                    <span className="ml-1 text-slate-500">
-                                                                                                        ({statusOptions[itemData.status].percentage}% - {statusOptions[itemData.status].count} items)
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </span>
+                                                                        <div className="relative">
+                                                                            <select
+                                                                                value={displayValue}
+                                                                                onChange={(e) => {
+                                                                                    setInspectionData(prev => ({
+                                                                                        ...prev,
+                                                                                        [item.id]: { ...prev[item.id], status: e.target.value }
+                                                                                    }));
+                                                                                }}
+                                                                                className={`w-full px-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl border-2 font-black text-sm sm:text-base transition-all duration-200 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 ${displayValue ? getSelectStyle(parseInt(displayValue, 10)) : 'bg-slate-50 text-slate-700 border-slate-300 focus:ring-slate-500 hover:bg-slate-100'}`}
+                                                                            >
+                                                                                <option value="" className="bg-white text-slate-700">Select % (10–100)</option>
+                                                                                {percentageOptions.map((pct) => (
+                                                                                    <option key={pct} value={String(pct)} className="bg-white text-slate-800">{pct}%</option>
+                                                                                ))}
+                                                                            </select>
+                                                                            <div className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                                                                <svg className={`w-5 h-5 ${displayValue ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                                                </svg>
+                                                                            </div>
+                                                                            
+                                                                            {/* Percentage-wise graph (progress bar) when a value is selected */}
+                                                                            @verbatim
+                                                                            {displayValue && (() => {
+                                                                                const pctNum = parseInt(displayValue, 10);
+                                                                                if (isNaN(pctNum)) return null;
+                                                                                return (
+                                                                                    <div className="mt-3 sm:mt-4">
+                                                                                        <div className="flex items-center justify-between mb-1">
+                                                                                            <span className="text-xs sm:text-sm font-bold text-slate-600">Rating: {pctNum}%</span>
+                                                                                            <span className="text-xs sm:text-sm font-black text-slate-700">{pctNum}%</span>
                                                                                         </div>
-                                                                                    )}
-                                                                                </div>
+                                                                                        <div className="w-full h-3 sm:h-4 bg-slate-200 rounded-full overflow-hidden">
+                                                                                            <div 
+                                                                                                className={`h-full rounded-full transition-all duration-500 ${pctNum >= 90 ? 'bg-gradient-to-r from-blue-500 to-indigo-600' : pctNum >= 70 ? 'bg-gradient-to-r from-green-500 to-emerald-600' : pctNum >= 40 ? 'bg-gradient-to-r from-yellow-500 to-amber-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}
+                                                                                                style={{ width: pctNum + '%' }}
+                                                                                            />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
+                                                                            @endverbatim
+                                                                        </div>
                                                                             );
                                                                         })()}
                                                                     </div>
@@ -7246,10 +7258,19 @@
                                                                         setInspectionModalJobId(job.id);
                                                                         setInspectionData({});
                                                                     }}
-                                                                            className={`bg-purple-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 transition-colors shadow-md flex-shrink-0 ${shouldBlink ? 'blink-animation' : ''}`}
+                                                                            className={`${inspectionCompleted ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-purple-500 hover:bg-purple-600'} text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-colors shadow-md flex-shrink-0 ${shouldBlink ? 'blink-animation' : ''}`}
                                                                 >
-                                                                            <span className="hidden sm:inline">INSPECTION</span>
-                                                                            <span className="sm:hidden">INSP</span>
+                                                                            {inspectionCompleted ? (
+                                                                                <>
+                                                                                    <span className="hidden sm:inline">INSPECTION COMPLETE</span>
+                                                                                    <span className="sm:hidden">INSP COMPLETE</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <span className="hidden sm:inline">INSPECTION PENDING</span>
+                                                                                    <span className="sm:hidden">INSP PENDING</span>
+                                                                                </>
+                                                                            )}
                                                                 </button>
                                                                     );
                                                                 })()}
@@ -7516,6 +7537,7 @@
                                             </label>
                                             <div className="flex gap-1.5 sm:gap-2">
                                                 <input
+                                                    ref={customerNameInputRef}
                                                     id="customerNameInput"
                                                     type="text"
                                                     className={`flex-1 bg-transparent font-bold text-xs outline-none border-2 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 ${
@@ -7524,10 +7546,11 @@
                                                             : 'border-slate-300 text-slate-900'
                                                     }`}
                                                     placeholder={audioBlob ? "Voice recorded (or enter name)" : "Enter customer name or use mic"}
-                                                    value={formData.customerName}
+                                                    value={formData.customerName || ''}
                                                     onChange={(e) => {
-                                                        setFormData({ ...formData, customerName: e.target.value });
-                                                        if (e.target.value.trim()) {
+                                                        const newValue = e.target.value;
+                                                        setFormData(prev => ({ ...prev, customerName: newValue }));
+                                                        if (newValue.trim()) {
                                                             setAudioBlob(null); // Clear voice if name is entered
                                                         }
                                                     }}
@@ -7562,25 +7585,7 @@
                                                                         if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                             const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
                                                                             console.log('✅ Manual stop - setting customer name:', customerName);
-                                                                            setFormData(prev => {
-                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                    // For mobile: Also directly update the input field DOM
-                                                                                    if (isMobile) {
-                                                                                        const customerNameInput = document.getElementById('customerNameInput');
-                                                                                        if (customerNameInput) {
-                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
-                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(inputEvent);
-                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(changeEvent);
-                                                                                            console.log('📱 Mobile: Directly updated input field from manual stop:', customerName);
-                                                                                        }
-                                                                                    }
-                                                                                    return { ...prev, customerName: customerName };
-                                                                                }
-                                                                                return prev;
-                                                                            });
+                                                                            applyCustomerNameFromTranscript(customerName);
                                                                             setAudioBlob(null);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
@@ -7590,11 +7595,12 @@
                                                                     }, delay);
                                                                 };
                                                                 
-                                                                // Try immediately and with delays
+                                                                processManualStop(0);
                                                                 processManualStop(100);
                                                                 processManualStop(300);
                                                                 processManualStop(500);
                                                                 processManualStop(1000);
+                                                                processManualStop(2000);
                                                                 return;
                                                             }
                                                             
@@ -7646,32 +7652,13 @@
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // On mobile, check if we have transcript after recording stops - multiple attempts
+                                                                // Apply transcript to customer name when recording stops – try immediately and with delays
                                                                 const processRecordingStop = (delay) => {
                                                                     setTimeout(() => {
                                                                         if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                             const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
                                                                             console.log('✅ Recording stop - setting customer name:', customerName);
-                                                                            setFormData(prev => {
-                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                    // For mobile: Also directly update the input field DOM
-                                                                                    if (isMobile) {
-                                                                                        const customerNameInput = document.getElementById('customerNameInput');
-                                                                                        if (customerNameInput) {
-                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
-                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(inputEvent);
-                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(changeEvent);
-                                                                                            console.log('📱 Mobile: Directly updated input field from recording stop:', customerName);
-                                                                                        }
-                                                                                    }
-                                                                                    return { ...prev, customerName: customerName };
-                                                                                }
-                                                                                return prev;
-                                                                            });
-                                                                            // Clear audio since we have text
+                                                                            applyCustomerNameFromTranscript(customerName);
                                                                             setAudioBlob(null);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
@@ -7680,16 +7667,25 @@
                                                                         }
                                                                     }, delay);
                                                                 };
-                                                                
-                                                                // Try multiple times with delays
+                                                                processRecordingStop(0);
                                                                 processRecordingStop(300);
                                                                 processRecordingStop(500);
                                                                 processRecordingStop(1000);
                                                                 processRecordingStop(2000);
+                                                                processRecordingStop(3000);
                                                             };
                                                             
-                                                            // Clear transcript ref for new recording
+                                                            // Clear transcript ref and customer name input for new recording – pehle wala text clear ho jay
                                                             recognitionTranscriptRef.current = '';
+                                                            setSpeechNetworkError(false); // Reset network error on new recording
+                                                            // Clear customer name input so new recording overwrites old text
+                                                            setFormData(prev => ({ ...prev, customerName: '' }));
+                                                            const input = customerNameInputRef.current || document.getElementById('customerNameInput');
+                                                            if (input) {
+                                                                input.value = '';
+                                                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                                                input.dispatchEvent(new Event('change', { bubbles: true }));
+                                                            }
                                                             
                                                             // Start speech recognition for text
                                                             // Check for both standard and webkit prefixes (for iOS Safari)
@@ -7705,139 +7701,58 @@
                                                             if (SpeechRecognition) {
                                                                 recognitionInstance = new SpeechRecognition();
                                                                 
-                                                                // Configure for mobile - critical settings
-                                                                recognitionInstance.lang = 'en-US';
-                                                                recognitionInstance.continuous = true; // Must be true for mobile
-                                                                recognitionInstance.interimResults = true; // Must be true for mobile
+                                                                // Configure for better accuracy
+                                                                recognitionInstance.lang = 'en-US'; // English (US) for better name recognition
+                                                                recognitionInstance.continuous = true; // Keep listening
+                                                                recognitionInstance.interimResults = true; // Show interim but only use final for accuracy
+                                                                recognitionInstance.maxAlternatives = 3; // Get multiple alternatives, pick best
                                                                 
                                                                 // Mobile-specific optimizations
                                                                 if (isMobile) {
-                                                                    if (recognitionInstance.maxAlternatives !== undefined) {
-                                                                        recognitionInstance.maxAlternatives = 1;
-                                                                    }
-                                                                    // iOS Safari needs special handling
                                                                     if (isIOS) {
-                                                                        // iOS may need different language code
                                                                         recognitionInstance.lang = 'en-US';
                                                                     }
                                                                     console.log('📱 Mobile detected - using mobile-optimized speech recognition');
                                                                 }
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
-                                                                    console.log('🎯 onresult triggered, results length:', event.results.length);
-                                                                    console.log('🎯 Event details:', event);
-                                                                    let allTranscript = ''; // Combined transcript for mobile
-                                                                    let hasFinal = false;
-                                                                    
-                                                                    // Process ALL results - critical for mobile
-                                                                    // Try multiple ways to access transcript (mobile browsers vary)
+                                                                    if (!event.results || event.results.length === 0) return;
+                                                                    // Use ONLY FINAL results for accuracy – interim results are less accurate
+                                                                    let finalTranscript = '';
+                                                                    const finalParts = [];
                                                                     for (let i = 0; i < event.results.length; i++) {
-                                                                        const result = event.results[i];
-                                                                        let transcript = '';
-                                                                        
-                                                                        // Try different ways to get transcript (mobile compatibility)
-                                                                        if (result && result.length > 0) {
-                                                                            transcript = result[0].transcript || result[0].transcriptText || '';
-                                                                        } else if (result.transcript) {
-                                                                            transcript = result.transcript;
-                                                                        } else if (result[0] && result[0].transcript) {
-                                                                            transcript = result[0].transcript;
+                                                                        const r = event.results[i];
+                                                                        if (!r.isFinal) continue; // Skip interim – only use final for accuracy
+                                                                        // Use first alternative (most confident) from final results
+                                                                        let t = '';
+                                                                        if (r.length > 0 && r[0]) {
+                                                                            t = (r[0].transcript || r[0].transcriptText || '').trim();
+                                                                        } else if (r.transcript) {
+                                                                            t = String(r.transcript).trim();
                                                                         }
-                                                                        
-                                                                        if (transcript && transcript.trim()) {
-                                                                            // Add to combined transcript
-                                                                            allTranscript += transcript.trim() + ' ';
-                                                                            
-                                                                            // Track if we have final results
-                                                                            if (result.isFinal) {
-                                                                                hasFinal = true;
-                                                                            }
+                                                                        if (t && finalParts[finalParts.length - 1] !== t) {
+                                                                            finalParts.push(t);
                                                                         }
                                                                     }
-                                                                    
-                                                                    // Also try to get transcript from event directly (some mobile browsers)
-                                                                    if (!allTranscript && event.results && event.results.length > 0) {
-                                                                        try {
-                                                                            const firstResult = event.results[0];
-                                                                            if (firstResult && firstResult[0]) {
-                                                                                allTranscript = firstResult[0].transcript || '';
-                                                                            }
-                                                                        } catch (e) {
-                                                                            console.log('Alternative transcript access failed:', e);
+                                                                    finalTranscript = finalParts.join(' ');
+                                                                    // Fallback: if no final yet, use last result's first alternative
+                                                                    if (!finalTranscript && event.results.length > 0) {
+                                                                        const last = event.results[event.results.length - 1];
+                                                                        if (last && last.length > 0 && last[0]) {
+                                                                            finalTranscript = (last[0].transcript || last[0].transcriptText || '').trim();
                                                                         }
                                                                     }
-                                                                    
-                                                                    // Process transcript - MOBILE FRIENDLY
-                                                                    const processedTranscript = allTranscript.trim();
-                                                                    if (processedTranscript) {
-                                                                        // Always store in ref (for fallback) - APPEND for mobile
-                                                                        if (recognitionTranscriptRef.current) {
-                                                                            recognitionTranscriptRef.current += ' ' + processedTranscript;
-                                                                        } else {
-                                                                            recognitionTranscriptRef.current = processedTranscript;
-                                                                        }
-                                                                        
-                                                                        // Convert to uppercase for customer name
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('📝 Transcript captured:', customerName, 'isFinal:', hasFinal);
-                                                                        console.log('📝 Raw transcript:', processedTranscript);
-                                                                        
-                                                                        // Update formData immediately - CRITICAL for mobile
-                                                                        setFormData(prev => {
-                                                                            // Always update if we have new transcript
-                                                                            const newName = customerName;
-                                                                            if (!prev.customerName || newName.length >= prev.customerName.length) {
-                                                                                console.log('✅ Updating customer name to:', newName);
-                                                                                // For mobile: Also directly update the input field DOM (React state might not update on mobile)
-                                                                                if (isMobile) {
-                                                                                    // Update immediately and with delays
-                                                                                    [0, 50, 100, 200, 500].forEach(delay => {
-                                                                                        setTimeout(() => {
-                                                                                            const customerNameInput = document.getElementById('customerNameInput');
-                                                                                            if (customerNameInput) {
-                                                                                                // Use React's setter directly via nativeValue setter
-                                                                                                try {
-                                                                                                    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                                                                                    nativeInputValueSetter.call(customerNameInput, newName);
-                                                                                                } catch (e) {
-                                                                                                    // Fallback to direct assignment
-                                                                                                    customerNameInput.value = newName;
-                                                                                                }
-                                                                                                
-                                                                                                // Trigger input event to ensure React picks it up
-                                                                                                const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-                                                                                                customerNameInput.dispatchEvent(inputEvent);
-                                                                                                
-                                                                                                // Also trigger change event
-                                                                                                const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                                                                                customerNameInput.dispatchEvent(changeEvent);
-                                                                                                
-                                                                                                // Also try React's synthetic event
-                                                                                                const syntheticEvent = {
-                                                                                                    target: customerNameInput,
-                                                                                                    currentTarget: customerNameInput,
-                                                                                                    type: 'input',
-                                                                                                    bubbles: true,
-                                                                                                    cancelable: true
-                                                                                                };
-                                                                                                if (customerNameInput.oninput) {
-                                                                                                    customerNameInput.oninput(syntheticEvent);
-                                                                                                }
-                                                                                                
-                                                                                                console.log(`📱 Mobile: Directly updated input field DOM (delay ${delay}ms) to:`, newName);
-                                                                                                console.log('📱 Input field value after update:', customerNameInput.value);
-                                                                                            } else {
-                                                                                                console.log(`⚠️ Customer name input field not found (delay ${delay}ms)`);
-                                                                                            }
-                                                                                        }, delay);
-                                                                                    });
-                                                                                }
-                                                                                return { ...prev, customerName: newName };
-                                                                            }
-                                                                            return prev;
-                                                                        });
-                                                                        
-                                                                        // If final, clear audio blob
+                                                                    if (finalTranscript) {
+                                                                        // Clean transcript: remove extra spaces, normalize
+                                                                        finalTranscript = finalTranscript.replace(/\s+/g, ' ').trim();
+                                                                        // Store in ref
+                                                                        recognitionTranscriptRef.current = finalTranscript;
+                                                                        // Apply with small delay to let recognition finish processing
+                                                                        setTimeout(function() {
+                                                                            applyCustomerNameFromTranscript(finalTranscript);
+                                                                        }, 100);
+                                                                        // Clear audio when we have final transcript
+                                                                        const hasFinal = event.results.some(r => r.isFinal);
                                                                         if (hasFinal) {
                                                                             setAudioBlob(null);
                                                                             if (audioUrl) {
@@ -7845,17 +7760,22 @@
                                                                                 setAudioUrl(null);
                                                                             }
                                                                         }
-                                                                    } else {
-                                                                        console.log('⚠️ No transcript found in onresult event');
                                                                     }
                                                                 };
                                                                 
                                                                 recognitionInstance.onerror = (event) => {
-                                                                    console.error('Speech recognition error:', event.error);
-                                                                    // On mobile, some errors are not critical (like no-speech)
                                                                     if (event.error === 'no-speech') {
-                                                                        // Don't show alert - user might still be speaking
                                                                         console.log('⚠️ No speech detected yet - keep speaking');
+                                                                    } else if (event.error === 'network') {
+                                                                        console.warn('Speech recognition network error – needs internet. Type customer name manually.');
+                                                                        setSpeechNetworkError(true);
+                                                                        if (!window.__speechNetworkErrorShown) {
+                                                                            window.__speechNetworkErrorShown = true;
+                                                                            setTimeout(function() {
+                                                                                alert('⚠️ Speech-to-text needs internet connection.\n\nJo bhi mic mein bola jay, wo text mein auto-fill hone ke liye internet chahiye.\n\nAgar internet nahi hai to customer name manually type karein.\n\nAudio recording ho rahi hai, lekin text auto-fill nahi hoga.');
+                                                                                window.__speechNetworkErrorShown = false;
+                                                                            }, 300);
+                                                                        }
                                                                     } else if (event.error === 'audio-capture') {
                                                                         console.log('⚠️ Audio capture issue - check microphone');
                                                                     } else if (event.error === 'not-allowed') {
@@ -7883,27 +7803,7 @@
                                                                     if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                         const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
                                                                         console.log('✅ Processing transcript from onend:', customerName);
-                                                                            setFormData(prev => {
-                                                                                // Always update if we have transcript
-                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                    console.log('✅ Updated customer name from onend:', customerName);
-                                                                                    // For mobile: Also directly update the input field DOM
-                                                                                    if (isMobile) {
-                                                                                        const customerNameInput = document.getElementById('customerNameInput');
-                                                                                        if (customerNameInput) {
-                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
-                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(inputEvent);
-                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(changeEvent);
-                                                                                            console.log('📱 Mobile: Directly updated input field from onend:', customerName);
-                                                                                        }
-                                                                                    }
-                                                                                    return { ...prev, customerName: customerName };
-                                                                                }
-                                                                                return prev;
-                                                                            });
+                                                                        applyCustomerNameFromTranscript(customerName);
                                                                         setAudioBlob(null);
                                                                         if (audioUrl) {
                                                                             URL.revokeObjectURL(audioUrl);
@@ -7914,15 +7814,14 @@
                                                                     }
                                                                 };
                                                                 
-                                                                // Try immediately
                                                                 processTranscript();
-                                                                
-                                                                // Try again after delays (mobile browsers process async)
                                                                 setTimeout(processTranscript, 200);
                                                                 setTimeout(processTranscript, 500);
                                                                 setTimeout(processTranscript, 1000);
                                                                 setTimeout(processTranscript, 2000);
                                                                 setTimeout(processTranscript, 3000);
+                                                                setTimeout(processTranscript, 4000);
+                                                                setTimeout(processTranscript, 5000);
                                                                     
                                                                     // Stop audio recording when speech ends
                                                                     if (recorder && recorder.state !== 'inactive') {
@@ -8073,28 +7972,7 @@
                                                                         const customerName = currentTranscript.trim().toUpperCase();
                                                                         console.log('✅ Periodic check - found NEW transcript:', customerName);
                                                                         lastTranscript = currentTranscript;
-                                                                        setFormData(prev => {
-                                                                            if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                console.log('✅ Updating from periodic check:', customerName);
-                                                                                // For mobile: Also directly update the input field DOM
-                                                                                if (isMobile) {
-                                                                                    const customerNameInput = document.getElementById('customerNameInput');
-                                                                                    if (customerNameInput) {
-                                                                                        // Use native value setter for React compatibility
-                                                                                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                                                                        nativeInputValueSetter.call(customerNameInput, customerName);
-                                                                                        
-                                                                                        const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-                                                                                        customerNameInput.dispatchEvent(inputEvent);
-                                                                                        const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                                                                        customerNameInput.dispatchEvent(changeEvent);
-                                                                                        console.log('📱 Mobile: Directly updated input field from periodic check:', customerName);
-                                                                                    }
-                                                                                }
-                                                                                return { ...prev, customerName: customerName };
-                                                                            }
-                                                                            return prev;
-                                                                        });
+                                                                        applyCustomerNameFromTranscript(customerName);
                                                                     }
                                                                     
                                                                     // Also try to access recognition state and results directly (mobile workaround)
@@ -8125,9 +8003,9 @@
                                                                 }, 500); // Check every 500ms for faster response on mobile
                                                             }
                                                             
-                                                            // Fallback: Auto stop after 12 seconds (longer for mobile processing)
+                                                            // Auto stop after 10 seconds
                                                             const recordingTimeout = setTimeout(() => {
-                                                                console.log('⏱️ Recording timeout reached (12s)');
+                                                                console.log('⏱️ Recording timeout reached (10s)');
                                                                 
                                                                 // Stop recognition first
                                                                 if (recognitionInstance) {
@@ -8162,26 +8040,7 @@
                                                                         if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                             const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
                                                                             console.log(`✅ Timeout (${delay}ms) - setting customer name:`, customerName);
-                                                                            setFormData(prev => {
-                                                                                if (!prev.customerName || customerName.length >= prev.customerName.length) {
-                                                                                    console.log('✅ Updated customer name from timeout:', customerName);
-                                                                                    // For mobile: Also directly update the input field DOM
-                                                                                    if (isMobile) {
-                                                                                        const customerNameInput = document.getElementById('customerNameInput');
-                                                                                        if (customerNameInput) {
-                                                                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                                                                            nativeInputValueSetter.call(customerNameInput, customerName);
-                                                                                            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(inputEvent);
-                                                                                            const changeEvent = new Event('change', { bubbles: true, cancelable: true });
-                                                                                            customerNameInput.dispatchEvent(changeEvent);
-                                                                                            console.log('📱 Mobile: Directly updated input field from timeout:', customerName);
-                                                                                        }
-                                                                                    }
-                                                                                    return { ...prev, customerName: customerName };
-                                                                                }
-                                                                                return prev;
-                                                                            });
+                                                                            applyCustomerNameFromTranscript(customerName);
                                                                             setAudioBlob(null);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
@@ -8194,6 +8053,7 @@
                                                                 };
                                                                 
                                                                 // Try multiple times with increasing delays (more attempts for mobile)
+                                                                processFinalTranscript(0);
                                                                 processFinalTranscript(500);
                                                                 processFinalTranscript(1000);
                                                                 processFinalTranscript(1500);
@@ -8201,7 +8061,7 @@
                                                                 processFinalTranscript(3000);
                                                                 processFinalTranscript(4000);
                                                                 processFinalTranscript(5000);
-                                                            }, 12000); // 12 seconds for mobile
+                                                            }, 10000); // 10 seconds
                                                             
                                                             // Store timeout ID to clear if speech ends early
                                                             window.currentRecordingTimeout = recordingTimeout;
@@ -8236,13 +8096,34 @@
                                                     <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1 animate-pulse">
                                                         🎤 Listening... Speak now
                                                     </p>
+                                                    {speechNetworkError && (
+                                                        <p className="text-[8px] sm:text-[9px] text-red-600 font-bold mb-1">
+                                                            ⚠️ Internet connection needed for voice-to-text. Type name manually.
+                                                        </p>
+                                                    )}
+                                                    {!speechNetworkError && (
+                                                        <p className="text-[8px] text-slate-500">
+                                                            Voice-to-text needs internet. No internet? Type name manually.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             )}
                                             {audioBlob && !formData.customerName && !isRecording && (
                                                 <div className="mt-1.5 sm:mt-2">
-                                                    <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1">
-                                                        🎤 Processing voice... Please wait
-                                                    </p>
+                                                    {speechNetworkError ? (
+                                                        <>
+                                                            <p className="text-[8px] sm:text-[9px] text-red-600 font-bold mb-1">
+                                                                ⚠️ Internet connection issue – text auto-fill nahi hua
+                                                            </p>
+                                                            <p className="text-[8px] sm:text-[9px] text-slate-600 mb-1">
+                                                                Audio recorded hai, lekin customer name manually type karein
+                                                            </p>
+                                                        </>
+                                                    ) : (
+                                                        <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1">
+                                                            🎤 Processing voice... Please wait
+                                                        </p>
+                                                    )}
                                                     {audioUrl && (
                                                         <audio controls className="w-full h-7 sm:h-8" src={audioUrl}>
                                                             Your browser does not support audio playback.
@@ -8592,6 +8473,24 @@
             // DOM is already ready
             setTimeout(initApp, 100); // Small delay to ensure Babel is ready
         }
+        
+        // Remove Bootstrap modal backdrop – pehle se maujood aur naye dono ko remove karein
+        function removeModalBackdrop() {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(function(backdrop) {
+                backdrop.remove();
+            });
+        }
+        // Remove immediately and on DOM ready
+        removeModalBackdrop();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', removeModalBackdrop);
+        }
+        // Watch for new backdrops being added
+        const observer = new MutationObserver(function(mutations) {
+            removeModalBackdrop();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     </script>
     
     <!-- Settings Dropdown JavaScript -->

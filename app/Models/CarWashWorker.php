@@ -24,7 +24,28 @@ class CarWashWorker extends Model
         'father_card_front',
         'father_card_back',
         'status',
+        'bank_account_id',
+        'bank_name',
+        'bank_account_title',
+        'bank_account_number',
+        'bank_iban',
     ];
+
+    /**
+     * Worker's linked bank account (from Bank module) - for commission credits and history
+     */
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    /**
+     * Worker's cash account – commission paid by cash is credited here
+     */
+    public function workerCashAccount()
+    {
+        return $this->hasOne(WorkerCashAccount::class, 'worker_id');
+    }
 
     protected $casts = [
         'additional_mobiles' => 'array',

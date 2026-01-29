@@ -6,7 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\BankAccount;
 use App\Models\CarWashJob;
 use App\Models\CarWashWorker;
+use App\Models\WorkerCashAccount;
+use App\Models\WorkerCashTransaction;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Traits\HasBranchAccess;
@@ -196,7 +199,7 @@ class CarWashJobController extends Controller
             $query->today();
         }
 
-        $jobs = $query->with('worker')->orderBy('end_time', 'desc')
+        $jobs = $query->with(['worker', 'worker.workerCashAccount'])->orderBy('end_time', 'desc')
             ->get()
             ->map(function($job) {
                 // Get worker commission percentage
@@ -207,7 +210,26 @@ class CarWashJobController extends Controller
                     // Calculate commission amount: (price * commission_percentage) / 100
                     $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
                 }
-                
+                // Worker cash account balance and total paid
+                $workerBalance = null;
+                $workerTotalPaid = null;
+                if ($job->worker && $job->worker->relationLoaded('workerCashAccount') && $job->worker->workerCashAccount) {
+                    $acc = $job->worker->workerCashAccount;
+                    $workerBalance = (float) $acc->balance;
+                    $workerTotalPaid = (float) ($acc->total_paid ?? 0);
+                } elseif ($job->worker_id) {
+                    $cashAccount = WorkerCashAccount::where('worker_id', $job->worker_id)->first();
+                    if ($cashAccount) {
+                        $workerBalance = (float) $cashAccount->balance;
+                        $workerTotalPaid = (float) ($cashAccount->total_paid ?? 0);
+                    }
+                }
+
+                // Commission paid for this job: sum of completed (non-reversed) payments linked to this job; 0 if reversed
+                $commissionPaid = (float) \App\Models\CarWashPayment::where('car_wash_job_id', $job->id)
+                    ->where('status', 'completed')
+                    ->sum('amount');
+
                 return [
                     'id' => $job->id,
                     'serviceId' => $job->service_id,
@@ -221,6 +243,9 @@ class CarWashJobController extends Controller
                     'workerName' => $job->worker_name,
                     'workerCommission' => $workerCommission,
                     'commissionAmount' => round($commissionAmount, 2),
+                    'commissionPaid' => round($commissionPaid, 2),
+                    'workerBalance' => $workerBalance !== null ? round($workerBalance, 2) : null,
+                    'workerTotalPaid' => $workerTotalPaid !== null ? round($workerTotalPaid, 2) : null,
                     'status' => $job->status,
                     'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
                     'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
@@ -382,7 +407,42 @@ class CarWashJobController extends Controller
             $updateData['bank_id'] = null;
         }
 
-        $job->update($updateData);
+        DB::beginTransaction();
+        try {
+            $job->update($updateData);
+
+            // Commission percentage ky hesab say worker ke cash account main auto credit
+            $worker = $job->worker;
+            if ($worker && ($worker->commission ?? 0) > 0) {
+                $jobPrice = (float) ($job->price ?? 0);
+                $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
+                $totalJobPrice = $jobPrice + (float) $additionalPrices;
+                $commissionPct = (float) $worker->commission;
+                $commissionAmount = ($totalJobPrice * $commissionPct) / 100;
+                if ($commissionAmount > 0) {
+                    $workerCash = WorkerCashAccount::firstOrCreate(
+                        ['worker_id' => $worker->id],
+                        ['balance' => 0, 'total_earned' => 0, 'total_paid' => 0]
+                    );
+                    $workerCash->balance += $commissionAmount;
+                    $workerCash->total_earned = (float) $workerCash->total_earned + $commissionAmount;
+                    $workerCash->save();
+                    WorkerCashTransaction::create([
+                        'worker_id' => $worker->id,
+                        'amount' => $commissionAmount,
+                        'type' => 'credit',
+                        'reference_type' => 'car_wash_jobs',
+                        'reference_id' => $job->id,
+                        'note' => "Commission {$commissionPct}% on job #{$job->id} - Rs " . number_format($totalJobPrice, 2),
+                    ]);
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         return response()->json([
             'success' => true,
@@ -846,6 +906,14 @@ class CarWashJobController extends Controller
 
         $sumGtotal = round($totalCredit - $totalDebit - $commissionSum, 2);
 
+        // Pending commission: total commission from jobs minus paid (completed, non-reversed) per job
+        $jobIds = $jobs->pluck('id')->toArray();
+        $totalCommissionPaid = (float) \App\Models\CarWashPayment::whereIn('car_wash_job_id', $jobIds)
+            ->where('payment_type', 'commission')
+            ->where('status', 'completed')
+            ->sum('amount');
+        $pendingCommission = max(0, round($commissionSum - $totalCommissionPaid, 2));
+
         return response()->json([
             'success' => true,
             'date_from' => $dateFrom,
@@ -860,6 +928,8 @@ class CarWashJobController extends Controller
                 'cashOnHand' => round($running, 2),
                 'totalWorkers' => count($workerSet),
                 'totalCommission' => round($commissionSum, 2),
+                'totalCommissionPaid' => round($totalCommissionPaid, 2),
+                'pendingCommission' => $pendingCommission,
                 'sumGtotal' => $sumGtotal,
             ],
         ]);
