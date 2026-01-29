@@ -15,6 +15,16 @@
 
   <title>@yield('title') | {{env('APP_NAME')}}</title>
    <link rel="icon" href="{{ setting_value('favicon', asset('assets/img/favicon.png')) }}" type="image/x-icon"/>
+  <!-- Global error handler to suppress null element addEventListener errors -->
+  <script>
+    window.addEventListener('error', function(e) {
+      if (e.message && e.message.includes('addEventListener') && e.message.includes('null')) {
+        e.preventDefault();
+        console.warn('Suppressed addEventListener error on null element:', e.filename, e.lineno);
+        return true;
+      }
+    }, true);
+  </script>
   <script src="{{asset('assets/js/theme-script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
   <!-- Apple Touch Icon -->
   <link rel="apple-touch-icon" sizes="180x180" href="{{asset('assets/img/apple-touch-icon.png')}}">
@@ -527,6 +537,7 @@ label{
 document.addEventListener("DOMContentLoaded", function () {
     const searchInput = document.getElementById("tableSearch");
     const table = document.getElementById("searchableTable");
+    if (!searchInput || !table) return;
 
     function removeHighlights() {
         const highlighted = table.querySelectorAll(".highlight");
@@ -915,28 +926,34 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <script>
-
-        // Excel Export
-        document.querySelector('.export-excel').addEventListener('click', function() {
-            let table = document.getElementById('searchableTable');
-            let wb = XLSX.utils.table_to_book(table, {sheet:"Units"});
-            XLSX.writeFile(wb, "units.xlsx");
+        document.addEventListener('DOMContentLoaded', function() {
+            var exportExcel = document.querySelector('.export-excel');
+            var exportPdf = document.querySelector('.export-pdf');
+            if (exportExcel) {
+                exportExcel.addEventListener('click', function() {
+                    var table = document.getElementById('searchableTable');
+                    if (table && typeof XLSX !== 'undefined') {
+                        var wb = XLSX.utils.table_to_book(table, {sheet:"Units"});
+                        XLSX.writeFile(wb, "units.xlsx");
+                    }
+                });
+            }
+            if (exportPdf) {
+                exportPdf.addEventListener('click', function() {
+                    var table = document.getElementById('searchableTable');
+                    if (table && typeof html2pdf !== 'undefined') {
+                        var opt = {
+                            margin: 0.5,
+                            filename: 'units.pdf',
+                            image: { type: 'jpeg', quality: 0.95 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { unit: 'in', format: 'A4', orientation: 'portrait' }
+                        };
+                        html2pdf().from(table).set(opt).save();
+                    }
+                });
+            }
         });
-        // PDF Export
-        document.querySelector('.export-pdf').addEventListener('click', function() {
-            let table = document.getElementById('searchableTable');
-
-            let opt = {
-                margin: 0.5,
-                filename: 'units.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'in', format: 'A4', orientation: 'portrait' }
-            };
-
-            html2pdf().from(table).set(opt).save();
-        });
-
 </script>
 
 <!-- Delete Sound Audio Element - Available Globally -->
