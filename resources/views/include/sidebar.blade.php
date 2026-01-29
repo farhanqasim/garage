@@ -217,6 +217,14 @@
                                 <i class="ti ti-exchange fs-16 me-2"></i>
                                 <span>Bank Transactions</span></a>
                         </li>
+                        <li><a href="{{ route('car.wash.worker-bank-accounts') }}">
+                                <i class="ti ti-credit-card fs-16 me-2"></i>
+                                <span>Worker Bank Accounts</span></a>
+                        </li>
+                        <li><a href="{{ route('car.wash.worker-cash-accounts') }}">
+                                <i class="ti ti-wallet fs-16 me-2"></i>
+                                <span>Worker Cash Accounts</span></a>
+                        </li>
                     </ul>
                 </li>
                 {{-- <li class="submenu-open">

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\CarWashWorker;
 use App\Models\CarWashJob;
+use App\Http\Controllers\CarWashPaymentController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Traits\HasBranchAccess;
@@ -20,10 +21,12 @@ class CarWashWorkerController extends Controller
     {
         $user = Auth::user();
 
-        $workersQuery = CarWashWorker::query();
+        $workersQuery = CarWashWorker::with(['bankAccount.bank', 'workerCashAccount']);
         $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $branchId = $this->getUserBranchId($user);
+        $paymentController = app(CarWashPaymentController::class);
         $workers = $workersQuery->where('status', true)->orderBy('name', 'asc')->get()
-        ->map(function($worker) use ($user) {
+        ->map(function($worker) use ($user, $branchId, $paymentController) {
             $jobQuery = CarWashJob::query();
             $this->applyBranchFilter($jobQuery, 'branch_id', $user);
             $todayCompletedJobs = $jobQuery->where('worker_id', $worker->id)
@@ -79,12 +82,34 @@ class CarWashWorkerController extends Controller
                 'father_card_back' => $worker->father_card_back ? asset($worker->father_card_back) : null,
                 'fatherCardBack' => $worker->father_card_back ? asset($worker->father_card_back) : null,
                 'status' => $worker->status,
+                'bank_account_id' => $worker->bank_account_id,
+                'bank_name' => $worker->bank_name,
+                'bank_account_title' => $worker->bank_account_title,
+                'bank_account_number' => $worker->bank_account_number,
+                'bank_iban' => $worker->bank_iban,
+                'bank_account' => $worker->bankAccount ? [
+                    'id' => $worker->bankAccount->id,
+                    'account_title' => $worker->bankAccount->account_title,
+                    'account_number' => $worker->bankAccount->account_number,
+                    'bank' => $worker->bankAccount->bank ? ['name' => $worker->bankAccount->bank->name] : null,
+                ] : null,
+                'has_cash_account' => (bool) $worker->workerCashAccount,
+                'cash_balance' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->balance, 2) : 0,
+                'total_earned' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->total_earned, 2) : 0,
+                'total_paid' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->total_paid, 2) : 0,
+                'payment_status' => $worker->workerCashAccount ? (
+                    (float) $worker->workerCashAccount->balance <= 0 ? 'paid' : (
+                        (float) $worker->workerCashAccount->total_paid > 0 ? 'partial' : 'unpaid'
+                    )
+                ) : 'unpaid',
                 'completedJobs' => $worker->completedJobsCount(),
                 'totalEarnings' => $worker->totalEarnings(),
                 'daily_jobs_count' => $dailyJobsCount,
                 'dailyJobsCount' => $dailyJobsCount,
                 'daily_commission' => round($dailyCommission, 2),
                 'dailyCommission' => round($dailyCommission, 2),
+                'pending_commission' => round($paymentController->calculatePendingCommission($worker->id, $branchId), 2),
+                'pendingCommission' => round($paymentController->calculatePendingCommission($worker->id, $branchId), 2),
             ];
         });
         
@@ -112,6 +137,11 @@ class CarWashWorkerController extends Controller
             'father_additional_mobiles.*.mobile' => 'nullable|string|max:50',
             'location' => 'nullable|string',
             'commission' => 'nullable|integer|min:0|max:100',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_account_title' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:100',
+            'bank_iban' => 'nullable|string|max:100',
             'id_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'id_card_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'father_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -163,12 +193,23 @@ class CarWashWorkerController extends Controller
             'father_additional_mobiles' => $fatherAdditionalMobiles,
             'location' => $request->location,
             'commission' => $request->commission ?? 0,
+            'bank_account_id' => $request->bank_account_id ?: null,
+            'bank_name' => $request->bank_name ? trim($request->bank_name) : null,
+            'bank_account_title' => $request->bank_account_title ? trim($request->bank_account_title) : null,
+            'bank_account_number' => $request->bank_account_number ? trim($request->bank_account_number) : null,
+            'bank_iban' => $request->bank_iban ? trim($request->bank_iban) : null,
             'id_card_front' => $idCardFront,
             'id_card_back' => $idCardBack,
             'father_card_front' => $fatherCardFront,
             'father_card_back' => $fatherCardBack,
             'status' => true,
         ]);
+
+        // Auto-create worker cash account when staff is added
+        \App\Models\WorkerCashAccount::firstOrCreate(
+            ['worker_id' => $worker->id],
+            ['balance' => 0]
+        );
 
         // Return JSON for AJAX requests, redirect for form submissions
         if ($request->ajax() || $request->wantsJson()) {
@@ -214,6 +255,10 @@ class CarWashWorkerController extends Controller
             'father_additional_mobiles.*.mobile' => 'nullable|string|max:50',
             'location' => 'nullable|string',
             'commission' => 'nullable|integer|min:0|max:100',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_account_title' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:100',
+            'bank_iban' => 'nullable|string|max:100',
             'id_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'id_card_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'father_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -299,6 +344,11 @@ class CarWashWorkerController extends Controller
             'father_additional_mobiles' => $fatherAdditionalMobiles,
             'location' => $request->location && trim($request->location) !== '' ? trim($request->location) : null,
             'commission' => $request->commission ?? 0,
+            'bank_account_id' => $request->has('bank_account_id') ? ($request->bank_account_id ?: null) : $worker->bank_account_id,
+            'bank_name' => $request->has('bank_name') ? ($request->bank_name ? trim($request->bank_name) : null) : $worker->bank_name,
+            'bank_account_title' => $request->has('bank_account_title') ? ($request->bank_account_title ? trim($request->bank_account_title) : null) : $worker->bank_account_title,
+            'bank_account_number' => $request->has('bank_account_number') ? ($request->bank_account_number ? trim($request->bank_account_number) : null) : $worker->bank_account_number,
+            'bank_iban' => $request->has('bank_iban') ? ($request->bank_iban ? trim($request->bank_iban) : null) : $worker->bank_iban,
         ];
         
         $worker->update($updateData);
@@ -333,9 +383,93 @@ class CarWashWorkerController extends Controller
     }
 
     /**
+     * Update only worker bank account details (for Pay Commission flow).
+     * Accepts either bank_account_id (link to system Bank Account) or free-text bank fields.
+     */
+    public function updateBankDetails(Request $request, $id)
+    {
+        $request->validate([
+            'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_account_title' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:100',
+            'bank_iban' => 'nullable|string|max:100',
+        ]);
+
+        $worker = CarWashWorker::findOrFail($id);
+        $user = Auth::user();
+
+        if (!$this->canAccessResourceBranch($worker, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update this worker'
+            ], 403);
+        }
+
+        $worker->update([
+            'bank_account_id' => $request->bank_account_id ?: null,
+            'bank_name' => $request->bank_name ? trim($request->bank_name) : null,
+            'bank_account_title' => $request->bank_account_title ? trim($request->bank_account_title) : null,
+            'bank_account_number' => $request->bank_account_number ? trim($request->bank_account_number) : null,
+            'bank_iban' => $request->bank_iban ? trim($request->bank_iban) : null,
+        ]);
+
+        $worker->load('bankAccount.bank');
+        return response()->json([
+            'success' => true,
+            'message' => 'Worker bank account saved',
+            'worker' => [
+                'id' => $worker->id,
+                'bank_account_id' => $worker->bank_account_id,
+                'bank_name' => $worker->bank_name,
+                'bank_account_title' => $worker->bank_account_title,
+                'bank_account_number' => $worker->bank_account_number,
+                'bank_iban' => $worker->bank_iban,
+                'bank_account' => $worker->bankAccount ? [
+                    'id' => $worker->bankAccount->id,
+                    'account_title' => $worker->bankAccount->account_title,
+                    'account_number' => $worker->bankAccount->account_number,
+                    'bank' => $worker->bankAccount->bank ? ['name' => $worker->bankAccount->bank->name] : null,
+                ] : null,
+            ]
+        ]);
+    }
+
+    /**
+     * Create worker cash account (separate from bank account). Commission paid by cash is credited here.
+     */
+    public function createCashAccount($id)
+    {
+        $worker = CarWashWorker::findOrFail($id);
+        $user = Auth::user();
+
+        if (!$this->canAccessResourceBranch($worker, $user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update this worker'
+            ], 403);
+        }
+
+        $cashAccount = \App\Models\WorkerCashAccount::firstOrCreate(
+            ['worker_id' => $worker->id],
+            ['balance' => 0]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Worker cash account created',
+            'worker_cash_account' => [
+                'id' => $cashAccount->id,
+                'worker_id' => $cashAccount->worker_id,
+                'balance' => (float) $cashAccount->balance,
+            ]
+        ]);
+    }
+
+    /**
      * Delete a worker
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $worker = CarWashWorker::findOrFail($id);
         $user = Auth::user();

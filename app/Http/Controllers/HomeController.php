@@ -7,6 +7,9 @@ use App\Models\User;
 use App\Models\CarWashService;
 use App\Models\CarWashWorker;
 use App\Models\CarWashJob;
+use App\Models\PaymentMethod;
+use App\Models\BankAccount;
+use App\Http\Controllers\CarWashPaymentController;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Traits\HasBranchAccess;
 
@@ -239,10 +242,11 @@ public function carWashServices()
         $branchId = $branchInfo['id'];
         $branchName = $branchInfo['name'];
 
-    $wrkQuery = CarWashWorker::query();
+    $wrkQuery = CarWashWorker::with(['bankAccount.bank', 'workerCashAccount']);
     $this->applyBranchFilter($wrkQuery, 'branch_id', $user);
+    $paymentController = app(CarWashPaymentController::class);
     $workers = $wrkQuery->orderBy('name', 'asc')->get()
-    ->map(function($worker) use ($user) {
+    ->map(function($worker) use ($user, $branchId, $paymentController) {
         $jobQuery = CarWashJob::query();
         $this->applyBranchFilter($jobQuery, 'branch_id', $user);
         $todayCompletedJobs = $jobQuery->where('worker_id', $worker->id)
@@ -290,11 +294,41 @@ public function carWashServices()
                 'father_card_front' => $worker->father_card_front,
                 'father_card_back' => $worker->father_card_back,
                 'status' => $worker->status,
+                'bank_account_id' => $worker->bank_account_id,
+                'bank_account' => $worker->bankAccount ? [
+                    'id' => $worker->bankAccount->id,
+                    'account_title' => $worker->bankAccount->account_title,
+                    'account_number' => $worker->bankAccount->account_number,
+                    'bank' => $worker->bankAccount->bank ? ['name' => $worker->bankAccount->bank->name] : null,
+                ] : null,
+                'has_cash_account' => (bool) $worker->workerCashAccount,
+                'cash_balance' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->balance, 2) : 0,
+                'total_earned' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->total_earned, 2) : 0,
+                'total_paid' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->total_paid, 2) : 0,
+                'payment_status' => $worker->workerCashAccount ? (
+                    (float) $worker->workerCashAccount->balance <= 0 ? 'paid' : (
+                        (float) $worker->workerCashAccount->total_paid > 0 ? 'partial' : 'unpaid'
+                    )
+                ) : 'unpaid',
+                'bank_name' => $worker->bank_name,
+                'bank_account_title' => $worker->bank_account_title,
+                'bank_account_number' => $worker->bank_account_number,
+                'bank_iban' => $worker->bank_iban,
                 'daily_jobs_count' => $dailyJobsCount,
                 'daily_commission' => round($dailyCommission, 2),
+                'pending_commission' => round($paymentController->calculatePendingCommission($worker->id, $branchId), 2),
             ];
         });
-        
-        return view('car-wash-staff', compact('branchName', 'userName', 'workers'));
+
+        $paymentMethods = PaymentMethod::active()->get(['id', 'name', 'code', 'requires_bank_account']);
+        $bankAccounts = BankAccount::where('status', true)->with('bank:id,name')->get(['id', 'bank_id', 'account_title', 'account_number']);
+        $userCashBalance = 0;
+        try {
+            $userCashBalance = (float) app(\App\Services\CashAccountService::class)->getBalance($user->id);
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return view('car-wash-staff', compact('branchName', 'userName', 'workers', 'paymentMethods', 'bankAccounts', 'userCashBalance'));
     }
 }

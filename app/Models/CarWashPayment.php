@@ -12,6 +12,7 @@ class CarWashPayment extends Model
     protected $fillable = [
         'branch_id',
         'worker_id',
+        'car_wash_job_id',
         'payment_type',
         'amount',
         'payment_method_id',
@@ -38,6 +39,11 @@ class CarWashPayment extends Model
     public function worker()
     {
         return $this->belongsTo(CarWashWorker::class);
+    }
+
+    public function job()
+    {
+        return $this->belongsTo(CarWashJob::class, 'car_wash_job_id');
     }
 
     public function paymentMethod()

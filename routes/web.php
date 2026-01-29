@@ -89,6 +89,9 @@ Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->na
 Route::get('/car-wash/services/rate-list', [\App\Http\Controllers\CarWashServiceController::class, 'rateList'])->name('car.wash.services.rate-list')->middleware('auth');
 Route::get('/car-wash/staff', [HomeController::class, 'carWashStaff'])->name('car.wash.staff')->middleware('auth');
 Route::get('/car-wash/daily-report', [\App\Http\Controllers\CarWashJobController::class, 'dailyReport'])->name('car.wash.daily-report')->middleware('auth');
+Route::get('/car-wash/worker-bank-accounts', [\App\Http\Controllers\CarWashPaymentController::class, 'workerBankAccounts'])->name('car.wash.worker-bank-accounts')->middleware('auth');
+Route::get('/car-wash/worker-cash-accounts', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashAccounts'])->name('car.wash.worker-cash-accounts')->middleware('auth');
+Route::get('/car-wash/worker-cash-accounts/{worker}/print', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashAccountPrint'])->name('car.wash.worker-cash-accounts.print')->middleware('auth');
 
 // Car Wash Web Form Routes (for standard Laravel forms)
 Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function () {
@@ -122,6 +125,9 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'index'])->name('workers.index');
     Route::post('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'store'])->name('workers.store');
     Route::put('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'update'])->name('workers.update');
+    Route::patch('/workers/{id}/bank', [\App\Http\Controllers\CarWashWorkerController::class, 'updateBankDetails'])->name('workers.update-bank');
+    Route::post('/workers/{id}/cash-account', [\App\Http\Controllers\CarWashWorkerController::class, 'createCashAccount'])->name('workers.create-cash-account');
+    Route::get('/workers/{id}/cash-timeline', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashTimeline'])->name('workers.cash-timeline');
     Route::delete('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'destroy'])->name('workers.destroy');
     
     // Jobs Routes
@@ -159,9 +165,11 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/create', [\App\Http\Controllers\CarWashPaymentController::class, 'create'])->name('payments.create');
     Route::post('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'store'])->name('payments.store');
+    Route::post('/payments/reverse-last-for-worker', [\App\Http\Controllers\CarWashPaymentController::class, 'reverseLastForWorker'])->name('payments.reverse-last-for-worker');
     Route::get('/payments/pending-commission/{workerId}', [\App\Http\Controllers\CarWashPaymentController::class, 'getPendingCommission'])->name('payments.pending-commission');
     Route::get('/payments/available-cash', [\App\Http\Controllers\CarWashPaymentController::class, 'getAvailableCashApi'])->name('payments.available-cash');
     Route::get('/payments/cash-account-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashAccountBalance'])->name('payments.cash-account-balance');
+    Route::get('/payments/cash-method', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashMethod'])->name('payments.cash-method');
     Route::get('/payments/branch-users', [\App\Http\Controllers\CarWashPaymentController::class, 'getBranchUsers'])->name('payments.branch-users');
     Route::post('/payments/transfer-to-user', [\App\Http\Controllers\CarWashPaymentController::class, 'transferToUser'])->name('payments.transfer-to-user');
 });
