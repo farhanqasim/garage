@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CashAccount;
 use App\Models\User;
+use App\Models\Branch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class CashAccountController extends Controller
 {
@@ -31,6 +34,91 @@ class CashAccountController extends Controller
         }])->findOrFail($id);
 
         return view('admin.cash-accounts.show', compact('cashAccount'));
+    }
+
+    /**
+     * Show the form for creating a new cash account
+     */
+    public function create()
+    {
+        $user = Auth::user();
+        
+        // If admin, show all users. If branch owner, show only their branch users
+        if ($user->role === 'admin') {
+            $users = User::orderBy('name', 'asc')->get();
+        } else {
+            // Branch owner - get their branch users
+            $branch = $user->branches;
+            if ($branch) {
+                $users = User::where(function($query) use ($branch) {
+                    $query->whereHas('branches', function($q) use ($branch) {
+                        $q->where('branches.id', $branch->id);
+                    })
+                    ->orWhereHas('assignedBranches', function($q) use ($branch) {
+                        $q->where('branch_id', $branch->id);
+                    });
+                })
+                ->orderBy('name', 'asc')
+                ->get();
+            } else {
+                $users = collect();
+            }
+        }
+        
+        return view('admin.cash-accounts.create', compact('users'));
+    }
+
+    /**
+     * Store a newly created cash account
+     */
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+        
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'opening_balance' => 'nullable|numeric|min:0',
+        ]);
+        
+        // Check if user already has a cash account
+        $existingAccount = CashAccount::where('user_id', $validated['user_id'])->first();
+        if ($existingAccount) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'This user already has a cash account.');
+        }
+        
+        // If branch owner, ensure they can only create accounts for their branch users
+        if ($user->role !== 'admin') {
+            $userBranch = $user->branches;
+            if ($userBranch) {
+                $targetUser = User::findOrFail($validated['user_id']);
+                $isBranchUser = $targetUser->branches && $targetUser->branches->id == $userBranch->id;
+                $isAssignedUser = $targetUser->assignedBranches()->where('branch_id', $userBranch->id)->exists();
+                
+                if (!$isBranchUser && !$isAssignedUser) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'You can only create cash accounts for users in your branch.');
+                }
+            }
+        }
+        
+        try {
+            $openingBalance = (float) ($validated['opening_balance'] ?? 0);
+            
+            CashAccount::create([
+                'user_id' => $validated['user_id'],
+                'balance' => $openingBalance,
+            ]);
+            
+            return redirect()->route('admin.cash-accounts.index')
+                ->with('success', 'Cash account created successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Error creating cash account: ' . $e->getMessage());
+        }
     }
 
     /**

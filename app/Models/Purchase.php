@@ -11,6 +11,7 @@ class Purchase extends Model
 
     protected $fillable = [
         'invoice_no',
+        'is_purchase_order',
         'supplier_id',
         'branch_id',
         'purchase_date',
@@ -25,6 +26,7 @@ class Purchase extends Model
     ];
 
     protected $casts = [
+        'is_purchase_order' => 'boolean',
         'purchase_date' => 'date',
         'subtotal' => 'decimal:2',
         'order_tax' => 'decimal:2',

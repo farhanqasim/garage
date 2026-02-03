@@ -134,11 +134,15 @@
         };
 
         function App() {
+            const getTodayLocal = () => {
+                const d = new Date();
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            };
             const [completedJobs, setCompletedJobs] = useState(initialCompletedJobs);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
-            const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
-            const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+            const [dateFrom, setDateFrom] = useState(() => getTodayLocal());
+            const [dateTo, setDateTo] = useState(() => getTodayLocal());
             const [selectedWorker, setSelectedWorker] = useState('');
             const [openDropdownId, setOpenDropdownId] = useState(null);
             const [showCashPayModal, setShowCashPayModal] = useState(false);
@@ -421,6 +425,7 @@
                                         <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
                                             <tr>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">ITEM NAME</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
                                                 <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
                                                 <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
@@ -565,7 +570,7 @@
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="text-sm font-black text-slate-800 font-mono">
-                                                            {job.workerBalance != null ? `Rs.${Number(job.workerBalance).toFixed(2)}` : '—'}
+                                                            {job.workerBalance != null ? `Rs.${Math.round(Number(job.workerBalance))}` : '—'}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -745,7 +750,7 @@
                                                 <td className="px-6 py-3 text-xs font-black text-slate-600 uppercase" colSpan="5">Total earning (commission sum)</td>
                                                                 <td className="px-6 py-3 whitespace-nowrap">
                                                     <div className="text-sm font-black text-emerald-700 font-mono">
-                                                        Rs.{filteredJobs.reduce((sum, j) => sum + (Number(j.commissionPaid) || 0), 0).toFixed(2)}
+                                                        Rs {Math.round(filteredJobs.reduce((sum, j) => sum + (Number(j.commissionPaid) || 0), 0))}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-3"></td>

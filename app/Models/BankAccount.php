@@ -11,6 +11,8 @@ class BankAccount extends Model
 
     protected $fillable = [
         'bank_id',
+        'branch_id',
+        'user_id',
         'account_type',
         'account_title',
         'account_number',
@@ -31,6 +33,16 @@ class BankAccount extends Model
     public function bank()
     {
         return $this->belongsTo(Bank::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function payments()

@@ -21,6 +21,33 @@
                 </div>
             </div>
 
+            <!-- Visiting Document -->
+            <div class="col-md-6">
+                <label for="visiting_doc" class="form-label">Visiting Document</label>
+                <div class="position-relative">
+                    <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                </div>
+                <!-- Visiting Card Preview -->
+                <div id="visiting_preview" style="display: none; margin-top: 15px; position: relative; border: 2px solid #dee2e6; border-radius: 8px; padding: 10px; background-color: #f8f9fa;">
+                    <button type="button" id="cancelVisitingDoc" class="btn btn-danger btn-sm position-absolute" style="top: 5px; right: 5px; z-index: 10; border-radius: 50%; width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center;" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div id="visiting_img_container" style="display: none; text-align: center;">
+                        <img id="visiting_img" src="" alt="Visiting Card Preview" class="img-fluid rounded shadow-sm" style="max-height: 300px; max-width: 100%; border: 1px solid #dee2e6;">
+                    </div>
+                    <div id="visiting_file_info" style="display: none; text-center p-3 bg-light rounded">
+                        <i class="fas fa-file fa-3x text-muted mb-2"></i>
+                        <p class="text-muted mb-0" id="visiting_filename"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company -->
+            <div class="col-md-6">
+                <label for="company" class="form-label">Company</label>
+                <input type="text" name="company" value="{{ old('company') }}" class="form-control">
+            </div>
+
             <!-- Name & Phone -->
             <div class="col-12">
                 <div id="namePhoneContainer">
@@ -99,10 +126,6 @@
 
             <!-- Other Fields -->
             <div class="col-md-6">
-                <label for="company" class="form-label">Company</label>
-                <input type="text" name="company" value="{{ old('company') }}" class="form-control">
-            </div>
-            <div class="col-md-6">
                 <label for="business_detail" class="form-label">Products / Business Detail</label>
                 <div class="business-detail-tag-container position-relative">
                     <input type="text" id="business_detail_input" class="form-control" placeholder="Type product name and press Enter" autocomplete="off" spellcheck="false">
@@ -120,13 +143,24 @@
                 </select>
             </div>
             <div class="col-md-6">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" name="email" value="{{ old('email') }}" class="form-control">
+                <label class="form-label">Email</label>
+                <div id="emailContainer">
+                    <div class="row g-3 mb-3 email-row">
+                        <div class="col-12">
+                            <input type="email" name="emails[]" value="{{ old('emails.0') }}" class="form-control email-input" placeholder="Enter email address">
+                        </div>
+                    </div>
+                </div>
+                <div class="text-start mt-2">
+                    <button type="button" id="addEmail" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> Add More Email
+                    </button>
+                </div>
             </div>
             <div class="col-md-6">
                 <label for="password" class="form-label">Password <small>(auto-generated)</small></label>
-                <div class="input-group">
-                    <input type="text" name="password" id="password" value="" class="form-control" readonly placeholder="Click Generate" required>
+                <input type="text" name="password" id="password" value="" class="form-control" readonly placeholder="Click Generate" required>
+                <div class="mt-2">
                     <button type="button" id="generatePassword" class="btn btn-outline-primary">Generate</button>
                 </div>
             </div>
@@ -187,6 +221,12 @@
                 </div>
             </div>
 
+            <!-- Address -->
+            <div class="col-md-6">
+                <label for="address" class="form-label">Address</label>
+                <input type="text" name="address" id="address" class="form-control" placeholder="Enter address" value="{{ old('address') }}">
+            </div>
+
             <!-- Location Link -->
             <div class="col-md-6">
                 <label class="form-label">Location</label>
@@ -205,27 +245,6 @@
                     <button type="button" id="clearLocation" class="btn btn-sm btn-outline-danger ms-2">
                         <i class="fas fa-times me-1"></i>Clear
                     </button>
-                </div>
-            </div>
-
-            <!-- Visiting Document -->
-            <div class="col-md-6">
-                <label for="visiting_doc" class="form-label">Visiting Document</label>
-                <div class="position-relative">
-                    <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
-                </div>
-                <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
-                <div id="visiting_preview" style="display: none; margin-top: 10px; position: relative;">
-                    <button type="button" id="cancelVisitingDoc" class="btn btn-danger btn-sm position-absolute" style="top: 5px; right: 5px; z-index: 10;" title="Remove">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    <div id="visiting_img_container" style="display: none;">
-                        <img id="visiting_img" src="" alt="Visiting Doc Preview" class="img-fluid rounded" style="max-height: 200px;">
-                    </div>
-                    <div id="visiting_file_info" style="display: none; text-center p-3 bg-light rounded">
-                        <i class="fas fa-file fa-3x text-muted mb-2"></i>
-                        <p class="text-muted mb-0" id="visiting_filename"></p>
-                    </div>
                 </div>
             </div>
 

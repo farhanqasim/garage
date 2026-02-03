@@ -33,10 +33,10 @@
                     <div class="flex-1">
                         <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Select Range</label>
                         <div class="flex items-center gap-1.5">
-                            <input type="date" id="reportDateFrom" value="{{ $selectedDate }}"
+                            <input type="date" id="reportDateFrom" value="{{ $selectedDate ?? now()->format('Y-m-d') }}"
                                 class="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs" />
                             <span class="text-[10px] font-bold text-slate-600 whitespace-nowrap">To</span>
-                            <input type="date" id="reportDateTo" value="{{ $selectedDate }}"
+                            <input type="date" id="reportDateTo" value="{{ $selectedDate ?? now()->format('Y-m-d') }}"
                                 class="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs" />
                         </div>
                     </div>
@@ -197,7 +197,7 @@
             <div class="bg-white rounded-2xl shadow-2xl border-2 border-yellow-200 w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onclick="event.stopPropagation()">
                 <div class="p-4 sm:p-5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h3 class="text-lg sm:text-xl font-black uppercase">Money Transfer</h3>
+                        <h3 class="text-lg sm:text-xl font-black uppercase">Cash Transfer</h3>
                         <p class="text-xs sm:text-sm opacity-90 mt-1">Transfer money to different accounts</p>
                     </div>
                     <button type="button" id="cashTransferModalClose" class="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0">
@@ -216,7 +216,7 @@
                         <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer Amount</label>
                         <input type="number" id="transferAmount" placeholder="Enter amount" 
                             class="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-yellow-500 focus:outline-none font-mono" 
-                            min="0" step="0.01" />
+                            min="0" step="0.01" max="" />
                     </div>
                     
                     <!-- Transfer To User -->
@@ -225,6 +225,7 @@
                         <select id="transferToUser" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-yellow-500 focus:outline-none">
                             <option value="">Select User</option>
                         </select>
+                        <p id="transferUserWarning" class="mt-1.5 text-sm font-bold text-amber-600 hidden" role="alert">Pehle user select kero</p>
                     </div>
                     
                     <!-- Transfer Note -->
@@ -270,12 +271,21 @@
                             min="0" step="0.01" />
                     </div>
                     
-                    <!-- Transfer To Bank Account -->
-                    <div class="mb-5">
+                    <!-- Transfer To Bank Account (custom dropdown: each account in 3 lines) -->
+                    <div class="mb-5 relative">
                         <label class="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer To Bank Account</label>
-                        <select id="transferToBankAccount" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-purple-500 focus:outline-none">
-                            <option value="">Select Bank Account</option>
-                        </select>
+                        <input type="hidden" id="transferToBankAccount" value="" />
+                        <button type="button" id="transferToBankAccountTrigger" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-purple-500 focus:outline-none text-left bg-white flex items-center justify-between">
+                            <span id="transferToBankAccountLabel" class="text-sm leading-relaxed">
+                                <span id="triggerLine1" class="block font-bold text-slate-800">Select Bank Account</span>
+                                <span id="triggerLine2" class="block text-slate-700"></span>
+                                <span id="triggerLine3" class="block text-slate-600"></span>
+                            </span>
+                            <svg class="w-5 h-5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div id="transferToBankAccountDropdown" class="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-slate-300 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto hidden">
+                            <div id="transferToBankAccountList"></div>
+                        </div>
                     </div>
                     
                     <!-- Transfer Note -->
@@ -299,6 +309,14 @@
         (function() {
             const reportDateFrom = document.getElementById('reportDateFrom');
             const reportDateTo = document.getElementById('reportDateTo');
+            function getTodayLocal() {
+                const d = new Date();
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            }
+            if (reportDateFrom && reportDateTo) {
+                reportDateFrom.value = getTodayLocal();
+                reportDateTo.value = getTodayLocal();
+            }
             const filterCustomer = document.getElementById('filterCustomer');
             const filterWorker = document.getElementById('filterWorker');
             const btnPng = document.getElementById('btnDownloadPng');
@@ -316,6 +334,7 @@
             const modalCashBalance = document.getElementById('modalCashBalance');
             const transferAmount = document.getElementById('transferAmount');
             const transferToUser = document.getElementById('transferToUser');
+            const transferUserWarning = document.getElementById('transferUserWarning');
             const transferNote = document.getElementById('transferNote');
             const btnTransferCash = document.getElementById('btnTransferCash');
             
@@ -324,6 +343,12 @@
             const modalBankBalance = document.getElementById('modalBankBalance');
             const bankTransferAmount = document.getElementById('bankTransferAmount');
             const transferToBankAccount = document.getElementById('transferToBankAccount');
+            const transferToBankAccountTrigger = document.getElementById('transferToBankAccountTrigger');
+            const triggerLine1 = document.getElementById('triggerLine1');
+            const triggerLine2 = document.getElementById('triggerLine2');
+            const triggerLine3 = document.getElementById('triggerLine3');
+            const transferToBankAccountDropdown = document.getElementById('transferToBankAccountDropdown');
+            const transferToBankAccountList = document.getElementById('transferToBankAccountList');
             const bankTransferNote = document.getElementById('bankTransferNote');
             const btnTransferBank = document.getElementById('btnTransferBank');
             
@@ -338,6 +363,8 @@
 
             let lastReportRows = [];
             let lastReportTotals = {};
+            let lastReportCashOnHand = 0;
+            let lastReportBankBalance = 0;
             let bankBalance = 0;
 
             const routes = {
@@ -350,22 +377,30 @@
                 cashTransfers: '{{ route("car-wash.cash-transfers.store") }}'
             };
 
-            // Load bank account balance
+            // Load bank account balance (already filtered by branch in API)
+            let loggedInUserBankAccounts = [];
             function loadBankBalance() {
                 fetch(routes.bankAccounts)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success && data.bankAccounts) {
+                            // Store logged-in user's branch bank accounts
+                            loggedInUserBankAccounts = data.bankAccounts;
                             bankBalance = data.bankAccounts.reduce(function(sum, acc) {
                                 return sum + (parseFloat(acc.balance) || 0);
                             }, 0);
-                            // totBankBalance is set from report (ftBankTotal) in renderReport – do not overwrite here
+                            // Update totBankBalance with logged-in user's branch bank accounts balance
+                            document.getElementById('totBankBalance').textContent = 'Rs.' + Math.round(bankBalance);
                         } else {
                             bankBalance = 0;
+                            loggedInUserBankAccounts = [];
+                            document.getElementById('totBankBalance').textContent = 'Rs.0';
                         }
                     })
                     .catch(function() {
                         bankBalance = 0;
+                        loggedInUserBankAccounts = [];
+                        document.getElementById('totBankBalance').textContent = 'Rs.0';
                     });
             }
 
@@ -448,13 +483,19 @@
                 document.getElementById('ftExpenses').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
                 const cashCreditVal = Math.round(cashT.totalCredit || 0);
                 const cashTotalVal = Math.round(cashT.cashOnHand || 0);
+                lastReportCashOnHand = cashTotalVal;
                 document.getElementById('ftCashCredit').textContent = 'Rs.' + cashCreditVal;
                 document.getElementById('ftCashTotal').textContent = 'Rs.' + cashTotalVal;
                 document.getElementById('totCashOnHand').textContent = 'Rs.' + cashTotalVal;
                 const bankTotalVal = Math.round(bankT.cashOnHand || 0);
+                lastReportBankBalance = bankTotalVal;
                 document.getElementById('ftBankCredit').textContent = 'Rs.' + Math.round(bankT.totalCredit || 0);
                 document.getElementById('ftBankTotal').textContent = 'Rs.' + bankTotalVal;
-                document.getElementById('totBankBalance').textContent = 'Rs.' + bankTotalVal;
+                // Use logged-in user's branch bank accounts balance if available, otherwise use report total
+                const userBranchBankBalance = loggedInUserBankAccounts.reduce(function(sum, acc) {
+                    return sum + (parseFloat(acc.balance) || 0);
+                }, 0);
+                document.getElementById('totBankBalance').textContent = 'Rs.' + (userBranchBankBalance > 0 ? Math.round(userBranchBankBalance) : bankTotalVal);
                 document.getElementById('ftCommission').textContent = 'Rs.' + commissionVal;
                 document.getElementById('ftGtotal').textContent = 'Rs.' + Math.round(t.sumGtotal != null ? t.sumGtotal : ((t.cashOnHand || 0) - (t.totalCommission || 0)));
 
@@ -492,7 +533,11 @@
                             '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.userName + ')</span>' +
                             '</div>';
                     }
-                    const cashTotalStr = (isCash && r.total != null) ? fmtNum(r.total) : '-';
+                    // Opening row: show pichli date ka opening balance in Cash Total and Bank Total
+                    let cashTotalStr = (isCash && r.total != null) ? fmtNum(r.total) : '-';
+                    if (isOpening && (r.cashOpeningBalance != null || r.cashOpeningBalance === 0)) {
+                        cashTotalStr = fmtNum(r.cashOpeningBalance);
+                    }
                     
                     // Bank columns with bank details and user name
                     let bankCreditStr = (isBank && (r.credit || 0) > 0) ? fmtNum(r.credit) : '-';
@@ -518,7 +563,11 @@
                             '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.userName + ')</span>' +
                             '</div>';
                     }
-                    const bankTotalStr = (r.isOpening && (bankT.cashOnHand != null || bankT.cashOnHand === 0)) ? fmtNum(bankT.cashOnHand) : ((isBank && r.total != null) ? fmtNum(r.total) : '-');
+                    // Opening row: show pichli date ka bank opening balance; otherwise bank total for row or report total
+                    let bankTotalStr = (isBank && r.total != null) ? fmtNum(r.total) : '-';
+                    if (r.isOpening && (r.bankOpeningBalance != null || r.bankOpeningBalance === 0)) {
+                        bankTotalStr = fmtNum(r.bankOpeningBalance);
+                    }
                     
                     // Format date & time: Date first, then time on same line or below
                     let dateTimeStr = '-';
@@ -614,13 +663,20 @@
                 ])
                     .then(function([cashData, bankData]) {
                         if (cashData.success || bankData.success) {
-                            // Get opening row from cash data (or bank if cash has no data)
-                            const openingRow = (cashData.rows || []).find(r => r.isOpening) || (bankData.rows || []).find(r => r.isOpening);
+                            const cashOpening = (cashData.rows || []).find(r => r.isOpening);
+                            const bankOpening = (bankData.rows || []).find(r => r.isOpening);
+                            // Single opening row with both cash and bank opening balances (pichli date ka closing)
+                            const openingRow = cashOpening || bankOpening;
+                            const mergedOpening = openingRow ? {
+                                ...openingRow,
+                                cashOpeningBalance: cashOpening && (cashOpening.openingBalance != null || cashOpening.openingBalance === 0) ? cashOpening.openingBalance : null,
+                                bankOpeningBalance: bankOpening && (bankOpening.openingBalance != null || bankOpening.openingBalance === 0) ? bankOpening.openingBalance : null
+                            } : null;
                             
                             // Merge all non-opening rows from both, mark payment type
                             const cashRows = (cashData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: 'cash'}));
                             const bankRows = (bankData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: 'bank'}));
-                            const mergedRows = openingRow ? [openingRow, ...cashRows, ...bankRows] : [...cashRows, ...bankRows];
+                            const mergedRows = mergedOpening ? [mergedOpening, ...cashRows, ...bankRows] : [...cashRows, ...bankRows];
                             
                             // Merge totals
                             const cashTotals = cashData.totals || {};
@@ -943,13 +999,25 @@
                     });
             }
 
+            function updateModalBalanceDisplay() {
+                var transferVal = parseFloat(transferAmount.value) || 0;
+                var remaining = Math.max(0, lastReportCashOnHand - transferVal);
+                modalCashBalance.textContent = 'Rs.' + Math.round(remaining);
+            }
+
             function openCashTransferModal() {
-                loadCashBalance();
+                var balance = lastReportCashOnHand;
+                transferAmount.setAttribute('max', balance);
+                transferAmount.max = balance;
+                transferAmount.value = balance;
                 loadBranchUsers();
-                transferAmount.value = '';
                 transferToUser.value = '';
                 transferNote.value = '';
+                if (transferUserWarning) {
+                    transferUserWarning.classList.add('hidden');
+                }
                 cashTransferModal.style.display = 'flex';
+                updateModalBalanceDisplay();
             }
 
             function closeCashTransferModal() {
@@ -961,17 +1029,24 @@
 
             // Transfer cash
             btnTransferCash.addEventListener('click', function() {
+                var userId = (transferToUser.value || '').trim();
                 var amount = parseFloat(transferAmount.value);
-                var userId = transferToUser.value;
                 var note = transferNote.value.trim();
+
+                if (!userId) {
+                    if (transferUserWarning) {
+                        transferUserWarning.classList.remove('hidden');
+                    }
+                    alert('Please select a user first');
+                    transferToUser.focus();
+                    return;
+                }
+                if (transferUserWarning) {
+                    transferUserWarning.classList.add('hidden');
+                }
 
                 if (!amount || amount <= 0) {
                     alert('Please enter a valid amount');
-                    return;
-                }
-
-                if (!userId) {
-                    alert('Please select a user to transfer to');
                     return;
                 }
 
@@ -1000,12 +1075,12 @@
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            alert('Rs.' + amount + ' transferred successfully!');
+                            alert('Transfer successful! Rs.' + amount + ' has been transferred.');
                             closeCashTransferModal();
                             loadCashBalance();
                             loadCashAccountBalance(); // Update the card balance
                             // Reload report if it's loaded
-                            if (reportDate.value) {
+                            if (reportDateFrom.value && reportDateTo.value) {
                                 loadReport();
                             }
                         } else {
@@ -1021,40 +1096,75 @@
                     });
             });
 
-            // Load bank accounts for transfer
+            // Load bank accounts for transfer (custom dropdown: each account in 3 lines)
             function loadBankAccountsForTransfer() {
                 fetch(routes.bankAccounts)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
-                        transferToBankAccount.innerHTML = '<option value="">Select Bank Account</option>';
+                        if (!transferToBankAccountList) return;
+                        transferToBankAccountList.innerHTML = '';
                         if (data.success && data.bankAccounts) {
                             data.bankAccounts.forEach(function(account) {
-                                var option = document.createElement('option');
-                                option.value = account.id;
-                                option.textContent = account.displayLabel || (account.bankName + ' - ' + (account.accountTitle || account.accountNumber || ''));
-                                transferToBankAccount.appendChild(option);
+                                var item = document.createElement('button');
+                                item.type = 'button';
+                                item.className = 'w-full px-4 py-3 text-left border-b border-slate-100 hover:bg-purple-50 focus:bg-purple-50 focus:outline-none';
+                                item.dataset.id = account.id;
+                                item.dataset.bankName = account.bankName || '';
+                                item.dataset.accountTitle = account.accountTitle || '';
+                                item.dataset.accountNumber = account.accountNumber || '';
+                                item.innerHTML = '<span class="block font-bold text-slate-800 text-sm">' + (account.bankName || '') + '</span>' +
+                                    '<span class="block text-slate-700 text-sm">' + (account.accountTitle || '') + '</span>' +
+                                    '<span class="block text-slate-600 text-sm">' + (account.accountNumber || '') + '</span>';
+                                item.addEventListener('click', function() {
+                                    transferToBankAccount.value = this.dataset.id;
+                                    triggerLine1.textContent = this.dataset.bankName || 'Bank Account';
+                                    triggerLine2.textContent = this.dataset.accountTitle || '';
+                                    triggerLine3.textContent = this.dataset.accountNumber || '';
+                                    transferToBankAccountDropdown.classList.add('hidden');
+                                });
+                                transferToBankAccountList.appendChild(item);
                             });
                         }
                     })
                     .catch(function() {
-                        transferToBankAccount.innerHTML = '<option value="">Select Bank Account</option>';
+                        transferToBankAccountList.innerHTML = '';
                     });
             }
 
+            function setBankAccountTriggerPlaceholder() {
+                if (triggerLine1) triggerLine1.textContent = 'Select Bank Account';
+                if (triggerLine2) triggerLine2.textContent = '';
+                if (triggerLine3) triggerLine3.textContent = '';
+            }
+
+            function updateModalBankBalanceDisplay() {
+                var transferVal = parseFloat(bankTransferAmount.value) || 0;
+                var remaining = Math.max(0, lastReportBankBalance - transferVal);
+                modalBankBalance.textContent = 'Rs.' + Math.round(remaining);
+            }
+
             function openBankTransferModal() {
-                loadBankBalanceForModal();
+                var balance = lastReportBankBalance;
+                modalBankBalance.textContent = 'Rs.' + balance;
+                bankTransferAmount.setAttribute('max', balance);
+                bankTransferAmount.max = balance;
+                bankTransferAmount.value = balance;
                 loadBankAccountsForTransfer();
-                bankTransferAmount.value = '';
                 transferToBankAccount.value = '';
+                setBankAccountTriggerPlaceholder();
                 bankTransferNote.value = '';
                 bankTransferModal.style.display = 'flex';
+                updateModalBankBalanceDisplay();
+                if (transferToBankAccountDropdown) transferToBankAccountDropdown.classList.add('hidden');
             }
 
             function closeBankTransferModal() {
                 bankTransferModal.style.display = 'none';
                 bankTransferAmount.value = '';
                 transferToBankAccount.value = '';
+                setBankAccountTriggerPlaceholder();
                 bankTransferNote.value = '';
+                if (transferToBankAccountDropdown) transferToBankAccountDropdown.classList.add('hidden');
             }
 
             // Load bank account balance for modal
@@ -1139,15 +1249,14 @@
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) {
-                            var selectedAccount = Array.from(transferToBankAccount.options).find(opt => opt.value === bankAccountId);
-                            var accountName = selectedAccount ? selectedAccount.textContent : 'Bank Account';
+                            var accountName = (triggerLine1 && triggerLine1.textContent) ? (triggerLine1.textContent + (triggerLine2 && triggerLine2.textContent ? ' - ' + triggerLine2.textContent : '') + (triggerLine3 && triggerLine3.textContent ? ' (' + triggerLine3.textContent + ')' : '')) : 'Bank Account';
                             alert('Rs.' + amount + ' transferred to ' + accountName + ' successfully!');
                             closeBankTransferModal();
                             loadBankBalanceForModal();
                             loadBankBalance();
                             loadCashAccountBalance(); // Update the card balance after bank transfer
                             // Reload report if it's loaded
-                            if (reportDate.value) {
+                            if (reportDateFrom.value && reportDateTo.value) {
                                 loadReport();
                             }
                         } else {
@@ -1169,9 +1278,40 @@
             cashTransferModal.addEventListener('click', function(e) {
                 if (e.target === cashTransferModal) closeCashTransferModal();
             });
+            transferToUser.addEventListener('change', function() {
+                if (transferUserWarning && transferToUser.value) {
+                    transferUserWarning.classList.add('hidden');
+                }
+            });
+            // Transfer amount cannot exceed available cash; balance = available minus transfer amount
+            transferAmount.addEventListener('input', function() {
+                var maxAllowed = lastReportCashOnHand;
+                var val = parseFloat(transferAmount.value);
+                if (!isNaN(val) && val > maxAllowed) {
+                    transferAmount.value = maxAllowed;
+                }
+                updateModalBalanceDisplay();
+            });
             bankTransferModalClose.addEventListener('click', closeBankTransferModal);
             bankTransferModal.addEventListener('click', function(e) {
                 if (e.target === bankTransferModal) closeBankTransferModal();
+            });
+            bankTransferAmount.addEventListener('input', function() {
+                var maxAllowed = lastReportBankBalance;
+                var val = parseFloat(bankTransferAmount.value);
+                if (!isNaN(val) && val > maxAllowed) {
+                    bankTransferAmount.value = maxAllowed;
+                }
+                updateModalBankBalanceDisplay();
+            });
+            transferToBankAccountTrigger.addEventListener('click', function(e) {
+                e.preventDefault();
+                transferToBankAccountDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function(e) {
+                if (transferToBankAccountDropdown && !transferToBankAccountTrigger.contains(e.target) && !transferToBankAccountDropdown.contains(e.target)) {
+                    transferToBankAccountDropdown.classList.add('hidden');
+                }
             });
             
             // PNG Preview Modal handlers

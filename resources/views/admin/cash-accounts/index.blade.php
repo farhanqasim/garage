@@ -7,6 +7,13 @@
                 <div class="page-title">
                     <h2 class="fw-bold">Cash Accounts (Wallets)</h2>
                 </div>
+                @if(Auth::user()->role === 'admin')
+                    <div class="page-btn">
+                        <a href="{{ route('admin.cash-accounts.create') }}" class="btn btn-primary">
+                            <i class="ti ti-plus me-1"></i>New Cash Account
+                        </a>
+                    </div>
+                @endif
             </div>
         </div>
 

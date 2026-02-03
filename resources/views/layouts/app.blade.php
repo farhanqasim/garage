@@ -873,6 +873,16 @@ function confirmDelete(formId, customMessage = null) {
 
   <script>
         $('.searchable-select').select2({
+            templateResult: function(data) {
+                // Hide disabled/filtered options in Select2 dropdown
+                if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
+                    return null;
+                }
+                return data.text;
+            },
+            templateSelection: function(data) {
+                return data.text;
+            },
             width: '100%',
             placeholder: 'Please Select',
             allowClear: true
