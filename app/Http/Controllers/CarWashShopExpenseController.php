@@ -31,6 +31,16 @@ class CarWashShopExpenseController extends Controller
             $query->where('expense_date', $date);
         }
 
+        // Filter by user_id if provided
+        if ($request->has('user_id') && $request->user_id !== '' && $request->user_id !== null) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Filter by category if provided
+        if ($request->has('category') && $request->category !== '' && $request->category !== null) {
+            $query->where('category', $request->category);
+        }
+
         $this->applyBranchFilter($query, 'branch_id', $user);
 
         $expenses = $query->get()->map(function ($e) {
@@ -51,6 +61,39 @@ class CarWashShopExpenseController extends Controller
             'success' => true,
             'expenses' => $expenses,
             'total' => round($total, 2),
+        ]);
+    }
+
+    /**
+     * Show all shop expenses page with filters
+     */
+    public function showAllExpenses(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Get all users for filter (based on user role)
+        $users = \App\Models\User::query();
+        if ($user->role === 'branch_owner') {
+            $users->where('branch_id', $user->branch_id);
+        }
+        $users = $users->orderBy('name')->get(['id', 'name']);
+        
+        // Get all categories for filter
+        $categories = CarWashShopExpense::distinct()
+            ->whereNotNull('category')
+            ->pluck('category')
+            ->sort()
+            ->values();
+        
+        // Get branch name and user name for header
+        $branchName = $user->branch ? $user->branch->name : 'All Branches';
+        $userName = $user->name;
+        
+        return view('car-wash-all-shop-expenses', [
+            'users' => $users,
+            'categories' => $categories,
+            'branchName' => $branchName,
+            'userName' => $userName,
         ]);
     }
 

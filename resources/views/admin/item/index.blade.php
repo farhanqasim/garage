@@ -44,55 +44,20 @@
     <!-- /Product List -->
     <div class="card">
         <div class="card-header">
-            <!-- Type Filter Tabs -->
-            <div class="row mb-4 g-3" id="typeTabsContainer">
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="all" id="tab-all">
-                        <i class="ti ti-list fs-2 d-block mb-2"></i>
-                        <span>All Items</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="parts" id="tab-parts">
-                        <i class="ti ti-tool fs-2 d-block mb-2"></i>
-                        <span>Parts</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="filters" id="tab-filters">
-                        <i class="ti ti-filter fs-2 d-block mb-2"></i>
-                        <span>Filters</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="breakpad" id="tab-breakpad">
-                        <i class="ti ti-disc fs-2 d-block mb-2"></i>
-                        <span>Break Pad</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="oil" id="tab-oil">
-                        <i class="ti ti-droplet fs-2 d-block mb-2"></i>
-                        <span>Oil</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="battery" id="tab-battery">
-                        <i class="ti ti-battery fs-2 d-block mb-2"></i>
-                        <span>Battery</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="scrap" id="tab-scrap">
-                        <i class="ti ti-trash fs-2 d-block mb-2"></i>
-                        <span>Scrap</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="services" id="tab-services">
-                        <i class="ti ti-tools fs-2 d-block mb-2"></i>
-                        <span>Services</span>
-                    </div>
+            <!-- Type Filter Dropdown -->
+            <div class="row mb-4 g-3">
+                <div class="col-md-3">
+                    <label for="typeFilterDropdown" class="form-label fw-bold mb-2">Filter by Type:</label>
+                    <select id="typeFilterDropdown" class="form-control form-select">
+                        <option value="all">All Items</option>
+                        <option value="parts">Parts</option>
+                        <option value="filters">Filters</option>
+                        <option value="breakpad">Break Pad</option>
+                        <option value="oil">Oil</option>
+                        <option value="battery">Battery</option>
+                        <option value="scrap">Scrap</option>
+                        <option value="services">Services</option>
+                    </select>
                 </div>
             </div>
             <div class="d-flex align-items-center justify-content-end flex-wrap row-gap-3">
@@ -353,28 +318,8 @@
 </div>
 <!-- Styles -->
 <style>
-    .type-tab {
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        background: #fff;
-    }
-    .type-tab:hover {
-        border-color: #fe9f43;
-        background: #f8f9fa;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .type-tab.active {
-        border-color: #fe9f43;
-        background: #fe9f43;
-        color: #fff;
-    }
-    .type-tab.active i {
-        color: #fff;
-    }
-    .cursor-pointer {
+    /* Type filter dropdown styles */
+    #typeFilterDropdown {
         cursor: pointer;
     }
 </style>
@@ -384,25 +329,17 @@
     document.addEventListener('DOMContentLoaded', function () {
         let currentType = 'all'; // Track current selected type
         
-        // Initialize: Set 'All Items' as active by default
-        document.getElementById('tab-all').classList.add('active');
-        
-        // Type Tab Click Handler
-        document.querySelectorAll('.type-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                const type = this.getAttribute('data-type');
+        // Type Dropdown Change Handler
+        const typeFilterDropdown = document.getElementById('typeFilterDropdown');
+        if (typeFilterDropdown) {
+            typeFilterDropdown.addEventListener('change', function() {
+                const type = this.value;
                 currentType = type;
-                
-                // Remove active class from all tabs
-                document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
-                
-                // Add active class to clicked tab
-                this.classList.add('active');
                 
                 // Load items for selected type
                 loadItemsByType(type);
             });
-        });
+        }
         
         // Function to load items by type
         function loadItemsByType(type) {

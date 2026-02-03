@@ -23,6 +23,19 @@ class User extends Authenticatable
         'password',
         'profile_img',
         'phone',
+        'role',
+        'branch_id',
+        'user_id_card_front',
+        'user_id_card_back',
+        'father_id_card_front',
+        'father_id_card_back',
+        'current_location',
+        'house_photo_front',
+        'credit_limit',
+        'attachments',
+        'salary_per_day',
+        'salary_per_month',
+        'salary_percentage',
     ];
 
     /**
@@ -43,6 +56,11 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'credit_limit' => 'decimal:2',
+        'attachments' => 'array',
+        'salary_per_day' => 'decimal:2',
+        'salary_per_month' => 'decimal:2',
+        'salary_percentage' => 'decimal:2',
     ];
 
     public function branches()

@@ -992,6 +992,14 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <div class="me-auto">
+                    <button type="button" class="btn btn-outline-secondary" id="rotateLeftBtn" title="Rotate Left 90°">
+                        <i class="fas fa-undo"></i> Rotate Left
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="rotateRightBtn" title="Rotate Right 90°">
+                        <i class="fas fa-redo"></i> Rotate Right
+                    </button>
+                </div>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="cropImageBtn">Crop & Save</button>
             </div>
@@ -1001,6 +1009,8 @@
 
 @endsection
 @push('scripts')
+<!-- Tesseract.js for OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Cropper.js JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -1024,6 +1034,16 @@
                     }
                 }
             });
+        }
+
+
+        function updateRemoveEmailButtons() {
+            const container = document.getElementById('emailContainer');
+            if (!container) return;
+            const rows = container.querySelectorAll('.email-row');
+            // First row (index 0) should never have a remove button
+            // Only rows added via "Add More Email" will have remove buttons
+            // This function is kept for consistency but first row won't have the button element
         }
 
         function toggleDelete(btn, fieldName) {
@@ -1169,6 +1189,8 @@
                 
                 // Initialize Select2 for the new country code dropdown
                 const newSelect = newRow.querySelector('.phone-country-code');
+                const newPhoneInput = newRow.querySelector('.phone-number-input');
+                
                 if (newSelect && !$(newSelect).hasClass('select2-hidden-accessible')) {
                     const selectMaxWidth = newSelect.style.maxWidth || '200px';
                     const fixedWidth = selectMaxWidth.replace('px', '') + 'px';
@@ -1192,6 +1214,15 @@
                         }
                     });
                     
+                    // If Pakistan (+92) is selected by default, apply validation to phone input
+                    if (newSelect.value === '92' && newPhoneInput) {
+                        // Trigger validation for the new phone input
+                        setTimeout(function() {
+                            const event = new Event('input', { bubbles: true });
+                            newPhoneInput.dispatchEvent(event);
+                        }, 100);
+                    }
+                    
                     // Auto-focus search input when dropdown opens
                     $(newSelect).on('select2:open', function() {
                         setTimeout(function() {
@@ -1202,6 +1233,35 @@
                         }, 100);
                     });
                 }
+            }
+
+            // Add Email
+            if (e.target.closest('#addEmail')) {
+                e.preventDefault();
+                const btn = e.target.closest('#addEmail');
+                const container = document.getElementById('emailContainer');
+                if (!container) return;
+                const newRow = document.createElement('div');
+                newRow.className = 'row g-3 mb-3 email-row';
+                newRow.innerHTML = `
+                    <div class="col-12">
+                        <div class="input-group">
+                            <input type="email" name="emails[]" class="form-control email-input" placeholder="Enter email address">
+                            <button type="button" class="btn btn-danger remove-email-row" style="display: block;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(newRow);
+                // Update remove buttons visibility
+                updateRemoveEmailButtons();
+            }
+
+            // Remove Email Row
+            if (e.target.closest('.remove-email-row')) {
+                e.target.closest('.email-row').remove();
+                updateRemoveEmailButtons();
             }
 
             // Remove Row
@@ -1481,6 +1541,147 @@
             }
         });
 
+        // Phone number validation and max length (only for Pakistan +92)
+        // Allow numbers and letter O in phone input
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('phone-number-input')) {
+                const phoneInput = e.target;
+                // Remove all non-digit and non-O characters (allow numbers and O)
+                let phoneNumber = phoneInput.value.replace(/[^\dOo]/g, '');
+                // Convert lowercase 'o' to uppercase 'O'
+                phoneNumber = phoneNumber.replace(/o/g, 'O');
+                phoneInput.value = phoneNumber;
+                
+                // Find country code select in the same row (it's in a separate div above input-group)
+                const namePhoneRow = phoneInput.closest('.name-phone-row');
+                const countryCodeSelect = namePhoneRow ? namePhoneRow.querySelector('.phone-country-code') : null;
+                
+                // Get country code value (from select2 if initialized, otherwise from select)
+                let countryCode = null;
+                if (countryCodeSelect) {
+                    if ($(countryCodeSelect).hasClass('select2-hidden-accessible')) {
+                        countryCode = $(countryCodeSelect).val();
+                    } else {
+                        countryCode = countryCodeSelect.value;
+                    }
+                }
+                
+                // Only apply validation if Pakistan (+92) is selected
+                if (countryCode === '92') {
+                    // Limit to 11 characters (digits + O)
+                    if (phoneNumber.length > 11) {
+                        phoneNumber = phoneNumber.substring(0, 11);
+                        phoneInput.value = phoneNumber;
+                    }
+                    
+                    // Show red color if less than 11 characters
+                    if (phoneNumber.length > 0 && phoneNumber.length < 11) {
+                        phoneInput.style.borderColor = '#dc3545';
+                        phoneInput.style.color = '#dc3545';
+                    } else if (phoneNumber.length === 11) {
+                        phoneInput.style.borderColor = '#28a745';
+                        phoneInput.style.color = '#28a745';
+                    } else {
+                        phoneInput.style.borderColor = '';
+                        phoneInput.style.color = '';
+                    }
+                } else {
+                    // Reset styling if not Pakistan
+                    phoneInput.style.borderColor = '';
+                    phoneInput.style.color = '';
+                }
+            }
+        });
+        
+        // Prevent typing non-numeric characters and limit to 11 digits when Pakistan (+92) is selected
+        // Allow numbers and letter O
+        document.addEventListener('keypress', function(e) {
+            if (e.target.classList.contains('phone-number-input')) {
+                const phoneInput = e.target;
+                
+                // Only allow numeric keys (0-9), letter O (both cases), backspace, delete, tab, arrow keys, etc.
+                const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+                const isNumeric = /^\d$/.test(e.key);
+                const isLetterO = /^[Oo]$/.test(e.key);
+                const isAllowedKey = allowedKeys.includes(e.key) || (e.ctrlKey && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase()));
+                
+                // If not a number, not letter O, and not an allowed key, prevent input
+                if (!isNumeric && !isLetterO && !isAllowedKey) {
+                    e.preventDefault();
+                    return false;
+                }
+                
+                // Find country code select in the same row
+                const namePhoneRow = phoneInput.closest('.name-phone-row');
+                const countryCodeSelect = namePhoneRow ? namePhoneRow.querySelector('.phone-country-code') : null;
+                
+                if (!countryCodeSelect) return;
+                
+                // Get country code value
+                let countryCode = null;
+                if ($(countryCodeSelect).hasClass('select2-hidden-accessible')) {
+                    countryCode = $(countryCodeSelect).val();
+                } else {
+                    countryCode = countryCodeSelect.value;
+                }
+                
+                // Only limit to 11 characters if Pakistan (+92) is selected
+                if (countryCode === '92' && (isNumeric || isLetterO)) {
+                    const currentValue = phoneInput.value.replace(/[^\dO]/g, '');
+                    if (currentValue.length >= 11) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+            }
+        });
+        
+        // Prevent paste of non-numeric and non-O content
+        document.addEventListener('paste', function(e) {
+            if (e.target.classList.contains('phone-number-input')) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                // Allow numeric characters and letter O from pasted text
+                const cleanedText = pastedText.replace(/[^\dOo]/g, '').replace(/o/g, 'O');
+                e.target.value = cleanedText;
+                // Trigger input event to apply validation
+                const inputEvent = new Event('input', { bubbles: true });
+                e.target.dispatchEvent(inputEvent);
+            }
+        });
+        
+        // Handle country code change to validate phone number
+        $(document).on('change', '.phone-country-code', function() {
+            const countryCodeSelect = this;
+            // Find the phone input in the same row (next input-group in the same col-md-6 or in the row)
+            const namePhoneRow = $(countryCodeSelect).closest('.name-phone-row');
+            const phoneInput = namePhoneRow.find('.phone-number-input')[0];
+            
+            if (phoneInput) {
+                const countryCode = $(countryCodeSelect).val();
+                // Allow numbers and letter O, preserve leading zero
+                let phoneNumber = phoneInput.value.replace(/[^\dOo]/g, '').replace(/o/g, 'O');
+                
+                // Limit to 11 characters (digits + O)
+                if (phoneNumber.length > 11) {
+                    phoneNumber = phoneNumber.substring(0, 11);
+                    phoneInput.value = phoneNumber;
+                }
+                
+                // Show red color if less than 11 characters
+                if (countryCode && phoneNumber.length > 0 && phoneNumber.length < 11) {
+                    phoneInput.style.borderColor = '#dc3545';
+                    phoneInput.style.color = '#dc3545';
+                } else if (countryCode && phoneNumber.length === 11) {
+                    phoneInput.style.borderColor = '#28a745';
+                    phoneInput.style.color = '#28a745';
+                } else {
+                    phoneInput.style.borderColor = '';
+                    phoneInput.style.color = '';
+                }
+            }
+        });
+        
         // Auto-detect country code from phone number input
         document.addEventListener('input', function(e) {
             if (e.target.classList.contains('phone-number-input')) {
@@ -1507,6 +1708,75 @@
                 } else if (cleanNumber.length > 0 && /^\d+$/.test(cleanNumber)) {
                     // Check if number starts with a known country code
                     detectAndSetCountryCode(cleanNumber, countryCodeSelect);
+                }
+            }
+        });
+        
+        // Prevent typing more than 11 digits when Pakistan (+92) is selected
+        document.addEventListener('keypress', function(e) {
+            if (e.target.classList.contains('phone-number-input')) {
+                const phoneInput = e.target;
+                // Find country code select in the same row
+                const namePhoneRow = phoneInput.closest('.name-phone-row');
+                const countryCodeSelect = namePhoneRow ? namePhoneRow.querySelector('.phone-country-code') : null;
+                
+                if (!countryCodeSelect) return;
+                
+                // Get country code value
+                let countryCode = null;
+                if ($(countryCodeSelect).hasClass('select2-hidden-accessible')) {
+                    countryCode = $(countryCodeSelect).val();
+                } else {
+                    countryCode = countryCodeSelect.value;
+                }
+                
+                // Only limit to 11 digits if Pakistan (+92) is selected
+                if (countryCode === '92') {
+                    const currentValue = phoneInput.value.replace(/\D/g, '');
+                    if (currentValue.length >= 11 && e.key.match(/\d/)) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+            }
+        });
+        
+        // Handle country code change to validate phone number (only for Pakistan +92)
+        $(document).on('change', '.phone-country-code', function() {
+            const countryCodeSelect = this;
+            // Find the phone input in the same row
+            const namePhoneRow = $(countryCodeSelect).closest('.name-phone-row');
+            const phoneInput = namePhoneRow.find('.phone-number-input')[0];
+            
+            if (phoneInput) {
+                const countryCode = $(countryCodeSelect).val();
+                
+                // Only apply validation if Pakistan (+92) is selected
+                if (countryCode === '92') {
+                    // Allow numbers and letter O, preserve leading zero
+                    let phoneNumber = phoneInput.value.replace(/[^\dOo]/g, '').replace(/o/g, 'O');
+                    
+                    // Limit to 11 characters (digits + O)
+                    if (phoneNumber.length > 11) {
+                        phoneNumber = phoneNumber.substring(0, 11);
+                        phoneInput.value = phoneNumber;
+                    }
+                    
+                    // Show red color if less than 11 characters
+                    if (phoneNumber.length > 0 && phoneNumber.length < 11) {
+                        phoneInput.style.borderColor = '#dc3545';
+                        phoneInput.style.color = '#dc3545';
+                    } else if (phoneNumber.length === 11) {
+                        phoneInput.style.borderColor = '#28a745';
+                        phoneInput.style.color = '#28a745';
+                    } else {
+                        phoneInput.style.borderColor = '';
+                        phoneInput.style.color = '';
+                    }
+                } else {
+                    // Reset styling if not Pakistan
+                    phoneInput.style.borderColor = '';
+                    phoneInput.style.color = '';
                 }
             }
         });
@@ -2337,6 +2607,20 @@
                     if (preview) preview.style.display = 'none';
                     // ... (add other resets as in previous script)
                     updateRemoveButtons('namePhoneContainer');
+                    // Reset email container - remove all but first email row
+                    const emailContainer = form.querySelector('#emailContainer');
+                    if (emailContainer) {
+                        const emailRows = emailContainer.querySelectorAll('.email-row');
+                        emailRows.forEach((row, index) => {
+                            if (index > 0) {
+                                row.remove();
+                            } else {
+                                const emailInput = row.querySelector('.email-input');
+                                if (emailInput) emailInput.value = '';
+                            }
+                        });
+                        updateRemoveEmailButtons();
+                    }
                     // Reset credit limit
                     const optionsDiv = form.querySelector('#creditLimitOptions');
                     const defaultDiv = form.querySelector('#creditLimitDefault');
@@ -2476,6 +2760,43 @@
     })();
 
     // Crop Image Button Handler (outside IIFE for global access)
+    // Use event delegation for rotation buttons
+    document.addEventListener('click', function(e) {
+        // Rotate Left Button
+        if (e.target.closest('#rotateLeftBtn')) {
+            e.preventDefault();
+            const currentInputId = window.currentCropInputId;
+            let cropper = null;
+            
+            if (currentInputId === 'profile_img') {
+                cropper = window.profileImgCropper;
+            } else if (currentInputId === 'visiting_doc') {
+                cropper = window.visitingDocCropper;
+            }
+            
+            if (cropper) {
+                cropper.rotate(-90); // Rotate counter-clockwise by 90 degrees
+            }
+        }
+        
+        // Rotate Right Button
+        if (e.target.closest('#rotateRightBtn')) {
+            e.preventDefault();
+            const currentInputId = window.currentCropInputId;
+            let cropper = null;
+            
+            if (currentInputId === 'profile_img') {
+                cropper = window.profileImgCropper;
+            } else if (currentInputId === 'visiting_doc') {
+                cropper = window.visitingDocCropper;
+            }
+            
+            if (cropper) {
+                cropper.rotate(90); // Rotate clockwise by 90 degrees
+            }
+        }
+    });
+    
     document.addEventListener('DOMContentLoaded', function() {
         const cropImageBtn = document.getElementById('cropImageBtn');
         if (cropImageBtn) {
@@ -2501,6 +2822,9 @@
                         imageSmoothingEnabled: true,
                         imageSmoothingQuality: 'high',
                     });
+                    
+                    // Get cropped canvas data URL (for preview and OCR)
+                    const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
                     
                     // Convert canvas to blob
                     canvas.toBlob(function(blob) {
@@ -2528,21 +2852,17 @@
                                 profileInput.files = dataTransfer.files;
                             }
                             
-                            // Update preview
-                            const reader = new FileReader();
-                            reader.onload = function(ev) {
-                                if (preview) {
-                                    preview.src = ev.target.result;
-                                    preview.style.display = 'block';
-                                }
-                                // Show cancel button
-                                const cancelBtn = document.getElementById('cancelProfileImg');
-                                if (cancelBtn) cancelBtn.style.display = 'block';
-                                
-                                if (placeholder) placeholder.style.display = 'none';
-                                if (uploadBtn) uploadBtn.style.display = 'none';
-                            };
-                            reader.readAsDataURL(file);
+                            // Update preview with cropped image
+                            if (preview) {
+                                preview.src = croppedDataUrl;
+                                preview.style.display = 'block';
+                            }
+                            // Show cancel button
+                            const cancelBtn = document.getElementById('cancelProfileImg');
+                            if (cancelBtn) cancelBtn.style.display = 'block';
+                            
+                            if (placeholder) placeholder.style.display = 'none';
+                            if (uploadBtn) uploadBtn.style.display = 'none';
                             
                             // Clean up
                             if (cropper) {
@@ -2562,18 +2882,17 @@
                                 visitingDocInput.files = dataTransfer.files;
                             }
                             
-                            // Update preview
-                            const reader = new FileReader();
-                            reader.onload = function(ev) {
-                                if (visitingImg) visitingImg.src = ev.target.result;
-                                if (imgContainer) imgContainer.style.display = 'block';
-                                if (fileInfo) fileInfo.style.display = 'none';
-                                if (preview) preview.style.display = 'block';
-                                // Show cancel button
-                                const cancelBtn = document.getElementById('cancelVisitingDoc');
-                                if (cancelBtn) cancelBtn.style.display = 'block';
-                            };
-                            reader.readAsDataURL(file);
+                            // Update preview with cropped image
+                            if (visitingImg) visitingImg.src = croppedDataUrl;
+                            if (imgContainer) imgContainer.style.display = 'block';
+                            if (fileInfo) fileInfo.style.display = 'none';
+                            if (preview) preview.style.display = 'block';
+                            // Show cancel button
+                            const cancelBtn = document.getElementById('cancelVisitingDoc');
+                            if (cancelBtn) cancelBtn.style.display = 'block';
+                            
+                            // Extract text from visiting card using OCR with cropped image
+                            extractTextFromVisitingCard(croppedDataUrl);
                             
                             // Clean up
                             if (cropper) {
@@ -3950,6 +4269,430 @@
             initializeBusinessDetailInput();
         }
     })();
+    
+    // Function to extract text from visiting card using OCR
+    function extractTextFromVisitingCard(imageDataUrl) {
+        if (typeof Tesseract === 'undefined') {
+            console.log('Tesseract.js not loaded');
+            return;
+        }
+        
+        // Show loading indicator
+        const companyInput = document.getElementById('company');
+        if (companyInput) {
+            companyInput.placeholder = 'Extracting information...';
+        }
+        
+        Tesseract.recognize(
+            imageDataUrl,
+            'eng+urd', // English and Urdu
+            {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        // Update progress if needed
+                    }
+                }
+            }
+        ).then(({ data: { text } }) => {
+            console.log('OCR Recognition completed. Extracted text length:', text ? text.length : 0);
+            console.log('OCR Extracted Text:', text);
+            // Parse extracted text and fill form fields
+            if (text && text.trim()) {
+                parseAndFillFormFields(text);
+            } else {
+                console.log('OCR: No text was extracted from the image');
+                alert('No text could be extracted from the image. Please ensure the image is clear and try again.');
+            }
+            
+            // Reset placeholder
+            if (companyInput) {
+                companyInput.placeholder = '';
+            }
+        }).catch(err => {
+            console.error('OCR Error:', err);
+            alert('OCR extraction failed: ' + (err.message || 'Unknown error') + '. Please try again or enter information manually.');
+            if (companyInput) {
+                companyInput.placeholder = '';
+            }
+        });
+    }
+    
+    // Function to parse OCR text and fill form fields
+    function parseAndFillFormFields(text) {
+        if (!text || !text.trim()) {
+            console.log('OCR: No text to parse');
+            return;
+        }
+        
+        console.log('Parsing OCR text:', text);
+        
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        const fullText = text.replace(/\s+/g, ' '); // Normalize whitespace for better matching
+        
+        // Extract Company Name (usually first line or contains "STORE", "AUTO", "PARTS", etc.)
+        let companyName = '';
+        for (let i = 0; i < Math.min(5, lines.length); i++) {
+            const line = lines[i].toUpperCase();
+            if (line.length > 3 && (line.includes('STORE') || line.includes('AUTO') || line.includes('PARTS') || 
+                line.includes('COMPANY') || line.includes('TRADERS') || line.includes('ENTERPRISES') ||
+                line.match(/^[A-Z\s]{3,}$/))) {
+                companyName = lines[i];
+                break;
+            }
+        }
+        if (!companyName && lines.length > 0) {
+            // Use first substantial line as company name
+            const firstLine = lines[0];
+            if (firstLine.length > 3 && !firstLine.match(/^\d+/) && !firstLine.includes('@')) {
+                companyName = firstLine;
+            }
+        }
+        if (companyName) {
+            const companyInput = document.getElementById('company');
+            if (companyInput && !companyInput.value) {
+                companyInput.value = companyName;
+            }
+        }
+        
+        // Extract Email(s)
+        const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/gi;
+        const emailMatches = fullText.match(emailRegex);
+        if (emailMatches && emailMatches.length > 0) {
+            // Remove duplicates
+            const uniqueEmails = [...new Set(emailMatches)];
+            const emailContainer = document.getElementById('emailContainer');
+            if (emailContainer) {
+                const emailRows = emailContainer.querySelectorAll('.email-row');
+                uniqueEmails.forEach((email, index) => {
+                    if (index === 0) {
+                        // Fill first email input
+                        const firstEmailInput = emailContainer.querySelector('.email-input');
+                        if (firstEmailInput && !firstEmailInput.value) {
+                            firstEmailInput.value = email;
+                        }
+                    } else {
+                        // Add new email row for additional emails
+                        const addEmailBtn = document.getElementById('addEmail');
+                        if (addEmailBtn) {
+                            addEmailBtn.click();
+                            setTimeout(() => {
+                                const emailRows = emailContainer.querySelectorAll('.email-row');
+                                const newEmailInput = emailRows[emailRows.length - 1]?.querySelector('.email-input');
+                                if (newEmailInput) {
+                                    newEmailInput.value = email;
+                                }
+                            }, 100);
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Extract Phone Numbers (Pakistani format: 03XX-XXXXXXX or +92XXXXXXXXXX)
+        // Try multiple regex patterns to catch different formats
+        const phonePatterns = [
+            /0[3-4][0-9]{2}[-\s.]?[0-9]{7}/g,  // 03XX-XXXXXXX or 03XX XXXX XXX
+            /\+92[-\s.]?[0-9]{10}/g,           // +92XXXXXXXXXX
+            /0092[-\s.]?[0-9]{10}/g,           // 0092XXXXXXXXXX
+            /92[-\s.]?[0-9]{10}/g,             // 92XXXXXXXXXX
+            /\b[0-9]{11}\b/g,                  // Any 11 digits
+            /\b[0-9]{10}\b/g                   // Any 10 digits
+        ];
+        
+        let allPhoneMatches = [];
+        phonePatterns.forEach(pattern => {
+            const matches = fullText.match(pattern);
+            if (matches) {
+                allPhoneMatches = allPhoneMatches.concat(matches);
+            }
+        });
+        
+        // Also search in individual lines for better detection
+        lines.forEach(line => {
+            phonePatterns.forEach(pattern => {
+                const matches = line.match(pattern);
+                if (matches) {
+                    allPhoneMatches = allPhoneMatches.concat(matches);
+                }
+            });
+        });
+        
+        console.log('All phone matches found:', allPhoneMatches);
+        
+        if (allPhoneMatches && allPhoneMatches.length > 0) {
+            // Clean phone numbers - preserve leading zero for Pakistani numbers
+            const cleanPhones = allPhoneMatches.map(phone => {
+                // Remove non-digit characters
+                let cleaned = phone.replace(/[^\d]/g, '');
+                // Remove country code 92 if present at the start (only if length > 11)
+                if (cleaned.startsWith('92') && cleaned.length > 11) {
+                    cleaned = cleaned.substring(2);
+                }
+                // Remove 0092 prefix if present
+                if (cleaned.startsWith('0092') && cleaned.length > 11) {
+                    cleaned = cleaned.substring(4);
+                }
+                // Preserve leading zero (don't remove it)
+                // Pakistani numbers often start with 0 (e.g., 03001234567)
+                return cleaned;
+            })
+            .filter(phone => {
+                // Filter valid Pakistani phone numbers
+                // Must be 10 or 11 digits
+                if (phone.length < 10 || phone.length > 11) return false;
+                // If 11 digits, must start with 0
+                if (phone.length === 11 && !phone.startsWith('0')) return false;
+                // If 10 digits, should start with 3 (mobile) or 4 (landline)
+                if (phone.length === 10) {
+                    return phone.startsWith('3') || phone.startsWith('4');
+                }
+                // If 11 digits starting with 0, next digit should be 3 or 4
+                if (phone.length === 11 && phone.startsWith('0')) {
+                    return phone[1] === '3' || phone[1] === '4';
+                }
+                return true;
+            })
+            .filter((phone, index, self) => {
+                // Remove duplicates
+                return self.indexOf(phone) === index;
+            });
+            
+            // Fill first phone number in the first phone input
+            if (cleanPhones.length > 0) {
+                const firstPhoneInput = document.querySelector('.phone-number-input[data-index="0"]');
+                if (firstPhoneInput && !firstPhoneInput.value) {
+                    // Mark as programmatic change to preserve leading zero
+                    firstPhoneInput.dataset.programmatic = 'true';
+                    // Set value directly
+                    firstPhoneInput.value = cleanPhones[0];
+                    // Manually trigger validation without the input event that might strip the zero
+                    const countryCodeSelect = firstPhoneInput.closest('.name-phone-row')?.querySelector('.phone-country-code');
+                    if (countryCodeSelect) {
+                        const countryCode = $(countryCodeSelect).hasClass('select2-hidden-accessible') 
+                            ? $(countryCodeSelect).val() 
+                            : countryCodeSelect.value;
+                        if (countryCode === '92') {
+                            const phoneNumber = cleanPhones[0];
+                            if (phoneNumber.length === 11) {
+                                firstPhoneInput.style.borderColor = '#28a745';
+                                firstPhoneInput.style.color = '#28a745';
+                            } else if (phoneNumber.length > 0 && phoneNumber.length < 11) {
+                                firstPhoneInput.style.borderColor = '#dc3545';
+                                firstPhoneInput.style.color = '#dc3545';
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If multiple phone numbers, add them to additional name-phone rows
+            if (cleanPhones.length > 1) {
+                for (let i = 1; i < cleanPhones.length; i++) {
+                    // Check if we need to add a new row
+                    const namePhoneContainer = document.getElementById('namePhoneContainer');
+                    if (namePhoneContainer) {
+                        const existingRows = namePhoneContainer.querySelectorAll('.name-phone-row');
+                        if (existingRows.length <= i) {
+                            // Add new row
+                            const addBtn = document.getElementById('addNamePhone');
+                            if (addBtn) {
+                                addBtn.click();
+                                // Wait for row to be added
+                                setTimeout(() => {
+                                    const newPhoneInput = namePhoneContainer.querySelectorAll('.phone-number-input')[i];
+                                    if (newPhoneInput && !newPhoneInput.value) {
+                                        // Mark as programmatic change to preserve leading zero
+                                        newPhoneInput.dataset.programmatic = 'true';
+                                        newPhoneInput.value = cleanPhones[i];
+                                        // Manually trigger validation
+                                        const countryCodeSelect = newPhoneInput.closest('.name-phone-row')?.querySelector('.phone-country-code');
+                                        if (countryCodeSelect) {
+                                            const countryCode = $(countryCodeSelect).hasClass('select2-hidden-accessible') 
+                                                ? $(countryCodeSelect).val() 
+                                                : countryCodeSelect.value;
+                                            if (countryCode === '92') {
+                                                const phoneNumber = cleanPhones[i];
+                                                if (phoneNumber.length === 11) {
+                                                    newPhoneInput.style.borderColor = '#28a745';
+                                                    newPhoneInput.style.color = '#28a745';
+                                                } else if (phoneNumber.length > 0 && phoneNumber.length < 11) {
+                                                    newPhoneInput.style.borderColor = '#dc3545';
+                                                    newPhoneInput.style.color = '#dc3545';
+                                                }
+                                            }
+                                        }
+                                    }
+                                }, 100);
+                            }
+                        } else {
+                            const phoneInput = namePhoneContainer.querySelectorAll('.phone-number-input')[i];
+                            if (phoneInput && !phoneInput.value) {
+                                // Mark as programmatic change to preserve leading zero
+                                phoneInput.dataset.programmatic = 'true';
+                                phoneInput.value = cleanPhones[i];
+                                // Manually trigger validation
+                                const countryCodeSelect = phoneInput.closest('.name-phone-row')?.querySelector('.phone-country-code');
+                                if (countryCodeSelect) {
+                                    const countryCode = $(countryCodeSelect).hasClass('select2-hidden-accessible') 
+                                        ? $(countryCodeSelect).val() 
+                                        : countryCodeSelect.value;
+                                    if (countryCode === '92') {
+                                        const phoneNumber = cleanPhones[i];
+                                        if (phoneNumber.length === 11) {
+                                            phoneInput.style.borderColor = '#28a745';
+                                            phoneInput.style.color = '#28a745';
+                                        } else if (phoneNumber.length > 0 && phoneNumber.length < 11) {
+                                            phoneInput.style.borderColor = '#dc3545';
+                                            phoneInput.style.color = '#dc3545';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Extract Address (lines containing "Road", "Street", "Lahore", "Karachi", etc.)
+        const addressKeywords = ['ROAD', 'STREET', 'LAHORE', 'KARACHI', 'ISLAMABAD', 'ADDRESS', 'LOCATION', 'AREA', 'TOWN', 'CITY', 'BLOCK', 'SECTOR', 'PHASE', 'COLONY', 'SOCIETY', 'SHOP', 'STORE', 'MARKET', 'PLAZA'];
+        let address = '';
+        
+        console.log('Searching for address in', lines.length, 'lines');
+        
+        // First, try to find address with keywords
+        for (const line of lines) {
+            const upperLine = line.toUpperCase();
+            if (addressKeywords.some(keyword => upperLine.includes(keyword)) || 
+                (line.length > 10 && line.match(/^\d+[A-Z\s,]+/i))) {
+                address = line;
+                console.log('Address found with keywords:', address);
+                break;
+            }
+        }
+        
+        // If no address found with keywords, look for longer lines that might be addresses
+        if (!address) {
+            // Look for lines that contain both numbers and letters (typical address format)
+            for (const line of lines) {
+                const hasNumbers = /\d/.test(line);
+                const hasLetters = /[A-Za-z]/.test(line);
+                const hasEmail = /[\w\.-]+@[\w\.-]+\.\w+/gi.test(line);
+                const isPhone = /0?[3-4][0-9]{2}[-\s.]?[0-9]{7}/g.test(line);
+                
+                if (line.length > 15 && hasNumbers && hasLetters && !hasEmail && !isPhone && 
+                    !line.match(/^\d{10,}$/) && !line.match(/^[\d\s-]+$/)) {
+                    address = line;
+                    console.log('Address found (numbers + letters):', address);
+                    break;
+                }
+            }
+        }
+        
+        // If still no address, look for any substantial line that doesn't match other patterns
+        if (!address) {
+            for (const line of lines) {
+                // Skip if it's company name, email, phone, or product
+                const isCompany = companyName && line.toUpperCase().includes(companyName.toUpperCase());
+                const hasEmail = /[\w\.-]+@[\w\.-]+\.\w+/gi.test(line);
+                const hasPhone = /0?[3-4][0-9]{2}[-\s.]?[0-9]{7}/g.test(line);
+                const isProduct = productKeywords.some(keyword => line.toUpperCase().includes(keyword));
+                
+                if (!isCompany && !hasEmail && !hasPhone && !isProduct && 
+                    line.length > 10 && line.match(/[A-Za-z\s,]+/) && !line.match(/^\d+$/)) {
+                    address = line;
+                    console.log('Address found (fallback):', address);
+                    break;
+                }
+            }
+        }
+        
+        console.log('Final extracted address:', address);
+        
+        // If still no address, look for any substantial line that doesn't match other patterns
+        if (!address) {
+            for (const line of lines) {
+                // Skip if it's company name, email, phone, or product
+                const isCompany = companyName && line.toUpperCase().includes(companyName.toUpperCase());
+                const hasEmail = /[\w\.-]+@[\w\.-]+\.\w+/gi.test(line);
+                const hasPhone = /\b(0?[3-4][0-9]{2}[-\s.]?[0-9]{7})\b/g.test(line);
+                const isProduct = productKeywords.some(keyword => line.toUpperCase().includes(keyword));
+                
+                if (!isCompany && !hasEmail && !hasPhone && !isProduct && 
+                    line.length > 10 && line.match(/[A-Za-z\s,]+/) && !line.match(/^\d+$/)) {
+                    address = line;
+                    break;
+                }
+            }
+        }
+        if (address) {
+            // Fill the address field (new separate field) - NOT location_address
+            const addressInput = document.getElementById('address');
+            if (addressInput && !addressInput.value) {
+                addressInput.value = address;
+            }
+            // Do NOT fill location_address - user wants address only in address field
+        }
+        
+        // Extract Product Details (lines containing product-related keywords)
+        const productKeywords = ['PARTS', 'SPARE', 'AUTO', 'VEHICLE', 'CAR', 'MOTOR', 'ENGINE', 'TIRE', 'BATTERY', 'OIL'];
+        const productLines = [];
+        for (const line of lines) {
+            const upperLine = line.toUpperCase();
+            if (productKeywords.some(keyword => upperLine.includes(keyword)) && line.length > 3) {
+                productLines.push(line);
+            }
+        }
+        if (productLines.length > 0) {
+            const businessDetailInput = document.getElementById('business_detail_input');
+            if (businessDetailInput) {
+                // Add product details as tags
+                productLines.forEach((product, index) => {
+                    setTimeout(() => {
+                        businessDetailInput.value = product;
+                        businessDetailInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                        businessDetailInput.value = '';
+                    }, index * 200);
+                });
+            }
+        }
+        
+        // Extract additional information for description (remaining text that doesn't fit other categories)
+        const descriptionLines = [];
+        const usedLines = new Set();
+        
+        // Mark used lines
+        if (companyName) usedLines.add(companyName);
+        if (emailMatch) emailMatch.forEach(e => usedLines.add(e));
+        if (allPhoneMatches) allPhoneMatches.forEach(p => usedLines.add(p));
+        if (address) usedLines.add(address);
+        productLines.forEach(p => usedLines.add(p));
+        
+        // Collect unused substantial lines for description
+        for (const line of lines) {
+            if (!usedLines.has(line) && line.length > 5 && 
+                !line.match(/^\d+$/) && !line.includes('@') && 
+                !line.match(/^[\d\s-]+$/)) {
+                descriptionLines.push(line);
+            }
+        }
+        
+        if (descriptionLines.length > 0) {
+            const descriptionTextarea = document.getElementById('description');
+            if (descriptionTextarea && !descriptionTextarea.value) {
+                // Show description options first
+                const showDescBtn = document.getElementById('showDescriptionOptions');
+                if (showDescBtn) {
+                    showDescBtn.click();
+                }
+                setTimeout(() => {
+                    if (descriptionTextarea) {
+                        descriptionTextarea.value = descriptionLines.join('\n');
+                    }
+                }, 100);
+            }
+        }
+    }
 </script>
 
 @endpush

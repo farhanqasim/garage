@@ -3,16 +3,16 @@
         <!-- Logo -->
         <div class="header-left active">
           <a href="{{ route('home') }}" class="logo logo-normal">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}"  alt="Img">
-          <h3>{{ setting_value('logo_text', 'Auto Shop') }}</h3>
+            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/elite-car-wash-logo.png')) }}" alt="Elite Car Wash">
+            <h3>{{ setting_value('logo_text', 'Elite Car Wash') }}</h3>
           </a>
           <a href="{{ route('home') }}" class="logo logo-white">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}"  alt="Img">
-          <h3>{{ setting_value('logo_text', 'Auto Shop') }}</h3>
+            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/elite-car-wash-logo.png')) }}" alt="Elite Car Wash">
+            <h3>{{ setting_value('logo_text', 'Elite Car Wash') }}</h3>
           </a>
           <a href="{{ route('home') }}" class="logo-small">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}"  alt="Img">
-          <h3>{{ setting_value('logo_text', 'Auto Shop') }}</h3>
+            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/elite-car-wash-logo.png')) }}" alt="Elite Car Wash">
+            <h3>{{ setting_value('logo_text', 'Elite Car Wash') }}</h3>
           </a>
         </div>
         <!-- /Logo -->
