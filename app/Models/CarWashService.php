@@ -19,6 +19,9 @@ class CarWashService extends Model
         'color_value',
         'is_default',
         'status',
+        'sort_order',
+        'inspection_compulsory',
+        'is_per_foot',
     ];
 
     protected $casts = [
@@ -26,6 +29,8 @@ class CarWashService extends Model
         'base_price' => 'decimal:2',
         'is_default' => 'boolean',
         'status' => 'boolean',
+        'inspection_compulsory' => 'boolean',
+        'is_per_foot' => 'boolean',
     ];
 
     /**

@@ -641,6 +641,7 @@ class CarWashPaymentController extends Controller
 
     /**
      * Get user's cash account balance (API)
+     * Returns logged-in user's cash account balance (for all users)
      */
     public function getCashAccountBalance(Request $request)
     {
@@ -649,6 +650,40 @@ class CarWashPaymentController extends Controller
         try {
             $cashAccountService = app(\App\Services\CashAccountService::class);
             $balance = $cashAccountService->getBalance($user->id);
+            
+            return response()->json([
+                'success' => true,
+                'balance' => (float) $balance,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'balance' => 0,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get admin's cash account balance (API)
+     * Returns admin user's cash account balance (for transfer to admin)
+     */
+    public function getAdminCashAccountBalance(Request $request)
+    {
+        try {
+            // Find admin user
+            $adminUser = \App\Models\User::where('role', 'admin')->first();
+            
+            if (!$adminUser) {
+                return response()->json([
+                    'success' => false,
+                    'balance' => 0,
+                    'message' => 'Admin user not found',
+                ], 404);
+            }
+            
+            $cashAccountService = app(\App\Services\CashAccountService::class);
+            $balance = $cashAccountService->getBalance($adminUser->id);
             
             return response()->json([
                 'success' => true,
@@ -826,52 +861,71 @@ class CarWashPaymentController extends Controller
 
     /**
      * Transfer cash to another user (API)
+     * If to_user_id is null, transfer to admin user
      */
     public function transferToUser(Request $request)
     {
         $request->validate([
-            'to_user_id' => 'required|exists:users,id',
+            'to_user_id' => 'nullable|exists:users,id',
             'amount' => 'required|numeric|min:0.01',
             'note' => 'nullable|string|max:500',
         ]);
 
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
-        $toUserId = $request->to_user_id;
         $amount = (float) $request->amount;
         $note = $request->note;
+        
+        // If to_user_id is null, find admin user
+        if (!$request->to_user_id) {
+            $adminUser = \App\Models\User::where('role', 'admin')->first();
+            if (!$adminUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Admin user not found'
+                ], 404);
+            }
+            $toUserId = $adminUser->id;
+        } else {
+            $toUserId = $request->to_user_id;
+        }
 
         // Verify both users are in the same branch
         $toUser = \App\Models\User::findOrFail($toUserId);
         $toUserBranchId = null;
 
-        // Get to_user's branch
-        if ($toUser->branches) {
-            $toUserBranchId = $toUser->branches->id;
-        } else {
-            $assignedBranch = $toUser->assignedBranches()->first();
-            if ($assignedBranch) {
-                $toUserBranchId = $assignedBranch->id;
+        // If transferring to admin, skip branch restrictions (admin can receive from any branch)
+        $isAdminTransfer = $toUser->role === 'admin';
+        
+        if (!$isAdminTransfer) {
+            // Get to_user's branch
+            if ($toUser->branches) {
+                $toUserBranchId = $toUser->branches->id;
+            } else {
+                $assignedBranch = $toUser->assignedBranches()->first();
+                if ($assignedBranch) {
+                    $toUserBranchId = $assignedBranch->id;
+                }
             }
-        }
 
-        // Check if both users are in the same branch
-        if ($branchId && $toUserBranchId && $branchId != $toUserBranchId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You can only transfer to users in the same branch'
-            ], 403);
-        }
+            // Check if both users are in the same branch
+            if ($branchId && $toUserBranchId && $branchId != $toUserBranchId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You can only transfer to users in the same branch'
+                ], 403);
+            }
 
-        // If current user has no branch but to_user has, allow if to_user's branch allows it
-        // Or if both have no branch, allow (global users)
-        if (!$branchId && !$toUserBranchId) {
-            // Both are global users, allow transfer
-            $branchId = null;
-        } elseif (!$branchId && $toUserBranchId) {
-            // Current user is global, to_user has branch - check if allowed
-            // For now, we'll allow it
-            $branchId = $toUserBranchId;
+            // If current user has no branch but to_user has, allow if to_user's branch allows it
+            // Or if both have no branch, allow (global users)
+            if (!$branchId && !$toUserBranchId) {
+                // Both are global users, allow transfer
+                $branchId = null;
+            } elseif (!$branchId && $toUserBranchId) {
+                // Current user is global, to_user has branch - check if allowed
+                // For now, we'll allow it
+                $branchId = $toUserBranchId;
+            }
         }
 
         try {

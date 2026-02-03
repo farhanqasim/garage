@@ -110,9 +110,11 @@ public function carWash()
     $jobsQuery = CarWashJob::query();
     $this->applyBranchFilter($jobsQuery, 'branch_id', $user);
     $activeJobs = $jobsQuery->active()
+    ->with('expense')
     ->orderBy('start_time', 'asc')
     ->get()
     ->map(function($job) {
+        $expenseTotal = $job->expense ? (float) ($job->expense->total_amount ?? 0) : 0;
         return [
             'id' => $job->id,
             'serviceId' => $job->service_id,
@@ -124,6 +126,7 @@ public function carWash()
             'price' => (float) $job->price,
             'worker' => $job->worker_name ?? '',
             'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+            'expenseTotalAmount' => $expenseTotal,
         ];
     });
     
@@ -209,7 +212,7 @@ public function carWashServices()
 
     $svcQuery = CarWashService::query();
     $this->applyBranchFilter($svcQuery, 'branch_id', $user);
-    $services = $svcQuery->orderBy('created_at', 'desc')->get()
+    $services = $svcQuery->orderBy('sort_order', 'asc')->orderBy('created_at', 'desc')->get()
     ->map(function($service) {
         return [
             'id' => $service->id,
@@ -221,6 +224,7 @@ public function carWashServices()
             'colorValue' => $service->color_value ?? '#3b82f6',
             'isDefault' => $service->is_default ?? false,
             'status' => $service->status ?? true,
+            'sortOrder' => (int) ($service->sort_order ?? 0),
         ];
     });
     

@@ -514,7 +514,7 @@
                         </div>
                          <!-- Product Name -->
                                 <div class="col-md-4 mb-3"
-                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' || selectedType === 'battery'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
                                             <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name:</label>
@@ -600,12 +600,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add group"
-                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
@@ -651,7 +645,7 @@
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Series/Technology -->
-                                <div class="col-md-4 mb-3"  x-show=" selectedType === 'battery' || selectedType === 'oil'">
+                                <div class="col-md-4 mb-3" style="display: none !important;">
                                     <label for="technology_select">
                                         <b x-show="selectedType === 'oil'">Technology:</b>
                                         <b x-show="selectedType == 'battery'">Series:</b>
@@ -669,13 +663,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
-                                            data-mode="add"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
                                             x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
@@ -816,11 +803,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Plate" data-mode="add"
-                                            data-route="{{ route('post.platos') }}" data-target-select=".plates-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Plates"
                                             data-fetch-route="{{ route('show.plate', ':id') }}"
@@ -848,12 +830,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Amperes" data-mode="add"
-                                            data-route="{{ route('post.amphors') }}"
-                                            data-target-select=".amperes-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Amperes"
                                             data-fetch-route="{{ route('show.ampere', ':id') }}"
@@ -881,11 +857,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Volt" data-mode="add" data-route="{{ route('post.volts') }}"
-                                            data-target-select=".volt-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Volt"
                                             data-fetch-route="{{ route('show.volt', ':id') }}"
@@ -913,12 +884,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add CCA" data-mode="add" data-route="{{ route('post.cca') }}"
-                                            data-target-select=".cca-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit CCA"
                                             data-fetch-route="{{ route('show.cca', ':id') }}"
@@ -949,13 +914,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Minus Pole Direction" data-mode="add"
-                                            data-route="{{ route('post.minuspool') }}"
-                                            data-target-select=".minus-pole-direction-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Minus Pole Direction"
                                             data-fetch-route="{{ route('show.minuspool', ':id') }}"
@@ -985,12 +943,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Warrenty" data-mode="add"
-                                            data-route="{{ route('post.warrenty') }}"
-                                            data-target-select=".Warrenty-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Warrenty"
                                             data-fetch-route="{{ route('show.warrenty', ':id') }}"
@@ -1019,12 +971,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Made In" data-mode="add"
-                                            data-route="{{ route('post.made_ins') }}"
-                                            data-target-select=".made_in-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Made In"
                                             data-fetch-route="{{ route('show.madeins', ':id') }}"
@@ -1072,11 +1018,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Grade" data-mode="add"
-                                            data-route="{{ route('post.grade') }}" data-target-select=".grade-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Grade"
                                             data-fetch-route="{{ route('show.grade', ':id') }}"
@@ -1138,12 +1079,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Mileage" data-mode="add"
-                                            data-route="{{ route('post.item.mileage') }}"
-                                            data-target-select=".mileage-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Mileage"
                                             data-fetch-route="{{ route('show.mileage', ':id') }}"
@@ -1169,11 +1104,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Level" data-mode="add"
-                                            data-route="{{ route('post.levels') }}" data-target-select=".level-select">
-                                            <i data-feather="plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Level"
                                             data-fetch-route="{{ route('show.level', ':id') }}"
@@ -1277,11 +1207,6 @@
                                     </option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary open-universal-modal"
-                                    data-title="Add Services" data-mode="add" data-route="{{ route('post.services') }}"
-                                    data-target-select=".Services-select">
-                                    <i data-feather="plus" class="feather-plus"></i>
-                                </button>
                                 <button type="button" class="btn btn-secondary open-universal-modal" data-mode="edit"
                                     data-title="Edit Services" data-fetch-route="{{ route('show.service', ':id') }}"
                                     data-update-route="{{ route('update.service', ':id') }}"
@@ -1548,10 +1473,6 @@
                                     </option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary " data-bs-toggle="modal"
-                                    data-bs-target="#vehical-add-modal">
-                                    <i data-feather="plus" class="feather-plus"></i>
-                                </button>
                             </div>
                             @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
@@ -5103,10 +5024,22 @@
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
+                // Filter dropdowns on initial load if type is already selected
+                if (this.selectedType) {
+                    // Wait for DOM and Select2 to be ready
+                    setTimeout(() => {
+                        filterDropdownsByType(this.selectedType);
+                    }, 300);
+                }
+                
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType) => {
                     // Filter all dropdowns based on selected type
-                    filterDropdownsByType(newType);
+                    if (newType) {
+                        setTimeout(() => {
+                            filterDropdownsByType(newType);
+                        }, 100);
+                    }
                 });
             },
             selectType(type) {
@@ -5201,6 +5134,9 @@
 
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
+        if (!selectedType) return;
+        
+        console.log('Filtering dropdowns by type:', selectedType);
         
         // List of all dropdowns that need filtering
         const dropdowns = [
@@ -5230,15 +5166,25 @@
                     // Show option if:
                     // 1. It's the empty/default option
                     // 2. No type is selected (show all)
-                    // 3. Option type matches selected type
-                    // 4. Option has no type (backward compatibility)
-                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
+                    // 3. Option type matches selected type (case-insensitive)
+                    // 4. Option has no type (backward compatibility - show it)
+                    const optionTypeLower = (optionType || '').toLowerCase().trim();
+                    const selectedTypeLower = (selectedType || '').toLowerCase().trim();
+                    
+                    if ($option.val() === '' || !selectedType || optionTypeLower === selectedTypeLower || optionType === '') {
                         $option.show().prop('disabled', false);
+                        $option.removeClass('filtered-out');
                         if ($option.val() !== '') visibleCount++;
                     } else {
                         $option.hide().prop('disabled', true);
+                        $option.addClass('filtered-out');
                     }
                 });
+                
+                // Log for product name dropdown
+                if ($select.hasClass('name-select')) {
+                    console.log(`Product Name dropdown: ${visibleCount} products visible for type "${selectedType}"`);
+                }
 
                 // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
@@ -5263,18 +5209,38 @@
                                     placeholder: 'Please Select',
                                     allowClear: true,
                                     width: '100%',
-                                    dropdownPosition: 'above'
+                                    dropdownPosition: 'above',
+                                    templateResult: function(data) {
+                                        // Hide disabled/filtered options in Select2 dropdown
+                                        if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
+                                            return null;
+                                        }
+                                        return data.text;
+                                    },
+                                    templateSelection: function(data) {
+                                        return data.text;
+                                    }
                                 });
                             } else {
                                 $select.select2({
                                     placeholder: 'Please Select',
                                     allowClear: true,
-                                    width: '100%'
+                                    width: '100%',
+                                    templateResult: function(data) {
+                                        // Hide disabled/filtered options in Select2 dropdown
+                                        if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
+                                            return null;
+                                        }
+                                        return data.text;
+                                    },
+                                    templateSelection: function(data) {
+                                        return data.text;
+                                    }
                                 });
                             }
                             
                             // Restore selection if it's still valid
-                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
+                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled]):not(.filtered-out)`).length) {
                                 $select.val(selectedValue).trigger('change');
                             }
                         }, 50);
@@ -5855,8 +5821,8 @@
             }
         }
         
-        // Auto focus search input for Category, Company, Quality, and Unit dropdowns
-        $(document).on('select2:opening', '#category, #company_parts, #quality, #unit_parts', function(e) {
+        // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit dropdowns
+        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts', function(e) {
             const selectId = $(this).attr('id');
             // Focus search input as soon as dropdown starts opening
             requestAnimationFrame(function() {
@@ -5877,8 +5843,8 @@
             
             if (!selectId) return;
             
-            // Auto focus search input for Category, Company, Quality, and Unit
-            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'unit_parts') {
+            // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit
+            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts') {
                 function focusSearchInput() {
                     const $container = $select.next('.select2-container');
                     if ($container.length) {
@@ -5960,10 +5926,85 @@
                         route: '{{ route("post.qualities") }}',
                         targetSelect: '.quality-select'
                     },
+                    'quality_filters': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
+                    'quality_breakpad': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
+                    'technology_select': {
+                        title: 'Add Technology',
+                        route: '{{ route("post.technology") }}',
+                        targetSelect: '.technology-select'
+                    },
+                    'grade_select': {
+                        title: 'Add Grade',
+                        route: '{{ route("post.grade") }}',
+                        targetSelect: '.grade-select'
+                    },
+                    'mileage_oil': {
+                        title: 'Add Mileage',
+                        route: '{{ route("post.item.mileage") }}',
+                        targetSelect: '.mileage-select'
+                    },
+                    'Level_select': {
+                        title: 'Add Level',
+                        route: '{{ route("post.levels") }}',
+                        targetSelect: '.level-select'
+                    },
+                    'plates_scrap': {
+                        title: 'Add Plate',
+                        route: '{{ route("post.platos") }}',
+                        targetSelect: '.plates-select'
+                    },
+                    'amperes_select': {
+                        title: 'Add Amperes',
+                        route: '{{ route("post.amphors") }}',
+                        targetSelect: '.amperes-select'
+                    },
+                    'volt_select': {
+                        title: 'Add Volt',
+                        route: '{{ route("post.volts") }}',
+                        targetSelect: '.volt-select'
+                    },
+                    'cca_select': {
+                        title: 'Add CCA',
+                        route: '{{ route("post.cca") }}',
+                        targetSelect: '.cca-select'
+                    },
+                    'minus_pole_direction_select': {
+                        title: 'Add Minus Pole Direction',
+                        route: '{{ route("post.minuspool") }}',
+                        targetSelect: '.minus-pole-direction-select'
+                    },
+                    'Warrenty_select': {
+                        title: 'Add Warrenty',
+                        route: '{{ route("post.warrenty") }}',
+                        targetSelect: '.Warrenty-select'
+                    },
+                    'made_in_select': {
+                        title: 'Add Made In',
+                        route: '{{ route("post.made_ins") }}',
+                        targetSelect: '.made_in-select'
+                    },
+                    'Services_scrap': {
+                        title: 'Add Services',
+                        route: '{{ route("post.services") }}',
+                        targetSelect: '.Services-select'
+                    },
                     'unit_parts': {
                         title: 'Add Unit',
                         route: '{{ route("post.units") }}',
                         targetSelect: '#unit_parts'
+                    },
+                    'group_select': {
+                        title: 'Add Group',
+                        route: '{{ route("post.groups") }}',
+                        targetSelect: '.group-select'
                     }
                 };
                 
@@ -6984,14 +7025,27 @@
         // This ensures they are sent even if fields are hidden by Alpine.js
         // =========================
         $('#mainItemForm').on('submit', function(e) {
-            // Extract unit ID from composite value (unit_id_base_unit_id format)
+            // Extract only unit_id from composite value (unit_id_base_unit_id format)
+            // Save only the unit_id (e.g., "87" instead of "87_main")
             const unitSelectVal = $('#unit_parts').val();
-            if (unitSelectVal && unitSelectVal.includes('_')) {
-                const unitId = unitSelectVal.split('_')[0];
-                // Remove existing unit hidden input
+            if (unitSelectVal && unitSelectVal !== '') {
+                let unitId = unitSelectVal;
+                
+                // If value contains underscore, extract only the unit_id part
+                if (unitSelectVal.includes('_')) {
+                    unitId = unitSelectVal.split('_')[0];
+                    console.log('Extracted unit_id from composite value:', unitId, '(from:', unitSelectVal + ')');
+                }
+                
+                // Remove existing unit hidden input to avoid duplicates
                 $(this).find('input[type="hidden"][name="unit"]').remove();
-                // Set the actual unit ID
-                $('#unit_parts').val(unitId);
+                // Add hidden input with only the unit_id
+                $(this).append('<input type="hidden" name="unit" value="' + unitId + '">');
+                console.log('Unit ID being submitted:', unitId);
+            } else {
+                // If no unit selected, remove any existing unit hidden input
+                $(this).find('input[type="hidden"][name="unit"]').remove();
+                console.log('No unit selected - unit field will be null');
             }
             
             // Get quality_id from any visible quality field

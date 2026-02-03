@@ -18,7 +18,7 @@ class CarWashServiceController extends Controller
         $user = Auth::user();
         $query = CarWashService::query();
         $this->applyBranchFilter($query, 'branch_id', $user);
-        $services = $query->where('status', true)->orderBy('created_at', 'desc')->get();
+        $services = $query->where('status', true)->orderBy('sort_order', 'asc')->orderBy('created_at', 'desc')->get();
         
         return response()->json([
             'success' => true,
@@ -34,7 +34,7 @@ class CarWashServiceController extends Controller
         $user = Auth::user();
         $query = CarWashService::query();
         $this->applyBranchFilter($query, 'branch_id', $user);
-        $services = $query->where('status', true)->orderBy('created_at', 'desc')->get();
+        $services = $query->where('status', true)->orderBy('sort_order', 'asc')->orderBy('created_at', 'desc')->get();
         return view('car-wash-services-rate-list', compact('services'));
     }
 
@@ -51,6 +51,8 @@ class CarWashServiceController extends Controller
             'icon' => 'nullable|string|max:50',
             'color' => 'nullable|string|max:50',
             'color_value' => 'nullable|string|max:20',
+            'inspection_compulsory' => 'nullable|boolean',
+            'is_per_foot' => 'nullable|boolean',
         ]);
 
         $user = Auth::user();
@@ -66,6 +68,8 @@ class CarWashServiceController extends Controller
             'color_value' => $request->color_value ?? '#3b82f6',
             'is_default' => false,
             'status' => true,
+            'inspection_compulsory' => $request->boolean('inspection_compulsory', true),
+            'is_per_foot' => $request->boolean('is_per_foot', false),
         ]);
 
         // Return JSON for AJAX requests, redirect for form submissions
@@ -92,6 +96,9 @@ class CarWashServiceController extends Controller
             'icon' => 'nullable|string|max:50',
             'color' => 'nullable|string|max:50',
             'color_value' => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer|min:0',
+            'inspection_compulsory' => 'nullable|boolean',
+            'is_per_foot' => 'nullable|boolean',
         ]);
 
         $service = CarWashService::findOrFail($id);
@@ -104,14 +111,24 @@ class CarWashServiceController extends Controller
             ], 403);
         }
 
-        $service->update([
+        $data = [
             'label' => strtoupper($request->label),
             'base_price' => $request->base_price,
             'additional_prices' => $request->additional_prices ?? [],
             'icon' => $request->icon ?? $service->icon,
             'color' => $request->color ?? $service->color,
             'color_value' => $request->color_value ?? $service->color_value,
-        ]);
+        ];
+        if ($request->has('sort_order')) {
+            $data['sort_order'] = (int) $request->sort_order;
+        }
+        if ($request->has('inspection_compulsory')) {
+            $data['inspection_compulsory'] = $request->boolean('inspection_compulsory');
+        }
+        if ($request->has('is_per_foot')) {
+            $data['is_per_foot'] = $request->boolean('is_per_foot');
+        }
+        $service->update($data);
 
         // Return JSON for AJAX requests, redirect for form submissions
         if ($request->ajax() || $request->wantsJson()) {
@@ -166,6 +183,32 @@ class CarWashServiceController extends Controller
         }
 
         return redirect()->route('car.wash')->with('success', 'Service deleted successfully!');
+    }
+
+    /**
+     * Reorder services (save sequence).
+     */
+    public function reorder(Request $request)
+    {
+        $request->validate([
+            'order' => 'required|array',
+            'order.*.id' => 'required|exists:car_wash_services,id',
+            'order.*.sort_order' => 'required|integer|min:0',
+        ]);
+
+        $user = Auth::user();
+        foreach ($request->order as $item) {
+            $service = CarWashService::find($item['id']);
+            if (!$service || !$this->canAccessResourceBranch($service, $user)) {
+                continue;
+            }
+            $service->update(['sort_order' => (int) $item['sort_order']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order saved successfully',
+        ]);
     }
 
     /**

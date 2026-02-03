@@ -7,7 +7,6 @@
     <div class="page-header">
         <div class="page-title">
             <h4>Create Purchase</h4>
-            <h6>Add new purchase order</h6>
         </div>
         <div class="page-btn">
             <a href="{{ route('all_purchases') }}" class="btn btn-secondary">
@@ -55,30 +54,45 @@
                         </div>
 
                         <!-- Business Information Panel (Like Gemini Design) -->
-                        <div class="mb-4 p-3 rounded" style="border: 1px solid #0d6efd; background: #f8f9fa;">
-                            <div class="d-flex align-items-center justify-content-between">
+                        <div class="mb-4 p-3 rounded" id="purchaseDocTypePanel" style="border: 1px solid #0d6efd; background: #f8f9fa;">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <div class="d-flex align-items-center">
                                     <div class="bg-primary text-white rounded p-2 me-3" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
                                         <i class="ti ti-file-invoice fs-20"></i>
                                     </div>
                                     <div>
-                                        <h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4>
+                                        <h4 class="mb-0 fw-bold">Barki Express</h4>
                                         <p class="mb-0 text-primary" style="font-size: 13px;">
                                             <i class="ti ti-phone me-1"></i>
                                             HELPLINE: <span id="helplineNumber">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
                                         </p>
                                     </div>
                                 </div>
-                                <div class="text-end">
-                                    <div class="mb-1">
-                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="purchase-number">INV #{{ str_pad(\App\Models\Purchase::max('id') + 1 ?? 1, 5, '0', STR_PAD_LEFT) }}</span>
+                                <div class="d-flex align-items-center gap-3">
+                                    <!-- Switch: Create Purchase (Bill) / Create Purchase Order -->
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="small fw-semibold text-muted" id="docTypeLabelLeft">Create Purchase</span>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" id="purchaseOrderSwitch" value="1" style="cursor: pointer;" aria-label="Toggle Purchase Order">
+                                            <label class="form-check-label small fw-semibold text-muted" for="purchaseOrderSwitch" id="docTypeLabelRight">Purchase Order</label>
+                                        </div>
                                     </div>
-                                    <div style="font-size: 13px; color: #6c757d;">
-                                        <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
+                                    <div class="text-end">
+                                        <div class="mb-1">
+                                            @php
+                                                $nextBillNum = str_pad((\App\Models\Purchase::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
+                                                $nextPoNum = str_pad(\App\Models\Purchase::where('invoice_no', 'like', 'PO-%')->count(), 5, '0', STR_PAD_LEFT);
+                                            @endphp
+                                            <span class="text-primary fw-bold" style="font-size: 16px;" id="purchase-number" data-bill-number="{{ $nextBillNum }}" data-po-number="{{ $nextPoNum }}">Bill #{{ $nextBillNum }}</span>
+                                        </div>
+                                        <div style="font-size: 13px; color: #6c757d;">
+                                            <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <input type="hidden" name="is_purchase_order" id="isPurchaseOrderHidden" value="0">
                         
                         <!-- Hidden purchase date field -->
                         <input type="hidden" name="purchase_date" id="purchase_date" value="{{ date('Y-m-d') }}" required>
@@ -86,9 +100,9 @@
                         <!-- Supplier/Customer Information (Like Gemini Design) -->
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">CUSTOMER NAME</label>
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">SUPPLIER NAME</label>
                                 <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="">Party Name</option>
+                                    <option value="" selected></option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" 
                                                 data-name="{{ $supplier->names[0] ?? '' }}" 
@@ -135,12 +149,13 @@
                             <div id="items-summary-container" class="text-center py-5" style="background: #f8f9fa; border-radius: 8px; min-height: 200px;">
                                 <div id="empty-items-state">
                                     <i class="ti ti-package fs-48 text-muted mb-3" style="display: block;"></i>
-                                    <p class="text-muted mb-0">ABHI KOI ITEM NAHI HAI</p>
+                                    <p class="text-muted mb-2">No items in cart</p>
+                                    <p class="text-muted small mb-0" id="empty-state-hint">Select a branch first, then add items</p>
                                 </div>
                                 <div id="items-list" style="display: none;">
                                     <div class="table-responsive">
                                         <table class="table table-bordered">
-                                            <thead>
+                                            <thead id="purchaseItemsThead">
                                                 <tr>
                                                     <th>Item</th>
                                                     <th>Qty</th>
@@ -162,12 +177,16 @@
 
                         <!-- Amount Summary -->
                         <div class="row mb-4">
-                            <div class="col-md-6 offset-md-6">
+                            <div class="col-12">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <span class="fw-bold">GROSS AMOUNT</span>
                                     <span class="fw-bold" id="gross-amount">Rs 0</span>
                                 </div>
-                                <div class="bg-primary text-white p-3 rounded mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold">PREVIOUS BALANCE</span>
+                                    <span class="fw-bold" id="previous-balance">Rs 0</span>
+                                </div>
+                                <div class="bg-primary text-white p-3 rounded mb-3" id="purchaseGrandTotalPanel">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
                                             <div class="fw-bold fs-16">GRAND TOTAL</div>
@@ -179,14 +198,30 @@
                             </div>
                         </div>
 
-                        <!-- Payment Section -->
-                        <div class="row mb-4">
+                        <!-- Payment Section (hidden until items added) -->
+                        <div class="row mb-4" id="payment-section" style="display: none;">
                             <div class="col-md-12">
                                 <div class="card border-primary">
                                     <div class="card-header bg-primary text-white">
                                         <h5 class="mb-0"><i class="ti ti-credit-card me-2"></i>Payment Information</h5>
                                     </div>
                                     <div class="card-body">
+                                        <!-- Payment Amount (moved inside payment card, right-aligned) -->
+                                        <div id="payment-amount-row" class="row mb-4 pb-3 border-bottom">
+                                            <div class="col-12 d-flex justify-content-end">
+                                                <div class="text-end" style="min-width: 280px;">
+                                                    <label class="form-label fw-bold">PAYMENT AMOUNT</label>
+                                                    <div class="input-group">
+                                                        <input type="number" name="payment_amount" id="payment_amount" class="form-control" step="0.01" min="0" value="0">
+                                                        <button type="button" class="btn btn-outline-primary" id="fillFullAmount" title="Fill full amount">
+                                                            <i class="ti ti-arrow-down"></i> Full
+                                                        </button>
+                                                    </div>
+                                                    <small class="text-muted d-block mt-1">Enter payment amount (can be partial)</small>
+                                                    <small class="text-info"><strong>Remaining:</strong> <span id="remaining_amount">Rs 0.00</span></small>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label fw-bold">Payment Method</label>
@@ -197,7 +232,7 @@
                                                     @endphp
                                                     @foreach($paymentMethods as $method)
                                                         <option value="{{ $method->id }}" data-requires-bank="{{ $method->requires_bank_account ? '1' : '0' }}">
-                                                            {{ $method->display_name }}
+                                                            {{ $method->name }}
                                                         </option>
                                                     @endforeach
                                                 </select>
@@ -215,21 +250,6 @@
                                                         </option>
                                                     @endforeach
                                                 </select>
-                                            </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label fw-bold">Payment Amount</label>
-                                                <div class="input-group">
-                                                    <input type="number" name="payment_amount" id="payment_amount" class="form-control" step="0.01" min="0" value="0">
-                                                    <button type="button" class="btn btn-outline-primary" id="fillFullAmount" title="Fill full amount">
-                                                        <i class="ti ti-arrow-down"></i> Full
-                                                    </button>
-                                                </div>
-                                                <small class="text-muted">Enter payment amount (can be partial)</small>
-                                                <div class="mt-1">
-                                                    <small class="text-info">
-                                                        <strong>Remaining:</strong> <span id="remaining_amount">Rs 0.00</span>
-                                                    </small>
-                                                </div>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label fw-bold">Payment Date</label>
@@ -266,24 +286,33 @@
                             </div>
                         </div>
 
+                        <!-- Add Item, Scrap In, Claim Receive & Return -->
+                        <div class="text-center mb-4 d-flex flex-wrap justify-content-center align-items-center gap-3">
+                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn">
+                                <i class="ti ti-plus me-2"></i>ADD NEW ITEM
+                            </button>
+                            <a href="#" class="btn btn-outline-secondary btn-lg" id="scrap-purchase-btn">
+                                <i class="ti ti-recycle me-2"></i>SCRAP IN
+                            </a>
+                            <a href="#" class="btn btn-outline-secondary btn-lg" id="claim-receive-btn">
+                                <i class="ti ti-truck-delivery me-2"></i>CLAIM RECEIVE
+                            </a>
+                            <a href="#" class="btn btn-outline-secondary btn-lg" id="return-btn">
+                                <i class="ti ti-arrow-back-up me-2"></i>RETURN
+                            </a>
+                        </div>
+
                         <!-- Hidden fields for order tax, discount, shipping -->
                         <input type="hidden" name="order_tax" id="order_tax" value="0">
                         <input type="hidden" name="discount" id="discount" value="0">
                         <input type="hidden" name="shipping" id="shipping" value="0">
                         <input type="hidden" name="status" value="pending">
 
-                        <!-- Add Item Button -->
-                        <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn">
-                                <i class="ti ti-plus me-2"></i>ADD NEW ITEM
-                            </button>
-                        </div>
-
                         <!-- Submit Buttons -->
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{{ route('all_purchases') }}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-success">
-                                <i class="ti ti-check me-1"></i> Save Purchase
+                                <i class="ti ti-check me-1"></i> Save & New
                             </button>
                         </div>
                     </form>
@@ -456,20 +485,42 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
             <div class="modal-header border-0 pb-2">
-                <h5 class="modal-title fw-bold">
+                <h5 class="modal-title fw-bold" id="add-item-modal-title">
                     <i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Product Name (Searchable/Selectable) -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
-                    <div class="position-relative">
-                        <input type="text" id="item-search" class="form-control" placeholder="Search or select product..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
-                        <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
+                <!-- Product Name (Searchable/Selectable) - Premium search -->
+                <div class="mb-3" id="item-search-wrapper">
+                    <label class="form-label fw-bold mb-2 d-flex align-items-center">
+                        <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
+                            <i class="ti ti-search" style="font-size: 14px;"></i>
+                        </span>
+                        PRODUCT NAME
+                    </label>
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="position-relative flex-grow-1">
+                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off">
+                        <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
-                        <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
+                        <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
+                            </div>
+                        </div>
+                        <!-- Item Image Preview -->
+                        <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
+                            <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label small fw-bold text-muted mb-1 d-flex align-items-center">
+                            <i class="ti ti-barcode me-1"></i> Barcode scanner
+                        </label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="text" id="barcode-scan-input" class="form-control form-control-sm flex-grow-1" placeholder="Scan barcode or type code" autocomplete="off" style="font-size: 0.85rem;">
+                            <button type="button" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" id="open-camera-scan-btn" title="Open camera scanner (mobile/if no scanner)">
+                                <i class="ti ti-camera"></i> Camera
+                            </button>
                         </div>
                     </div>
                     <input type="hidden" id="selected-item-id">
@@ -493,15 +544,12 @@
                     </div>
                 </div>
                 
-                <!-- Quantity and Unit Row -->
+                <!-- Quantity and Unit Row (Same Line) -->
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold mb-2">QUANTITY</label>
                         <select id="item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="1">Qty</option>
-                            <option value="0.5">0.5</option>
-                            <option value="1">1</option>
-                            <option value="1.5">1.5</option>
+                            <option value="1" selected>1</option>
                             <option value="2">2</option>
                             <option value="3">3</option>
                             <option value="4">4</option>
@@ -524,20 +572,25 @@
                             <option value="900">900</option>
                             <option value="1000">1000</option>
                         </select>
-                        <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="0.01" step="0.01" placeholder="Or enter custom quantity" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
-                        <small class="text-muted" style="font-size: 11px;">Select or enter quantity</small>
+                        <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="1" step="1" placeholder="Or enter custom quantity (whole numbers only)" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
+                        <small class="text-muted" style="font-size: 11px;">Select or enter whole number quantity</small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold mb-2">UNIT</label>
                         <select id="item-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="Can">Can</option>
-                            <option value="Unit">Unit</option>
-                            <option value="Box">Box</option>
-                            <option value="Piece">Piece</option>
-                            <option value="Kg">Kg</option>
-                            <option value="Liter">Liter</option>
-                            <option value="Pack">Pack</option>
-                            <option value="Set">Set</option>
+                            @if(isset($units) && $units->count() > 0)
+                                @foreach($units as $unit)
+                                    <option value="{{ $unit->name ?? $unit->short_name }}">{{ $unit->name ?? $unit->short_name }}</option>
+                                @endforeach
+                            @else
+                                <option value="Unit">Unit</option>
+                                <option value="Piece">Piece</option>
+                                <option value="Box">Box</option>
+                                <option value="Kg">Kg</option>
+                                <option value="Liter">Liter</option>
+                                <option value="Pack">Pack</option>
+                                <option value="Set">Set</option>
+                            @endif
                         </select>
                     </div>
                 </div>
@@ -557,6 +610,7 @@
                             <div class="col-6">
                                 <select id="warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
                                     <option value="">-</option>
+                                    <option value="1">1</option>
                                     <option value="7">7</option>
                                     <option value="15">15</option>
                                     <option value="30">30</option>
@@ -579,17 +633,20 @@
                 </div>
 
                 <!-- Purchase History Section -->
-                <div class="mb-3">
+                <div class="mb-3" id="purchase-history-section">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label fw-bold mb-0">
-                            <i class="ti ti-history me-2"></i>PURCHASE HISTORY
+                        <label class="form-label fw-bold mb-0 d-flex align-items-center">
+                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff;">
+                                <i class="ti ti-history" style="font-size: 12px;"></i>
+                            </span>
+                            PURCHASE HISTORY
                         </label>
-                        <a href="javascript:void(0)" class="text-primary text-decoration-none" id="hold-rate-link" style="display: none;">
-                            Hold Rate to Apply
+                        <a href="javascript:void(0)" class="btn btn-sm btn-outline-success" id="hold-rate-link" style="display: none; font-size: 11px;">
+                            <i class="ti ti-check me-1"></i>Apply Last Rate
                         </a>
                     </div>
-                    <div id="customer-history-content" class="p-3" style="background-color: #f8f9fa; border-radius: 8px; min-height: 60px; max-height: 150px; overflow-y: auto;">
-                        <p class="text-muted mb-0 small">Select item to view history</p>
+                    <div id="customer-history-content" class="p-3 purchase-history-box" style="min-height: 80px; max-height: 200px; overflow-y: auto;">
+                        <p class="text-muted mb-0 small text-center">Select item to view purchase history</p>
                     </div>
                 </div>
 
@@ -620,6 +677,24 @@
                 <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
                     CONFIRM SELECTION
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Camera Barcode Scanner Modal (mobile / when no physical scanner) -->
+<div class="modal fade" id="camera-barcode-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 340px;">
+        <div class="modal-content rounded-3">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold d-flex align-items-center">
+                    <i class="ti ti-camera me-2"></i> Camera scanner
+                </h6>
+                <button type="button" class="btn-close" id="close-camera-scan-btn" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div id="camera-barcode-reader" style="width: 100%; min-height: 240px; border-radius: 8px; overflow: hidden; background: #000;"></div>
+                <p class="small text-muted mb-0 mt-2 text-center">Point camera at barcode</p>
             </div>
         </div>
     </div>
@@ -665,14 +740,266 @@
         padding: 2px 4px;
         border-radius: 3px;
     }
+    
+    /* ========== Premium Search Filter (unique, beautiful) ========== */
+    .item-search-input {
+        background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%) !important;
+        border: 2px solid rgba(102, 126, 234, 0.2) !important;
+        border-radius: 12px !important;
+        padding: 12px 44px 12px 16px !important;
+        font-size: 0.95rem !important;
+        transition: all 0.3s ease !important;
+    }
+    .item-search-input::placeholder {
+        color: #8b9dc3;
+        font-weight: 500;
+    }
+    .item-search-input:hover {
+        border-color: rgba(102, 126, 234, 0.4) !important;
+        background: linear-gradient(135deg, #fff 0%, #f8f9fc 100%) !important;
+    }
+    .item-search-input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15) !important;
+        background: #fff !important;
+        outline: none !important;
+    }
+    .item-search-icon {
+        color: #667eea !important;
+        opacity: 0.85;
+    }
+    
+    .item-search-results-box {
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(102, 126, 234, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+        animation: searchResultsIn 0.25s ease-out;
+    }
+    
+    @keyframes searchResultsIn {
+        from {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    
+    .item-search-result {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    }
+    .item-search-result:last-child {
+        border-bottom: none !important;
+    }
+    .item-search-result:hover,
+    .branch-search-result:hover,
+    .warehouse-search-result:hover {
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.04) 100%) !important;
+        transform: translateX(4px);
+        transition: all 0.2s ease;
+    }
+    
+    .branch-search-result {
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.06) 100%) !important;
+        border-radius: 10px;
+        margin: 4px 8px;
+        width: calc(100% - 16px);
+    }
+    .warehouse-search-result {
+        background: linear-gradient(90deg, rgba(100, 116, 139, 0.06) 0%, rgba(100, 116, 139, 0.04) 100%) !important;
+        border-radius: 10px;
+        margin: 4px 8px;
+        width: calc(100% - 16px);
+    }
+    
+    #item-search-results .p-3 {
+        padding: 14px 16px !important;
+    }
+    #item-search-results .fw-bold.text-dark.mb-1 {
+        font-weight: 700 !important;
+        color: #1e293b !important;
+        letter-spacing: 0.01em;
+    }
+    #item-search-results .text-primary.mb-1 {
+        color: #667eea !important;
+        font-weight: 700;
+    }
+    
+    /* ========== Purchase History Styling ========== */
+    .purchase-history-box {
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 12px;
+    }
+    
+    .purchase-history-item {
+        transition: all 0.2s ease;
+        border-radius: 6px;
+        padding: 8px !important;
+        margin: 2px 0;
+    }
+    
+    .purchase-history-item:hover {
+        background: rgba(16, 185, 129, 0.1) !important;
+        transform: translateX(4px);
+    }
+    
+    .purchase-history-summary {
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 8px;
+        padding: 10px;
+    }
 </style>
 @endpush
 
 @push('scripts')
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 $(document).ready(function() {
     let purchaseItems = [];
     let itemCounter = 0;
+    // Entry type: 'purchase' (default) or 'scrap' - same modal as Smart Invoice Scrap In
+    let currentEntryType = 'purchase';
+
+    // ---------- Persisted purchase cart (e-commerce style: cart survives refresh) ----------
+    // Helper to clean item name (remove Lorem Ipsum or dummy text)
+    function cleanItemName(name, itemId) {
+        if (!name) return 'Item #' + itemId;
+        const lower = name.toLowerCase();
+        if (lower.indexOf('lorem') !== -1 || lower.indexOf('dummy') !== -1 || lower.indexOf('simply') !== -1 || name.length > 150) {
+            return 'Item #' + itemId;
+        }
+        return name.length > 80 ? name.substring(0, 77) + '...' : name;
+    }
+    
+    function loadPurchaseCart() {
+        const branchId = $('#purchaseBranchId').val();
+        
+        // Only load cart if branch is selected
+        if (!branchId) {
+            // Show empty state - no branch selected
+            $('#items-tbody').empty();
+            purchaseItems = [];
+            $('#empty-items-state').show();
+            $('#items-list').hide();
+            $('#payment-section').hide(); $('#payment-amount-row').hide();
+            calculateTotals();
+            return;
+        }
+        
+        $.ajax({
+            url: '{{ route("purchases.cart.get") }}',
+            method: 'GET',
+            dataType: 'json',
+            success: function(cart) {
+                if (cart.items && cart.items.length > 0) {
+                    $('#items-tbody').empty();
+                    purchaseItems = [];
+                    cart.items.forEach(function(it) {
+                        let total = parseFloat(it.total) || 0;
+                        // SCRAP amount should be minus (backend may store as positive)
+                        if ((it.entry_type === 'scrap') && total > 0) {
+                            total = -total;
+                        }
+                        const item = {
+                            id: itemCounter++,
+                            item_id: it.item_id,
+                            name: cleanItemName(it.name, it.item_id),
+                            quantity: parseFloat(it.quantity),
+                            unit: it.unit || 'Unit',
+                            rate: parseFloat(it.rate),
+                            discount: parseFloat(it.discount) || 0,
+                            tax_percentage: parseFloat(it.tax_percentage) || 0,
+                            tax_amount: parseFloat(it.tax_amount) || 0,
+                            total: total,
+                            warranty: it.warranty || null,
+                            entry_type: it.entry_type || 'purchase'
+                        };
+                        purchaseItems.push(item);
+                        addItemToTable(item);
+                    });
+                    $('#empty-items-state').hide();
+                    $('#items-list').show();
+                    if (purchaseItems.length > 0) {
+                        $('#payment-section').show(); $('#payment-amount-row').show();
+                    }
+                    if (cart.branch_id) {
+                        $('#purchaseBranchId').val(cart.branch_id);
+                    }
+                    if (cart.supplier_id) {
+                        $('#supplier_id').val(cart.supplier_id);
+                    }
+                    calculateTotals();
+                } else {
+                    // No items in cart - show empty state
+                    $('#items-tbody').empty();
+                    purchaseItems = [];
+                    $('#empty-items-state').show();
+                    $('#items-list').hide();
+                    $('#payment-section').hide(); $('#payment-amount-row').hide();
+                    calculateTotals();
+                }
+            },
+            error: function() {
+                console.warn('Could not load purchase cart');
+                // On error, show empty state
+                $('#empty-items-state').show();
+                $('#items-list').hide();
+            }
+        });
+    }
+
+    function syncCartToServer() {
+        const branchId = $('#purchaseBranchId').val();
+        const supplierId = $('#supplier_id').val();
+        const items = purchaseItems.map(function(item) {
+            return {
+                item_id: item.item_id,
+                name: item.name,
+                quantity: item.quantity,
+                unit: item.unit,
+                rate: item.rate,
+                discount: item.discount,
+                tax_percentage: item.tax_percentage,
+                tax_amount: item.tax_amount,
+                total: item.total,
+                entry_type: item.entry_type || 'purchase'
+            };
+        });
+        $.ajax({
+            url: '{{ route("purchases.cart.update") }}',
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                branch_id: branchId || null,
+                supplier_id: supplierId || null,
+                items: items
+            }),
+            success: function() { /* cart saved */ },
+            error: function(xhr) {
+                console.warn('Could not save purchase cart', xhr);
+            }
+        });
+    }
+
+    // On page load, update empty state hint based on branch selection
+    const initialBranchId = $('#purchaseBranchId').val();
+    if (initialBranchId) {
+        $('#empty-state-hint').text('Click "Add Item" to add items to cart');
+    } else {
+        $('#empty-state-hint').text('Select a branch first, then add items');
+    }
+    
+    loadPurchaseCart();
 
     // ========== YouTube-Style Search Modal Functionality ==========
     const purchaseSearchInput = $('#purchase-item-search-input');
@@ -1099,12 +1426,11 @@ $(document).ready(function() {
                     }
                 });
                 
-                // Clear any existing items from table
-                purchaseItems = [];
-                $('#items-tbody').empty();
-                $('#empty-items-state').show();
-                $('#items-list').hide();
-                calculateTotals();
+                // Update empty state hint (branch is now selected)
+                $('#empty-state-hint').text('Click "Add Item" to add items to cart');
+                
+                // Load purchase cart for this branch
+                loadPurchaseCart();
             },
             error: function() {
                 Swal.fire({
@@ -1168,6 +1494,38 @@ $(document).ready(function() {
         // Start updating date/time every second
         updateDateTime();
         setInterval(updateDateTime, 1000);
+        
+        // Purchase / Purchase Order switch: sync hidden input, doc number label, and backgrounds (Bill and PO have separate series)
+        function updateDocTypeFromSwitch() {
+            const isPO = $('#purchaseOrderSwitch').is(':checked');
+            const billNum = $('#purchase-number').data('bill-number') || '00001';
+            const poNum = $('#purchase-number').data('po-number') || '00000';
+            $('#isPurchaseOrderHidden').val(isPO ? '1' : '0');
+            $('#purchase-number').text(isPO ? ('PO #' + poNum) : ('Bill #' + billNum));
+            $('.page-title h4').text(isPO ? 'Create Purchase Order' : 'Create Purchase');
+            // Panel (Barki Express box)
+            const $panel = $('#purchaseDocTypePanel');
+            if ($panel.length) {
+                $panel.css(isPO ? { background: '#fef3c7', borderColor: '#f59e0b' } : { background: '#f8f9fa', borderColor: '#0d6efd' });
+            }
+            // Items table header (same style as panel when PO)
+            const $thead = $('#purchaseItemsThead');
+            if ($thead.length) {
+                $thead.find('th').css(isPO ? { background: '#fef3c7', borderColor: '#f59e0b', color: '#92400e' } : { background: '', borderColor: '', color: '' });
+            }
+            // Grand Total panel (same style as Barki panel when PO)
+            const $grandTotal = $('#purchaseGrandTotalPanel');
+            if ($grandTotal.length) {
+                $grandTotal.css(isPO ? { background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' } : { background: '#0d6efd', border: '1px solid #0d6efd', color: '#fff' });
+            }
+            // Whole content area
+            const $content = $('.content');
+            if ($content.length) {
+                $content.css('background', isPO ? '#fef9eb' : '');
+            }
+        }
+        $('#purchaseOrderSwitch').on('change', updateDocTypeFromSwitch);
+        updateDocTypeFromSwitch(); // init on load
     });
 
     // Handle "Add New Item" button click - check branch first
@@ -1184,10 +1542,71 @@ $(document).ready(function() {
             return;
         }
         
-        // Open the modal
+        currentEntryType = 'purchase';
+        $('#add-item-modal-title').html('<i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS');
         $('#add-item-modal').modal('show');
     });
-    
+
+    // Handle "Scrap In" button - same modal as Add Item (like Smart Invoice Scrap In)
+    $('#scrap-purchase-btn').on('click', function(e) {
+        e.preventDefault();
+        const branchId = $('#purchaseBranchId').val();
+        
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first before adding scrap items.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        currentEntryType = 'scrap';
+        $('#add-item-modal-title').html('<i class="ti ti-recycle me-2"></i>SCRAP IN');
+        $('#add-item-modal').modal('show');
+    });
+
+    // Handle "Claim Receive" button - same modal as Add Item (like Smart Invoice Claim)
+    $('#claim-receive-btn').on('click', function(e) {
+        e.preventDefault();
+        const branchId = $('#purchaseBranchId').val();
+        
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first before adding claim items.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        currentEntryType = 'claim';
+        $('#add-item-modal-title').html('<i class="ti ti-truck-delivery me-2"></i>CLAIM RECEIVE');
+        $('#add-item-modal').modal('show');
+    });
+
+    // Handle "Return" button - same modal as Add Item (like Smart Invoice Return)
+    $('#return-btn').on('click', function(e) {
+        e.preventDefault();
+        const branchId = $('#purchaseBranchId').val();
+        
+        if (!branchId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Branch Required',
+                text: 'Please select a branch first before adding return items.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        currentEntryType = 'return';
+        $('#add-item-modal-title').html('<i class="ti ti-arrow-back-up me-2"></i>RETURN');
+        $('#add-item-modal').modal('show');
+    });
+
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
         const branchId = $('#purchaseBranchId').val();
@@ -1205,14 +1624,171 @@ $(document).ready(function() {
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
+        $('#barcode-scan-input').val('');
+        // Hide image preview
+        $('#item-search-image-preview').addClass('d-none');
+        $('#item-search-image').attr('src', '');
+    });
         
-        // Focus on search input
+    // Focus on search input when modal is fully shown
+    $('#add-item-modal').on('shown.bs.modal', function() {
+        // Focus on search input after modal animation completes
         setTimeout(function() {
             $('#item-search').focus();
-        }, 300);
+        }, 100);
     });
     
-    // Product name search with dropdown
+    // Shared: run barcode search and auto-select if single item (used by Enter key and camera scan)
+    function runBarcodeSearch(barcode) {
+        if (!barcode) return;
+        $('#item-search').val(barcode);
+        const branchId = $('#purchaseBranchId').val();
+        const resultsDiv = $('#item-search-results');
+        
+        resultsDiv.html(`
+            <div class="p-4 text-center">
+                <div class="spinner-border text-primary mb-2" style="width: 2rem; height: 2rem; border-width: 0.2em;" role="status"></div>
+                <p class="mb-0 text-muted fw-500">Searching by barcode...</p>
+            </div>
+        `).show();
+        
+        $.ajax({
+            url: "{{ route('purchases.items.ajax.search') }}",
+            method: 'GET',
+            data: { q: barcode, branch_id: branchId, limit: 15 },
+            success: function(results) {
+                const itemResults = results.filter(function(r) { return r.type === 'item'; });
+                if (itemResults.length === 1) {
+                    const result = itemResults[0];
+                    const item = result.item;
+                    const itemId = item.id;
+                    const itemName = (item.short_disc && item.short_disc.toLowerCase().indexOf('lorem') === -1) ? item.short_disc : ((item.pro_dis && item.pro_dis.toLowerCase().indexOf('lorem') === -1) ? item.pro_dis : (item.bar_code || (item.partnumber_item ? item.partnumber_item.name : '') || 'Item #' + item.id));
+                    const itemRate = item.packing_purchase_rate || item.total_price || 0;
+                    const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) ? (item.unit_item.name || item.unit_item.short_name) : 'Unit';
+                    const warehouseId = result.warehouse_id || '';
+                    
+                    $('#item-search').val(itemName);
+                    $('#selected-item-id').val(itemId);
+                    $('#item-unit').val(unit);
+                    $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                    $('#item-search-results').hide();
+                    $('#barcode-scan-input').val('');
+                    
+                    $.ajax({
+                        url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
+                        method: 'GET',
+                        success: function(response) {
+                            $('#item-rate').val(parseFloat(response.total_price || response.rate || itemRate).toFixed(2));
+                            if (response.unit) $('#item-unit').val(response.unit);
+                            if (response.warehouse_id || warehouseId) $('#selected-warehouse-id').val(response.warehouse_id || warehouseId);
+                            
+                            // Show item image if available
+                            if (response.image) {
+                                $('#item-search-image').attr('src', response.image);
+                                $('#item-search-image-preview').removeClass('d-none');
+                            } else {
+                                $('#item-search-image-preview').addClass('d-none');
+                            }
+                            
+                            loadItemStockStatus(itemId);
+                            loadCustomerHistory(itemId);
+                        },
+                        error: function() {
+                            loadItemStockStatus(itemId);
+                            loadCustomerHistory(itemId);
+                        }
+                    });
+                    $('#stock-status-section').show();
+                } else {
+                    $('#item-search').trigger('input');
+                    $('#barcode-scan-input').val('');
+                }
+            },
+            error: function() {
+                resultsDiv.html('<div class="p-3 text-center text-danger"><i class="ti ti-alert-circle me-1"></i>Error. Try again.</div>').show();
+                $('#barcode-scan-input').val('');
+            }
+        });
+    }
+    
+    // Barcode scanner: on Enter run search and auto-select if single item
+    $('#barcode-scan-input').on('keydown', function(e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        const barcode = $(this).val().trim();
+        runBarcodeSearch(barcode);
+    });
+    
+    // Enter in main search also runs search immediately (for scanner typing into search box)
+    $('#item-search').on('keydown', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            $(this).trigger('input');
+        }
+    });
+    
+    // Camera barcode scanner (mobile / when no physical scanner)
+    let cameraBarcodeScanner = null;
+    
+    function stopCameraScanner() {
+        if (!cameraBarcodeScanner) return;
+        if (cameraBarcodeScanner.isScanning !== true) {
+            try { cameraBarcodeScanner.clear(); } catch (e) {}
+            cameraBarcodeScanner = null;
+            return;
+        }
+        cameraBarcodeScanner.stop().then(function() {
+            try { cameraBarcodeScanner.clear(); } catch (e) {}
+            cameraBarcodeScanner = null;
+        }).catch(function() {
+            try { if (cameraBarcodeScanner) cameraBarcodeScanner.clear(); } catch (e) {}
+            cameraBarcodeScanner = null;
+        });
+    }
+    
+    $('#open-camera-scan-btn').on('click', function() {
+        if (typeof Html5Qrcode === 'undefined') {
+            alert('Camera scanner library not loaded. Check your connection.');
+            return;
+        }
+        $('#camera-barcode-reader').empty().css({ width: '100%', minHeight: '240px' });
+        $('#camera-barcode-modal').modal('show');
+    });
+    
+    // Start camera only after modal is visible (so reader div has real dimensions)
+    $('#camera-barcode-modal').on('shown.bs.modal', function() {
+        if (cameraBarcodeScanner) return;
+        var startScan = function() {
+            if (cameraBarcodeScanner) return;
+            var readerEl = document.getElementById('camera-barcode-reader');
+            if (!readerEl || readerEl.offsetWidth < 100) return;
+            cameraBarcodeScanner = new Html5Qrcode('camera-barcode-reader');
+            var config = { fps: 12 };
+            cameraBarcodeScanner.start(
+                { facingMode: 'environment' },
+                config,
+                function(decodedText) {
+                    if (!decodedText) return;
+                    stopCameraScanner();
+                    $('#camera-barcode-modal').modal('hide');
+                    runBarcodeSearch(decodedText);
+                },
+                function() {}
+            ).catch(function(err) {
+                cameraBarcodeScanner = null;
+                $('#camera-barcode-modal').modal('hide');
+                alert('Camera access failed. Allow camera permission or use barcode input.');
+            });
+        };
+        setTimeout(startScan, 350);
+    });
+    
+    $('#camera-barcode-modal').on('hidden.bs.modal', function() {
+        stopCameraScanner();
+        cameraBarcodeScanner = null;
+    });
+    
+    // Product name search with dropdown - COMPREHENSIVE SEARCH
     let itemSearchTimeout = null;
     $('#item-search').on('input', function() {
         const query = $(this).val().trim();
@@ -1225,10 +1801,21 @@ $(document).ready(function() {
         if (query.length < 2) {
             resultsDiv.hide();
             $('#selected-item-id').val('');
+            // Hide image preview when search is cleared
+            $('#item-search-image-preview').addClass('d-none');
+            $('#item-search-image').attr('src', '');
             return;
         }
         
-        // Debounce search
+        // Show loading state (premium style)
+        resultsDiv.html(`
+            <div class="p-4 text-center">
+                <div class="spinner-border text-primary mb-2" style="width: 2rem; height: 2rem; border-width: 0.2em;" role="status"></div>
+                <p class="mb-0 text-muted fw-500">Searching items...</p>
+            </div>
+        `).show();
+        
+        // Debounce search (300ms for smooth typing)
         itemSearchTimeout = setTimeout(function() {
             $.ajax({
                 url: "{{ route('purchases.items.ajax.search') }}",
@@ -1236,11 +1823,20 @@ $(document).ready(function() {
                 data: {
                     q: query,
                     branch_id: branchId,
-                    limit: 10
+                    limit: 15  // Show more results for better UX
                 },
                 success: function(results) {
                     if (results.length === 0) {
-                        resultsDiv.html('<div class="p-3 text-muted text-center">No results found</div>');
+                        const escapedQuery = query.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                        resultsDiv.html(`
+                            <div class="p-5 text-center">
+                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);">
+                                    <i class="ti ti-search-off fs-32" style="color: #667eea;"></i>
+                                </div>
+                                <p class="fw-600 text-dark mb-1">No items found</p>
+                                <p class="text-muted small mb-0">Try: code + space + vehicle or keyword. e.g. 53495878 Toyota</p>
+                            </div>
+                        `);
                     } else {
                         let html = '';
                         results.forEach(function(result) {
@@ -1277,34 +1873,263 @@ $(document).ready(function() {
                                     </div>
                                 `;
                             } else if (result.type === 'item') {
-                                // Item result
+                                // Item result - comprehensive display with all type-based details
                                 const item = result.item;
-                                const itemName = item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                                const partNumber = item.partnumber_item?.name || '';
-                                const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
-                                const model = item.vehical_item?.model_vehical?.name || '';
+                                const itemType = item.type || '';
+                                const partNumber = item.partnumber_item ? item.partnumber_item.name : '';
+                                const barCode = item.bar_code || '';
+                                const shortDisc = (item.short_disc || '').trim();
+                                const proDis = (item.pro_dis || '').trim();
                                 
-                                let displayName = itemName;
-                                if (partNumber) displayName += ' - ' + partNumber;
-                                if (manufacturer) displayName += ' ' + manufacturer;
-                                if (model) displayName += ' ' + model;
+                                // Helper to check if text is dummy/invalid
+                                const isDummy = function(t) {
+                                    if (!t || t.length > 200) return true;
+                                    const lower = t.toLowerCase().trim();
+                                    return lower.indexOf('lorem') !== -1 || 
+                                           lower.indexOf('dummy') !== -1 || 
+                                           lower.indexOf('simply') !== -1 ||
+                                           lower === 'sdfsdf' ||
+                                           lower === 'test' ||
+                                           /^[a-z]{5,}$/.test(lower) && lower.split('').every(c => c === lower[0]); // All same character repeated
+                                };
+                                
+                                // Helper to highlight search terms in text (only the matching part, not whole word)
+                                const highlightText = function(text, searchQuery) {
+                                    if (!text || !searchQuery) return text;
+                                    const searchTerms = searchQuery.trim().split(/\s+/).filter(t => t.length > 0);
+                                    if (searchTerms.length === 0) return text;
+                                    
+                                    let highlighted = text;
+                                    searchTerms.forEach(term => {
+                                        if (term.length < 1) return; // Allow single character matching
+                                        // Escape special regex characters and match case-insensitively
+                                        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                        const regex = new RegExp(`(${escapedTerm})`, 'gi');
+                                        // Replace only the matching part, not the whole word
+                                        highlighted = highlighted.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: 600;">$1</mark>');
+                                    });
+                                    return highlighted;
+                                };
+                                
+                                // PRIMARY: Get product name (product_item.name first, then short_disc or pro_dis) - NOT code
+                                let productName = '';
+                                
+                                // Priority 1: product_item.name (actual product name)
+                                const productFromRelation = item.product_item ? item.product_item.name : '';
+                                if (productFromRelation && !isDummy(productFromRelation)) {
+                                    productName = productFromRelation.trim();
+                                }
+                                
+                                // Priority 2: short_disc (if product_item.name not available)
+                                if (!productName && !isDummy(shortDisc)) {
+                                    productName = shortDisc;
+                                }
+                                
+                                // Priority 3: pro_dis (if still no product name)
+                                if (!productName && !isDummy(proDis)) {
+                                    productName = proDis;
+                                }
+                                
+                                // Priority 4: Part Number (if available, but NOT barcode)
+                                if (!productName && partNumber) {
+                                    productName = partNumber;
+                                }
+                                
+                                // Last resort: Item ID (never use barcode as product name)
+                                if (!productName) {
+                                    productName = 'Item #' + item.id;
+                                }
+                                
+                                // Truncate if too long
+                                if (productName.length > 100) {
+                                    productName = productName.substring(0, 97) + '...';
+                                }
+                                
+                                // SECONDARY: Code line (barcode/part number)
+                                let codeInfo = '';
+                                if (barCode) {
+                                    codeInfo = barCode;
+                                    if (partNumber && partNumber !== barCode) {
+                                        codeInfo += ' | ' + partNumber;
+                                    }
+                                } else if (partNumber) {
+                                    codeInfo = partNumber;
+                                }
+                                
+                                // Get all item details based on type
+                                const manufacturer = item.vehical_item && item.vehical_item.manutacturer_vehical ? item.vehical_item.manutacturer_vehical.name : '';
+                                const model = item.vehical_item && item.vehical_item.model_vehical ? item.vehical_item.model_vehical.name : '';
+                                const category = item.category ? item.category.name : '';
+                                const subcategory = item.subcategory ? item.subcategory.name : '';
+                                const company = item.company_item ? item.company_item.name : '';
+                                const product = item.product_item ? item.product_item.name : '';
+                                const quality = item.quality_item ? item.quality_item.name : '';
+                                const technology = item.technology_item ? item.technology_item.name : '';
+                                const grade = item.grade_item ? item.grade_item.name : '';
+                                const volt = item.volt_item ? item.volt_item.name : '';
+                                const cca = item.cca_item ? item.cca_item.name : '';
+                                const group = item.group_item ? item.group_item.name : '';
+                                const madeIn = item.made_in_item ? item.made_in_item.name : '';
+                                const level = item.level_item ? item.level_item.name : '';
+                                const batterySize = item.battery_size || '';
+                                const plate = item.plate_item ? item.plate_item.name : '';
+                                const amperes = item.amphors_item ? item.amphors_item.name : '';
+                                const stock = item.on_hand || 0;
+                                const rate = item.packing_purchase_rate || item.total_price || 0;
+                                const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) 
+                                    ? (item.unit_item.name || item.unit_item.short_name) 
+                                    : 'Unit';
+                                
+                                // Update product name: Priority 1 - product_item.name (actual product name)
+                                if (product && !isDummy(product)) {
+                                    productName = product;
+                                }
+                                
+                                // Build first line for battery: Product Name + Plates + Amperes + Company
+                                let firstLineParts = [];
+                                if (itemType === 'battery') {
+                                    firstLineParts.push(productName);
+                                    if (plate) firstLineParts.push(plate + 'PL');
+                                    if (amperes) firstLineParts.push(amperes + 'AH');
+                                    if (company) firstLineParts.push(company);
+                                }
+                                
+                                // Build short details array for search display (includes vehicle)
+                                let searchDetails = [];
+                                
+                                // Common fields (short format) - exclude company for battery (it's on first line)
+                                if (itemType !== 'battery' && company) searchDetails.push(company);
+                                if (category) searchDetails.push(category);
+                                
+                                // Type-specific details (short format)
+                                if (itemType === 'battery') {
+                                    if (group && !isDummy(group)) searchDetails.push(group);
+                                    if (volt) searchDetails.push(volt + 'V');
+                                    if (cca) searchDetails.push(cca + 'CCA');
+                                    if (technology && !isDummy(technology)) searchDetails.push(technology);
+                                    if (grade && !isDummy(grade)) searchDetails.push(grade);
+                                    if (batterySize && !isDummy(batterySize)) searchDetails.push(batterySize);
+                                    // Plates and amperes are on first line, not here
+                                } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                                    if (partNumber && !isDummy(partNumber)) searchDetails.push(partNumber);
+                                    if (quality && !isDummy(quality)) searchDetails.push(quality);
+                                    if (manufacturer && model) {
+                                        searchDetails.push(manufacturer + ' ' + model);
+                                    } else if (manufacturer) {
+                                        searchDetails.push(manufacturer);
+                                    }
+                                } else if (itemType === 'oil') {
+                                    if (technology && !isDummy(technology)) searchDetails.push(technology);
+                                    if (grade && !isDummy(grade)) searchDetails.push(grade);
+                                }
+                                
+                                // Vehicle info (ONLY for search display, NOT for input field) - separate for styling
+                                let vehicleInfo = '';
+                                if (itemType !== 'parts' && itemType !== 'filters' && itemType !== 'breakpad') {
+                                    if (manufacturer && model) {
+                                        vehicleInfo = manufacturer + ' ' + model;
+                                    } else if (manufacturer) {
+                                        vehicleInfo = manufacturer;
+                                    }
+                                }
+                                
+                                // Build details for input field (NO vehicle)
+                                let inputDetails = [];
+                                if (company) inputDetails.push(company);
+                                if (category) inputDetails.push(category);
+                                
+                                // Type-specific details (NO vehicle)
+                                if (itemType === 'battery') {
+                                    if (group && !isDummy(group)) inputDetails.push(group);
+                                    if (volt) inputDetails.push(volt + 'V');
+                                    if (cca) inputDetails.push(cca + 'CCA');
+                                    if (technology && !isDummy(technology)) inputDetails.push(technology);
+                                    if (grade && !isDummy(grade)) inputDetails.push(grade);
+                                    if (batterySize && !isDummy(batterySize)) inputDetails.push(batterySize);
+                                    if (plate) inputDetails.push(plate + ' PL');
+                                    if (amperes) inputDetails.push(amperes + ' AH');
+                                } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                                    if (partNumber && !isDummy(partNumber)) inputDetails.push(partNumber);
+                                    if (quality && !isDummy(quality)) inputDetails.push(quality);
+                                } else if (itemType === 'oil') {
+                                    if (technology && !isDummy(technology)) inputDetails.push(technology);
+                                    if (grade && !isDummy(grade)) inputDetails.push(grade);
+                                }
+                                
+                                // Stock status color and icon
+                                const stockValue = parseFloat(stock) || 0;
+                                let stockColor = stockValue > 10 ? 'success' : (stockValue > 0 ? 'secondary' : 'danger');
+                                let stockIcon = stockValue > 10 ? 'ti-check' : (stockValue > 0 ? '' : 'ti-x');
+                                const stockDisplay = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(2);
+                                
+                                // Build first line HTML for battery items
+                                let firstLineHtml = '';
+                                if (itemType === 'battery' && firstLineParts.length > 0) {
+                                    const firstLineText = firstLineParts.join(' ');
+                                    const highlightedFirstLine = highlightText(firstLineText, query);
+                                    firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
+                                } else {
+                                    // For non-battery items, show product name as before
+                                    const highlightedProductName = highlightText(productName, query);
+                                    firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedProductName + '</div>';
+                                }
+                                
+                                // Build short details HTML for search display (includes vehicle) with highlighting
+                                let detailsHtml = '';
+                                if (searchDetails.length > 0) {
+                                    const detailsText = searchDetails.join(' • ');
+                                    const highlightedDetails = highlightText(detailsText, query);
+                                    
+                                    // Add vehicle info with different color if available
+                                    if (vehicleInfo) {
+                                        const highlightedVehicle = highlightText(vehicleInfo, query);
+                                        detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + ' • <span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
+                                    } else {
+                                        detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + '</div>';
+                                    }
+                                } else if (vehicleInfo) {
+                                    // Only vehicle info, no other details
+                                    const highlightedVehicle = highlightText(vehicleInfo, query);
+                                    detailsHtml = '<div class="small text-muted mt-1"><span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
+                                }
+                                
+                                // Build display string for input: Product Name + Details (NO vehicle)
+                                let displayString = productName;
+                                if (inputDetails.length > 0) {
+                                    displayString += ' ' + inputDetails.join(' ');
+                                }
+                                
+                                // Highlight barcode
+                                const highlightedCodeInfo = codeInfo ? highlightText(codeInfo, query) : '';
+                                
+                                // Get item image URL
+                                const itemImage = item.image || '';
                                 
                                 html += `
-                                    <div class="p-2 border-bottom item-search-result" 
+                                    <div class="p-3 border-bottom item-search-result" 
                                          data-type="item"
                                          data-id="${item.id}" 
-                                         data-name="${displayName.replace(/"/g, '&quot;')}"
-                                         data-rate="${item.packing_purchase_rate || 0}"
-                                         data-unit="${item.unit || 'Unit'}"
-                                         style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
-                                            <div class="flex-grow-1">
-                                                <div class="fw-bold">${displayName}</div>
-                                                <div class="small text-muted">
-                                                    ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
-                                                    ${item.on_hand ? ' | Stock: ' + item.on_hand : ''}
-                                                    ${result.warehouse_id ? ' | Warehouse ID: ' + result.warehouse_id : ''}
+                                         data-name="${productName.replace(/"/g, '&quot;')}"
+                                         data-display="${displayString.replace(/"/g, '&quot;')}"
+                                         data-rate="${rate}"
+                                         data-unit="${unit}"
+                                         data-warehouse-id="${result.warehouse_id || ''}"
+                                         style="cursor: pointer; transition: all 0.2s ease; background: white;">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            ${itemImage ? `<div class="me-3" style="flex-shrink: 0;">
+                                                <img src="${itemImage}" alt="${productName}" class="rounded border" style="width: 60px; height: 60px; object-fit: cover;">
+                                            </div>` : ''}
+                                            <div class="flex-grow-1 me-3">
+                                                ${firstLineHtml}
+                                                ${detailsHtml}
+                                                ${codeInfo ? '<div class="text-primary small fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + highlightedCodeInfo + '</div>' : ''}
+                                            </div>
+                                            <div class="text-end" style="min-width: 100px;">
+                                                <div class="fw-bold text-primary mb-1">Rs ${parseFloat(rate).toFixed(2)}</div>
+                                                <div class="small">
+                                                    <span class="badge bg-${stockColor} bg-opacity-10 text-${stockColor}">
+                                                        ${stockIcon ? '<i class="ti ' + stockIcon + ' me-1"></i>' : ''}${stockDisplay} ${unit}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1316,8 +2141,14 @@ $(document).ready(function() {
                     }
                     resultsDiv.show();
                 },
-                error: function() {
-                    resultsDiv.html('<div class="p-3 text-danger text-center">Error searching items</div>');
+                error: function(xhr) {
+                    console.error('Search error:', xhr);
+                    resultsDiv.html(`
+                        <div class="p-3 text-center">
+                            <i class="ti ti-alert-circle fs-32 text-danger mb-2" style="display: block;"></i>
+                            <p class="text-danger mb-0">Error loading results. Please try again.</p>
+                        </div>
+                    `);
                     resultsDiv.show();
                 }
             });
@@ -1348,11 +2179,13 @@ $(document).ready(function() {
             // Select item - load full details to get total_price and warehouse
             const itemId = resultId;
             const itemName = $(this).data('name');
+            const itemDisplay = $(this).data('display') || itemName; // Use display string (product name + details)
             const itemRate = $(this).data('rate');
             const itemUnit = $(this).data('unit');
             const warehouseId = $(this).closest('.item-search-result').data('warehouse-id');
             
-            $('#item-search').val(itemName);
+            // Set input value: Product Name first, then details
+            $('#item-search').val(itemDisplay);
             $('#selected-item-id').val(itemId);
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
@@ -1362,14 +2195,36 @@ $(document).ready(function() {
                 url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
                 method: 'GET',
                 success: function(response) {
-                    // Use total_price if available, otherwise use rate
+                    // Use total_price if available, otherwise use rate (packing_purchase_rate)
                     const itemRate = response.total_price || response.rate || itemRate || 0;
                     $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                    
+                    // Auto-set unit from item's saved unit
+                    if (response.unit) {
+                        $('#item-unit').val(response.unit);
+                    }
                     
                     // Auto-select warehouse if available (from response or from search result)
                     const finalWarehouseId = response.warehouse_id || warehouseId;
                     if (finalWarehouseId) {
                         $('#selected-warehouse-id').val(finalWarehouseId);
+                    }
+                    
+                    // Show item image if available
+                    if (response.image) {
+                        $('#item-search-image').attr('src', response.image);
+                        $('#item-search-image-preview').removeClass('d-none');
+                    } else {
+                        $('#item-search-image-preview').addClass('d-none');
+                    }
+                    
+                    // Set warranty if available
+                    if (response.warranty_value && response.warranty_unit) {
+                        $('#warranty-value').val(response.warranty_value);
+                        $('#warranty-unit').val(response.warranty_unit);
+                    } else {
+                        $('#warranty-value').val('');
+                        $('#warranty-unit').val('Days');
                     }
                     
                     // Load stock status to show warehouse options and auto-select
@@ -1381,6 +2236,10 @@ $(document).ready(function() {
                 error: function() {
                     // Fallback to basic data if API fails
                     $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
+                    // Use unit from search result if available
+                    if (itemUnit) {
+                        $('#item-unit').val(itemUnit);
+                    }
                     if (warehouseId) {
                         $('#selected-warehouse-id').val(warehouseId);
                     }
@@ -1505,6 +2364,23 @@ $(document).ready(function() {
                         .html('✓');
                 }
                 
+                // Show item image if available
+                if (response.image) {
+                    $('#item-search-image').attr('src', response.image);
+                    $('#item-search-image-preview').removeClass('d-none');
+                } else {
+                    $('#item-search-image-preview').addClass('d-none');
+                }
+                
+                // Set warranty if available
+                if (response.warranty_value && response.warranty_unit) {
+                    $('#warranty-value').val(response.warranty_value);
+                    $('#warranty-unit').val(response.warranty_unit);
+                } else {
+                    $('#warranty-value').val('');
+                    $('#warranty-unit').val('Days');
+                }
+                
                 // Load stock status to show warehouse options
                 loadItemStockStatus(itemId);
                 
@@ -1516,39 +2392,103 @@ $(document).ready(function() {
         });
     }
 
-    // Load customer history for selected item
+    // Load purchase history for selected item (from database)
+    let lastPurchaseRate = 0;
     function loadCustomerHistory(itemId) {
-        // TODO: Implement customer history API call
-        // For now, show placeholder
-        $('#customer-history-content').html('<p class="text-muted mb-0 small">Loading history...</p>');
+        $('#customer-history-content').html(`
+            <div class="text-center py-2">
+                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                <span class="text-muted small">Loading purchase history...</span>
+            </div>
+        `);
         $('#hold-rate-link').hide();
         
-        // Simulate history loading (replace with actual API call)
-        setTimeout(function() {
-            $('#customer-history-content').html(`
-                <div class="small">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Last Purchase: Rs 1,250</span>
-                        <span class="text-muted">2 days ago</span>
+        $.ajax({
+            url: '{{ route("purchases.items.purchase.history", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(data) {
+                if (data.total_purchases === 0) {
+                    $('#customer-history-content').html(`
+                        <div class="text-center py-2">
+                            <i class="ti ti-history-off text-muted fs-24 mb-1" style="display: block;"></i>
+                            <p class="text-muted mb-0 small">No purchase history for this item</p>
+                        </div>
+                    `);
+                    $('#hold-rate-link').hide();
+                    return;
+                }
+                
+                // Store last purchase rate for "Hold Rate" button
+                lastPurchaseRate = data.last_purchase ? data.last_purchase.rate : 0;
+                
+                // Build history HTML
+                let html = `
+                    <div class="purchase-history-summary mb-2 pb-2" style="border-bottom: 1px solid #e0e0e0;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold text-dark">Total Purchases: ${data.total_purchases}</span>
+                            <span class="badge bg-primary">${data.total_quantity} ${data.last_purchase ? data.last_purchase.unit : 'Units'}</span>
+                        </div>
+                        <div class="d-flex justify-content-between small">
+                            <span><i class="ti ti-trending-down text-success me-1"></i>Min: Rs ${parseFloat(data.min_rate).toLocaleString()}</span>
+                            <span><i class="ti ti-chart-line text-primary me-1"></i>Avg: Rs ${parseFloat(data.avg_rate).toLocaleString()}</span>
+                            <span><i class="ti ti-trending-up text-danger me-1"></i>Max: Rs ${parseFloat(data.max_rate).toLocaleString()}</span>
+                        </div>
                     </div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Avg Rate: Rs 1,200</span>
-                        <span class="text-muted">Last 30 days</span>
+                `;
+                
+                // Show last few purchases
+                html += '<div class="purchase-history-list small">';
+                data.history.slice(0, 5).forEach(function(purchase) {
+                    const daysAgo = purchase.days_ago === 0 ? 'Today' : (purchase.days_ago === 1 ? '1 day ago' : purchase.days_ago + ' days ago');
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center py-1 purchase-history-item" style="border-bottom: 1px dashed #eee; cursor: pointer;" data-rate="${purchase.rate}">
+                            <div>
+                                <span class="fw-500">${purchase.supplier_name}</span>
+                                <span class="text-muted ms-1">(${purchase.quantity} ${purchase.unit})</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary">Rs ${parseFloat(purchase.rate).toLocaleString()}</span>
+                                <span class="text-muted small d-block">${daysAgo}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                if (data.history.length > 5) {
+                    html += `<div class="text-center mt-2"><small class="text-muted">+ ${data.history.length - 5} more purchases</small></div>`;
+                }
+                
+                $('#customer-history-content').html(html);
+                $('#hold-rate-link').show();
+            },
+            error: function(xhr) {
+                console.error('Error loading purchase history:', xhr);
+                $('#customer-history-content').html(`
+                    <div class="text-center py-2">
+                        <i class="ti ti-alert-circle text-danger fs-24 mb-1" style="display: block;"></i>
+                        <p class="text-danger mb-0 small">Error loading history</p>
                     </div>
-                </div>
-            `);
-            $('#hold-rate-link').show();
-        }, 500);
+                `);
+            }
+        });
     }
-
-    // Hold rate to apply
-    $('#hold-rate-link').on('click', function() {
-        // Get the last purchase rate from history and apply it
-        const historyText = $('#customer-history-content').text();
-        const rateMatch = historyText.match(/Rs\s*([\d,]+)/);
-        if (rateMatch) {
-            const rate = rateMatch[1].replace(/,/g, '');
+    
+    // Click on history item to apply that rate
+    $(document).on('click', '.purchase-history-item', function() {
+        const rate = $(this).data('rate');
+        if (rate) {
             $('#item-rate').val(parseFloat(rate).toFixed(2));
+            // Visual feedback
+            $(this).addClass('bg-success bg-opacity-10');
+            setTimeout(() => $(this).removeClass('bg-success bg-opacity-10'), 500);
+        }
+    });
+
+    // Hold rate to apply (uses last purchase rate)
+    $('#hold-rate-link').on('click', function() {
+        if (lastPurchaseRate > 0) {
+            $('#item-rate').val(parseFloat(lastPurchaseRate).toFixed(2));
         }
     });
 
@@ -1560,13 +2500,10 @@ $(document).ready(function() {
         }
     });
 
-    // Quantity dropdown change - show custom input if "Qty" selected
+    // Quantity dropdown change - show custom input if needed
     $('#item-quantity').on('change', function() {
-        if ($(this).val() === '1' && $(this).find('option:selected').text() === 'Qty') {
-            $('#item-quantity-input').show().focus();
-        } else {
+        // Custom input is shown via other means if needed
             $('#item-quantity-input').hide();
-        }
     });
 
     // Use custom quantity input if provided
@@ -1592,7 +2529,8 @@ $(document).ready(function() {
         const discount = parseFloat($('#item-discount').val()) || 0;
         const discountType = $('#discount-type').val();
         const taxPercentage = parseFloat($('#item-tax').val()) || 0;
-        const itemName = $('#item-search').val();
+        const rawItemName = $('#item-search').val();
+        const itemName = cleanItemName(rawItemName, itemId);
         const warrantyValue = $('#warranty-value').val();
         const warrantyUnit = $('#warranty-unit').val();
 
@@ -1610,9 +2548,13 @@ $(document).ready(function() {
         // Calculate totals
         const subtotal = (quantity * rate) - discountAmount;
         const taxAmount = (subtotal * taxPercentage) / 100;
-        const total = subtotal + taxAmount;
+        let total = subtotal + taxAmount;
+        // SCRAP amount should be minus (reduces grand total)
+        if (currentEntryType === 'scrap') {
+            total = -Math.abs(total);
+        }
 
-        // Add to items array
+        // Add to items array (entry_type: 'purchase' or 'scrap' - same as Smart Invoice)
         const item = {
             id: itemCounter++,
             item_id: itemId,
@@ -1624,7 +2566,8 @@ $(document).ready(function() {
             tax_percentage: taxPercentage,
             tax_amount: taxAmount,
             total: total,
-            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null
+            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
+            entry_type: currentEntryType || 'purchase'
         };
 
         purchaseItems.push(item);
@@ -1632,21 +2575,38 @@ $(document).ready(function() {
         resetItemModal();
         $('#add-item-modal').modal('hide');
         calculateTotals();
+        syncCartToServer();
+        // Show payment section when items added
+        if (purchaseItems.length > 0) {
+            $('#payment-section').show(); $('#payment-amount-row').show();
+        }
     });
 
     function addItemToTable(item) {
         $('#empty-items-state').hide();
         $('#items-list').show();
         
+        // Clean item name before display (avoid Lorem Ipsum or dummy text)
+        const displayName = cleanItemName(item.name, item.item_id);
+        let typeBadge = '';
+        if (item.entry_type === 'scrap') typeBadge = ' <span class="badge bg-warning text-dark ms-1" style="font-size: 9px;">SCRAP</span>';
+        else if (item.entry_type === 'claim') typeBadge = ' <span class="badge bg-info text-white ms-1" style="font-size: 9px;">CLAIM</span>';
+        else if (item.entry_type === 'return') typeBadge = ' <span class="badge bg-danger text-white ms-1" style="font-size: 9px;">RETURN</span>';
+        
+        // SCRAP: show total as minus (e.g. Rs -200.00) with red styling
+        const totalVal = parseFloat(item.total);
+        const totalDisplay = 'Rs ' + totalVal.toFixed(2);
+        const totalClass = totalVal < 0 ? ' text-danger fw-bold' : '';
+        
         const row = `
-            <tr data-item-id="${item.item_id}" data-row-id="${item.id}">
-                <td>${item.name}</td>
+            <tr data-item-id="${item.item_id}" data-row-id="${item.id}" data-entry-type="${item.entry_type || 'purchase'}">
+                <td>${displayName}${typeBadge}</td>
                 <td>${item.quantity}</td>
                 <td>${item.unit}</td>
                 <td>Rs ${parseFloat(item.rate).toFixed(2)}</td>
                 <td>Rs ${parseFloat(item.discount).toFixed(2)}</td>
                 <td>${parseFloat(item.tax_percentage).toFixed(2)}%</td>
-                <td>Rs ${parseFloat(item.total).toFixed(2)}</td>
+                <td class="${totalClass}">${totalDisplay}</td>
                 <td>
                     <button type="button" class="btn btn-sm btn-danger remove-item" data-row-id="${item.id}">
                         <i class="ti ti-x"></i>
@@ -1666,9 +2626,11 @@ $(document).ready(function() {
         if ($('#items-tbody tr').length === 0) {
             $('#empty-items-state').show();
             $('#items-list').hide();
+            $('#payment-section').hide(); $('#payment-amount-row').hide();
         }
         
         calculateTotals();
+        syncCartToServer();
     });
 
     function resetItemModal() {
@@ -1704,8 +2666,8 @@ $(document).ready(function() {
         $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
         $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
         
-        // Set max payment amount to grand total
-        const grandTotalValue = parseFloat(grandTotal);
+        // Set max payment amount to grand total (if negative e.g. all scrap, use 0)
+        const grandTotalValue = Math.max(0, parseFloat(grandTotal));
         $('#payment_amount').attr('max', grandTotalValue);
         const currentPaymentAmount = parseFloat($('#payment_amount').val()) || 0;
         if (currentPaymentAmount > grandTotalValue) {
@@ -1877,7 +2839,14 @@ $(document).ready(function() {
             success: function(response) {
                 console.log('Purchase created successfully:', response);
                 if (response.success) {
-                    alert('Purchase created successfully!');
+                    // Clear purchase cart: items move from cart to purchase, so remove from UI
+                    purchaseItems = [];
+                    $('#items-tbody').empty();
+                    $('#empty-items-state').show();
+                    $('#items-list').hide();
+                    $('#payment-section').hide(); $('#payment-amount-row').hide();
+                    calculateTotals();
+                    alert('Purchase created successfully! Invoice: ' + (response.invoice_no || ''));
                     window.location.href = '{{ route("all_purchases") }}';
                 } else {
                     alert(response.message || 'Purchase created but with warnings.');

@@ -10,6 +10,7 @@ use App\Services\CashAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class BankController extends Controller
 {
@@ -153,61 +154,79 @@ class BankController extends Controller
 
         return DB::transaction(function () use ($user, $bankAccount, $amount, $validated) {
             try {
+                // Get sender's bank account (logged-in user's bank account)
+                $senderBankAccount = BankAccount::where('user_id', $user->id)
+                    ->where('account_type', 'bank')
+                    ->where(function ($q) {
+                        $q->where('status', true)->orWhereNull('status');
+                    })
+                    ->first();
+                
+                if (!$senderBankAccount) {
+                    throw new \Exception("You don't have a bank account. Please create a bank account first.");
+                }
+                
+                // Check sender's bank account balance
+                $senderBalance = $senderBankAccount->current_balance;
+                if ($senderBalance < $amount) {
+                    throw new \Exception("Insufficient bank balance. Available: Rs." . number_format($senderBalance, 2) . ", Required: Rs." . number_format($amount, 2));
+                }
+                
                 // Get bank name safely
                 $bankName = 'Bank';
                 if ($bankAccount->bank) {
                     $bankName = $bankAccount->bank->name;
                 }
                 
-                // Get branch ID safely
-                $branchId = null;
-                if (isset($user->branch_id)) {
-                    $branchId = $user->branch_id;
+                $senderBankName = 'Bank';
+                if ($senderBankAccount->bank) {
+                    $senderBankName = $senderBankAccount->bank->name;
                 }
                 
                 // Get notes safely
-                $notes = "Cash transfer to {$bankName} - {$bankAccount->account_title}";
-                if (isset($validated['notes']) && !empty($validated['notes'])) {
-                    $notes = $validated['notes'];
-                }
-                
-                // Debit from user's cash account
-                $cashAccountService = app(CashAccountService::class);
-                $cashAccountService->debit(
-                    $user->id,
-                    $amount,
-                    'bank_transfer',
-                    $bankAccount->id,
-                    'bank_accounts',
-                    $branchId,
-                    $notes
-                );
-
-                // Credit to bank account
-                $transferNotes = 'Cash deposit';
+                $transferNotes = 'Bank transfer';
                 if (isset($validated['notes']) && !empty($validated['notes'])) {
                     $transferNotes = $validated['notes'];
                 }
-                    
+                
+                // Debit from sender's bank account
+                BankTransaction::create([
+                    'bank_account_id' => $senderBankAccount->id,
+                    'transaction_date' => now(),
+                    'description' => "Transfer to {$bankName} - {$bankAccount->account_title} - {$transferNotes}",
+                    'amount' => $amount,
+                    'type' => 'debit',
+                    'statement_reference' => 'BANK-TRANSFER-' . time(),
+                    'reconciled' => true, // Auto-reconcile for transfers
+                ]);
+
+                // Credit to recipient's bank account
                 BankTransaction::create([
                     'bank_account_id' => $bankAccount->id,
                     'transaction_date' => now(),
-                    'description' => "Cash Transfer from {$user->name} - {$transferNotes}",
+                    'description' => "Transfer from {$senderBankName} - {$senderBankAccount->account_title} ({$user->name}) - {$transferNotes}",
                     'amount' => $amount,
                     'type' => 'credit',
-                    'statement_reference' => 'CASH-TRANSFER-' . time(),
-                    'reconciled' => false,
+                    'statement_reference' => 'BANK-TRANSFER-' . time(),
+                    'reconciled' => true, // Auto-reconcile for transfers
                 ]);
 
-                $message = "Rs." . number_format($amount, 2) . " transferred to {$bankName} successfully!";
+                $message = "Rs." . number_format($amount, 2) . " transferred from your bank account to {$bankName} successfully!";
                 return response()->json([
                     'success' => true,
                     'message' => $message,
                 ]);
             } catch (\Exception $e) {
+                \Log::error('Bank transfer error: ' . $e->getMessage(), [
+                    'user_id' => $user->id,
+                    'bank_account_id' => $bankAccount->id,
+                    'amount' => $amount,
+                    'trace' => $e->getTraceAsString()
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ], 500);
             }
         });

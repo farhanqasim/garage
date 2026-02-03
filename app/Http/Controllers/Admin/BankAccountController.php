@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Bank;
 use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class BankAccountController extends Controller
@@ -35,8 +38,37 @@ class BankAccountController extends Controller
      */
     public function create()
     {
+        $user = Auth::user();
         $banks = Bank::where('status', true)->orderBy('name', 'asc')->get();
-        return view('admin.bank-accounts.create', compact('banks'));
+        
+        // If admin, show all branches. If branch owner, show only their branch
+        if ($user->role === 'admin') {
+            $branches = Branch::orderBy('branch_name', 'asc')->get();
+            $selectedBranchId = null;
+        } else {
+            // Branch owner - get their branch
+            $branch = $user->branches;
+            $branches = $branch ? collect([$branch]) : collect();
+            $selectedBranchId = $branch ? $branch->id : null;
+        }
+        
+        // Get initial users for selected branch (if branch owner)
+        $users = collect();
+        if ($selectedBranchId) {
+            $users = User::where(function($query) use ($selectedBranchId) {
+                $query->whereHas('branches', function($q) use ($selectedBranchId) {
+                    $q->where('branches.id', $selectedBranchId);
+                })
+                ->orWhereHas('assignedBranches', function($q) use ($selectedBranchId) {
+                    $q->where('branch_id', $selectedBranchId);
+                });
+            })
+            ->select('id', 'name', 'email', 'phone')
+            ->orderBy('name')
+            ->get();
+        }
+        
+        return view('admin.bank-accounts.create', compact('banks', 'branches', 'users', 'selectedBranchId'));
     }
 
     /**
@@ -44,8 +76,11 @@ class BankAccountController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
+            'bank_logo' => 'nullable|file|image|max:2048',
             'account_type' => 'required|in:bank,cash',
             'account_title' => 'required|string|max:255',
             'account_number' => 'required|string|max:255',
@@ -55,10 +90,32 @@ class BankAccountController extends Controller
             'opening_balance' => 'nullable|numeric|min:0',
             'is_primary' => 'nullable|boolean',
             'status' => 'nullable|boolean',
+            'branch_id' => 'required|exists:branches,id',
+            'user_id' => 'nullable|exists:users,id',
         ]);
+        
+        // If branch owner, ensure they can only create accounts for their branch
+        if ($user->role !== 'admin') {
+            $userBranch = $user->branches;
+            if (!$userBranch || $userBranch->id != $validated['branch_id']) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'You can only create bank accounts for your own branch.');
+            }
+        }
 
         DB::beginTransaction();
         try {
+            if ($request->hasFile('bank_logo')) {
+                $bank = Bank::findOrFail($validated['bank_id']);
+                $file = $request->file('bank_logo');
+                $ext = $file->getClientOriginalExtension() ?: 'png';
+                $filename = strtolower(preg_replace('/[^a-z0-9]/i', '', $bank->short_name ?? (string) $bank->id)) . '_' . time() . '.' . $ext;
+                $dir = 'assets/img/banks';
+                $file->move(public_path($dir), $filename);
+                $bank->update(['logo' => $filename]);
+            }
+
             // If this account is marked as primary, unmark other primary accounts for the same bank
             if ($validated['is_primary'] ?? false) {
                 BankAccount::where('bank_id', $validated['bank_id'])
@@ -77,6 +134,8 @@ class BankAccountController extends Controller
                 'opening_balance' => $validated['opening_balance'] ?? 0,
                 'is_primary' => $validated['is_primary'] ?? false,
                 'status' => $validated['status'] ?? true,
+                'branch_id' => $validated['branch_id'],
+                'user_id' => $validated['user_id'] ?? null,
             ]);
 
             DB::commit();
@@ -122,6 +181,7 @@ class BankAccountController extends Controller
     {
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
+            'bank_logo' => 'nullable|file|image|max:2048',
             'account_type' => 'required|in:bank,cash',
             'account_title' => 'required|string|max:255',
             'account_number' => 'required|string|max:255',
@@ -135,6 +195,16 @@ class BankAccountController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($request->hasFile('bank_logo')) {
+                $bank = Bank::findOrFail($validated['bank_id']);
+                $file = $request->file('bank_logo');
+                $ext = $file->getClientOriginalExtension() ?: 'png';
+                $filename = strtolower(preg_replace('/[^a-z0-9]/i', '', $bank->short_name ?? (string) $bank->id)) . '_' . time() . '.' . $ext;
+                $dir = 'assets/img/banks';
+                $file->move(public_path($dir), $filename);
+                $bank->update(['logo' => $filename]);
+            }
+
             // If this account is marked as primary, unmark other primary accounts for the same bank
             if ($validated['is_primary'] ?? false) {
                 BankAccount::where('bank_id', $validated['bank_id'])
@@ -190,5 +260,42 @@ class BankAccountController extends Controller
 
         return redirect()->back()
             ->with('success', 'Bank account status updated successfully!');
+    }
+    
+    /**
+     * Get users by branch ID (API)
+     */
+    public function getUsersByBranch(Request $request, $branchId)
+    {
+        $user = Auth::user();
+        
+        // Verify branch access
+        if ($user->role !== 'admin') {
+            $userBranch = $user->branches;
+            if (!$userBranch || $userBranch->id != $branchId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to this branch',
+                    'users' => []
+                ], 403);
+            }
+        }
+        
+        $users = User::where(function($query) use ($branchId) {
+            $query->whereHas('branches', function($q) use ($branchId) {
+                $q->where('branches.id', $branchId);
+            })
+            ->orWhereHas('assignedBranches', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        })
+        ->select('id', 'name', 'email', 'phone')
+        ->orderBy('name')
+        ->get();
+        
+        return response()->json([
+            'success' => true,
+            'users' => $users
+        ]);
     }
 }

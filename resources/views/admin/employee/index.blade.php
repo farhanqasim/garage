@@ -251,7 +251,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="page-title">
-                    <h4>Add Employee</h4>
+                    <h4>Add User</h4>
                 </div>
                 <button type="button" class="close bg-danger text-white fs-16" data-bs-dismiss="modal"
                     aria-label="Close">
@@ -288,9 +288,11 @@
                             <label for="role" class="form-label">Role</label>
                             <select name="role" id="roleSelect" class="form-select" required>
                                 <option value="">Select Role</option>
-                                {{-- <option value="user">User</option> --}}
-                                <option value="employee" selected>Employee</option>
-                                {{-- <option value="customer">Customer</option> --}}
+                                <option value="user">User</option>
+                                <option value="employee">Employee</option>
+                                <option value="manager">Manager</option>
+                                <option value="salesman">Sales man</option>
+                                <option value="purchaser">Purchaser</option>
                             </select>
                         </div>
                         <div class="col-md-4 branch-section" >

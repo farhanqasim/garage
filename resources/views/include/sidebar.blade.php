@@ -165,11 +165,11 @@
                         </li>
                         <li><a href="{{ route('all.users') }}">
                                 <i class="ti ti-users fs-16 me-2"></i>
-                                <span>Users</span></a>
+                                <span>Employees</span></a>
                         </li>
                         <li><a href="{{ route('all.users') }}?add=1">
                                 <i class="ti ti-user-plus fs-16 me-2"></i>
-                                <span>Add New User</span></a>
+                                <span>Add New Employee</span></a>
                         </li>
                     </ul>
                 </li>

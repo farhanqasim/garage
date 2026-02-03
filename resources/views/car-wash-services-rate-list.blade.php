@@ -11,7 +11,9 @@
         th { background: #1e293b; color: #fff; font-weight: 700; }
         tr:nth-child(even) { background: #f1f5f9; }
         tbody td { font-weight: bold; }
-        h1 { text-align: center; margin-bottom: 16px; }
+        h1 { margin: 0; font-size: 1.5rem; }
+        .rate-list-header { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+        .rate-list-header img { height: 40px; width: auto; object-fit: contain; }
         .print-hint { text-align: center; margin-top: 20px; font-size: 10px; color: #64748b; }
         .close-btn { position: fixed; top: 15px; right: 15px; width: 40px; height: 40px; background: #ef4444; color: white; border: none; border-radius: 50%; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; transition: background 0.2s; }
         .close-btn:hover { background: #dc2626; }
@@ -26,7 +28,10 @@
 </head>
 <body>
     <button class="close-btn" id="rateListCloseBtn" title="Close">×</button>
-    <h1>Elite Car Wash Rate List</h1>
+    <div class="rate-list-header">
+        <img src="{{ asset('assets/img/elite-car-wash-logo.png') }}" alt="Elite Car Wash">
+        <h1>Elite Car Wash Rate List</h1>
+    </div>
     <table>
         <thead>
             <tr>

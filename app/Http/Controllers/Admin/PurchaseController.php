@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\PurchaseCart;
 use App\Models\Supplier;
 use App\Models\Item;
 use App\Models\Category;
@@ -40,7 +41,111 @@ class PurchaseController extends Controller
     {
         $suppliers = Supplier::orderBy('created_at', 'desc')->get();
         $branches = \App\Models\Branch::where('status', 'active')->get();
-        return view('admin.purchases.create', compact('suppliers', 'branches'));
+        $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
+        return view('admin.purchases.create', compact('suppliers', 'branches', 'units'));
+    }
+
+    /**
+     * Get purchase cart from database (purchase_cart table). Cart survives refresh.
+     */
+    public function getPurchaseCart(Request $request)
+    {
+        $userId = auth()->id();
+        $rows = PurchaseCart::with('item')
+            ->where('user_id', $userId)
+            ->orderBy('id')
+            ->get();
+
+        $branchId = null;
+        $supplierId = null;
+        $items = [];
+        foreach ($rows as $row) {
+            if ($row->branch_id !== null) {
+                $branchId = $row->branch_id;
+            }
+            if ($row->supplier_id !== null) {
+                $supplierId = $row->supplier_id;
+            }
+            $itemName = $row->item ? ($row->item->short_disc ?? $row->item->pro_dis ?? $row->item->bar_code ?? 'Item #' . $row->item_id) : 'Item #' . $row->item_id;
+            $items[] = [
+                'item_id' => $row->item_id,
+                'name' => $itemName,
+                'quantity' => (float) $row->quantity,
+                'unit' => $row->unit,
+                'rate' => (float) $row->rate,
+                'discount' => (float) $row->discount,
+                'tax_percentage' => (float) $row->tax_percentage,
+                'tax_amount' => (float) $row->tax_amount,
+                'total' => (float) $row->total,
+            ];
+        }
+        // Use first row's branch/supplier if not set
+        if ($rows->isNotEmpty()) {
+            $first = $rows->first();
+            if ($branchId === null) {
+                $branchId = $first->branch_id;
+            }
+            if ($supplierId === null) {
+                $supplierId = $first->supplier_id;
+            }
+        }
+        $cart = [
+            'branch_id' => $branchId,
+            'supplier_id' => $supplierId,
+            'items' => $items,
+        ];
+        return response()->json($cart);
+    }
+
+    /**
+     * Update purchase cart in database (purchase_cart table). Replaces all cart items for this user.
+     */
+    public function updatePurchaseCart(Request $request)
+    {
+        $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'items' => 'nullable|array',
+            'items.*.item_id' => 'required|exists:items,id',
+            'items.*.name' => 'nullable|string',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.unit' => 'nullable|string',
+            'items.*.rate' => 'required|numeric|min:0',
+            'items.*.discount' => 'nullable|numeric|min:0',
+            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.tax_amount' => 'nullable|numeric|min:0',
+            'items.*.total' => 'nullable|numeric|min:0',
+        ]);
+
+        $userId = auth()->id();
+        $branchId = $request->input('branch_id');
+        $supplierId = $request->input('supplier_id');
+        $itemsInput = $request->input('items', []);
+
+        PurchaseCart::where('user_id', $userId)->delete();
+
+        foreach ($itemsInput as $it) {
+            PurchaseCart::create([
+                'user_id' => $userId,
+                'branch_id' => $branchId,
+                'supplier_id' => $supplierId,
+                'item_id' => $it['item_id'],
+                'quantity' => $it['quantity'],
+                'unit' => $it['unit'] ?? null,
+                'rate' => $it['rate'],
+                'discount' => $it['discount'] ?? 0,
+                'tax_percentage' => $it['tax_percentage'] ?? 0,
+                'tax_amount' => $it['tax_amount'] ?? 0,
+                'total' => $it['total'] ?? 0,
+            ]);
+        }
+
+        $cart = [
+            'branch_id' => $branchId,
+            'supplier_id' => $supplierId,
+            'items' => $itemsInput,
+        ];
+        return response()->json(['success' => true, 'cart' => $cart]);
     }
     
     /**
@@ -99,6 +204,7 @@ class PurchaseController extends Controller
                 'supplier_id' => 'required|exists:suppliers,id',
                 'purchase_date' => 'required|date',
                 'reference' => 'nullable|string|max:255',
+                'is_purchase_order' => 'nullable|boolean',
                 'status' => 'required|in:received,pending,ordered',
                 'items' => 'required|array|min:1',
                 'items.*.item_id' => 'required|exists:items,id',
@@ -133,7 +239,13 @@ class PurchaseController extends Controller
 
         DB::beginTransaction();
         try {
-            $invoiceNo = 'PUR-' . date('Y') . '-' . str_pad((Purchase::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
+            $isPurchaseOrder = $request->boolean('is_purchase_order', false);
+            if ($isPurchaseOrder) {
+                $poCount = Purchase::where('invoice_no', 'like', 'PO-%')->count();
+                $invoiceNo = 'PO-' . str_pad($poCount, 5, '0', STR_PAD_LEFT);
+            } else {
+                $invoiceNo = 'PUR-' . date('Y') . '-' . str_pad((Purchase::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
+            }
 
             $subtotal = 0;
             foreach ($request->items as $item) {
@@ -167,6 +279,7 @@ class PurchaseController extends Controller
 
             $purchase = Purchase::create([
                 'invoice_no' => $invoiceNo,
+                'is_purchase_order' => $isPurchaseOrder,
                 'branch_id' => $request->branch_id,
                 'supplier_id' => $request->supplier_id,
                 'purchase_date' => $purchaseDate,
@@ -289,7 +402,10 @@ class PurchaseController extends Controller
             }
 
             DB::commit();
-            
+
+            // Clear purchase_cart table for this user (items have moved to purchase_items)
+            PurchaseCart::where('user_id', auth()->id())->delete();
+
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -642,7 +758,7 @@ class PurchaseController extends Controller
 
     public function getItemDetails($id)
     {
-        $item = Item::with(['partnumber_item', 'category', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical'])->findOrFail($id);
+        $item = Item::with(['partnumber_item', 'category', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical', 'unit_item', 'warrenty_item'])->findOrFail($id);
         
         // Build item name from available data
         $itemName = $item->short_disc ?? $item->pro_dis ?? '';
@@ -659,6 +775,39 @@ class PurchaseController extends Controller
         }
         if ($item->vehical_item && $item->vehical_item->model_vehical) {
             $itemName .= ' ' . $item->vehical_item->model_vehical->name;
+        }
+        
+        // Get unit name from relationship (unit column stores unit ID)
+        $unitName = 'Unit'; // default
+        if ($item->unit_item) {
+            $unitName = $item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit';
+        }
+        
+        // Get warranty info
+        $warrantyName = null;
+        $warrantyValue = null;
+        $warrantyUnit = null;
+        if ($item->warrenty_item) {
+            $warrantyName = $item->warrenty_item->name ?? null;
+            if ($warrantyName) {
+                // Parse warranty name (e.g., "1 Year" -> value: "1", unit: "Years")
+                $warrantyNameLower = strtolower(trim($warrantyName));
+                // Match patterns like "1 year", "2 years", "6 months", etc.
+                if (preg_match('/^(\d+)\s*(year|years|month|months|week|weeks|day|days)$/i', $warrantyNameLower, $matches)) {
+                    $warrantyValue = $matches[1];
+                    $unit = strtolower($matches[2]);
+                    // Normalize unit names
+                    if (in_array($unit, ['year', 'years'])) {
+                        $warrantyUnit = 'Years';
+                    } elseif (in_array($unit, ['month', 'months'])) {
+                        $warrantyUnit = 'Months';
+                    } elseif (in_array($unit, ['week', 'weeks'])) {
+                        $warrantyUnit = 'Weeks';
+                    } elseif (in_array($unit, ['day', 'days'])) {
+                        $warrantyUnit = 'Days';
+                    }
+                }
+            }
         }
         
         // Get warehouse for this item from selected branch
@@ -682,7 +831,9 @@ class PurchaseController extends Controller
             'rate' => $item->packing_purchase_rate ?? 0,
             'total_price' => $item->total_price ?? 0,
             'price_per_unit' => $item->price_per_unit ?? 0,
-            'unit' => $item->unit ?? 'Unit',
+            'unit' => $unitName,
+            'unit_id' => $item->unit, // Also return unit ID for reference
+            'image' => $item->image, // Include item image URL
             'stock' => $item->on_hand ?? 0,
             'warehouse_stock' => $item->on_hand ?? 0,
             'shop_stock' => 0,
@@ -690,6 +841,9 @@ class PurchaseController extends Controller
             'serial_number' => $item->serial_number,
             'packing' => $item->packing ?? 1, // Packing size for cartons calculation
             'warehouse_id' => $warehouseId,
+            'warranty_name' => $warrantyName,
+            'warranty_value' => $warrantyValue,
+            'warranty_unit' => $warrantyUnit,
         ]);
     }
     
@@ -778,6 +932,71 @@ class PurchaseController extends Controller
         }
         
         return response()->json($stockStatus);
+    }
+
+    /**
+     * Get purchase history for an item (all past purchases of this item)
+     */
+    public function getItemPurchaseHistory($id)
+    {
+        $item = Item::findOrFail($id);
+        
+        // Get all purchase items for this item, ordered by newest first
+        $purchaseHistory = PurchaseItem::with(['purchase.supplier'])
+            ->where('item_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->limit(20) // Limit to last 20 purchases
+            ->get();
+        
+        $history = [];
+        foreach ($purchaseHistory as $purchaseItem) {
+            $purchase = $purchaseItem->purchase;
+            $supplier = $purchase ? $purchase->supplier : null;
+            
+            // Get supplier name
+            $supplierName = 'Unknown Supplier';
+            if ($supplier) {
+                $names = is_array($supplier->names) ? $supplier->names : json_decode($supplier->names, true) ?? [];
+                $supplierName = $names[0] ?? $supplier->company ?? 'Unknown Supplier';
+            }
+            
+            $history[] = [
+                'id' => $purchaseItem->id,
+                'purchase_id' => $purchaseItem->purchase_id,
+                'invoice_no' => $purchase ? $purchase->invoice_no : 'N/A',
+                'supplier_id' => $supplier ? $supplier->id : null,
+                'supplier_name' => $supplierName,
+                'quantity' => (float) $purchaseItem->quantity,
+                'unit' => $purchaseItem->unit ?? 'Unit',
+                'rate' => (float) $purchaseItem->rate,
+                'discount' => (float) $purchaseItem->discount,
+                'tax_percentage' => (float) $purchaseItem->tax_percentage,
+                'total_cost' => (float) $purchaseItem->total_cost,
+                'purchase_date' => $purchase ? $purchase->purchase_date->format('d/m/Y') : 'N/A',
+                'days_ago' => $purchase ? $purchase->purchase_date->diffInDays(now()) : null,
+                'created_at' => $purchaseItem->created_at->format('d/m/Y H:i'),
+            ];
+        }
+        
+        // Calculate statistics
+        $totalPurchases = count($history);
+        $lastPurchase = $history[0] ?? null;
+        $avgRate = $totalPurchases > 0 ? collect($history)->avg('rate') : 0;
+        $minRate = $totalPurchases > 0 ? collect($history)->min('rate') : 0;
+        $maxRate = $totalPurchases > 0 ? collect($history)->max('rate') : 0;
+        $totalQuantity = collect($history)->sum('quantity');
+        
+        return response()->json([
+            'item_id' => $item->id,
+            'item_name' => $item->short_disc ?? $item->pro_dis ?? $item->bar_code ?? 'Item #' . $item->id,
+            'total_purchases' => $totalPurchases,
+            'total_quantity' => $totalQuantity,
+            'avg_rate' => round($avgRate, 2),
+            'min_rate' => round($minRate, 2),
+            'max_rate' => round($maxRate, 2),
+            'last_purchase' => $lastPurchase,
+            'history' => $history,
+        ]);
     }
 
     /**
@@ -912,176 +1131,135 @@ class PurchaseController extends Controller
             'vehical_item.model_vehical',
             'category',
             'subcategory',
+            'unit_item', // Load unit relationship to get unit name
+            'product_item', // Product name
+            'company_item', // Company
+            'quality_item', // Quality
+            'technology_item', // Technology
+            'grade_item', // Grade
+            'volt_item', // Volt
+            'cca_item', // CCA
+            'group_item', // Group
+            'made_in_item', // Made In
+            'level_item', // Level
+            'plate_item', // Plate (for battery)
+            'amphors_item', // Amperes (for battery)
         ])->where('is_active', 1);
 
-        // Comprehensive text search - Copy exact logic from SalesController (which works correctly)
+        // Multi-term search: space-separated words = AND filter (each term must match somewhere in item)
         $search = trim($request->input('q', ''));
-        // If search query provided, filter items; otherwise show all items in warehouse
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
+        $terms = $search !== '' ? array_values(array_filter(preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY))) : [];
+        foreach ($terms as $term) {
+            $query->where(function ($q) use ($term) {
                 // ========== PRIMARY PRODUCT IDENTIFICATION ==========
-                // Product Name Fields (Most Important)
-                $q->where('bar_code', 'LIKE', "%{$search}%")
-                  ->orWhere('pro_dis', 'LIKE', "%{$search}%")
-                  ->orWhere('short_disc', 'LIKE', "%{$search}%")
-                  ->orWhere('serial_number', 'LIKE', "%{$search}%")
-                  ->orWhere('p_brochure', 'LIKE', "%{$search}%");
-                
-                // ========== CATEGORY SEARCH ==========
-                $q->orWhereHas('category', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->where('bar_code', 'LIKE', "%{$term}%")
+                  ->orWhere('pro_dis', 'LIKE', "%{$term}%")
+                  ->orWhere('short_disc', 'LIKE', "%{$term}%")
+                  ->orWhere('serial_number', 'LIKE', "%{$term}%")
+                  ->orWhere('p_brochure', 'LIKE', "%{$term}%");
+                // ========== CATEGORY / PART NUMBER ==========
+                $q->orWhereHas('category', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('subcategory', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('subcategory', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('partnumber_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // ========== PART NUMBER SEARCH ==========
-                $q->orWhereHas('partnumber_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // ========== VEHICLE RELATED SEARCH ==========
-                // Direct vehicle_id search (if numeric)
-                if (is_numeric($search)) {
-                    $q->orWhere('vehical_id', $search);
+                // ========== VEHICLE RELATED ==========
+                if (is_numeric($term)) {
+                    $q->orWhere('vehical_id', $term);
                 }
-                
-                // Vehicle relationship search
-                $q->orWhereHas('vehical_item', function ($subQ) use ($search) {
-                    // Year ranges
-                    $subQ->where('year_from', 'LIKE', "%{$search}%")
-                      ->orWhere('year_to', 'LIKE', "%{$search}%")
-                      ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%")
-                      // Vehicle ID in vehicle table
-                      ->orWhere('id', 'LIKE', "%{$search}%")
-                      ->orWhere('v_part_number_id', 'LIKE', "%{$search}%");
+                $q->orWhereHas('vehical_item', function ($subQ) use ($term) {
+                    $subQ->where('year_from', 'LIKE', "%{$term}%")
+                      ->orWhere('year_to', 'LIKE', "%{$term}%")
+                      ->orWhere('car_manufactured_country', 'LIKE', "%{$term}%")
+                      ->orWhere('id', 'LIKE', "%{$term}%")
+                      ->orWhere('v_part_number_id', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('id', 'LIKE', "%{$search}%");
+                ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('id', 'LIKE', "%{$search}%");
+                ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('id', 'LIKE', "%{$search}%");
+                ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('id', 'LIKE', "%{$search}%");
+                ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('id', 'LIKE', "%{$search}%");
+                ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 });
-                
-                // ========== PRODUCT TYPE AND IDENTIFICATION ==========
-                $q->orWhere('type', 'LIKE', "%{$search}%")
-                  ->orWhere('p_id', 'LIKE', "%{$search}%");
-                
-                // ========== RELATIONSHIP BASED SEARCHES (Using actual relationships) ==========
-                // Product
-                $q->orWhereHas('product_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                // ========== PRODUCT / COMPANY / PLATE / AMPHORS / LINE / MILEAGE ==========
+                $q->orWhere('type', 'LIKE', "%{$term}%")->orWhere('p_id', 'LIKE', "%{$term}%");
+                $q->orWhereHas('product_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('company_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('plate_item', function ($subQ) use ($term) {
+                    // Strip "pl", "PL", "pl ", "PL " from the end of the term for plates search
+                    $plateTerm = preg_replace('/\s*(pl|PL)\s*$/i', '', $term);
+                    $subQ->where('name', 'LIKE', "%{$plateTerm}%");
+                })
+                ->orWhereHas('amphors_item', function ($subQ) use ($term) {
+                    // Strip "ah", "AH", "ah ", "AH " from the end of the term for amperes search
+                    $amperesTerm = preg_replace('/\s*(ah|AH)\s*$/i', '', $term);
+                    $subQ->where('name', 'LIKE', "%{$amperesTerm}%");
+                })
+                ->orWhereHas('lineitems_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('mileage_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // Company
-                $q->orWhereHas('company_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                // ========== BATTERY SPECS ==========
+                $q->orWhereHas('volt_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('cca_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('minus_pool_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('technology_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('grade_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('farmula_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhere('battery_size', 'LIKE', "%{$term}%");
+                // ========== LOCATION / QUALITY / STOCK / UNIT / PACKAGING ==========
+                $q->orWhere('bussiness_location', 'LIKE', "%{$term}%");
+                $q->orWhereHas('quality_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // Plate/Platos
-                $q->orWhereHas('plate_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->orWhere('l_stock', 'LIKE', "%{$term}%")->orWhere('m_stock', 'LIKE', "%{$term}%");
+                $q->orWhereHas('unit_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // Amphors
-                $q->orWhereHas('amphors_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Line Items
-                $q->orWhereHas('lineitems_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Mileage
-                $q->orWhereHas('mileage_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // ========== BATTERY/PRODUCT SPECIFICATIONS ==========
-                // Volt (via relationship)
-                $q->orWhereHas('volt_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // CCA (via relationship)
-                $q->orWhereHas('cca_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Minus Pool Direction (via relationship - only minus_pool_direction exists in DB)
-                $q->orWhereHas('minus_pool_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Technology (via relationship)
-                $q->orWhereHas('technology_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Grade (via relationship)
-                $q->orWhereHas('grade_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Formula/Farmula (via relationship)
-                $q->orWhereHas('farmula_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Battery Size (direct field)
-                $q->orWhere('battery_size', 'LIKE', "%{$search}%");
-                
-                // ========== LOCATION AND BUSINESS FIELDS ==========
-                // Business Location (only bussiness_location exists in DB, not business_location)
-                $q->orWhere('bussiness_location', 'LIKE', "%{$search}%");
-                
-                // Quality (via relationship)
-                $q->orWhereHas('quality_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Stock Levels
-                $q->orWhere('l_stock', 'LIKE', "%{$search}%")
-                  ->orWhere('m_stock', 'LIKE', "%{$search}%");
-                
-                // ========== UNIT AND PACKAGING ==========
-                // Unit (via relationship)
-                $q->orWhereHas('unit_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Direct packaging fields
-                $q->orWhere('packing', 'LIKE', "%{$search}%")
-                  ->orWhere('scale', 'LIKE', "%{$search}%")
-                  ->orWhere('weight_unit', 'LIKE', "%{$search}%");
-                
-                // Numeric fields - Always search as string (works for both numbers and letters)
-                $q->orWhere('filling', 'LIKE', "%{$search}%")
-                  ->orWhere('weight_for_delivery', 'LIKE', "%{$search}%")
-                  ->orWhere('packing_purchase_rate', 'LIKE', "%{$search}%")
-                  ->orWhere('total_price', 'LIKE', "%{$search}%")
-                  ->orWhere('price_per_unit', 'LIKE', "%{$search}%")
-                  ->orWhere('sale_price', 'LIKE', "%{$search}%")
-                  ->orWhere('on_hand', 'LIKE', "%{$search}%");
-                
-                // If search is numeric, also search as exact number match
-                if (is_numeric($search)) {
-                    $numericValue = (float)$search;
+                $q->orWhere('packing', 'LIKE', "%{$term}%")
+                  ->orWhere('scale', 'LIKE', "%{$term}%")
+                  ->orWhere('weight_unit', 'LIKE', "%{$term}%")
+                  ->orWhere('filling', 'LIKE', "%{$term}%")
+                  ->orWhere('weight_for_delivery', 'LIKE', "%{$term}%")
+                  ->orWhere('packing_purchase_rate', 'LIKE', "%{$term}%")
+                  ->orWhere('total_price', 'LIKE', "%{$term}%")
+                  ->orWhere('price_per_unit', 'LIKE', "%{$term}%")
+                  ->orWhere('sale_price', 'LIKE', "%{$term}%")
+                  ->orWhere('on_hand', 'LIKE', "%{$term}%")
+                  ->orWhere('rack', 'LIKE', "%{$term}%")
+                  ->orWhere('supplier', 'LIKE', "%{$term}%");
+                if (is_numeric($term)) {
+                    $numericValue = (float)$term;
                     $q->orWhere('filling', $numericValue)
                       ->orWhere('weight_for_delivery', $numericValue)
                       ->orWhere('packing_purchase_rate', $numericValue)
@@ -1090,31 +1268,23 @@ class PurchaseController extends Controller
                       ->orWhere('sale_price', $numericValue)
                       ->orWhere('on_hand', (int)$numericValue);
                 }
-                
-                // ========== STORAGE AND SUPPLIER ==========
-                $q->orWhere('rack', 'LIKE', "%{$search}%")
-                  ->orWhere('supplier', 'LIKE', "%{$search}%");
-                
-                // Date field (search as string)
-                if (strlen($search) >= 4) {
-                    $q->orWhere('update_date', 'LIKE', "%{$search}%");
+                if (strlen($term) >= 4) {
+                    $q->orWhere('update_date', 'LIKE', "%{$term}%");
                 }
-                
-                // ========== OTHER RELATIONSHIPS ==========
-                $q->orWhereHas('services_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->orWhereHas('services_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('warrenty_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('warrenty_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('group_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('group_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('made_in_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('made_in_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('level_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('level_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
             });
         }

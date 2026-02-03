@@ -69,12 +69,11 @@ public function store_branches(Request $request)
     try {
         $user = Auth::user();
         
-        // Check if user is admin (only admin can create branches for other users)
+        // Branch owner: non-admin uses own id; admin uses request user_id or own id (Select User field removed from form)
         if ($user->role !== 'admin') {
-            // For non-admin users, they can only create branch for themselves
             $user_id = $user->id;
         } else {
-            $user_id = $request->user_id;
+            $user_id = $request->user_id ?: $user->id;
         }
 
         if (!$user_id) {
@@ -103,9 +102,9 @@ public function store_branches(Request $request)
             'location' => 'nullable|string|max:255',
         ];
         
-        // Only validate user_id if admin is submitting
-        if ($user->role === 'admin') {
-            $validationRules['user_id'] = 'required|exists:users,id';
+        // user_id optional for admin (form no longer has Select User; defaults to logged-in user)
+        if ($user->role === 'admin' && $request->filled('user_id')) {
+            $validationRules['user_id'] = 'exists:users,id';
         }
         
         $validated = $request->validate($validationRules);

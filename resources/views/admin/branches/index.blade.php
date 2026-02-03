@@ -34,8 +34,8 @@
         <!-- /product list -->
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                <div class="d-flex justify-content-end mb-3">
-                    <input type="text" id="tableSearch" class="form-control w-100" placeholder="Search...">
+                <div class="d-flex justify-content-end mb-3 flex-grow-1 me-2">
+                    <input type="text" id="tableSearch" class="form-control" placeholder="Search by name, branch, code, manager, email, phone..." style="max-width: 320px;">
                 </div>
                 <div class="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                     <div class="dropdown">
@@ -223,7 +223,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="branch_name" class="col-form-label">Branch Name <span class="text-danger">*</span>:</label>
-                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name', $item->branch_name) }}" required>
+                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name', $item->branch_name) }}" required style="text-transform: uppercase" oninput="this.value = this.value.toUpperCase()">
                                     @error('branch_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -537,31 +537,8 @@
                         <div class="row ">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="user_id" class="col-form-label">Select User <span class="text-danger">*</span>:</label>
-                                    <select name="user_id" id="user_id" class="form-control @error('user_id') is-invalid @enderror" required>
-                                        @if(auth()->user()->role === 'admin')
-                                            <option value="">-- Select User --</option>
-                                            @foreach($users as $user)
-                                                <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
-                                                    {{ $user->name }} ({{ $user->email }})
-                                                </option>
-                                            @endforeach
-                                        @else
-                                            <option value="{{ auth()->user()->id }}" selected>
-                                                {{ auth()->user()->name }} ({{ auth()->user()->email }})
-                                            </option>
-                                        @endif
-                                    </select>
-                                    @error('user_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
                                     <label for="branch_name" class="col-form-label">Branch Name <span class="text-danger">*</span>:</label>
-                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name') }}" required>
+                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name') }}" required style="text-transform: uppercase" oninput="this.value = this.value.toUpperCase()">
                                     @error('branch_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -572,15 +549,6 @@
                                     <label for="branch_code" class="col-form-label">Branch Code <span class="text-danger">*</span>:</label>
                                     <input type="text" class="form-control @error('branch_code') is-invalid @enderror" name="branch_code" id="branch_code" value="{{ old('branch_code') }}" required>
                                     @error('branch_code')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="manager_name" class="col-form-label">Manager Name:</label>
-                                    <input type="text" class="form-control @error('manager_name') is-invalid @enderror" name="manager_name" id="manager_name" value="{{ old('manager_name') }}">
-                                    @error('manager_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -612,24 +580,6 @@
                                     @enderror
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="city" class="col-form-label">City:</label>
-                                    <input type="text" class="form-control @error('city') is-invalid @enderror" name="city" id="city" value="{{ old('city') }}">
-                                    @error('city')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="state" class="col-form-label">State:</label>
-                                    <input type="text" class="form-control @error('state') is-invalid @enderror" name="state" id="state" value="{{ old('state') }}">
-                                    @error('state')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="country" class="col-form-label">Country:</label>
@@ -641,10 +591,15 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="location" class="col-form-label">Location:</label>
-                                    <input type="text" class="form-control @error('location') is-invalid @enderror" name="location" id="location" value="{{ old('location') }}">
+                                    <label for="add_branch_location" class="col-form-label">Location:</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control @error('location') is-invalid @enderror" name="location" id="add_branch_location" value="{{ old('location') }}" placeholder="Address or use current location">
+                                        <button type="button" class="btn btn-outline-primary" id="add_branch_location_btn" title="Use current location">
+                                            <i data-feather="map-pin" class="feather-14"></i> Current
+                                        </button>
+                                    </div>
                                     @error('location')
-                                        <div class="invalid-feedback">{{ $message }}</div>
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
@@ -658,4 +613,65 @@
             </div>
         </div>
     </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var searchInput = document.getElementById('tableSearch');
+        var table = document.getElementById('searchableTable');
+        if (searchInput && table) {
+            searchInput.addEventListener('input', function() {
+                var term = (this.value || '').trim().toLowerCase();
+                var rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function(row) {
+                    var text = (row.textContent || '').toLowerCase();
+                    row.style.display = term === '' || text.indexOf(term) !== -1 ? '' : 'none';
+                });
+            });
+        }
+    });
+    (function() {
+        var btn = document.getElementById('add_branch_location_btn');
+        var input = document.getElementById('add_branch_location');
+        if (!btn || !input) return;
+        btn.addEventListener('click', function() {
+            btn.disabled = true;
+            btn.textContent = 'Getting...';
+            if (typeof feather !== 'undefined') feather.replace();
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser.');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                if (typeof feather !== 'undefined') feather.replace();
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    var lat = pos.coords.latitude;
+                    var lng = pos.coords.longitude;
+                    fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json', {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        input.value = data.display_name || (lat + ', ' + lng);
+                        btn.disabled = false;
+                        btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                        if (typeof feather !== 'undefined') feather.replace();
+                    })
+                    .catch(function() {
+                        input.value = lat + ', ' + lng;
+                        btn.disabled = false;
+                        btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                        if (typeof feather !== 'undefined') feather.replace();
+                    });
+                },
+                function(err) {
+                    alert('Could not get location: ' + (err.message || 'Permission denied or unavailable.'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                    if (typeof feather !== 'undefined') feather.replace();
+                }
+            );
+        });
+    })();
+    </script>
 @endsection
