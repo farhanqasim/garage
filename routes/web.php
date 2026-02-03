@@ -89,6 +89,8 @@ Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->na
 Route::get('/car-wash/services/rate-list', [\App\Http\Controllers\CarWashServiceController::class, 'rateList'])->name('car.wash.services.rate-list')->middleware('auth');
 Route::get('/car-wash/staff', [HomeController::class, 'carWashStaff'])->name('car.wash.staff')->middleware('auth');
 Route::get('/car-wash/daily-report', [\App\Http\Controllers\CarWashJobController::class, 'dailyReport'])->name('car.wash.daily-report')->middleware('auth');
+Route::get('/car-wash/all-shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'showAllExpenses'])->name('car.wash.all-shop-expenses')->middleware('auth');
+Route::get('/car-wash/transaction-history', [\App\Http\Controllers\CarWashTransactionHistoryController::class, 'index'])->name('car.wash.transaction-history')->middleware('auth');
 Route::get('/car-wash/worker-bank-accounts', [\App\Http\Controllers\CarWashPaymentController::class, 'workerBankAccounts'])->name('car.wash.worker-bank-accounts')->middleware('auth');
 Route::get('/car-wash/worker-cash-accounts', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashAccounts'])->name('car.wash.worker-cash-accounts')->middleware('auth');
 Route::get('/car-wash/worker-cash-accounts/{worker}/print', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashAccountPrint'])->name('car.wash.worker-cash-accounts.print')->middleware('auth');
@@ -118,9 +120,14 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/api/services', [\App\Http\Controllers\CarWashServiceController::class, 'index'])->name('services.index');
     Route::post('/services', [\App\Http\Controllers\CarWashServiceController::class, 'store'])->name('services.store');
     Route::put('/services/{id}', [\App\Http\Controllers\CarWashServiceController::class, 'update'])->name('services.update');
+    Route::post('/services/reorder', [\App\Http\Controllers\CarWashServiceController::class, 'reorder'])->name('services.reorder');
     Route::delete('/services/{id}', [\App\Http\Controllers\CarWashServiceController::class, 'destroy'])->name('services.destroy');
     Route::post('/services/{id}/toggle-status', [\App\Http\Controllers\CarWashServiceController::class, 'toggleStatus'])->name('services.toggle-status');
     
+    // Attendance Routes
+    Route::get('/attendance/employees', [\App\Http\Controllers\CarWashAttendanceController::class, 'employees'])->name('attendance.employees');
+    Route::post('/attendance', [\App\Http\Controllers\CarWashAttendanceController::class, 'store'])->name('attendance.store');
+
     // Workers Routes
     Route::get('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'index'])->name('workers.index');
     Route::post('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'store'])->name('workers.store');
@@ -134,6 +141,8 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'index'])->name('jobs.index');
     Route::get('/jobs/active', [\App\Http\Controllers\CarWashJobController::class, 'activeJobs'])->name('jobs.active');
     Route::get('/jobs/completed', [\App\Http\Controllers\CarWashJobController::class, 'completedJobs'])->name('jobs.completed');
+    Route::get('/jobs/search-by-plate', [\App\Http\Controllers\CarWashJobController::class, 'searchByPlate'])->name('jobs.search-by-plate');
+    Route::get('/jobs/vehicle-history', [\App\Http\Controllers\CarWashJobController::class, 'vehicleHistory'])->name('jobs.vehicle-history');
     Route::get('/jobs/today-stats', [\App\Http\Controllers\CarWashJobController::class, 'todayStats'])->name('jobs.today-stats');
     Route::get('/daily-report/pdf', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportPdf'])->name('jobs.daily-report-pdf');
     Route::get('/daily-report/data', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportData'])->name('jobs.daily-report-data');
@@ -147,6 +156,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     // Inspections Routes
     Route::get('/banks', [BankController::class, 'index'])->name('banks.index');
     Route::get('/bank-accounts', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsIndex'])->name('bank-accounts.index');
+    Route::get('/bank-accounts/for-transfer', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsForTransfer'])->name('bank-accounts.for-transfer');
     Route::post('/cash-transfers', [BankController::class, 'storeTransfer'])->name('cash-transfers.store');
 
     Route::get('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'show'])->name('inspections.show');
@@ -161,6 +171,9 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'index'])->name('shop-expenses.index');
     Route::post('/shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'store'])->name('shop-expenses.store');
     
+    // Transaction History API Route
+    Route::get('/transaction-history/data', [\App\Http\Controllers\CarWashTransactionHistoryController::class, 'getTransactions'])->name('transaction-history.get');
+    
     // Payments Routes
     Route::get('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/create', [\App\Http\Controllers\CarWashPaymentController::class, 'create'])->name('payments.create');
@@ -169,6 +182,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/payments/pending-commission/{workerId}', [\App\Http\Controllers\CarWashPaymentController::class, 'getPendingCommission'])->name('payments.pending-commission');
     Route::get('/payments/available-cash', [\App\Http\Controllers\CarWashPaymentController::class, 'getAvailableCashApi'])->name('payments.available-cash');
     Route::get('/payments/cash-account-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashAccountBalance'])->name('payments.cash-account-balance');
+    Route::get('/payments/admin-cash-account-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'getAdminCashAccountBalance'])->name('payments.admin-cash-account-balance');
     Route::get('/payments/cash-method', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashMethod'])->name('payments.cash-method');
     Route::get('/payments/branch-users', [\App\Http\Controllers\CarWashPaymentController::class, 'getBranchUsers'])->name('payments.branch-users');
     Route::post('/payments/transfer-to-user', [\App\Http\Controllers\CarWashPaymentController::class, 'transferToUser'])->name('payments.transfer-to-user');
@@ -183,8 +197,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     
     Route::resource('bank-accounts', BankAccountController::class);
     Route::post('bank-accounts/{bankAccount}/toggle-status', [BankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
+    Route::get('bank-accounts/branch/{branchId}/users', [BankAccountController::class, 'getUsersByBranch'])->name('bank-accounts.branch-users');
     
-    Route::resource('cash-accounts', CashAccountController::class)->only(['index', 'show']);
+    Route::resource('cash-accounts', CashAccountController::class)->only(['index', 'show', 'create', 'store']);
     Route::get('cash-transactions', [CashAccountController::class, 'transactions'])->name('cash-transactions.index');
     
     Route::resource('payments', PaymentController::class)->only(['index', 'show']);
@@ -572,7 +587,10 @@ Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOp
     ->name('purchases.filter.options');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
+Route::get('purchases/items/{id}/purchase-history',[PurchaseController::class,'getItemPurchaseHistory'])->name('purchases.items.purchase.history');
 Route::get('purchases/suppliers/search-phone',[PurchaseController::class,'searchSuppliersByPhone'])->name('purchases.suppliers.search.phone');
+Route::get('purchases/cart', [PurchaseController::class, 'getPurchaseCart'])->name('purchases.cart.get')->middleware('auth');
+Route::post('purchases/cart', [PurchaseController::class, 'updatePurchaseCart'])->name('purchases.cart.update')->middleware('auth');
 Route::get('purchases/{id}',[PurchaseController::class,'show'])->name('purchases.show')->middleware('auth');
 Route::get('purchases/{id}/pdf',[PurchaseController::class,'pdf'])->name('purchases.pdf')->middleware('auth');
 Route::get('purchases/{id}/convert-to-sale',[PurchaseController::class,'convertToSale'])->name('purchases.convert.to.sale')->middleware('auth');

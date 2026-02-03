@@ -40,8 +40,11 @@ class SupplierController extends Controller
         $supplier = new Supplier();
         $supplier->names            = $request->names ?? [];
         $supplier->phones           = array_filter($request->phones ?? []);
+        $supplier->emails           = array_filter($request->emails ?? []);
+        // Keep single email field for backward compatibility
+        $supplier->email            = !empty($request->emails) ? ($request->emails[0] ?? $request->email) : $request->email;
         $supplier->company          = $request->company;
-        $supplier->email            = $request->email;
+        $supplier->address          = $request->address;
         $supplier->carnumber        = $request->carnumber;
         $supplier->group_id         = $request->group_id;
         $supplier->opening_balance  = $request->opening_balance ?? 0;
@@ -114,6 +117,7 @@ class SupplierController extends Controller
             'phones' => 'Phones',
             'company' => 'Company',
             'email' => 'Email',
+            'address' => 'Address',
             'carnumber' => 'Car Number',
             'group_id' => 'Group',
             'opening_balance' => 'Opening Balance',
@@ -129,8 +133,10 @@ class SupplierController extends Controller
         // Store old values before updating
         $oldNames = $supplier->names;
         $oldPhones = $supplier->phones;
+        $oldEmails = $supplier->emails;
         $oldCompany = $supplier->company;
         $oldEmail = $supplier->email;
+        $oldAddress = $supplier->address;
         $oldCarnumber = $supplier->carnumber;
         $oldGroupId = $supplier->group_id;
         $oldOpeningBalance = $supplier->opening_balance;
@@ -146,6 +152,7 @@ class SupplierController extends Controller
         $supplier->phones           = array_filter($request->phones ?? $supplier->phones);
         $supplier->company          = $request->company ?? $supplier->company;
         $supplier->email            = $request->email ?? $supplier->email;
+        $supplier->address         = $request->address ?? $supplier->address;
         $supplier->carnumber        = $request->carnumber ?? $supplier->carnumber;
         $supplier->group_id         = $request->group_id ?? $supplier->group_id;
         $supplier->opening_balance  = $request->opening_balance ?? $supplier->opening_balance;
@@ -224,8 +231,10 @@ class SupplierController extends Controller
         $fieldMappings = [
             'names' => ['old' => $oldNames, 'new' => $supplier->names, 'label' => 'Names'],
             'phones' => ['old' => $oldPhones, 'new' => $supplier->phones, 'label' => 'Phones'],
+            'emails' => ['old' => $oldEmails, 'new' => $supplier->emails, 'label' => 'Emails'],
             'company' => ['old' => $oldCompany, 'new' => $supplier->company, 'label' => 'Company'],
             'email' => ['old' => $oldEmail, 'new' => $supplier->email, 'label' => 'Email'],
+            'address' => ['old' => $oldAddress, 'new' => $supplier->address, 'label' => 'Address'],
             'carnumber' => ['old' => $oldCarnumber, 'new' => $supplier->carnumber, 'label' => 'Car Number'],
             'group_id' => ['old' => $oldGroupId, 'new' => $supplier->group_id, 'label' => 'Group'],
             'opening_balance' => ['old' => $oldOpeningBalance, 'new' => $supplier->opening_balance, 'label' => 'Opening Balance'],

@@ -17,8 +17,10 @@ class Supplier extends Model
         'voice_note',
         'names',
         'phones',
+        'emails',
         'company',
         'email',
+        'address',
         'carnumber',
         'group_id',
         'password',
@@ -34,6 +36,7 @@ class Supplier extends Model
     protected $casts = [
         'names'           => 'array',
         'phones'          => 'array',
+        'emails'          => 'array',
         'multiple_images' => 'array',
         'opening_balance' => 'decimal:2',
         'credit_limit'    => 'decimal:2',

@@ -918,7 +918,7 @@
                             id="categoryName" 
                             name="categoryName" 
                             class="category-form-input" 
-                            placeholder="e.g. Engine Detail"
+                            placeholder="e.g. Vehicle Detail"
                             required
                         />
                     </div>
@@ -1306,6 +1306,7 @@
         
         // Home route URL
         const homeRoute = '{{ route("home") }}';
+        const eliteCarWashLogoUrl = '{{ asset("assets/img/elite-car-wash-logo.png") }}';
         
         // Get user and branch info from Blade (passed from controller)
         const branchName = @json(isset($branchName) ? $branchName : 'No Branch');
@@ -1336,6 +1337,8 @@
                 index: '{{ route("car-wash.jobs.index") }}',
                 active: '{{ route("car-wash.jobs.active") }}',
                 completed: '{{ route("car-wash.jobs.completed") }}',
+                searchByPlate: '{{ route("car-wash.jobs.search-by-plate") }}',
+                vehicleHistory: '{{ route("car-wash.jobs.vehicle-history") }}',
                 todayStats: '{{ route("car-wash.jobs.today-stats") }}',
                 store: '{{ route("car-wash.jobs.store") }}',
                 update: (id) => `{{ url('/car-wash/jobs') }}/${id}`,
@@ -1363,6 +1366,7 @@
             },
             bankAccounts: {
                 index: '{{ route("car-wash.bank-accounts.index") }}',
+                forTransfer: '{{ route("car-wash.bank-accounts.for-transfer") }}',
                 create: '{{ route("admin.bank-accounts.create") }}',
             },
             cashTransfers: {
@@ -1370,8 +1374,13 @@
             },
             payments: {
                 cashAccountBalance: '{{ route("car-wash.payments.cash-account-balance") }}',
+                adminCashAccountBalance: '{{ route("car-wash.payments.admin-cash-account-balance") }}',
                 branchUsers: '{{ route("car-wash.payments.branch-users") }}',
                 transferToUser: '{{ route("car-wash.payments.transfer-to-user") }}',
+            },
+            attendance: {
+                employees: '{{ route("car-wash.attendance.employees") }}',
+                store: '{{ route("car-wash.attendance.store") }}',
             }
         };
         
@@ -1379,13 +1388,49 @@
         const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
         
+        // User role (for filtering admin cash)
+        const userRole = '{{ Auth::user()->role ?? "" }}';
+        const isAdmin = userRole === 'admin';
+        
         // Simplified App Component (UI structure without Firebase)
         const App = () => {
             const [view, setView] = useState('dashboard');
-            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0, cashOnHand: 0 });
+            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0, cashOnHand: 0, reportCashOnHand: 0, reportBankBalance: 0 });
+            
+            // Fetch today's cash-on-hand from daily report (same as Daily Report page totCashOnHand)
+            const loadReportCashOnHand = () => {
+                if (!API_ROUTES.jobs || !API_ROUTES.jobs.dailyReportData) return;
+                const today = new Date().toISOString().slice(0, 10);
+                const params = new URLSearchParams({ date_from: today, date_to: today, payment: 'cash', customer: '', worker: '' });
+                fetch(API_ROUTES.jobs.dailyReportData + '?' + params)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.totals && (data.totals.cashOnHand != null || data.totals.cashOnHand === 0)) {
+                            setStats(prev => ({ ...prev, reportCashOnHand: parseFloat(data.totals.cashOnHand) || 0 }));
+                        }
+                    })
+                    .catch(err => console.error('Error loading report cash on hand:', err));
+            };
+            
+            // Fetch today's bank balance from daily report (same as Daily Report page totBankBalance)
+            const loadReportBankBalance = () => {
+                if (!API_ROUTES.jobs || !API_ROUTES.jobs.dailyReportData) return;
+                const today = new Date().toISOString().slice(0, 10);
+                const params = new URLSearchParams({ date_from: today, date_to: today, payment: 'bank', customer: '', worker: '' });
+                fetch(API_ROUTES.jobs.dailyReportData + '?' + params)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.totals && (data.totals.cashOnHand != null || data.totals.cashOnHand === 0)) {
+                            setStats(prev => ({ ...prev, reportBankBalance: parseFloat(data.totals.cashOnHand) || 0 }));
+                        }
+                    })
+                    .catch(err => console.error('Error loading report bank balance:', err));
+            };
             
             // Function to refresh cash account balance
             const refreshCashBalance = () => {
+                loadReportCashOnHand();
+                loadReportBankBalance();
                 if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
                     fetch(API_ROUTES.payments.cashAccountBalance)
                         .then(res => res.json())
@@ -1406,6 +1451,9 @@
             
             // Load stats from API on mount - simplified to avoid errors
             useEffect(() => {
+                // Load report cash on hand and bank balance (same as Daily Report totCashOnHand / totBankBalance) for header
+                loadReportCashOnHand();
+                loadReportBankBalance();
                 // Fetch user's cash account balance first
                 let userCashBalance = 0;
                 if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
@@ -1447,60 +1495,61 @@
                                     .then(res => res.json())
                                     .then(data => {
                                         if (data.success && data.stats) {
-                                            setStats({
+                                            setStats(prev => ({
+                                                ...prev,
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: data.stats.todayExpensesTotal || 0,
                                                 todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0),
                                                 cashOnHand: cashOnHand
-                                            });
+                                            }));
                                         } else {
-                                            // Fallback: calculate without expenses
-                                            setStats({
+                                            setStats(prev => ({
+                                                ...prev,
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: 0,
                                                 todayGrandTotal: todayRevenue,
                                                 cashOnHand: cashOnHand
-                                            });
+                                            }));
                                         }
                                     })
                                     .catch(err => {
                                         console.error('Error loading stats from API:', err);
-                                        // Fallback: calculate without expenses
-                                        setStats({
+                                        setStats(prev => ({
+                                            ...prev,
                                             todayRevenue: todayRevenue,
                                             todayExpensesTotal: 0,
                                             todayGrandTotal: todayRevenue,
                                             cashOnHand: cashOnHand
-                                        });
+                                        }));
                                     });
                             } else {
-                                // No todayStats API, just use revenue
-                                setStats({
+                                setStats(prev => ({
+                                    ...prev,
                                     todayRevenue: todayRevenue,
                                     todayExpensesTotal: 0,
                                     todayGrandTotal: todayRevenue,
                                     cashOnHand: cashOnHand
-                                });
+                                }));
                             }
                         } else {
-                            // No jobs, set default stats with cash balance
-                            setStats({
+                            setStats(prev => ({
+                                ...prev,
                                 todayRevenue: 0,
                                 todayExpensesTotal: 0,
                                 todayGrandTotal: 0,
                                 cashOnHand: userCashBalance
-                            });
+                            }));
                         }
                     })
                     .catch(err => {
                         console.error('Error loading completed jobs for stats:', err);
-                        // Set default stats on error with cash balance
-                        setStats({
+                        setStats(prev => ({
+                            ...prev,
                             todayRevenue: 0,
                             todayExpensesTotal: 0,
                             todayGrandTotal: 0,
                             cashOnHand: userCashBalance
-                        });
+                        }));
                     });
             }, []);
             // Load categories from backend (passed from controller) - database only
@@ -1510,6 +1559,7 @@
             });
             const [selectedService, setSelectedService] = useState(null);
             const [selectedAdditionalPrices, setSelectedAdditionalPrices] = useState(new Set());
+            const [serviceQuantity, setServiceQuantity] = useState(1);
             const [formData, setFormData] = useState({
                 customerName: '',
                 vehicleNo: '',
@@ -1610,18 +1660,32 @@
             const [selectedWorkerFilter, setSelectedWorkerFilter] = useState(null);
             const [showWorkerFilterModal, setShowWorkerFilterModal] = useState(false);
             const [showCashTransferModal, setShowCashTransferModal] = useState(false);
+            const [showBankTransferModal, setShowBankTransferModal] = useState(false);
             const [transferTab, setTransferTab] = useState('cash'); // 'cash' or 'bank' (user merged into cash)
             const [transferMethods, setTransferMethods] = useState([
                 { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
             ]);
-            const [bankAccounts, setBankAccounts] = useState([]);
+            const [bankAccounts, setBankAccounts] = useState([]); // Logged-in user's bank accounts (for balance display)
+            const [transferBankAccounts, setTransferBankAccounts] = useState([]); // Other users' bank accounts (for dropdown)
             const [bankBalanceTotal, setBankBalanceTotal] = useState(0); // Login user's total bank account balance for header
             const [selectedBankAccountId, setSelectedBankAccountId] = useState(null); // For bank tab in transfer modal
             const [transferAmount, setTransferAmount] = useState('');
             const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
+            const [bankTransferAmount, setBankTransferAmount] = useState('');
+            const [bankTransferNote, setBankTransferNote] = useState('');
+            const [showBankAccountDropdown, setShowBankAccountDropdown] = useState(false);
+            const [bankTransferLoading, setBankTransferLoading] = useState(false);
             const [branchUsers, setBranchUsers] = useState([]);
             const [selectedUserId, setSelectedUserId] = useState(null);
             const [transferNote, setTransferNote] = useState('');
+            
+            // Plate search autocomplete & vehicle history
+            const [plateSuggestions, setPlateSuggestions] = useState([]);
+            const [showPlateDropdown, setShowPlateDropdown] = useState(false);
+            const [vehicleHistoryJobs, setVehicleHistoryJobs] = useState([]);
+            const [showVehicleHistoryModal, setShowVehicleHistoryModal] = useState(false);
+            const [vehicleHistoryLoading, setVehicleHistoryLoading] = useState(false);
+            const plateSearchTimeoutRef = React.useRef(null);
             
             // Daily Report Modal States
             const [dailyReportDate, setDailyReportDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -1634,8 +1698,34 @@
             const [dailyReportBankBalance, setDailyReportBankBalance] = useState(0);
             const [dailyReportCashBalance, setDailyReportCashBalance] = useState(0);
             
-            // Load banks/transfer methods from API
+            // Load banks/transfer methods from API and admin cash balance
             useEffect(() => {
+                // Load admin cash balance (for ALL users - so they can transfer to admin)
+                if (API_ROUTES.payments && API_ROUTES.payments.adminCashAccountBalance) {
+                    fetch(API_ROUTES.payments.adminCashAccountBalance, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(balanceData => {
+                            if (balanceData.success && balanceData.balance != null) {
+                                const adminCashBalance = parseFloat(balanceData.balance) || 0;
+                                // Update admin cash balance in transfer methods
+                                setTransferMethods(prev => prev.map(method => 
+                                    method.id === 'admin_cash' 
+                                        ? { ...method, balance: adminCashBalance }
+                                        : method
+                                ));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading admin cash balance:', err);
+                        });
+                }
+                
+                // Load banks
                 fetch(API_ROUTES.banks.index, {
                     headers: {
                         'Accept': 'application/json',
@@ -1656,9 +1746,9 @@
                                 bankId: bank.id
                             }));
                             
-                            // Combine with default admin cash
+                            // Combine with default admin cash (balance already updated above)
                             setTransferMethods(prev => [
-                                prev[0], // Keep admin cash
+                                prev[0], // Keep admin cash with updated balance
                                 ...bankMethods
                             ]);
                         }
@@ -1668,6 +1758,21 @@
                         // Keep default methods on error
                     });
             }, []);
+            
+            // Close bank account dropdown when clicking outside
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (showBankAccountDropdown && !event.target.closest('.bank-account-dropdown-container')) {
+                        setShowBankAccountDropdown(false);
+                    }
+                };
+                if (showBankAccountDropdown) {
+                    document.addEventListener('mousedown', handleClickOutside);
+                }
+                return () => {
+                    document.removeEventListener('mousedown', handleClickOutside);
+                };
+            }, [showBankAccountDropdown]);
             
             // Automatically load branch users when transfer modal opens on cash tab
             useEffect(() => {
@@ -1690,6 +1795,22 @@
                         });
                 }
             }, [showCashTransferModal, transferTab]);
+
+            // Load employees when Attendance modal opens
+            useEffect(() => {
+                if (showAttendanceModal && API_ROUTES.attendance && API_ROUTES.attendance.employees) {
+                    fetch(API_ROUTES.attendance.employees, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && Array.isArray(data.employees)) {
+                                setAttendanceEmployees(data.employees);
+                            } else {
+                                setAttendanceEmployees([]);
+                            }
+                        })
+                        .catch(() => setAttendanceEmployees([]));
+                }
+            }, [showAttendanceModal]);
 
             // Load login user's branch bank accounts (for Bank tab in complete job modal). Refetch via fetchBankAccounts (e.g. after creating in Admin).
             const fetchBankAccounts = React.useCallback(() => {
@@ -1889,6 +2010,27 @@
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
             const [speechNetworkError, setSpeechNetworkError] = useState(false);
+            
+            // Attendance modal state
+            const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+            const [attendanceEmployees, setAttendanceEmployees] = useState([]);
+            const [attendanceEmployeeSearch, setAttendanceEmployeeSearch] = useState('');
+            const [selectedAttendanceEmployee, setSelectedAttendanceEmployee] = useState(null);
+            const [attendanceStep, setAttendanceStep] = useState('select'); // 'select' | 'camera' | 'confirm'
+            const [attendancePhotoBlob, setAttendancePhotoBlob] = useState(null);
+            const [attendancePhotoUrl, setAttendancePhotoUrl] = useState(null);
+            const [attendanceLocation, setAttendanceLocation] = useState(null);
+            const [attendanceLocationError, setAttendanceLocationError] = useState(null);
+            const [attendanceLocationLoading, setAttendanceLocationLoading] = useState(false);
+            const [attendanceAccuracyWarning, setAttendanceAccuracyWarning] = useState(false);
+            const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
+            const [attendancePermissionError, setAttendancePermissionError] = useState(null);
+            const [attendanceCameraError, setAttendanceCameraError] = useState(null);
+            const [attendanceSuccess, setAttendanceSuccess] = useState(false);
+            const [attendanceCameraReady, setAttendanceCameraReady] = useState(false);
+            const attendanceVideoRef = React.useRef(null);
+            const attendanceStreamRef = React.useRef(null);
+            const attendanceCanvasRef = React.useRef(null);
             const recognitionTranscriptRef = React.useRef(''); // Store transcript for mobile compatibility
             const customerNameInputRef = React.useRef(null);   // Direct ref to input so voice text always applies
 
@@ -2173,6 +2315,12 @@
                             pendingInspectionAlertsRef.current.delete(job.id);
                             return;
                         }
+                        // Skip if this job's service does not require inspection
+                        const jobService = allServices.find(s => s.label === job.service);
+                        if (jobService && jobService.inspection_compulsory === false) {
+                            pendingInspectionAlertsRef.current.delete(job.id);
+                            return;
+                        }
                         
                         // Check if job is older than 30 seconds
                         const jobStartTime = new Date(job.startTime);
@@ -2299,7 +2447,7 @@
                         window.speechSynthesis.cancel();
                     }
                 };
-            }, [activeJobs, currentTime, completedInspections]);
+            }, [activeJobs, currentTime, completedInspections, allServices]);
             
             // Remove alert and stop speech when inspection is completed
             useEffect(() => {
@@ -2364,6 +2512,33 @@
                     setFilteredCompletedJobs([]);
                 }
             }, [completedJobs, dateRangeStart, dateRangeEnd, selectedWorkerFilter]);
+            
+            // Plate number search (debounced) for autocomplete
+            useEffect(() => {
+                const q = (formData.vehicleNo || '').trim().toUpperCase();
+                if (q.length < 1) {
+                    setPlateSuggestions([]);
+                    setShowPlateDropdown(false);
+                    return;
+                }
+                if (plateSearchTimeoutRef.current) clearTimeout(plateSearchTimeoutRef.current);
+                plateSearchTimeoutRef.current = setTimeout(() => {
+                    const url = API_ROUTES.jobs.searchByPlate + '?q=' + encodeURIComponent(q);
+                    fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.suggestions) {
+                                setPlateSuggestions(data.suggestions);
+                                setShowPlateDropdown(data.suggestions.length > 0);
+                            } else {
+                                setPlateSuggestions([]);
+                                setShowPlateDropdown(false);
+                            }
+                        })
+                        .catch(() => { setPlateSuggestions([]); setShowPlateDropdown(false); });
+                }, 300);
+                return () => { if (plateSearchTimeoutRef.current) clearTimeout(plateSearchTimeoutRef.current); };
+            }, [formData.vehicleNo]);
             
             // Update staff list when All Staff modal opens - fetch from API
             useEffect(() => {
@@ -2989,6 +3164,11 @@
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                     </svg>
                                 </a>
+                                <img
+                                    src={eliteCarWashLogoUrl}
+                                    alt="Elite Car Wash"
+                                    className="h-10 sm:h-12 md:h-14 w-auto flex-shrink-0 object-contain"
+                                />
                                 <div className="flex-1 min-w-0">
                                     <h1 className="text-lg sm:text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-none text-blue-400 truncate">
                                         Elite Car Wash
@@ -3135,6 +3315,31 @@
                                                 <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Daily Report</span>
                                             </button>
                                             
+                                            {/* ALL SHOP EXPENSE */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    window.location.href = '{{ route("car.wash.all-shop-expenses") }}';
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        window.location.href = '{{ route("car.wash.all-shop-expenses") }}';
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="All shop expenses"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-red-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">All Shop Expense</span>
+                                            </button>
+                                            
                                             {/* SHOP EXPENSES */}
                                             <button
                                                 onClick={() => {
@@ -3158,6 +3363,31 @@
                                                     </svg>
                                                 </div>
                                                 <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Shop Expenses</span>
+                                            </button>
+
+                                            {/* TRANSACTION HISTORY */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    window.location.href = '{{ route("car.wash.transaction-history") }}';
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        window.location.href = '{{ route("car.wash.transaction-history") }}';
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="Transaction History"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Transaction History</span>
                                             </button>
 
                                             {/* LOGOUT */}
@@ -3201,12 +3431,145 @@
                         </div>
                         
                         <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
-                            <div className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center" role="status" aria-label="Bank balance">
+                            <button
+                                type="button"
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                                onMouseDown={(e) => {
+                                    const startTime = Date.now();
+                                    const handleMouseUp = () => {
+                                        const duration = Date.now() - startTime;
+                                        if (duration >= 500) { // 500ms = long press
+                                            setShowSaleDetailsModal(true);
+                                        }
+                                    };
+                                    document.addEventListener('mouseup', handleMouseUp, { once: true });
+                                }}
+                                onTouchStart={(e) => {
+                                    const startTime = Date.now();
+                                    const touch = e.touches[0];
+                                    const handleTouchEnd = () => {
+                                        const duration = Date.now() - startTime;
+                                        if (duration >= 500) { // 500ms = long press
+                                            e.preventDefault();
+                                            setShowSaleDetailsModal(true);
+                                        }
+                                    };
+                                    document.addEventListener('touchend', handleTouchEnd, { once: true });
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        window.location.href = '{{ route("car.wash.daily-report") }}';
+                                    }
+                                }}
+                                onClick={() => { window.location.href = '{{ route("car.wash.daily-report") }}'; }}
+                                title="Click to view daily report"
+                                aria-label="Total revenue today. Click to view daily report"
+                            >
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
+                                <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
+                                    Rs.{stats && typeof stats.reportCashOnHand !== 'undefined' ? Math.round(stats.reportCashOnHand) : 0}
+                                </p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    // Calculate bank balance first (from stats or current bankBalanceTotal)
+                                    const currentBankBal = stats && typeof stats.reportBankBalance !== 'undefined' ? stats.reportBankBalance : (typeof bankBalanceTotal === 'number' ? bankBalanceTotal : 0);
+                                    
+                                    // Load cash balance first for validation
+                                    let cashBalanceForValidation = 0;
+                                    try {
+                                        const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
+                                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                                        });
+                                        if (cashRes.ok) {
+                                            const cashData = await cashRes.json();
+                                            if (cashData.balance != null) {
+                                                cashBalanceForValidation = parseFloat(cashData.balance) || 0;
+                                                // Update stats with cash balance
+                                                setStats(prev => ({
+                                                    ...prev,
+                                                    cashOnHand: cashBalanceForValidation
+                                                }));
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading cash balance:', e);
+                                        // Use reportCashOnHand as fallback
+                                        cashBalanceForValidation = stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 0;
+                                    }
+                                    
+                                    // Load logged-in user's bank accounts (for balance display)
+                                    try {
+                                        const res = await fetch(API_ROUTES.bankAccounts.index, {
+                                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                                        });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            if (data.success && data.bankAccounts) {
+                                                // Set logged-in user's bank accounts
+                                                setBankAccounts(data.bankAccounts);
+                                                // Calculate total balance for logged-in user's bank accounts
+                                                const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                setBankBalanceTotal(total);
+                                                // Auto-fill transfer amount with logged-in user's balance
+                                                setBankTransferAmount(String(Math.round(total)));
+                                            } else {
+                                                // If no bank accounts, use current bank balance
+                                                setBankAccounts([]);
+                                                setBankTransferAmount(String(Math.round(currentBankBal)));
+                                            }
+                                        } else {
+                                            // If API fails, use current bank balance
+                                            setBankAccounts([]);
+                                            setBankTransferAmount(String(Math.round(currentBankBal)));
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading bank accounts:', e);
+                                        // If error, use current bank balance
+                                        setBankAccounts([]);
+                                        setBankTransferAmount(String(Math.round(currentBankBal)));
+                                    }
+                                    
+                                    // Load other users' bank accounts from same branch (for dropdown)
+                                    try {
+                                        const transferRes = await fetch(API_ROUTES.bankAccounts.forTransfer, {
+                                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                                        });
+                                        if (transferRes.ok) {
+                                            const transferData = await transferRes.json();
+                                            if (transferData.success && transferData.bankAccounts) {
+                                                setTransferBankAccounts(transferData.bankAccounts);
+                                            } else {
+                                                setTransferBankAccounts([]);
+                                            }
+                                        } else {
+                                            setTransferBankAccounts([]);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading transfer bank accounts:', e);
+                                        setTransferBankAccounts([]);
+                                    }
+                                    
+                                    setShowBankTransferModal(true);
+                                    setSelectedBankAccountId(null);
+                                    setBankTransferNote('');
+                                    setShowBankAccountDropdown(false);
+                                }}
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 w-full"
+                                title="Click to transfer to bank"
+                                aria-label="Bank balance. Click to open bank transfer"
+                            >
                                 <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Bank</p>
                                 <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Bank account balance">
-                                    Rs.{typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0}
+                                    Rs.{(() => {
+                                        // Show total of logged-in user's branch bank accounts
+                                        const branchBankBalance = bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                        return branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
+                                    })()}
                                 </p>
-                            </div>
+                            </button>
                             <button
                                 type="button"
                                 className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
@@ -3249,46 +3612,6 @@
                             </button>
                             <button
                                 type="button"
-                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-                                onMouseDown={(e) => {
-                                    const startTime = Date.now();
-                                    const handleMouseUp = () => {
-                                        const duration = Date.now() - startTime;
-                                        if (duration >= 500) { // 500ms = long press
-                                            setShowSaleDetailsModal(true);
-                                        }
-                                    };
-                                    document.addEventListener('mouseup', handleMouseUp, { once: true });
-                                }}
-                                onTouchStart={(e) => {
-                                    const startTime = Date.now();
-                                    const touch = e.touches[0];
-                                    const handleTouchEnd = () => {
-                                        const duration = Date.now() - startTime;
-                                        if (duration >= 500) { // 500ms = long press
-                                            e.preventDefault();
-                                            setShowSaleDetailsModal(true);
-                                        }
-                                    };
-                                    document.addEventListener('touchend', handleTouchEnd, { once: true });
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        window.location.href = '{{ route("car.wash.daily-report") }}';
-                                    }
-                                }}
-                                onClick={() => { window.location.href = '{{ route("car.wash.daily-report") }}'; }}
-                                title="Click to view daily report"
-                                aria-label="Total revenue today. Click to view daily report"
-                            >
-                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
-                                <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
-                                    Rs.{stats && typeof stats.todayRevenue !== 'undefined' ? stats.todayRevenue : 0}
-                                </p>
-                            </button>
-                            <button
-                                type="button"
                                 onClick={() => setShowCashTransferModal(true)}
                                 className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
                                 title="Click to transfer cash"
@@ -3296,12 +3619,230 @@
                             >
                                 <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">ON HAND</p>
                                 <p className="text-xs sm:text-sm font-black text-yellow-400 font-mono truncate" aria-label="Cash on hand amount">
-                                    Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                    Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? Math.round(stats.cashOnHand) : 0}
                                 </p>
                             </button>
                         </div>
                     </header>
-                    
+
+                    {/* Attendance Modal - Mark employee attendance with front camera + GPS */}
+                    {showAttendanceModal && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="attendance-modal-title">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                    <h2 id="attendance-modal-title" className="text-lg font-bold text-slate-900">Attendance</h2>
+                                    <button type="button"                                     onClick={() => {
+                                        setShowAttendanceModal(false);
+                                        setAttendanceCameraReady(false);
+                                        if (attendanceStreamRef.current) {
+                                            attendanceStreamRef.current.getTracks().forEach(t => t.stop());
+                                            attendanceStreamRef.current = null;
+                                        }
+                                        if (attendancePhotoUrl) URL.revokeObjectURL(attendancePhotoUrl);
+                                    }} className="text-slate-500 hover:text-slate-700 p-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">✕</button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                                    {attendanceSuccess ? (
+                                        <div className="text-center py-6">
+                                            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                                                <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 mb-2">Attendance marked successfully</p>
+                                            <button type="button" onClick={() => setShowAttendanceModal(false)} className="mt-4 px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-800">Close</button>
+                                        </div>
+                                    ) : attendanceStep === 'select' ? (
+                                        <>
+                                            <p className="text-sm text-slate-600 mb-3">Select an employee to mark attendance (photo + location required).</p>
+                                            <div className="relative mb-4">
+                                                <input type="text" placeholder="Search employees..." value={attendanceEmployeeSearch} onChange={(e) => setAttendanceEmployeeSearch(e.target.value)} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 pr-10 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                                            </div>
+                                            <div className="border border-slate-200 rounded-xl max-h-48 overflow-y-auto">
+                                                {(() => {
+                                                    const q = (attendanceEmployeeSearch || '').trim().toLowerCase();
+                                                    const filtered = !q ? attendanceEmployees : attendanceEmployees.filter(emp => {
+                                                        const name = (emp.name || '').toLowerCase();
+                                                        const id = String(emp.employeeId || emp.id || '').toLowerCase();
+                                                        const typeStr = (emp.type === 'user' ? 'user' : emp.type === 'worker' ? 'worker' : '').toLowerCase();
+                                                        return name.includes(q) || id.includes(q) || typeStr.includes(q);
+                                                    });
+                                                    return filtered.length > 0 ? filtered.map(emp => (
+                                                        <button key={emp.id} type="button" onClick={() => setSelectedAttendanceEmployee(emp)} className={`w-full text-left px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selectedAttendanceEmployee && selectedAttendanceEmployee.id === emp.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
+                                                            <span className="font-semibold text-slate-900">{emp.name}</span>
+                                                            <span className="text-slate-500 text-sm ml-2">ID: {emp.employeeId}</span>
+                                                            {emp.type && <span className="text-slate-400 text-xs ml-1">({emp.type === 'user' ? 'User' : 'Worker'})</span>}
+                                                        </button>
+                                                    )) : attendanceEmployees.length === 0 ? <p className="px-4 py-6 text-slate-500 text-center">No employees found. Add workers (Staff) or ensure your branch has users.</p> : <p className="px-4 py-6 text-slate-500 text-center">No employees match &quot;{attendanceEmployeeSearch.trim()}&quot;</p>;
+                                                })()}
+                                            </div>
+                                            <button type="button" disabled={!selectedAttendanceEmployee} onClick={() => { setAttendanceStep('camera'); setAttendanceCameraError(null); setAttendancePermissionError(null); }} className="mt-4 w-full py-3 rounded-xl font-bold bg-blue-600 text-white disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Mark Attendance</button>
+                                        </>
+                                    ) : attendanceStep === 'camera' ? (
+                                        <>
+                                            <p className="text-sm text-slate-600 mb-3">Capture a photo using your front camera (selfie). No gallery — live capture only.</p>
+                                            {attendancePermissionError && (
+                                                <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                                                    <p className="font-semibold">Permission needed</p>
+                                                    <p>{attendancePermissionError}</p>
+                                                    <p className="mt-2">Please allow camera in your browser or device settings, then retry.</p>
+                                                </div>
+                                            )}
+                                            {attendanceCameraError && (
+                                                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+                                                    <p>{attendanceCameraError}</p>
+                                                    <button type="button" onClick={() => { setAttendanceCameraError(null); setAttendanceStep('camera'); }} className="mt-2 text-red-600 font-semibold underline">Retry camera</button>
+                                                </div>
+                                            )}
+                                            <div className="relative rounded-xl overflow-hidden bg-slate-900 aspect-[3/4] max-h-80 mx-auto">
+                                                <video ref={attendanceVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1]" style=@{{ display: attendanceCameraReady ? 'block' : 'none' }} />
+                                                {!attendanceCameraReady && !attendanceCameraError && !attendancePermissionError && (
+                                                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                                                        <button type="button" onClick={async () => {
+                                                            try {
+                                                                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                                                                attendanceStreamRef.current = stream;
+                                                                if (attendanceVideoRef.current) { attendanceVideoRef.current.srcObject = stream; }
+                                                                setAttendanceCameraReady(true);
+                                                                setAttendancePermissionError(null);
+                                                                setAttendanceCameraError(null);
+                                                            } catch (err) {
+                                                                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                                                                    setAttendancePermissionError('Camera access was denied. Please allow camera and try again.');
+                                                                } else {
+                                                                    setAttendanceCameraError(err.message || 'Could not open camera. Please retry.');
+                                                                }
+                                                            }
+                                                        }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold">Open camera</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2 mt-4">
+                                                <button type="button" onClick={() => { setAttendanceStep('select'); setAttendanceCameraReady(false); if (attendanceStreamRef.current) { attendanceStreamRef.current.getTracks().forEach(t => t.stop()); attendanceStreamRef.current = null; } }} className="flex-1 py-2.5 rounded-xl font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50">Back</button>
+                                                <button type="button" disabled={!attendanceCameraReady} onClick={() => {
+                                                    const video = attendanceVideoRef.current;
+                                                    const canvas = attendanceCanvasRef.current || document.createElement('canvas');
+                                                    if (!video || !video.videoWidth) return;
+                                                    canvas.width = video.videoWidth;
+                                                    canvas.height = video.videoHeight;
+                                                    const ctx = canvas.getContext('2d');
+                                                    ctx.save();
+                                                    ctx.scale(-1, 1);
+                                                    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                                                    ctx.restore();
+                                                    canvas.toBlob((blob) => {
+                                                        setAttendanceCameraReady(false);
+                                                        if (attendanceStreamRef.current) { attendanceStreamRef.current.getTracks().forEach(t => t.stop()); attendanceStreamRef.current = null; }
+                                                        if (attendancePhotoUrl) URL.revokeObjectURL(attendancePhotoUrl);
+                                                        setAttendancePhotoBlob(blob);
+                                                        setAttendancePhotoUrl(blob ? URL.createObjectURL(blob) : null);
+                                                        setAttendanceLocation(null);
+                                                        setAttendanceLocationError(null);
+                                                        setAttendanceAccuracyWarning(false);
+                                                        setAttendanceLocationLoading(true);
+                                                        const opts = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+                                                        navigator.geolocation.getCurrentPosition(
+                                                            (pos) => {
+                                                                const lat = pos.coords.latitude;
+                                                                const lng = pos.coords.longitude;
+                                                                const accuracy = pos.coords.accuracy != null ? pos.coords.accuracy : 0;
+                                                                const capturedAt = new Date().toISOString();
+                                                                const mapsLink = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+                                                                let address = '';
+                                                                fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json', { headers: { 'Accept': 'application/json' } })
+                                                                    .then(r => r.json())
+                                                                    .then(rev => { if (rev && rev.display_name) setAttendanceLocation(prev => prev ? { ...prev, address: rev.display_name } : { lat, lng, accuracy, address: rev.display_name, mapsLink, capturedAt, isMockLocationDetected: false }); })
+                                                                    .catch(() => {});
+                                                                setAttendanceLocation({ lat, lng, accuracy, address, mapsLink, capturedAt, isMockLocationDetected: false });
+                                                                setAttendanceLocationLoading(false);
+                                                                setAttendanceAccuracyWarning(accuracy > 50);
+                                                            },
+                                                            (err) => {
+                                                                setAttendanceLocationLoading(false);
+                                                                if (err.code === 1) setAttendanceLocationError('Location denied. Please allow location access to submit attendance.');
+                                                                else if (err.code === 3) setAttendanceLocationError('Location timed out. Please retry.');
+                                                                else setAttendanceLocationError(err.message || 'Could not get location.');
+                                                            }
+                                                        );
+                                                        setAttendanceStep('confirm');
+                                                    }, 'image/jpeg', 0.9);
+                                                }} className="flex-1 py-2.5 rounded-xl font-bold bg-blue-600 text-white disabled:bg-slate-300 hover:bg-blue-700">Capture</button>
+                                            </div>
+                                        </>
+                                    ) : attendanceStep === 'confirm' && (
+                                        <>
+                                            <p className="text-sm text-slate-600 mb-3">Confirm and submit attendance.</p>
+                                            {attendancePhotoUrl && <img src={attendancePhotoUrl} alt="Captured" className="w-full max-h-48 object-cover rounded-xl border border-slate-200 mb-4" />}
+                                            {attendanceLocationLoading && <p className="text-slate-600 py-2">Getting location…</p>}
+                                            {attendanceLocationError && (
+                                                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+                                                    <p>{attendanceLocationError}</p>
+                                                    <button type="button" onClick={() => {
+                                                        setAttendanceLocationError(null);
+                                                        setAttendanceLocationLoading(true);
+                                                        navigator.geolocation.getCurrentPosition(
+                                                            (pos) => {
+                                                                const lat = pos.coords.latitude;
+                                                                const lng = pos.coords.longitude;
+                                                                const accuracy = pos.coords.accuracy != null ? pos.coords.accuracy : 0;
+                                                                const capturedAt = new Date().toISOString();
+                                                                const mapsLink = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+                                                                setAttendanceLocation({ lat, lng, accuracy, address: '', mapsLink, capturedAt, isMockLocationDetected: false });
+                                                                setAttendanceLocationLoading(false);
+                                                                setAttendanceAccuracyWarning(accuracy > 50);
+                                                                setAttendanceLocationError(null);
+                                                            },
+                                                            (err) => {
+                                                                setAttendanceLocationLoading(false);
+                                                                setAttendanceLocationError(err.code === 1 ? 'Location denied.' : err.code === 3 ? 'Location timed out.' : err.message);
+                                                            },
+                                                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                                                        );
+                                                    }} className="mt-2 text-red-600 font-semibold underline">Retry location</button>
+                                                </div>
+                                            )}
+                                            {attendanceLocation && !attendanceLocationLoading && (
+                                                <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 space-y-1">
+                                                    <p><strong>Lat:</strong> {attendanceLocation.lat} <strong>Lng:</strong> {attendanceLocation.lng}</p>
+                                                    <p><strong>Accuracy:</strong> {attendanceLocation.accuracy != null ? attendanceLocation.accuracy.toFixed(0) : '—'} m</p>
+                                                    {attendanceLocation.address && <p><strong>Address:</strong> {attendanceLocation.address}</p>}
+                                                    <a href={attendanceLocation.mapsLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Open in Google Maps</a>
+                                                    {attendanceAccuracyWarning && <p className="text-amber-700 font-semibold mt-2">Location accuracy is weak (&gt;50m). Please retry location if possible.</p>}
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 mt-4">
+                                                <button type="button" onClick={() => { setAttendanceStep('camera'); setAttendancePhotoBlob(null); if (attendancePhotoUrl) URL.revokeObjectURL(attendancePhotoUrl); setAttendancePhotoUrl(null); setAttendanceLocation(null); setAttendanceLocationError(null); setAttendanceAccuracyWarning(false); }} className="flex-1 py-2.5 rounded-xl font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50">Back</button>
+                                                <button type="button" disabled={!attendanceLocation || attendanceSubmitting} onClick={async () => {
+                                                    if (!attendanceLocation || !attendancePhotoBlob || !selectedAttendanceEmployee) return;
+                                                    setAttendanceSubmitting(true);
+                                                    const form = new FormData();
+                                                    form.append('type', selectedAttendanceEmployee.type || 'worker');
+                                                    form.append('employeeId', selectedAttendanceEmployee.employeeId);
+                                                    form.append('photo', attendancePhotoBlob, 'attendance.jpg');
+                                                    form.append('lat', attendanceLocation.lat);
+                                                    form.append('lng', attendanceLocation.lng);
+                                                    form.append('accuracy', String(attendanceLocation.accuracy != null ? attendanceLocation.accuracy : 0));
+                                                    form.append('address', attendanceLocation.address || '');
+                                                    form.append('mapsLink', attendanceLocation.mapsLink || '');
+                                                    form.append('capturedAt', attendanceLocation.capturedAt || new Date().toISOString());
+                                                    form.append('isMockLocationDetected', attendanceLocation.isMockLocationDetected ? '1' : '0');
+                                                    const deviceInfo = { userAgent: navigator.userAgent };
+                                                    form.append('deviceInfo[userAgent]', deviceInfo.userAgent);
+                                                    form.append('_token', csrfToken);
+                                                    try {
+                                                        const res = await fetch(API_ROUTES.attendance.store, { method: 'POST', body: form, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                        const data = await res.json();
+                                                        if (data.success) { setAttendanceSuccess(true); } else { alert(data.message || 'Failed to save attendance.'); }
+                                                    } catch (e) { alert('Network error. Please try again.'); }
+                                                    setAttendanceSubmitting(false);
+                                                }} className="flex-1 py-2.5 rounded-xl font-bold bg-blue-600 text-white disabled:bg-slate-300 hover:bg-blue-700">{attendanceSubmitting ? 'Submitting…' : 'Submit'}</button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <main id="main-content" className="p-3 sm:p-4 md:p-5" role="main" aria-label="Main content">
                         {view === 'dashboard' && (
                             <div className="space-y-8 animate-in fade-in duration-500" role="region" aria-label="Dashboard">
@@ -3704,6 +4245,10 @@
                                     const job = activeJobs.find(j => j.id === completeModalJobId);
                                     if (!job) return null;
                                     
+                                    // Whether this job's service requires inspection before completion
+                                    const jobService = allServices.find(s => s.label === job.service);
+                                    const inspectionCompulsoryForJob = jobService ? (jobService.inspection_compulsory !== false) : true;
+                                    
                                     // Get expense items for this job (from expenseItems state or from backend)
                                     const currentJobExpenseItems = expenseItems || {};
                                     const currentJobCustomExpenses = customExpenses || [];
@@ -3729,7 +4274,7 @@
                                     
                                     // Function to handle modal close attempt
                                     const handleCloseAttempt = () => {
-                                        if (!allItemsRated) {
+                                        if (inspectionCompulsoryForJob && !allItemsRated) {
                                             alert('Please complete all inspection items before closing. All inspection comments must be passed.');
                                             return false;
                                         }
@@ -3787,8 +4332,8 @@
                                                 
                                                 {/* Rating Section */}
                                                 <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
-                                                    {/* Inspection Validation Message */}
-                                                    {!allItemsRated && (
+                                                    {/* Inspection Validation Message - only when service has inspection compulsory */}
+                                                    {inspectionCompulsoryForJob && !allItemsRated && (
                                                         <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl">
                                                             <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                                                                 <span className="text-lg sm:text-xl flex-shrink-0">⚠️</span>
@@ -4050,9 +4595,9 @@
                                                 {/* Footer */}
                                                 <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
-                                                        onClick={async () => {
-                                                            // Check if all inspection items are rated
-                                                            if (!allItemsRated) {
+                                                            onClick={async () => {
+                                                            // Check inspection only when service has inspection compulsory
+                                                            if (inspectionCompulsoryForJob && !allItemsRated) {
                                                                 alert('Please complete all inspection items before completing the job. All inspection comments must be passed.');
                                                                 return;
                                                             }
@@ -4228,14 +4773,14 @@
                                                         }
                                                     }}
                                                         className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
-                                                            allItemsRated && (paymentMethod !== 'bank' || selectedBankId) 
+                                                            (inspectionCompulsoryForJob ? allItemsRated : true) && (paymentMethod !== 'bank' || selectedBankId) 
                                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700' 
                                                                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                                         }`}
-                                                        disabled={!allItemsRated || (paymentMethod === 'bank' && !selectedBankId)}
+                                                        disabled={(inspectionCompulsoryForJob ? !allItemsRated : false) || (paymentMethod === 'bank' && !selectedBankId)}
                                                     >
                                                         <span className="hidden sm:inline">
-                                                            {!allItemsRated 
+                                                            {(inspectionCompulsoryForJob && !allItemsRated) 
                                                                 ? 'Complete All Inspections First' 
                                                                 : (paymentMethod === 'bank' && !selectedBankId)
                                                                     ? 'Select Bank Account First'
@@ -4243,7 +4788,7 @@
                                                             }
                                                         </span>
                                                         <span className="sm:hidden">
-                                                            {!allItemsRated 
+                                                            {(inspectionCompulsoryForJob && !allItemsRated) 
                                                                 ? 'Complete Inspections' 
                                                                 : (paymentMethod === 'bank' && !selectedBankId)
                                                                     ? 'Select Account'
@@ -4942,6 +5487,7 @@
                                                                     
                                                                     console.log('Refreshment expense saved to backend:', result);
                                                                     
+                                                                    setActiveJobs(prev => prev.map(j => j.id === expenseModalJobId ? { ...j, expenseTotalAmount: totalAmount } : j));
                                                                     alert(`Refreshment expense of Rs.${totalAmount} saved successfully!`);
                                                                     setExpenseModalJobId(null);
                                                                     setExpenseItems({});
@@ -5238,7 +5784,7 @@
                                             <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
                                                 <div className="flex items-center justify-between gap-2 sm:gap-4">
                                                     <div className="flex-1 min-w-0">
-                                                        <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Money Transfer</h2>
+                                                        <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Cash Transfer</h2>
                                                         <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1">Transfer money to different accounts</p>
                                                     </div>
                                                     <button
@@ -5256,58 +5802,9 @@
                                                 </div>
                                             </div>
                                             
-                                            {/* Tabs */}
-                                            <div className="flex border-b border-slate-200 bg-slate-50">
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        setTransferTab('cash');
-                                                        setSelectedTransferMethod(null);
-                                                        setSelectedUserId(null);
-                                                        // Load branch users when switching to cash tab
-                                                        try {
-                                                            const response = await fetch(API_ROUTES.payments.branchUsers, {
-                                                                headers: {
-                                                                    'Accept': 'application/json',
-                                                                    'X-Requested-With': 'XMLHttpRequest'
-                                                                }
-                                                            });
-                                                            const data = await response.json();
-                                                            if (data.success && data.users) {
-                                                                setBranchUsers(data.users);
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error loading branch users:', error);
-                                                        }
-                                                    }}
-                                                    className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
-                                                        transferTab === 'cash'
-                                                            ? 'bg-yellow-500 text-white border-b-2 border-yellow-600'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    Cash
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setTransferTab('bank');
-                                                        setSelectedTransferMethod(null);
-                                                        setSelectedBankAccountId(null);
-                                                    }}
-                                                    className={`flex-1 px-3 py-2.5 text-xs sm:text-sm font-black uppercase transition-colors ${
-                                                        transferTab === 'bank'
-                                                            ? 'bg-blue-500 text-white border-b-2 border-blue-600'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                    }`}
-                                                >
-                                                    Bank
-                                                </button>
-                                            </div>
-                                            
                                             {/* Content */}
                                             <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
-                                                {transferTab === 'cash' ? (
+                                                {(
                                                     <>
                                                         {/* Available Cash */}
                                                         <div className="mb-4 sm:mb-5 bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-yellow-200">
@@ -5335,7 +5832,11 @@
                                                         <div className="mb-4 sm:mb-5">
                                                             <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Cash Transfer Method</label>
                                                             <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
-                                                                {transferMethods.filter(method => method.type === 'cash').map((method) => (
+                                                                {transferMethods.filter(method => {
+                                                                    // Show admin cash for ALL users (so they can transfer to admin)
+                                                                    // Admin cash should always be visible
+                                                                    return method.type === 'cash';
+                                                                }).map((method) => (
                                                                     <button
                                                                         key={method.id}
                                                                         type="button"
@@ -5436,174 +5937,7 @@
                                                             </div>
                                                         )}
                                                     </>
-                                                ) : transferTab === 'bank' ? (
-                                                    <>
-                                                        {/* Bank Account Balance */}
-                                                        <div className="mb-4 sm:mb-5 bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-blue-200">
-                                                            {selectedBankAccountId ? (() => {
-                                                                const selectedAccount = bankAccounts.find(a => a.id === selectedBankAccountId);
-                                                                return selectedAccount ? (
-                                                                    <>
-                                                                        <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Bank Account Balance</div>
-                                                                        <div className="text-lg sm:text-xl font-bold text-blue-600 mb-1">{selectedAccount.bankName}</div>
-                                                                        {selectedAccount.accountTitle && (
-                                                                            <div className="text-[10px] sm:text-xs text-blue-600 mb-1">Title: {selectedAccount.accountTitle}</div>
-                                                                        )}
-                                                                        {selectedAccount.accountNumber && (
-                                                                            <div className="text-[10px] sm:text-xs text-blue-600 font-mono mb-2">Account: {selectedAccount.accountNumber}</div>
-                                                                        )}
-                                                                        <div className="text-2xl sm:text-3xl font-black text-blue-600 font-mono">
-                                                                            Rs.{typeof selectedAccount.balance !== 'undefined' ? parseFloat(selectedAccount.balance || 0).toFixed(2) : '0.00'}
-                                                                        </div>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Select Bank Account</div>
-                                                                        <div className="text-sm text-blue-600">Please select a bank account to view balance</div>
-                                                                    </>
-                                                                );
-                                                            })() : (
-                                                                <>
-                                                                    <div className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-1">Select Bank Account</div>
-                                                                    <div className="text-sm text-blue-600">Please select a bank account below to view balance</div>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                        
-                                                        {/* Transfer Amount */}
-                                                        <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer Amount</label>
-                                                            <input
-                                                                type="number"
-                                                                value={transferAmount}
-                                                                onChange={(e) => setTransferAmount(e.target.value)}
-                                                                placeholder="Enter amount"
-                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-blue-500 focus:outline-none font-mono"
-                                                                min="0"
-                                                                max={stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
-                                                            />
-                                                        </div>
-                                                        
-                                                        {/* Bank Accounts - Show User's Bank Accounts */}
-                                                        <div className="mb-4 sm:mb-5">
-                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Bank Account</label>
-                                                            {(bankAccounts || []).length === 0 ? (
-                                                                <div className="text-center py-4 text-slate-500 text-sm bg-slate-50 rounded-xl border-2 border-slate-200">
-                                                                    <p className="mb-2">No bank accounts found</p>
-                                                                    <a href={API_ROUTES.bankAccounts?.create || '#'} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-bold">
-                                                                        Create Bank Account →
-                                                                    </a>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                                                    {(bankAccounts || []).map((account) => (
-                                                                        <button
-                                                                            key={account.id}
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setSelectedBankAccountId(account.id);
-                                                                                setSelectedTransferMethod(null);
-                                                                            }}
-                                                                            className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all text-left ${
-                                                                                selectedBankAccountId === account.id
-                                                                                    ? 'bg-blue-500 text-white border-blue-600 shadow-lg'
-                                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                                                            }`}
-                                                                        >
-                                                                            <div className="font-bold text-sm sm:text-base">{account.bankName}</div>
-                                                                            {account.accountTitle && (
-                                                                                <div className={`text-xs sm:text-sm mt-1 ${
-                                                                                    selectedBankAccountId === account.id ? 'text-blue-100' : 'text-slate-400'
-                                                                                }`}>
-                                                                                    Title: {account.accountTitle}
-                                                                                </div>
-                                                                            )}
-                                                                            {account.accountNumber && (
-                                                                                <div className={`text-xs font-mono mt-0.5 ${
-                                                                                    selectedBankAccountId === account.id ? 'text-blue-100' : 'text-slate-400'
-                                                                                }`}>
-                                                                                    Account: {account.accountNumber}
-                                                                                </div>
-                                                                            )}
-                                                                            <div className={`text-xs sm:text-sm font-bold mt-2 ${
-                                                                                selectedBankAccountId === account.id ? 'text-blue-100' : 'text-slate-600'
-                                                                            }`}>
-                                                                                Balance: Rs.{typeof account.balance !== 'undefined' ? parseFloat(account.balance || 0).toFixed(2) : '0.00'}
-                                                                            </div>
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        
-                                                        {/* Add New Bank Button */}
-                                                        <div className="mb-4 sm:mb-5">
-                                                            <button
-                                                                type="button"
-                                                                onClick={async () => {
-                                                                    const newMethodName = prompt('Enter new bank name:');
-                                                                    if (newMethodName && newMethodName.trim()) {
-                                                                        // Create bank in database
-                                                                        try {
-                                                                            const response = await fetch('{{ route("admin.banks.store") }}', {
-                                                                                method: 'POST',
-                                                                                headers: {
-                                                                                    'Content-Type': 'application/json',
-                                                                                    'X-CSRF-TOKEN': csrfToken,
-                                                                                    'Accept': 'application/json'
-                                                                                },
-                                                                                body: JSON.stringify({
-                                                                                    name: newMethodName.trim(),
-                                                                                    status: true
-                                                                                })
-                                                                            });
-                                                                            
-                                                                            const result = await response.json();
-                                                                            
-                                                                            if (result.success || response.ok) {
-                                                                                // Reload banks from API
-                                                                                const banksResponse = await fetch(API_ROUTES.banks.index, {
-                                                                                    headers: {
-                                                                                        'Accept': 'application/json',
-                                                                                        'X-Requested-With': 'XMLHttpRequest'
-                                                                                    }
-                                                                                });
-                                                                                const banksData = await banksResponse.json();
-                                                                                
-                                                                                if (banksData.success && banksData.banks) {
-                                                                                    const bankMethods = banksData.banks.map(bank => ({
-                                                                                        id: `bank_${bank.id}`,
-                                                                                        name: bank.name,
-                                                                                        icon: bank.icon === 'bank' ? 'bank' : bank.icon,
-                                                                                        type: bank.type,
-                                                                                        balance: bank.balance || 0,
-                                                                                        subtitle: bank.subtitle || '',
-                                                                                        bankId: bank.id
-                                                                                    }));
-                                                                                    
-                                                                                    setTransferMethods([
-                                                                                        { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null },
-                                                                                        ...bankMethods
-                                                                                    ]);
-                                                                                    
-                                                                                    alert('New bank added successfully!');
-                                                                                }
-                                                                            } else {
-                                                                                alert('Error creating bank. Please try again.');
-                                                                            }
-                                                                        } catch (error) {
-                                                                            console.error('Error creating bank:', error);
-                                                                            alert('Error creating bank. Please try again.');
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg sm:rounded-xl text-xs sm:text-sm font-black uppercase transition-colors border-2 border-slate-300"
-                                                            >
-                                                                + Add New Bank
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                ) : null}
+                                                )}
                                             </div>
                                             
                                             {/* Footer */}
@@ -5623,8 +5957,8 @@
                                                             return;
                                                         }
                                                         
-                                                        // Handle user transfer (if user is selected in cash tab)
-                                                        if (transferTab === 'cash' && selectedUserId) {
+                                                        // Handle user transfer (if user is selected)
+                                                        if (selectedUserId) {
                                                             try {
                                                                 const response = await fetch(API_ROUTES.payments.transferToUser, {
                                                                     method: 'POST',
@@ -5666,21 +6000,74 @@
                                                         }
                                                         
                                                         // Handle cash transfer method (if cash method is selected)
-                                                        if (transferTab === 'cash' && !selectedTransferMethod && !selectedUserId) {
+                                                        if (!selectedTransferMethod && !selectedUserId) {
                                                             alert('Please select a cash transfer method or a user to transfer to.');
                                                             return;
                                                         }
                                                         
-                                                        // Handle bank transfer validation
-                                                        if (transferTab === 'bank' && !selectedBankAccountId) {
-                                                            alert('Please select a bank account.');
-                                                            return;
-                                                        }
-                                                        
                                                         // Transfer cash to cash method
-                                                        if (transferTab === 'cash' && selectedTransferMethod) {
+                                                        if (selectedTransferMethod) {
                                                             try {
                                                                 const selectedMethod = transferMethods.find(m => m.id === selectedTransferMethod);
+                                                                
+                                                                // If it's admin_cash, transfer to admin user
+                                                                if (selectedMethod?.id === 'admin_cash') {
+                                                                    // Transfer to admin user (to_user_id null means admin)
+                                                                    const response = await fetch(API_ROUTES.payments.transferToUser, {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                            'Accept': 'application/json'
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            to_user_id: null, // null means transfer to admin
+                                                                            amount: amount,
+                                                                            note: transferNote || `Cash transfer to Admin Cash`
+                                                                        })
+                                                                    });
+                                                                    
+                                                                    const result = await response.json();
+                                                                    
+                                                                    if (!result.success) {
+                                                                        alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    // Refresh cash balance from database after transfer
+                                                                    refreshCashBalance();
+                                                                    
+                                                                    // Refresh admin cash balance
+                                                                    if (API_ROUTES.payments && API_ROUTES.payments.adminCashAccountBalance) {
+                                                                        fetch(API_ROUTES.payments.adminCashAccountBalance, {
+                                                                            headers: {
+                                                                                'Accept': 'application/json',
+                                                                                'X-Requested-With': 'XMLHttpRequest'
+                                                                            }
+                                                                        })
+                                                                            .then(res => res.json())
+                                                                            .then(balanceData => {
+                                                                                if (balanceData.success && balanceData.balance != null) {
+                                                                                    const adminCashBalance = parseFloat(balanceData.balance) || 0;
+                                                                                    setTransferMethods(prev => prev.map(method => 
+                                                                                        method.id === 'admin_cash' 
+                                                                                            ? { ...method, balance: adminCashBalance }
+                                                                                            : method
+                                                                                    ));
+                                                                                }
+                                                                            })
+                                                                            .catch(err => console.error('Error refreshing admin cash balance:', err));
+                                                                    }
+                                                                    
+                                                                    alert(`Rs.${amount} transferred to ${selectedMethod?.name || 'Admin Cash'} successfully!`);
+                                                                    
+                                                                    setShowCashTransferModal(false);
+                                                                    setTransferAmount('');
+                                                                    setSelectedTransferMethod(null);
+                                                                    setSelectedUserId(null);
+                                                                    setTransferNote('');
+                                                                    return;
+                                                                }
                                                                 
                                                                 // If it's a bank transfer (has bankId), save to database
                                                                 if (selectedMethod?.bankId) {
@@ -5733,7 +6120,7 @@
                                                         // Handle bank transfer
                                                         if (transferTab === 'bank' && selectedBankAccountId) {
                                                             try {
-                                                                const selectedAccount = bankAccounts.find(a => a.id === selectedBankAccountId);
+                                                                const selectedAccount = transferBankAccounts.find(a => a.id === selectedBankAccountId);
                                                                 
                                                                 const response = await fetch(API_ROUTES.cashTransfers.store, {
                                                                     method: 'POST',
@@ -5778,16 +6165,257 @@
                                                         }
                                                     }}
                                                     className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
-                                                        transferTab === 'cash'
-                                                            ? selectedUserId 
+                                                        selectedUserId 
                                                                 ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
                                                                 : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
-                                                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
                                                     }`}
                                                 >
-                                                    {transferTab === 'cash' 
-                                                        ? (selectedUserId ? 'Transfer to User' : 'Transfer Cash')
-                                                        : 'Transfer to Bank'}
+                                                    {selectedUserId ? 'Transfer to User' : 'Transfer Cash'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Bank Transfer Modal - Dedicated */}
+                                {showBankTransferModal && (
+                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => {
+                                        setShowBankTransferModal(false);
+                                        setSelectedBankAccountId(null);
+                                        setBankTransferAmount('');
+                                        setBankTransferNote('');
+                                        setShowBankAccountDropdown(false);
+                                    }}>
+                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="p-4 sm:p-5 bg-gradient-to-r from-purple-500 to-purple-600 text-white flex justify-between items-center flex-shrink-0">
+                                                <div>
+                                                    <h3 className="text-lg sm:text-xl font-black uppercase">Bank Transfer</h3>
+                                                    <p className="text-xs sm:text-sm opacity-90 mt-1">Transfer cash to bank account</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowBankTransferModal(false);
+                                                        setSelectedBankAccountId(null);
+                                                        setBankTransferAmount('');
+                                                        setBankTransferNote('');
+                                                        setShowBankAccountDropdown(false);
+                                                    }}
+                                                    className="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <div className="p-4 sm:p-5 overflow-y-auto flex-1">
+                                                {/* Bank Account Balance - Logged in user's bank accounts total */}
+                                                <div className="mb-5 bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border-2 border-purple-200">
+                                                    <div className="text-xs sm:text-sm font-bold text-purple-700 uppercase mb-1">Bank Account Balance</div>
+                                                    <div className="text-2xl sm:text-3xl font-black text-purple-600 font-mono">
+                                                        Rs.{(() => {
+                                                            // Show total of logged-in user's bank accounts
+                                                            const userBankBalance = bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                            return userBankBalance > 0 ? Math.round(userBankBalance) : 0;
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Transfer Amount */}
+                                                <div className="mb-5">
+                                                    <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer Amount</label>
+                                                    <input
+                                                        type="number"
+                                                        value={bankTransferAmount}
+                                                        onChange={(e) => {
+                                                            // Allow any input - no restrictions while typing
+                                                            setBankTransferAmount(e.target.value);
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            // Validate only when user leaves the field
+                                                            const val = parseFloat(e.target.value);
+                                                            if (isNaN(val) || val < 0) {
+                                                                setBankTransferAmount('0');
+                                                                return;
+                                                            }
+                                                            // Use cashOnHand or reportCashOnHand, whichever is available
+                                                            const cashBal = stats && typeof stats.cashOnHand !== 'undefined' && stats.cashOnHand > 0 
+                                                                ? stats.cashOnHand 
+                                                                : (stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 999999999);
+                                                            if (val > cashBal && cashBal < 999999999) {
+                                                                setBankTransferAmount(String(Math.round(cashBal)));
+                                                                alert(`Amount cannot exceed available cash balance (Rs.${Math.round(cashBal)})`);
+                                                            }
+                                                        }}
+                                                        placeholder="Enter amount"
+                                                        className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none font-mono"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                
+                                                {/* Transfer To Bank Account */}
+                                                <div className="mb-5 relative bank-account-dropdown-container">
+                                                    <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer To Bank Account</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowBankAccountDropdown(!showBankAccountDropdown)}
+                                                        className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-purple-500 focus:outline-none text-left bg-white flex items-center justify-between"
+                                                    >
+                                                        <span className="text-sm leading-relaxed">
+                                                            {selectedBankAccountId ? (() => {
+                                                                const selected = transferBankAccounts.find(acc => acc.id == selectedBankAccountId);
+                                                                return (
+                                                                    <>
+                                                                        <span className="block font-bold text-slate-800">{selected?.bankName || 'Bank Account'}</span>
+                                                                        <span className="block text-slate-700">{selected?.accountTitle || ''}</span>
+                                                                        <span className="block text-slate-600">{selected?.accountNumber || ''}</span>
+                                                                    </>
+                                                                );
+                                                            })() : (
+                                                                <>
+                                                                    <span className="block font-bold text-slate-800">Select Bank Account</span>
+                                                                    <span className="block text-slate-700"></span>
+                                                                    <span className="block text-slate-600"></span>
+                                                                </>
+                                                            )}
+                                                        </span>
+                                                        <svg className="w-5 h-5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </button>
+                                                    {showBankAccountDropdown && (
+                                                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-slate-300 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
+                                                            {transferBankAccounts.length === 0 ? (
+                                                                <div className="p-4 text-center text-slate-500 text-sm">No bank accounts found</div>
+                                                            ) : (
+                                                                transferBankAccounts.map((account) => (
+                                                                    <button
+                                                                        key={account.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setSelectedBankAccountId(account.id);
+                                                                            setShowBankAccountDropdown(false);
+                                                                        }}
+                                                                        className="w-full px-4 py-3 text-left border-b border-slate-100 hover:bg-purple-50 focus:bg-purple-50 focus:outline-none"
+                                                                    >
+                                                                        <span className="block font-bold text-slate-800 text-sm">{account.bankName || 'Bank Account'}</span>
+                                                                        <span className="block text-slate-700 text-sm">{account.accountTitle || ''}</span>
+                                                                        <span className="block text-slate-600 text-sm">{account.accountNumber || ''}</span>
+                                                                    </button>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Transfer Note */}
+                                                <div className="mb-5">
+                                                    <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Note (Optional)</label>
+                                                    <textarea
+                                                        value={bankTransferNote}
+                                                        onChange={(e) => setBankTransferNote(e.target.value)}
+                                                        rows="2"
+                                                        placeholder="Add a note about this transfer"
+                                                        className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none resize-none"
+                                                    />
+                                                </div>
+                                                
+                                                {/* Transfer Button */}
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        const amount = parseFloat(bankTransferAmount);
+                                                        if (!amount || amount <= 0) {
+                                                            alert('Please enter a valid amount');
+                                                            return;
+                                                        }
+                                                        if (!selectedBankAccountId) {
+                                                            alert('Please select a bank account to transfer to');
+                                                            return;
+                                                        }
+                                                        
+                                                        // Load fresh cash balance from API before transfer
+                                                        let currentCashBalance = 0;
+                                                        try {
+                                                            const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
+                                                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                                                            });
+                                                            if (cashRes.ok) {
+                                                                const cashData = await cashRes.json();
+                                                                if (cashData.balance != null) {
+                                                                    currentCashBalance = parseFloat(cashData.balance) || 0;
+                                                                    // Update stats
+                                                                    setStats(prev => ({
+                                                                        ...prev,
+                                                                        cashOnHand: currentCashBalance,
+                                                                        reportCashOnHand: currentCashBalance
+                                                                    }));
+                                                                }
+                                                            }
+                                                        } catch (e) {
+                                                            console.error('Error loading cash balance:', e);
+                                                            // Use stats as fallback
+                                                            currentCashBalance = stats && typeof stats.cashOnHand !== 'undefined' && stats.cashOnHand > 0 
+                                                                ? stats.cashOnHand 
+                                                                : (stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 0);
+                                                        }
+                                                        
+                                                        // Validate against fresh cash balance
+                                                        if (currentCashBalance > 0 && amount > currentCashBalance) {
+                                                            alert(`Amount cannot exceed available cash balance (Rs.${Math.round(currentCashBalance)})`);
+                                                            return;
+                                                        }
+                                                        
+                                                        setBankTransferLoading(true);
+                                                        try {
+                                                            const res = await fetch(API_ROUTES.cashTransfers.store, {
+                                                                method: 'POST',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    'X-CSRF-TOKEN': csrfToken,
+                                                                    'Accept': 'application/json'
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    bank_account_id: selectedBankAccountId,
+                                                                    amount: amount,
+                                                                    notes: bankTransferNote || null
+                                                                })
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.success) {
+                                                                const selectedAccount = transferBankAccounts.find(acc => acc.id == selectedBankAccountId);
+                                                                const accountName = selectedAccount ? (selectedAccount.bankName || 'Bank Account') : 'Bank Account';
+                                                                alert(`Rs.${Math.round(amount)} transferred to ${accountName} successfully!`);
+                                                                setShowBankTransferModal(false);
+                                                                setSelectedBankAccountId(null);
+                                                                setBankTransferAmount('');
+                                                                setBankTransferNote('');
+                                                                setShowBankAccountDropdown(false);
+                                                                // Refresh balances
+                                                                refreshCashBalance();
+                                                                fetchBankAccounts();
+                                                            } else {
+                                                                const errorMsg = data.message || data.error || 'Failed to transfer to bank';
+                                                                console.error('Transfer error:', data);
+                                                                alert('Error: ' + errorMsg);
+                                                            }
+                                                        } catch (e) {
+                                                            console.error('Error transferring to bank:', e);
+                                                            let errorMsg = 'Error transferring to bank. Please try again.';
+                                                            if (e.message) {
+                                                                errorMsg += '\n' + e.message;
+                                                            }
+                                                            alert(errorMsg);
+                                                        } finally {
+                                                            setBankTransferLoading(false);
+                                                        }
+                                                    }}
+                                                    disabled={bankTransferLoading || !selectedBankAccountId || !bankTransferAmount || parseFloat(bankTransferAmount) <= 0}
+                                                    className="w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-black uppercase transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {bankTransferLoading ? 'Transferring...' : 'Transfer to Bank'}
                                                 </button>
                                             </div>
                                         </div>
@@ -7129,9 +7757,9 @@
                                                     onClick={() => {
                                                         setSelectedService(category);
                                                         setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                            // Parse base price as number and format to 2 decimal places
+                                                        setServiceQuantity(1);
                                                             const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
-                                                            setFormData({ ...formData, price: Math.round(basePrice) });
+                                                            setFormData({ ...formData, price: Math.round(basePrice * 1) });
                                                         setView('entry');
                                                     }}
                                                 >
@@ -7249,6 +7877,9 @@
                                                             </div>
                                                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
                                                                 {(() => {
+                                                                    const jobServiceForInspection = allServices.find(s => s.label === job.service);
+                                                                    const inspectionCompulsoryForThisJob = jobServiceForInspection ? (jobServiceForInspection.inspection_compulsory !== false) : true;
+                                                                    if (!inspectionCompulsoryForThisJob) return null;
                                                                     const inspectionCompleted = completedInspections.has(job.id);
                                                                     const jobStarted = job.startTime && job.startTime !== null;
                                                                     const shouldBlink = jobStarted && !inspectionCompleted;
@@ -7280,9 +7911,12 @@
                                                                         setExpenseItems({});
                                                                         setCustomExpenses([]);
                                                                     }}
-                                                                    className="bg-orange-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-md flex-shrink-0"
+                                                                    className={`${(job.expenseTotalAmount || 0) > 0 ? 'bg-rose-600 hover:bg-rose-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-colors shadow-md flex-shrink-0 flex flex-col items-center justify-center gap-0.5`}
                                                                 >
-                                                                    EXPENSE
+                                                                    <span>EXPENSE</span>
+                                                                    {(job.expenseTotalAmount || 0) > 0 && (
+                                                                        <span className="text-[7px] sm:text-[8px] font-mono opacity-95">Rs {Math.round(Number(job.expenseTotalAmount))}</span>
+                                                                    )}
                                                                 </button>
                                                                 <button
                                                                     onClick={() => {
@@ -7503,30 +8137,80 @@
                                     setMediaRecorder(null);
                                     setRecognition(null);
                                 }} className="space-y-4 sm:space-y-5 md:space-y-6">
-                                    <div className="p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] bg-slate-50 shadow-inner text-center">
-                                        <input
-                                            required
-                                            className="w-full bg-transparent p-1.5 sm:p-2 font-black uppercase text-2xl sm:text-3xl md:text-4xl text-center font-mono outline-none text-slate-900"
-                                            placeholder="ABC-123"
-                                            value={formData.vehicleNo}
-                                            onChange={(e) => {
-                                                let value = e.target.value.toUpperCase().replace(/\s/g, '-');
-                                                setFormData({ ...formData, vehicleNo: value });
-                                            }}
-                                        />
+                                    <div className="p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] bg-slate-50 shadow-inner text-center relative">
+                                        <div className="relative">
+                                            <input
+                                                required
+                                                className="w-full bg-transparent p-1.5 sm:p-2 font-black uppercase text-2xl sm:text-3xl md:text-4xl text-center font-mono outline-none text-slate-900"
+                                                placeholder="ABC-123"
+                                                value={formData.vehicleNo}
+                                                onChange={(e) => {
+                                                    let value = e.target.value.toUpperCase().replace(/\s/g, '-');
+                                                    setFormData({ ...formData, vehicleNo: value });
+                                                }}
+                                                onFocus={() => { if (plateSuggestions.length > 0) setShowPlateDropdown(true); }}
+                                                onBlur={() => { setTimeout(() => setShowPlateDropdown(false), 200); }}
+                                            />
+                                            {showPlateDropdown && plateSuggestions.length > 0 && (
+                                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                    {plateSuggestions.map((s, i) => (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            className="w-full text-left px-3 py-2.5 hover:bg-slate-100 border-b border-slate-100 last:border-0 font-mono text-sm"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                const vehicleNo = (s.vehicleNo || '').trim();
+                                                                const customerName = (s.customerName || '').trim();
+                                                                const mobile = (s.mobile || '').replace(/\D/g, '').slice(0, 11);
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    vehicleNo: vehicleNo || prev.vehicleNo,
+                                                                    customerName: customerName || prev.customerName,
+                                                                    mobile: mobile
+                                                                }));
+                                                                setShowPlateDropdown(false);
+                                                                const nameInput = customerNameInputRef.current || document.getElementById('customerNameInput');
+                                                                if (nameInput) {
+                                                                    nameInput.value = customerName;
+                                                                    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                                                }
+                                                            }}
+                                                        >
+                                                            <span className="font-black text-slate-800">{s.vehicleNo}</span>
+                                                            {(s.customerName || s.mobile) && (
+                                                                <span className="block text-[10px] text-slate-500 mt-0.5">{s.customerName || ''} {s.mobile ? ' • ' + s.mobile : ''}</span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                         <p className="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 mt-1.5 sm:mt-2 tracking-widest">VEHICLE PLATE NUMBER</p>
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                if (formData.vehicleNo) {
-                                                    alert('Vehicle selected: ' + formData.vehicleNo);
-                                                } else {
-                                                    alert('Please enter vehicle plate number');
+                                                const v = (formData.vehicleNo || '').trim().toUpperCase();
+                                                if (!v) {
+                                                    alert('Please enter vehicle plate number first');
+                                                    return;
                                                 }
+                                                setVehicleHistoryLoading(true);
+                                                setShowVehicleHistoryModal(true);
+                                                const url = API_ROUTES.jobs.vehicleHistory + '?vehicle_no=' + encodeURIComponent(v);
+                                                fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                                    .then(res => res.json())
+                                                    .then(data => {
+                                                        setVehicleHistoryLoading(false);
+                                                        if (data.success && data.jobs) setVehicleHistoryJobs(data.jobs);
+                                                        else setVehicleHistoryJobs([]);
+                                                    })
+                                                    .catch(() => { setVehicleHistoryLoading(false); setVehicleHistoryJobs([]); });
                                             }}
-                                            className="mt-3 sm:mt-4 bg-blue-600 text-white px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl sm:rounded-2xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-blue-700 transition-colors shadow-lg"
+                                            className="mt-3 sm:mt-4 bg-slate-700 text-white px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl sm:rounded-2xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-slate-800 transition-colors shadow-lg"
                                         >
-                                            SELECT VEHICLE
+                                            Transaction history (last 2 months)
                                         </button>
                                     </div>
                                     
@@ -8297,6 +8981,34 @@
                                                             Rs. {selectedService.basePrice || selectedService.base_price || 0}
                                                         </span>
                                                     </div>
+                                                    {/* Quantity dropdown: only for Per Foot services; base price × quantity = total */}
+                                                    {(selectedService.is_per_foot === true || selectedService.isPerFoot === true) && (
+                                                    <div className="mt-3 sm:mt-3.5 md:mt-4 pt-3 sm:pt-3.5 md:pt-4 border-t border-slate-200">
+                                                        <label className="block text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Quantity</label>
+                                                        <select
+                                                            value={serviceQuantity}
+                                                            onChange={(e) => {
+                                                                const q = parseInt(e.target.value, 10) || 1;
+                                                                setServiceQuantity(q);
+                                                                const basePrice = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
+                                                                let total = basePrice * q;
+                                                                selectedAdditionalPrices.forEach(selectedIndex => {
+                                                                    const ap = selectedService.additionalPrices && selectedService.additionalPrices[selectedIndex];
+                                                                    if (ap && ap.amount) total += parseFloat(ap.amount || 0) || 0;
+                                                                });
+                                                                setFormData(prev => ({ ...prev, price: Math.round(total) }));
+                                                            }}
+                                                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-none rounded-xl bg-slate-100 focus:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-900"
+                                                        >
+                                                            {Array.from({ length: 1000 }, (_, i) => i + 1).map((n) => (
+                                                                <option key={n} value={n}>{n}</option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-bold text-slate-600">
+                                                            Total: Rs. {Math.round((parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0) * serviceQuantity)}
+                                                        </p>
+                                                    </div>
+                                                    )}
                                                 </div>
                                                 
                                                 {/* Additional Prices (Selectable) */}
@@ -8357,15 +9069,17 @@
                                                                             }
                                                                             setSelectedAdditionalPrices(newSelected);
                                                                             
-                                                                            // Update total price - parse all values as numbers
-                                                                            let total = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
+                                                                            // Update total price: per-foot ? (base × quantity) + additional : base + additional
+                                                                            const basePrice = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
+                                                                            const isPerFoot = selectedService.is_per_foot === true || selectedService.isPerFoot === true;
+                                                                            let total = isPerFoot ? basePrice * serviceQuantity : basePrice;
                                                                             newSelected.forEach(selectedIndex => {
                                                                                 const ap = selectedService.additionalPrices[selectedIndex];
                                                                                 if (ap && ap.amount) {
                                                                                     total += parseFloat(ap.amount || 0) || 0;
                                                                                 }
                                                                             });
-                                                                            setFormData({ ...formData, price: Math.round(total) });
+                                                                            setFormData(prev => ({ ...prev, price: Math.round(total) }));
                                                                         }}
                                                                         className="sr-only"
                                                                     />
@@ -8402,15 +9116,69 @@
                         )}
                     </main>
                     
+                    {/* Vehicle history modal (last 2 months) */}
+                    {showVehicleHistoryModal && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowVehicleHistoryModal(false)}>
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border-2 border-slate-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                                    <h3 className="text-lg font-black uppercase text-slate-800">Transaction history (last 2 months) – {formData.vehicleNo || ''}</h3>
+                                    <button type="button" onClick={() => setShowVehicleHistoryModal(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-600">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <div className="p-4 overflow-y-auto flex-1">
+                                    {vehicleHistoryLoading ? (
+                                        <p className="text-center text-slate-500 font-bold py-8">Loading...</p>
+                                    ) : !vehicleHistoryJobs || vehicleHistoryJobs.length === 0 ? (
+                                        <p className="text-center text-slate-500 font-bold py-8">No transactions in last 2 months</p>
+                                    ) : (
+                                        <ul className="space-y-2">
+                                            {vehicleHistoryJobs.map((job) => (
+                                                <li key={job.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <div>
+                                                            <span className="font-black text-slate-800">{job.serviceName || 'N/A'}</span>
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">{job.endTime ? new Date(job.endTime).toLocaleString() : (job.createdAt ? new Date(job.createdAt).toLocaleString() : '')} • {job.workerName || 'N/A'}</p>
+                                                        </div>
+                                                        <span className="font-mono font-bold text-emerald-600">Rs.{Math.round(job.price || 0)}</span>
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-400 mt-1">{job.customerName || ''} {job.mobile ? ' • ' + job.mobile : ''}</p>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     {/* Bottom Nav */}
                     <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-100 flex justify-around p-3 sm:p-4 md:p-5 z-40 rounded-t-2xl sm:rounded-t-[30px] md:rounded-t-[40px] shadow-2xl">
-                        <button 
-                            onClick={() => setView('dashboard')} 
-                            className={`p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl transition-all ${view === 'dashboard' ? 'bg-slate-950 text-white shadow-xl -translate-y-1 sm:-translate-y-2' : 'text-slate-300'}`}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowServicesDropdown(false);
+                                setShowAttendanceModal(true);
+                                setAttendanceStep('select');
+                                setSelectedAttendanceEmployee(null);
+                                setAttendanceEmployeeSearch('');
+                                setAttendancePhotoBlob(null);
+                                setAttendancePhotoUrl(null);
+                                setAttendanceLocation(null);
+                                setAttendanceLocationError(null);
+                                setAttendanceAccuracyWarning(false);
+                                setAttendancePermissionError(null);
+                                setAttendanceCameraError(null);
+                                setAttendanceSuccess(false);
+                            }}
+                            className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
+                            title="Mark Attendance"
+                            aria-label="Mark employee attendance"
                         >
-                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                             </svg>
+                            <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Attendance</span>
                         </button>
                         <button
                             type="button"
@@ -8428,6 +9196,18 @@
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                             <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Price List</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { window.location.href = '{{ route("car.wash.completed-jobs") }}'; }}
+                            className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
+                            title="View Completed Jobs"
+                            aria-label="View completed jobs"
+                        >
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Completed</span>
                         </button>
                     </nav>
                 </div>

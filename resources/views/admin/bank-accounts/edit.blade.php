@@ -22,21 +22,38 @@
 
         <div class="card">
             <div class="card-body">
-                <form action="{{ route('admin.bank-accounts.update', $bankAccount->id) }}" method="POST">
+                <form action="{{ route('admin.bank-accounts.update', $bankAccount->id) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
+                                <label for="bank_logo" class="form-label">Bank logo (optional)</label>
+                                <input type="file" 
+                                       class="form-control @error('bank_logo') is-invalid @enderror" 
+                                       id="bank_logo" 
+                                       name="bank_logo" 
+                                       accept="image/*">
+                                <small class="form-text text-muted">Upload logo for the selected bank. Used in dropdown.</small>
+                                @error('bank_logo')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
                                 <label for="bank_id" class="form-label">Bank <span class="text-danger">*</span></label>
-                                <select class="form-control @error('bank_id') is-invalid @enderror" 
+                                <select class="form-control searchable-select @error('bank_id') is-invalid @enderror" 
                                         id="bank_id" 
                                         name="bank_id" 
                                         required>
                                     <option value="">Select Bank</option>
                                     @foreach($banks as $bank)
-                                        <option value="{{ $bank->id }}" {{ old('bank_id', $bankAccount->bank_id) == $bank->id ? 'selected' : '' }}>
+                                        <option value="{{ $bank->id }}" {{ old('bank_id', $bankAccount->bank_id) == $bank->id ? 'selected' : '' }} data-logo="{{ $bank->logo_url ?? '' }}">
                                             {{ $bank->name }} @if($bank->short_name)({{ $bank->short_name }})@endif
                                         </option>
                                     @endforeach

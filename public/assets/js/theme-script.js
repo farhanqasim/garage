@@ -34,7 +34,7 @@ let themesettings = `
                                     <input type="radio" name="LayoutTheme" id="defaultLayout" value="default" checked>
                                     <label for="defaultLayout">
                                         <span class="d-block mb-2 layout-img">
-                                            <img src="assets/img/theme/default.svg" alt="img">
+                                            <img src="/assets/img/theme/default.svg" alt="img">
                                         </span>                                     
                                         <span class="layout-type">Default</span>
                                     </label>
@@ -45,7 +45,7 @@ let themesettings = `
                                     <input type="radio" name="LayoutTheme" id="miniLayout" value="mini" >
                                     <label for="miniLayout">
                                         <span class="d-block mb-2 layout-img">
-                                            <img src="assets/img/theme/mini.svg" alt="img">
+                                            <img src="/assets/img/theme/mini.svg" alt="img">
                                         </span>                                    
                                         <span class="layout-type">Mini</span>
                                     </label>
@@ -56,7 +56,7 @@ let themesettings = `
                                     <input type="radio" name="LayoutTheme" id="twocolumnLayout" value="twocolumn" >
                                     <label for="twocolumnLayout">
                                         <span class="d-block mb-2 layout-img">
-                                            <img src="assets/img/theme/two-column.svg" alt="img">
+                                            <img src="/assets/img/theme/two-column.svg" alt="img">
                                         </span>                                    
                                         <span class="layout-type">Two Column</span>
                                     </label>
@@ -67,7 +67,7 @@ let themesettings = `
                                     <input type="radio" name="LayoutTheme" id="horizontalLayout" value="horizontal" >
                                     <label for="horizontalLayout">
                                         <span class="d-block mb-2 layout-img">
-                                            <img src="assets/img/theme/horizontal.svg" alt="img">
+                                            <img src="/assets/img/theme/horizontal.svg" alt="img">
                                         </span>                                    
                                         <span class="layout-type">Horizontal</span>
                                     </label>
@@ -78,7 +78,7 @@ let themesettings = `
                                     <input type="radio" name="LayoutTheme" id="detachedLayout" value="detached" >
                                     <label for="detachedLayout">
                                         <span class="d-block mb-2 layout-img">
-                                            <img src="assets/img/theme/detached.svg" alt="img">
+                                            <img src="/assets/img/theme/detached.svg" alt="img">
                                         </span>                                    
                                         <span class="layout-type">Detached</span>
                                     </label>
@@ -89,7 +89,7 @@ let themesettings = `
                                     <input type="radio" name="LayoutTheme" id="without-headerLayout" value="without-header" >
                                     <label for="without-headerLayout">
                                         <span class="d-block mb-2 layout-img">
-                                            <img src="assets/img/theme/without-header.svg" alt="img">
+                                            <img src="/assets/img/theme/without-header.svg" alt="img">
                                         </span>                                    
                                         <span class="layout-type">Without Header</span>
                                     </label>
@@ -98,7 +98,7 @@ let themesettings = `
                             <div class="col-4">
                                 <a href="layout-rtl.html" class="theme-layout mb-3">
                                     <span class="d-block mb-2 layout-img">
-                                        <img src="assets/img/theme/rtl.svg" alt="img">
+                                        <img src="/assets/img/theme/rtl.svg" alt="img">
                                     </span>                                    
                                     <span class="layout-type d-block">RTL</span>
                                 </a>
@@ -354,37 +354,37 @@ let themesettings = `
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg1" value="sidebarbg1" checked>
                                 <label for="sidebarBg1" class="d-block rounded">
-                                    <img src="assets/img/theme/bg-01.jpg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/bg-01.jpg" alt="img" class="rounded">
                                 </label>
                             </div>
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg2" value="sidebarbg2">
                                 <label for="sidebarBg2" class="d-block rounded">
-                                    <img src="assets/img/theme/bg-02.jpg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/bg-02.jpg" alt="img" class="rounded">
                                 </label>
                             </div>
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg3" value="sidebarbg3">
                                 <label for="sidebarBg3" class="d-block rounded">
-                                    <img src="assets/img/theme/sidebar-bg-03.svg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/sidebar-bg-03.svg" alt="img" class="rounded">
                                 </label>
                             </div>
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg4" value="sidebarbg4">
                                 <label for="sidebarBg4" class="d-block rounded">
-                                    <img src="assets/img/theme/bg-04.jpg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/bg-04.jpg" alt="img" class="rounded">
                                 </label>
                             </div>
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg5" value="sidebarbg5">
                                 <label for="sidebarBg5" class="d-block rounded">
-                                    <img src="assets/img/theme/sidebar-bg-05.svg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/bg-05.jpg" alt="img" class="rounded">
                                 </label>
                             </div>
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg6" value="sidebarbg6">
                                 <label for="sidebarBg6" class="d-block rounded">
-                                    <img src="assets/img/theme/bg-06.jpg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/bg-06.jpg" alt="img" class="rounded">
                                 </label>
                             </div>
                         </div>

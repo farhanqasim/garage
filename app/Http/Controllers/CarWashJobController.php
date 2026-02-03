@@ -91,9 +91,11 @@ class CarWashJobController extends Controller
         $query = CarWashJob::query();
         $this->applyBranchFilter($query, 'branch_id', $user);
         $jobs = $query->active()
+        ->with('expense')
         ->orderBy('start_time', 'asc')
         ->get()
         ->map(function($job) {
+            $expenseTotal = $job->expense ? (float) ($job->expense->total_amount ?? 0) : 0;
             return [
                 'id' => $job->id,
                 'serviceId' => $job->service_id,
@@ -107,12 +109,111 @@ class CarWashJobController extends Controller
                 'workerName' => $job->worker_name,
                 'status' => $job->status,
                 'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+                'expenseTotalAmount' => $expenseTotal,
             ];
         });
         
         return response()->json([
             'success' => true,
             'jobs' => $jobs
+        ]);
+    }
+
+    /**
+     * Search past jobs by vehicle plate number (for autocomplete).
+     * Returns unique vehicle_no with latest customer_name and mobile per plate.
+     */
+    public function searchByPlate(Request $request)
+    {
+        $q = $request->get('q', '');
+        $q = trim(strtoupper((string) $q));
+        if (strlen($q) < 1) {
+            return response()->json(['success' => true, 'suggestions' => []]);
+        }
+
+        $user = Auth::user();
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+
+        $jobs = $query
+            ->whereNotNull('vehicle_no')
+            ->where('vehicle_no', 'like', $q . '%')
+            ->orderBy('end_time', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get(['id', 'vehicle_no', 'customer_name', 'mobile', 'end_time', 'created_at']);
+
+        // Dedupe by vehicle_no, keep first (most recent) for customer_name/mobile
+        $seen = [];
+        $suggestions = [];
+        foreach ($jobs as $job) {
+            $v = $job->vehicle_no ? trim(strtoupper($job->vehicle_no)) : '';
+            if ($v === '' || isset($seen[$v])) {
+                continue;
+            }
+            $seen[$v] = true;
+            $suggestions[] = [
+                'vehicleNo' => $job->vehicle_no,
+                'customerName' => $job->customer_name ?? '',
+                'mobile' => $job->mobile ?? '',
+            ];
+        }
+
+        return response()->json(['success' => true, 'suggestions' => $suggestions]);
+    }
+
+    /**
+     * Last 2 months job history for a vehicle (by vehicle_no).
+     */
+    public function vehicleHistory(Request $request)
+    {
+        $vehicleNo = $request->get('vehicle_no', '');
+        $vehicleNo = trim(strtoupper((string) $vehicleNo));
+        if ($vehicleNo === '') {
+            return response()->json(['success' => false, 'message' => 'Vehicle number required', 'jobs' => []]);
+        }
+
+        $user = Auth::user();
+        $twoMonthsAgo = Carbon::now()->subMonths(2)->startOfDay();
+
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $jobs = $query
+            ->where('vehicle_no', $vehicleNo)
+            ->where(DB::raw('COALESCE(end_time, created_at)'), '>=', $twoMonthsAgo)
+            ->with('worker')
+            ->orderBy('end_time', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+
+        $list = $jobs->map(function ($job) {
+            $workerCommission = 0;
+            $commissionAmount = 0;
+            if ($job->worker && $job->worker->commission) {
+                $workerCommission = (float) $job->worker->commission;
+                $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
+            }
+            return [
+                'id' => $job->id,
+                'vehicleNo' => $job->vehicle_no,
+                'customerName' => $job->customer_name,
+                'mobile' => $job->mobile,
+                'serviceName' => $job->service_name,
+                'price' => (float) $job->price,
+                'workerName' => $job->worker_name,
+                'commissionAmount' => round($commissionAmount, 2),
+                'status' => $job->status,
+                'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
+                'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
+                'createdAt' => $job->created_at->toISOString(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'vehicleNo' => $vehicleNo,
+            'jobs' => $list,
         ]);
     }
 
@@ -480,7 +581,10 @@ class CarWashJobController extends Controller
             ->where(function ($q) {
                 $q->where('status', true)->orWhereNull('status');
             });
-        $this->applyBranchFilter($query, 'branch_id', $user);
+        
+        // Filter by logged-in user's bank accounts only
+        // Show only accounts where user_id matches logged-in user
+        $query->where('user_id', $user->id);
 
         $accounts = $query->orderBy('account_title')
             ->get()
@@ -501,6 +605,66 @@ class CarWashJobController extends Controller
                     'accountNumber' => $num,
                     'displayLabel' => $label,
                     'balance' => (float) $a->current_balance, // Get balance from accessor
+                ];
+            });
+
+        return response()->json(['success' => true, 'bankAccounts' => $accounts]);
+    }
+
+    /**
+     * Get bank accounts of other users from same branch (for transfer)
+     * Excludes logged-in user's accounts
+     */
+    public function bankAccountsForTransfer(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        if (!$branchId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No branch found for user',
+                'bankAccounts' => []
+            ], 400);
+        }
+
+        // Get all users from same branch (excluding logged-in user)
+        $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
+            $query->whereHas('branches', function($q) use ($branchId) {
+                $q->where('branches.id', $branchId);
+            })
+            ->orWhereHas('assignedBranches', function($q) use ($branchId) {
+                $q->where('branch_id', $branchId);
+            });
+        })
+        ->where('id', '!=', $user->id) // Exclude logged-in user
+        ->pluck('id');
+
+        $query = BankAccount::with('bank')
+            ->where('account_type', 'bank')
+            ->where(function ($q) {
+                $q->where('status', true)->orWhereNull('status');
+            })
+            ->whereIn('user_id', $branchUserIds); // Only other users' accounts
+
+        $accounts = $query->orderBy('account_title')
+            ->get()
+            ->map(function ($a) {
+                $bankName = $a->bank ? $a->bank->name : 'N/A';
+                $title = $a->account_title ?? '';
+                $num = $a->account_number ?? '';
+                $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
+                if ($label === '' || (!$title && !$num)) {
+                    $label = $bankName . ' — Account #' . $a->id;
+                }
+                return [
+                    'id' => $a->id,
+                    'bank_id' => $a->bank_id,
+                    'bankName' => $bankName,
+                    'accountTitle' => $title,
+                    'accountNumber' => $num,
+                    'displayLabel' => $label,
+                    'balance' => (float) $a->current_balance,
                 ];
             });
 
@@ -765,6 +929,29 @@ class CarWashJobController extends Controller
                 $openingTime = Carbon::parse($lastTime)->format('h:i A');
             }
         }
+
+        // Previous date closing balance = opening balance for selected date (same payment filter)
+        $openingBalanceQuery = function ($q) use ($user, $previousDate, $paymentFilter) {
+            $this->applyBranchFilter($q, 'branch_id', $user);
+            $q->where('status', 'completed');
+            $q->whereRaw('DATE(COALESCE(end_time, created_at)) <= ?', [$previousDate->format('Y-m-d')]);
+            if ($paymentFilter === 'bank') {
+                $q->where('payment_method', 'bank');
+            } else {
+                $q->where(function ($q2) {
+                    $q2->where('payment_method', 'cash')->orWhereNull('payment_method');
+                });
+            }
+        };
+        $previousJobs = CarWashJob::where($openingBalanceQuery)->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->with(['worker', 'expense'])->get();
+        $openingBalance = 0;
+        foreach ($previousJobs as $job) {
+            $price = round((float) $job->price, 2);
+            $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
+            $openingBalance += $price;
+            $openingBalance -= $expenseAmount;
+        }
+        $openingBalance = round($openingBalance, 2);
         
         $rows = [];
         $rows[] = [
@@ -782,8 +969,9 @@ class CarWashJobController extends Controller
             'bankName' => '-',
             'commission' => '-',
             'isOpening' => true,
+            'openingBalance' => $openingBalance,
         ];
-        $running = 0;
+        $running = $openingBalance;
         $totalDebit = 0;
         $totalCredit = 0;
         $commissionSum = 0;

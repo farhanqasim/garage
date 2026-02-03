@@ -409,6 +409,7 @@
         $userNameJson = json_encode($userName);
         $servicesRoute = route("car-wash.services.index");
         $storeRoute = route("car-wash.services.store");
+        $reorderRoute = route("car-wash.services.reorder");
         $carWashRoute = route("car.wash");
         $rateListRoute = route("car.wash.services.rate-list");
     @endphp
@@ -420,12 +421,14 @@
         const initialServices = {!! $initialServicesJson !!};
         const branchName = {!! $branchNameJson !!};
         const userName = {!! $userNameJson !!};
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
         const API_ROUTES = {
             services: {
                 index: '{!! $servicesRoute !!}',
                 store: '{!! $storeRoute !!}',
+                reorder: '{!! $reorderRoute !!}',
                 rateList: '{!! $rateListRoute !!}',
                 update: (id) => `/car-wash/services/${id}`,
                 destroy: (id) => `/car-wash/services/${id}`,
@@ -560,6 +563,7 @@
                         colorValue: s.colorValue || s.color_value || '#3b82f6',
                         isDefault: s.isDefault || s.is_default || false,
                         status: s.status !== undefined ? s.status : true,
+                        inspectionCompulsory: s.inspectionCompulsory !== undefined ? s.inspectionCompulsory : (s.inspection_compulsory !== false),
                     }));
                 }
                 return [];
@@ -567,6 +571,9 @@
             const [selectedServiceForEdit, setSelectedServiceForEdit] = useState(null);
             const [showAddModal, setShowAddModal] = useState(false);
             const [showPriceListModal, setShowPriceListModal] = useState(false);
+            const [pricePerFootMode, setPricePerFootMode] = useState(false);
+            const [pricePerFoot, setPricePerFoot] = useState('');
+            const [isSaving, setIsSaving] = useState(false);
             
             // Initialize and update additional prices container display
             useEffect(() => {
@@ -584,6 +591,14 @@
                     }
                 }
             }, [showAddModal, selectedServiceForEdit]);
+            
+            // When editing a service, use fixed base price (no per-foot)
+            useEffect(() => {
+                if (selectedServiceForEdit) {
+                    setPricePerFootMode(false);
+                    setPricePerFoot('');
+                }
+            }, [selectedServiceForEdit]);
             
             // Reset form when modal closes and load data when editing
             useEffect(() => {
@@ -674,6 +689,17 @@
                                 opt.classList.add('selected', 'border-slate-900', 'scale-110');
                             }
                         });
+                        // Sync inspection compulsory toggle
+                        const inspectionToggle = document.getElementById('inspectionCompulsoryToggle');
+                        if (inspectionToggle) {
+                            const isOn = selectedServiceForEdit.inspectionCompulsory !== false;
+                            inspectionToggle.setAttribute('aria-checked', isOn.toString());
+                            inspectionToggle.style.backgroundColor = isOn ? '' : '#94a3b8';
+                            inspectionToggle.classList.toggle('bg-emerald-500', isOn);
+                            inspectionToggle.classList.toggle('bg-slate-400', !isOn);
+                            const thumb = inspectionToggle.querySelector('.inspection-toggle-thumb');
+                            if (thumb) thumb.style.transform = isOn ? 'translateX(1.25rem)' : 'translateX(0.25rem)';
+                        }
                     }, 100);
                 } else if (!showAddModal && !selectedServiceForEdit) {
                     // Reset form fields
@@ -734,6 +760,7 @@
                                 colorValue: s.color_value || '#3b82f6',
                                 isDefault: s.is_default,
                                 status: s.status,
+                                inspectionCompulsory: s.inspection_compulsory !== false,
                             })));
                         }
                     })
@@ -805,10 +832,10 @@
                                             <thead className="bg-emerald-600 text-white">
                                                 <tr>
                                                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
+                                                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">Icon</th>
                                                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">Service Name</th>
                                                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">Base Price</th>
                                                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">Additional Prices</th>
-                                                    <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">Icon</th>
                                                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-left text-xs font-black uppercase tracking-wider">Status</th>
                                                     <th className="px-4 lg:px-6 py-3 lg:py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
                                                 </tr>
@@ -848,6 +875,18 @@
                                                         });
                                                         
                                                         setServices(newServices);
+                                                        // Auto-save order to backend
+                                                        fetch(API_ROUTES.services.reorder, {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'X-CSRF-TOKEN': csrfToken,
+                                                                'Accept': 'application/json'
+                                                            },
+                                                            body: JSON.stringify({
+                                                                order: newServices.map((s, i) => ({ id: s.id, sort_order: i }))
+                                                            })
+                                                        }).catch(() => {});
                                                     };
                                                     
                                                     return (
@@ -864,6 +903,11 @@
                                                             />
                                                         </td>
                                                         <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
+                                                            <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white shadow-lg" style={iconStyle}>
+                                                                {getIconSVG(service.icon || 'car')}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                                                             <div className="text-sm font-black text-slate-900">{service.label || 'N/A'}</div>
                                                             {service.isDefault && <div className="text-xs text-emerald-600 font-bold mt-1">Default</div>}
                                                         </td>
@@ -877,11 +921,6 @@
                                                                 ) : (
                                                                     <span className="text-slate-400">None</span>
                                                                 )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
-                                                            <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white shadow-lg" style={iconStyle}>
-                                                                {getIconSVG(service.icon || 'car')}
                                                             </div>
                                                         </td>
                                                         <td className="px-4 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
@@ -949,6 +988,7 @@
                                                                                             colorValue: s.color_value || '#3b82f6',
                                                                                             isDefault: s.is_default,
                                                                                             status: s.status,
+                                                                                            inspectionCompulsory: s.inspection_compulsory !== false,
                                                                                         })));
                                                                                     }
                                                                                     alert('Error deleting service: ' + (result.message || 'Unknown error'));
@@ -968,6 +1008,7 @@
                                                                                         colorValue: s.color_value || '#3b82f6',
                                                                                         isDefault: s.is_default,
                                                                                         status: s.status,
+                                                                                        inspectionCompulsory: s.inspection_compulsory !== false,
                                                                                     })));
                                                                                 }
                                                                                 
@@ -1015,6 +1056,18 @@
                                                 });
                                                 
                                                 setServices(newServices);
+                                                // Auto-save order to backend
+                                                fetch(API_ROUTES.services.reorder, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        'X-CSRF-TOKEN': csrfToken,
+                                                        'Accept': 'application/json'
+                                                    },
+                                                    body: JSON.stringify({
+                                                        order: newServices.map((s, i) => ({ id: s.id, sort_order: i }))
+                                                    })
+                                                }).catch(() => {});
                                             };
                                             const serviceColorValue = service.colorValue || service.color_value || '#3b82f6';
                                             const hexToRgba = (hex, alpha) => {
@@ -1142,6 +1195,7 @@
                                                                                         colorValue: s.color_value || '#3b82f6',
                                                                                         isDefault: s.is_default,
                                                                                         status: s.status,
+                                                                                        inspectionCompulsory: s.inspection_compulsory !== false,
                                                                                     })));
                                                                                 }
                                                                                 alert('Error deleting service: ' + (result.message || 'Unknown error'));
@@ -1161,6 +1215,7 @@
                                                                                     colorValue: s.color_value || '#3b82f6',
                                                                                     isDefault: s.is_default,
                                                                                     status: s.status,
+                                                                                    inspectionCompulsory: s.inspection_compulsory !== false,
                                                                                 })));
                                                                             }
                                                                             
@@ -1228,8 +1283,10 @@
                                 
                                 <div className="p-4 sm:p-5 md:p-6 space-y-4 sm:space-y-5 md:space-y-6">
                                     <form 
+                                        noValidate
                                         onSubmit={async (e) => {
                                             e.preventDefault();
+                                            e.stopPropagation();
                                             
                                             const labelInput = document.getElementById('serviceLabel');
                                             const basePriceInput = document.getElementById('serviceBasePrice');
@@ -1239,8 +1296,13 @@
                                             const additionalPricesContainer = document.getElementById('additionalPricesContainer');
                                             
                                             const label = labelInput ? labelInput.value.trim().toUpperCase() : '';
-                                            const basePriceValue = basePriceInput ? basePriceInput.value.trim() : '';
-                                            const basePrice = parseFloat(basePriceValue) || 0;
+                                            let basePrice = 0;
+                                            if (pricePerFootMode) {
+                                                basePrice = parseFloat(pricePerFoot) || 0;
+                                            } else {
+                                                const basePriceValue = basePriceInput ? basePriceInput.value.trim() : '';
+                                                basePrice = parseFloat(basePriceValue) || 0;
+                                            }
                                             
                                             // Validate category name is required
                                             if (!label || label.length === 0) {
@@ -1255,10 +1317,14 @@
                                                 return;
                                             }
                                             
-                                            // Validate base price is required
-                                            if (!basePriceValue || basePrice <= 0) {
-                                                alert('Base Price is required and must be greater than 0');
-                                                if (basePriceInput) {
+                                            // Validate base price / per-foot total
+                                            if (basePrice <= 0) {
+                                                if (pricePerFootMode) {
+                                                    alert('Enter Price per foot (must be greater than 0).');
+                                                } else {
+                                                    alert('Base Price is required and must be greater than 0');
+                                                }
+                                                if (!pricePerFootMode && basePriceInput) {
                                                     basePriceInput.focus();
                                                     basePriceInput.style.border = '2px solid red';
                                                     setTimeout(() => {
@@ -1292,20 +1358,32 @@
                                                 return;
                                             }
                                             
+                                            const inspectionToggle = document.getElementById('inspectionCompulsoryToggle');
+                                            const inspectionCompulsory = inspectionToggle ? inspectionToggle.getAttribute('aria-checked') === 'true' : true;
                                             const requestData = {
                                                 label: label,
                                                 base_price: basePrice,
                                                 additional_prices: additionalPrices,
                                                 icon: icon,
                                                 color: colorClass,
-                                                color_value: colorValue
+                                                color_value: colorValue,
+                                                inspection_compulsory: inspectionCompulsory,
+                                                is_per_foot: pricePerFootMode
                                             };
                                             
+                                            if (!csrfToken) {
+                                                alert('Security token missing. Please refresh the page and try again.');
+                                                return;
+                                            }
+                                            const url = selectedServiceForEdit 
+                                                ? API_ROUTES.services.update(selectedServiceForEdit.id)
+                                                : API_ROUTES.services.store;
+                                            if (!url) {
+                                                alert('Save URL not configured. Please refresh the page.');
+                                                return;
+                                            }
+                                            setIsSaving(true);
                                             try {
-                                                const url = selectedServiceForEdit 
-                                                    ? API_ROUTES.services.update(selectedServiceForEdit.id)
-                                                    : API_ROUTES.services.store;
-                                                
                                                 const method = selectedServiceForEdit ? 'PUT' : 'POST';
                                                 
                                                 const response = await fetch(url, {
@@ -1313,27 +1391,40 @@
                                                     headers: {
                                                         'X-CSRF-TOKEN': csrfToken,
                                                         'Content-Type': 'application/json',
-                                                        'Accept': 'application/json'
+                                                        'Accept': 'application/json',
+                                                        'X-Requested-With': 'XMLHttpRequest'
                                                     },
                                                     body: JSON.stringify(requestData)
                                                 });
                                                 
-                                                const result = await response.json();
-                                                
-                                                if (!response.ok) {
-                                                    if (result.errors) {
-                                                        const errorMessages = Object.values(result.errors).flat().join('\n');
-                                                        alert('Validation Error:\n' + errorMessages);
-                                                    } else {
-                                                        alert('Error: ' + (result.message || 'Unknown error'));
-                                                    }
+                                                let result;
+                                                try {
+                                                    result = await response.json();
+                                                } catch (parseErr) {
+                                                    const text = await response.text();
+                                                    console.error('Save response parse error:', parseErr, 'Status:', response.status, 'Body:', text);
+                                                    alert('Server returned invalid response (Status ' + response.status + '). Check console for details.');
+                                                    setIsSaving(false);
                                                     return;
                                                 }
                                                 
-                                                if (result.success) {
+                                                if (!response.ok) {
+                                                    if (result && result.errors) {
+                                                        const errorMessages = Object.values(result.errors).flat().join('\n');
+                                                        alert('Validation Error:\n' + errorMessages);
+                                                    } else {
+                                                        alert('Error: ' + (result && result.message ? result.message : 'Unknown error'));
+                                                    }
+                                                    setIsSaving(false);
+                                                    return;
+                                                }
+                                                
+                                                if (result && result.success) {
                                                     alert(selectedServiceForEdit ? 'Service updated successfully!' : 'Service added successfully!');
                                                     setShowAddModal(false);
                                                     setSelectedServiceForEdit(null);
+                                                    setPricePerFootMode(false);
+                                                    setPricePerFoot('');
                                                     
                                                     // Reset form
                                                     if (labelInput) labelInput.value = '';
@@ -1357,6 +1448,7 @@
                                                             colorValue: s.color_value || '#3b82f6',
                                                             isDefault: s.is_default,
                                                             status: s.status,
+                                                            inspectionCompulsory: s.inspection_compulsory !== false,
                                                         })));
                                                     }
                                                 } else {
@@ -1364,19 +1456,46 @@
                                                 }
                                             } catch (error) {
                                                 console.error('Error saving service:', error);
-                                                alert('Error saving service. Please try again.\n' + error.message);
+                                                alert('Error saving service: Please try again.\n' + (error.message || String(error)));
+                                            } finally {
+                                                setIsSaving(false);
                                             }
                                         }}
                                     >
-                                        {/* Category Name */}
+                                        {/* Category Name + Inspection compulsory */}
                                         <div className="space-y-2">
-                                            <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-2">CATEGORY NAME <span className="text-red-500">*</span></label>
+                                            <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                                                <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-0">CATEGORY NAME <span className="text-red-500">*</span></label>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">Inspection compulsory</span>
+                                                    <button
+                                                        type="button"
+                                                        id="inspectionCompulsoryToggle"
+                                                        role="switch"
+                                                        aria-checked={(selectedServiceForEdit && selectedServiceForEdit.inspectionCompulsory === false) ? false : true}
+                                                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-emerald-500 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                                                        style=@{{ backgroundColor: (selectedServiceForEdit && selectedServiceForEdit.inspectionCompulsory === false) ? '#94a3b8' : undefined }}
+                                                        onClick={(e) => {
+                                                            const btn = e.currentTarget;
+                                                            const isOn = btn.getAttribute('aria-checked') === 'true';
+                                                            btn.setAttribute('aria-checked', (!isOn).toString());
+                                                            btn.style.backgroundColor = isOn ? '#94a3b8' : '';
+                                                            btn.classList.toggle('bg-emerald-500', !isOn);
+                                                            btn.classList.toggle('bg-slate-400', isOn);
+                                                            const thumb = btn.querySelector('.inspection-toggle-thumb');
+                                                            if (thumb) thumb.style.transform = isOn ? 'translateX(0.25rem)' : 'translateX(1.25rem)';
+                                                        }}
+                                                    >
+                                                        <span className="inspection-toggle-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform" style=@{{ transform: (selectedServiceForEdit && selectedServiceForEdit.inspectionCompulsory === false) ? 'translateX(0.25rem)' : 'translateX(1.25rem)' }} />
+                                                    </button>
+                                                </div>
+                                            </div>
                                             <input 
                                                 type="text" 
                                                 id="serviceLabel"
                                                 defaultValue={(selectedServiceForEdit && selectedServiceForEdit.label) ? selectedServiceForEdit.label : ''}
                                                 className="w-full px-3 sm:px-4 md:px-5 py-3 sm:py-3.5 md:py-4 border-none rounded-xl sm:rounded-2xl bg-slate-100 focus:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm sm:text-base font-semibold text-slate-900 uppercase"
-                                                placeholder="e.g. Engine Detail"
+                                                placeholder="e.g. Vehicle Detail"
                                                 required
                                                 onInvalid={(e) => {
                                                     e.target.setCustomValidity('Category Name is required');
@@ -1397,7 +1516,22 @@
                                         
                                         {/* Base Price */}
                                         <div className="space-y-2">
-                                            <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-2">BASE PRICE (RS.) <span className="text-red-500">*</span></label>
+                                            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                                <label className="block text-xs font-black text-slate-600 uppercase tracking-wider mb-0">BASE PRICE (RS.) <span className="text-red-500">*</span></label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setPricePerFootMode(prev => !prev);
+                                                        if (!pricePerFootMode) {
+                                                            setPricePerFoot('');
+                                                        }
+                                                    }}
+                                                    className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wide transition-colors shadow-md flex-shrink-0 ${pricePerFootMode ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'}`}
+                                                >
+                                                    {pricePerFootMode ? 'FIXED PRICE' : 'PER FOOT'}
+                                                </button>
+                                            </div>
+                                            {!pricePerFootMode ? (
                                             <input 
                                                 type="number" 
                                                 id="serviceBasePrice"
@@ -1406,13 +1540,12 @@
                                                 placeholder="Enter base price"
                                                 min="1"
                                                 step="1"
-                                                required
+                                                required={!pricePerFootMode}
                                                 onInvalid={(e) => {
                                                     e.target.setCustomValidity('Base Price is required and must be greater than 0');
                                                 }}
                                                 onInput={(e) => {
                                                     e.target.setCustomValidity('');
-                                                    // Remove error styling on input
                                                     e.target.style.border = '';
                                                     const previewPrice = document.getElementById('previewPrice');
                                                     if (previewPrice) {
@@ -1420,6 +1553,24 @@
                                                     }
                                                 }}
                                             />
+                                            ) : (
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Price per foot (RS.)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        id="pricePerFootInput"
+                                                        value={pricePerFoot}
+                                                        onChange={(e) => setPricePerFoot(e.target.value)}
+                                                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-none rounded-xl bg-slate-100 focus:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-900"
+                                                        placeholder="e.g. 50"
+                                                        min="0"
+                                                        step="1"
+                                                    />
+                                                </div>
+                                            </div>
+                                            )}
+                                            {!pricePerFootMode && (
                                             <button 
                                                 type="button" 
                                                 onClick={() => {
@@ -1466,6 +1617,7 @@
                                             >
                                                 + ADD ADDITIONAL PRICE
                                             </button>
+                                            )}
                                             <div 
                                                 id="additionalPricesContainer" 
                                                 className="mt-3"
@@ -1690,7 +1842,7 @@
                                                     })()}
                                                 >
                                                     <span id="previewLabel">{(selectedServiceForEdit && selectedServiceForEdit.label) ? selectedServiceForEdit.label.toUpperCase() : 'SERVICE LABEL'}</span>
-                                                    <span id="previewPrice" className="opacity-90">· RS.{(selectedServiceForEdit && (selectedServiceForEdit.basePrice || selectedServiceForEdit.base_price)) ? (selectedServiceForEdit.basePrice || selectedServiceForEdit.base_price) : 0}</span>
+                                                    <span id="previewPrice" className="opacity-90">· RS.{pricePerFootMode ? (parseFloat(pricePerFoot) || 0) : ((selectedServiceForEdit && (selectedServiceForEdit.basePrice || selectedServiceForEdit.base_price)) ? (selectedServiceForEdit.basePrice || selectedServiceForEdit.base_price) : 0)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -1699,9 +1851,10 @@
                                         <div className="flex flex-col gap-2 sm:gap-3 pt-3 sm:pt-4">
                                             <button
                                                 type="submit"
-                                                className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 bg-emerald-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:bg-emerald-700 transition-colors shadow-lg"
+                                                disabled={isSaving}
+                                                className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 bg-emerald-600 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:bg-emerald-700 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
                                             >
-                                                {selectedServiceForEdit ? 'UPDATE' : 'SAVE'}
+                                                {isSaving ? 'Saving...' : (selectedServiceForEdit ? 'UPDATE' : 'SAVE')}
                                             </button>
                                             {selectedServiceForEdit && (
                                                 <button
@@ -1754,6 +1907,7 @@
                                                                             colorValue: s.color_value || '#3b82f6',
                                                                             isDefault: s.is_default,
                                                                             status: s.status,
+                                                                            inspectionCompulsory: s.inspection_compulsory !== false,
                                                                         })));
                                                                     }
                                                                     alert('Error deleting service: ' + (result.message || 'Unknown error'));
@@ -1773,6 +1927,7 @@
                                                                         colorValue: s.color_value || '#3b82f6',
                                                                         isDefault: s.is_default,
                                                                         status: s.status,
+                                                                        inspectionCompulsory: s.inspection_compulsory !== false,
                                                                     })));
                                                                 }
                                                                 

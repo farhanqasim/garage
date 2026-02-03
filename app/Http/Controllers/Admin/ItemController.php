@@ -640,7 +640,7 @@ class ItemController extends Controller
            
             'unit_item'
         ])->findOrFail($id);
-        //   return $item;
+       
         // All the collections you already had
         $platos     = Platos::where('status', 'active')->get();
         $amphors    = Amphor::where('status', 'active')->get();
@@ -860,6 +860,20 @@ class ItemController extends Controller
             DB::beginTransaction();
 
             $data = $validated;
+            
+            // Ensure unit value is included if present in request (even if validation didn't catch it)
+            if ($request->has('unit') && (!isset($data['unit']) || $data['unit'] === null)) {
+                $data['unit'] = $request->input('unit');
+            }
+            
+            // Debug: Log unit value before update
+            Log::info('Item Update - Unit Value Check', [
+                'item_id' => $id,
+                'unit_from_request' => $request->input('unit'),
+                'unit_from_validated' => $validated['unit'] ?? 'NOT IN VALIDATED',
+                'unit_in_data' => $data['unit'] ?? 'NOT IN DATA',
+                'request_has_unit' => $request->has('unit')
+            ]);
 
             // === Handle Thumbnail (Single Image) ===
             if ($request->hasFile('image')) {
@@ -915,6 +929,14 @@ class ItemController extends Controller
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);
+            
+            // Debug: Log unit value after update
+            $item->refresh();
+            Log::info('Item Update - After Save', [
+                'item_id' => $item->id,
+                'unit_in_database' => $item->unit,
+                'unit_was_saved' => isset($data['unit']) ? 'YES' : 'NO'
+            ]);
 
             DB::commit();
 

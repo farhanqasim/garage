@@ -44,8 +44,11 @@ public function post_employees(Request $request)
     $validated = $request->validate([
         'name'       => 'required|string|max:255',
         'email'      => 'required|email|unique:users,email',
-        'phone'      => 'nullable|string|max:20',
-        'role'       => 'required|in:user,employee,customer',
+        'phone'      => 'nullable|array',
+        'phone.*'    => 'nullable|string|max:50',
+        'phone_name' => 'nullable|array',
+        'phone_name.*' => 'nullable|string|max:100',
+        'role'       => 'required|in:user,employee,customer,manager,salesman,purchaser',
         'password'   => 'required|min:6',
         'profile_img'=> 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         'branch_id'  => 'nullable|exists:branches,id'
@@ -54,18 +57,32 @@ public function post_employees(Request $request)
     $user = new User();
     $user->name = $request->name;
     $user->email = $request->email;
-    $user->phone = $request->phone;
+    $phones = is_array($request->phone) ? $request->phone : [];
+    $names = is_array($request->phone_name) ? $request->phone_name : [];
+    $pairs = [];
+    for ($i = 0; $i < max(count($phones), count($names)); $i++) {
+        $num = isset($phones[$i]) ? trim((string) $phones[$i]) : '';
+        $name = isset($names[$i]) ? trim((string) $names[$i]) : '';
+        if ($num !== '' || $name !== '') {
+            $pairs[] = $name !== '' ? $name . '|' . $num : $num;
+        }
+    }
+    $user->phone = !empty($pairs) ? implode(',', $pairs) : null;
     $user->role = $request->role;
     $user->status = 'inactive';
+    $user->branch_id = $request->branch_id ?: null;
     if ($request->hasFile('profile_img')) {
         $user->profile_img = saveSingleFile($request->file('profile_img'), 'profile');
     }
-    // Only save branch_id if employee or customer
-    if (in_array($request->role, ['employee', 'customer'])) {
-        $user->branch_id = $request->branch_id;
-    }
     $user->password = Hash::make($request->password);
     $user->save();
+
+    // Attach user to selected branch in branch_user so they can select this branch at login
+    if ($user->branch_id) {
+        $user->assignedBranches()->syncWithoutDetaching([
+            $user->branch_id => ['role' => $user->role ?? 'staff']
+        ]);
+    }
 
     return redirect()->back()->with('success', 'Employee added successfully!');
 }
