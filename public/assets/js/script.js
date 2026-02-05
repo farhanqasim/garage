@@ -400,17 +400,25 @@ $(document).ready(function(){
 	function init() {
 		var $this = Sidemenu;
 		$('.sidebar-menu a').on('click', function(e) {
-			if($(this).parent().hasClass('submenu')) {
+			// Check if link has a submenu (next ul element)
+			var hasSubmenu = $(this).next('ul').length > 0;
+			
+			// Only prevent default if it has a submenu, otherwise allow navigation
+			if($(this).parent().hasClass('submenu') && hasSubmenu) {
 				e.preventDefault();
 			}
-			if(!$(this).hasClass('subdrop')) {
-				$('ul', $(this).parents('ul:first')).slideUp(250);
-				$('a', $(this).parents('ul:first')).removeClass('subdrop');
-				$(this).next('ul').slideDown(350);
-				$(this).addClass('subdrop');
-			} else if($(this).hasClass('subdrop')) {
-				$(this).removeClass('subdrop');
-				$(this).next('ul').slideUp(350);
+			
+			// Only handle submenu toggle if submenu exists
+			if(hasSubmenu) {
+				if(!$(this).hasClass('subdrop')) {
+					$('ul', $(this).parents('ul:first')).slideUp(250);
+					$('a', $(this).parents('ul:first')).removeClass('subdrop');
+					$(this).next('ul').slideDown(350);
+					$(this).addClass('subdrop');
+				} else if($(this).hasClass('subdrop')) {
+					$(this).removeClass('subdrop');
+					$(this).next('ul').slideUp(350);
+				}
 			}
 		});
 		$('.sidebar-menu ul li.submenu a.active').parents('li:last').children('a:first').addClass('active').trigger('click');

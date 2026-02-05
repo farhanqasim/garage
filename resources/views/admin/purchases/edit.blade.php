@@ -85,7 +85,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">SUPPLIER NAME</label>
                                 <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="">Party Name</option>
+                                    <option value="">Select vendor</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" 
                                                 data-name="{{ $supplier->names[0] ?? '' }}" 
@@ -94,7 +94,7 @@
                                                 data-address="{{ $supplier->address ?? '' }}"
                                                 data-area="{{ $supplier->area ?? '' }}"
                                                 {{ $purchase->supplier_id == $supplier->id ? 'selected' : '' }}>
-                                            {{ $supplier->names[0] ?? 'N/A' }} @if($supplier->company) - {{ $supplier->company }} @endif
+                                            {{ $supplier->names[0] ?? 'N/A' }}@if($supplier->company) - {{ $supplier->company }}@endif @if(!empty($supplier->phones[0])) - {{ $supplier->phones[0] }}@endif
                                         </option>
                                     @endforeach
                                 </select>
