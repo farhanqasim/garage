@@ -36,6 +36,8 @@ class User extends Authenticatable
         'salary_per_day',
         'salary_per_month',
         'salary_percentage',
+        'pattern_lock',
+        'fingerprint_data',
     ];
 
     /**

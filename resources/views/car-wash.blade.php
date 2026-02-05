@@ -1304,8 +1304,8 @@
         });
         window.__app_id = 'service-station-app-pro';
         
-        // Home route URL
-        const homeRoute = '{{ route("home") }}';
+        // Home route URL (Employee Dashboard)
+        const homeRoute = '{{ route("employee.home") }}';
         const eliteCarWashLogoUrl = '{{ asset("assets/img/elite-car-wash-logo.png") }}';
         
         // Get user and branch info from Blade (passed from controller)
@@ -3208,16 +3208,6 @@
                     <header className="bg-slate-950 text-white p-3 sm:p-4 md:p-6 rounded-b-2xl sm:rounded-b-[30px] md:rounded-b-[45px] shadow-2xl relative z-50" role="banner">
                         <div className="flex justify-between items-center mb-4 sm:mb-6 md:mb-8 flex-wrap gap-2 sm:gap-3 md:gap-4">
                             <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
-                                <a 
-                                    href={homeRoute} 
-                                    className="text-white hover:text-blue-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg p-1.5 sm:p-2 flex-shrink-0" 
-                                    title="Back to Dashboard"
-                                    aria-label="Back to Dashboard"
-                                >
-                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                                    </svg>
-                                </a>
                                 <img
                                     src={eliteCarWashLogoUrl}
                                     alt="Elite Car Wash"

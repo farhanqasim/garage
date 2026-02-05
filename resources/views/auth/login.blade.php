@@ -16,12 +16,30 @@
                                             <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}"  alt="Img">
                                         </div>
 
-                                        <div class="login-userheading mb-4 text-center">
-                                            <h3>Welcome Back!</h3>
+                                        <!-- Login Method Tabs -->
+                                        <ul class="nav nav-pills nav-justified mb-4" id="loginMethodTabs" role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link active" id="pin-tab" data-bs-toggle="pill" data-bs-target="#pin-pane" type="button" role="tab" aria-controls="pin-pane" aria-selected="true">
+                                                    <i class="ti ti-key me-1"></i> PIN
+                                                </button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="pattern-tab" data-bs-toggle="pill" data-bs-target="#pattern-pane" type="button" role="tab" aria-controls="pattern-pane" aria-selected="false">
+                                                    <i class="ti ti-grid-3x3 me-1"></i> Pattern
+                                                </button>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <button class="nav-link" id="fingerprint-tab" data-bs-toggle="pill" data-bs-target="#fingerprint-pane" type="button" role="tab" aria-controls="fingerprint-pane" aria-selected="false">
+                                                    <i class="ti ti-fingerprint me-1"></i> Bio
+                                                </button>
+                                            </li>
+                                        </ul>
 
-                                        </div>
-
-                                        <!-- Email -->
+                                        <!-- Tab Content -->
+                                        <div class="tab-content" id="loginMethodTabContent">
+                                            <!-- PIN Tab -->
+                                            <div class="tab-pane fade show active" id="pin-pane" role="tabpanel" aria-labelledby="pin-tab">
+                                                <!-- Email -->
                                         <div class="mb-3">
                                             <label class="form-label">Email <span class="text-danger">*</span></label>
                                             <div class="input-group">
@@ -92,18 +110,57 @@
                                             </div>
                                         @endif
                                         </div>
-                                        <!-- Submit -->
-                                        <div class="form-login mb-3">
-                                            <button type="submit" class="btn btn-login w-100">Sign In</button>
+                                                <!-- Submit -->
+                                                <div class="form-login mb-3">
+                                                    <button type="submit" class="btn btn-login w-100">Sign In</button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Pattern Tab -->
+                                            <div class="tab-pane fade" id="pattern-pane" role="tabpanel" aria-labelledby="pattern-tab">
+                                                <div class="text-center mb-4">
+                                                    <p class="text-muted small mb-3">Draw Pattern (Top Row: 0, 1, 2)</p>
+                                                    <div class="d-flex justify-content-center">
+                                                        <div class="pattern-lock-container" style="background: #f8f9fa; padding: 2rem; border-radius: 1rem; display: inline-block;">
+                                                            <div class="pattern-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                                                                @for($i = 0; $i < 9; $i++)
+                                                                    <button type="button" class="pattern-dot" data-index="{{ $i }}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #dee2e6; background: #fff; cursor: pointer; transition: all 0.2s;">
+                                                                    </button>
+                                                                @endfor
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <p class="text-danger small mt-3" id="patternError" style="display: none;"></p>
+                                                    <input type="hidden" name="pattern" id="patternInput" value="">
+                                                </div>
+                                            </div>
+
+                                            <!-- Fingerprint Tab -->
+                                            <div class="tab-pane fade" id="fingerprint-pane" role="tabpanel" aria-labelledby="fingerprint-tab">
+                                                <div class="text-center mb-4">
+                                                    <div class="fingerprint-container mb-3">
+                                                        <button type="button" id="fingerprintBtn" class="btn btn-link p-0" style="border: none; background: none;">
+                                                            <div class="fingerprint-icon" style="width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; background: #f8f9fa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s;">
+                                                                <i class="ti ti-fingerprint" style="font-size: 64px; color: #3b82f6;"></i>
+                                                            </div>
+                                                        </button>
+                                                        <div class="progress mt-3" id="fingerprintProgress" style="display: none; max-width: 200px; margin: 0 auto;">
+                                                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                                        </div>
+                                                    </div>
+                                                    <p class="text-muted small mb-2" id="fingerprintStatus">Hold to Scan Finger</p>
+                                                    <p class="text-muted" style="font-size: 0.75rem;">Biometric Identity Verification</p>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <!-- Forgot Password -->
 
 
-                                        <!-- Register Link -->
-                                        <div class="signinform mt-3 text-center">
-                                            <h4>Don’t have an account? <a href="{{ route('register') }}" class="hover-a">Sign Up</a></h4>
-                                        </div>
+                                        <!-- Register Link - Hidden for Employee Login -->
+                                        {{-- <div class="signinform mt-3 text-center">
+                                            <h4>Don't have an account? <a href="{{ route('register') }}" class="hover-a">Sign Up</a></h4>
+                                        </div> --}}
 
                                         <!-- OR -->
                                         <div class="form-setlogin or-text d-none">
@@ -132,9 +189,269 @@
                             </form>
                         </div>
 
-                        <!-- JavaScript for Auto Branch Detection -->
+                        <!-- JavaScript for Login Methods -->
                         <script>
                             document.addEventListener('DOMContentLoaded', function() {
+                                // Pattern Lock Logic
+                                let patternDots = [];
+                                let isDrawing = false;
+                                let userPattern = null; // Will be loaded from database
+                                
+                                const patternDotsElements = document.querySelectorAll('.pattern-dot');
+                                const patternInput = document.getElementById('patternInput');
+                                const patternError = document.getElementById('patternError');
+                                const patternPane = document.getElementById('pattern-pane');
+                                
+                                if (patternDotsElements.length > 0) {
+                                    patternDotsElements.forEach((dot, index) => {
+                                        dot.addEventListener('mousedown', function() {
+                                            isDrawing = true;
+                                            patternDots = [index];
+                                            updatePatternDisplay();
+                                        });
+                                        
+                                        dot.addEventListener('mouseenter', function() {
+                                            if (isDrawing && !patternDots.includes(index)) {
+                                                patternDots.push(index);
+                                                updatePatternDisplay();
+                                            }
+                                        });
+                                        
+                                        dot.addEventListener('mouseup', function() {
+                                            if (isDrawing) {
+                                                isDrawing = false;
+                                                checkPattern();
+                                            }
+                                        });
+                                    });
+                                    
+                                    // Touch events for mobile
+                                    patternDotsElements.forEach((dot, index) => {
+                                        dot.addEventListener('touchstart', function(e) {
+                                            e.preventDefault();
+                                            isDrawing = true;
+                                            patternDots = [index];
+                                            updatePatternDisplay();
+                                        });
+                                        
+                                        dot.addEventListener('touchmove', function(e) {
+                                            e.preventDefault();
+                                            const touch = e.touches[0];
+                                            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                                            if (element && element.classList.contains('pattern-dot')) {
+                                                const dotIndex = parseInt(element.getAttribute('data-index'));
+                                                if (isDrawing && !patternDots.includes(dotIndex)) {
+                                                    patternDots.push(dotIndex);
+                                                    updatePatternDisplay();
+                                                }
+                                            }
+                                        });
+                                        
+                                        dot.addEventListener('touchend', function(e) {
+                                            e.preventDefault();
+                                            if (isDrawing) {
+                                                isDrawing = false;
+                                                checkPattern();
+                                            }
+                                        });
+                                    });
+                                }
+                                
+                                function updatePatternDisplay() {
+                                    patternDotsElements.forEach((dot, index) => {
+                                        if (patternDots.includes(index)) {
+                                            dot.style.background = '#3b82f6';
+                                            dot.style.borderColor = '#3b82f6';
+                                            dot.style.transform = 'scale(1.1)';
+                                        } else {
+                                            dot.style.background = '#fff';
+                                            dot.style.borderColor = '#dee2e6';
+                                            dot.style.transform = 'scale(1)';
+                                        }
+                                    });
+                                }
+                                
+                                function checkPattern() {
+                                    if (!userPattern) {
+                                        patternError.textContent = 'Pattern not set. Please set your pattern first.';
+                                        patternError.style.display = 'block';
+                                        setTimeout(function() {
+                                            patternDots = [];
+                                            updatePatternDisplay();
+                                            patternError.style.display = 'none';
+                                        }, 2000);
+                                        return;
+                                    }
+
+                                    if (patternDots.join(',') === userPattern) {
+                                        patternInput.value = patternDots.join(',');
+                                        // Submit pattern login form
+                                        submitPatternLogin();
+                                    } else {
+                                        patternError.textContent = 'Wrong Pattern';
+                                        patternError.style.display = 'block';
+                                        setTimeout(function() {
+                                            patternDots = [];
+                                            updatePatternDisplay();
+                                            patternError.style.display = 'none';
+                                        }, 1000);
+                                    }
+                                }
+
+                                function submitPatternLogin() {
+                                    const email = document.getElementById('emailInput').value;
+                                    const pattern = patternDots.join(',');
+                                    const branchId = document.getElementById('branchSelect') ? document.getElementById('branchSelect').value : '';
+                                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+                                    // Create form and submit
+                                    const form = document.createElement('form');
+                                    form.method = 'POST';
+                                    form.action = '{{ route("login.pattern") }}';
+                                    
+                                    const csrfInput = document.createElement('input');
+                                    csrfInput.type = 'hidden';
+                                    csrfInput.name = '_token';
+                                    csrfInput.value = csrfToken;
+                                    form.appendChild(csrfInput);
+
+                                    const emailInput = document.createElement('input');
+                                    emailInput.type = 'hidden';
+                                    emailInput.name = 'email';
+                                    emailInput.value = email;
+                                    form.appendChild(emailInput);
+
+                                    const patternInput = document.createElement('input');
+                                    patternInput.type = 'hidden';
+                                    patternInput.name = 'pattern';
+                                    patternInput.value = pattern;
+                                    form.appendChild(patternInput);
+
+                                    if (branchId) {
+                                        const branchInput = document.createElement('input');
+                                        branchInput.type = 'hidden';
+                                        branchInput.name = 'branch_id';
+                                        branchInput.value = branchId;
+                                        form.appendChild(branchInput);
+                                    }
+
+                                    document.body.appendChild(form);
+                                    form.submit();
+                                }
+                                
+                                // Fingerprint Logic
+                                const fingerprintBtn = document.getElementById('fingerprintBtn');
+                                const fingerprintProgress = document.getElementById('fingerprintProgress');
+                                const fingerprintStatus = document.getElementById('fingerprintStatus');
+                                let scanInterval = null;
+                                let scanProgress = 0;
+                                
+                                if (fingerprintBtn) {
+                                    fingerprintBtn.addEventListener('mousedown', startFingerprintScan);
+                                    fingerprintBtn.addEventListener('mouseup', stopFingerprintScan);
+                                    fingerprintBtn.addEventListener('mouseleave', stopFingerprintScan);
+                                    
+                                    // Touch events
+                                    fingerprintBtn.addEventListener('touchstart', function(e) {
+                                        e.preventDefault();
+                                        startFingerprintScan();
+                                    });
+                                    
+                                    fingerprintBtn.addEventListener('touchend', function(e) {
+                                        e.preventDefault();
+                                        stopFingerprintScan();
+                                    });
+                                }
+                                
+                                let userHasFingerprint = false;
+
+                                function startFingerprintScan() {
+                                    if (!userHasFingerprint) {
+                                        fingerprintStatus.textContent = 'Fingerprint not set. Please set your fingerprint first.';
+                                        fingerprintStatus.style.color = '#dc3545';
+                                        setTimeout(function() {
+                                            fingerprintStatus.textContent = 'Hold to Scan Finger';
+                                            fingerprintStatus.style.color = '';
+                                        }, 2000);
+                                        return;
+                                    }
+
+                                    scanProgress = 0;
+                                    fingerprintProgress.style.display = 'block';
+                                    fingerprintStatus.textContent = 'Scanning...';
+                                    fingerprintBtn.querySelector('.fingerprint-icon').style.background = '#3b82f6';
+                                    fingerprintBtn.querySelector('.fingerprint-icon i').style.color = '#fff';
+                                    
+                                    scanInterval = setInterval(function() {
+                                        scanProgress += 5;
+                                        fingerprintProgress.querySelector('.progress-bar').style.width = scanProgress + '%';
+                                        
+                                        if (scanProgress >= 100) {
+                                            stopFingerprintScan();
+                                            // Submit fingerprint login form
+                                            submitFingerprintLogin();
+                                        }
+                                    }, 50);
+                                }
+
+                                function submitFingerprintLogin() {
+                                    const email = document.getElementById('emailInput').value;
+                                    const fingerprintData = 'fingerprint_' + email + '_' + Date.now(); // Simulated fingerprint data
+                                    const branchId = document.getElementById('branchSelect') ? document.getElementById('branchSelect').value : '';
+                                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+                                    // Create form and submit
+                                    const form = document.createElement('form');
+                                    form.method = 'POST';
+                                    form.action = '{{ route("login.fingerprint") }}';
+                                    
+                                    const csrfInput = document.createElement('input');
+                                    csrfInput.type = 'hidden';
+                                    csrfInput.name = '_token';
+                                    csrfInput.value = csrfToken;
+                                    form.appendChild(csrfInput);
+
+                                    const emailInput = document.createElement('input');
+                                    emailInput.type = 'hidden';
+                                    emailInput.name = 'email';
+                                    emailInput.value = email;
+                                    form.appendChild(emailInput);
+
+                                    const fingerprintInput = document.createElement('input');
+                                    fingerprintInput.type = 'hidden';
+                                    fingerprintInput.name = 'fingerprint_data';
+                                    fingerprintInput.value = fingerprintData;
+                                    form.appendChild(fingerprintInput);
+
+                                    if (branchId) {
+                                        const branchInput = document.createElement('input');
+                                        branchInput.type = 'hidden';
+                                        branchInput.name = 'branch_id';
+                                        branchInput.value = branchId;
+                                        form.appendChild(branchInput);
+                                    }
+
+                                    document.body.appendChild(form);
+                                    form.submit();
+                                }
+                                
+                                function stopFingerprintScan() {
+                                    if (scanInterval) {
+                                        clearInterval(scanInterval);
+                                        scanInterval = null;
+                                    }
+                                    
+                                    if (scanProgress < 100) {
+                                        fingerprintProgress.style.display = 'none';
+                                        fingerprintStatus.textContent = 'Hold to Scan Finger';
+                                        fingerprintBtn.querySelector('.fingerprint-icon').style.background = '#f8f9fa';
+                                        fingerprintBtn.querySelector('.fingerprint-icon i').style.color = '#3b82f6';
+                                        fingerprintProgress.querySelector('.progress-bar').style.width = '0%';
+                                        scanProgress = 0;
+                                    }
+                                }
+                                
+                                // Auto Branch Detection
                                 const emailInput = document.getElementById('emailInput');
                                 const branchSelect = document.getElementById('branchSelect');
                                 const branchSelectionDiv = document.getElementById('branchSelectionDiv');
@@ -147,10 +464,89 @@
                                 let debounceTimer;
                                 let isUserRole = false;
                                 
+                                // Check pattern and fingerprint status when email is entered
+                                function checkPatternFingerprintStatus(email) {
+                                    if (!email || !email.includes('@')) {
+                                        userPattern = null;
+                                        userHasFingerprint = false;
+                                        if (patternPane) {
+                                            const patternMsg = patternPane.querySelector('.pattern-status-msg');
+                                            if (patternMsg) patternMsg.remove();
+                                        }
+                                        return;
+                                    }
+
+                                    // Check pattern status
+                                    fetch('{{ route("get.user.pattern.status") }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({ email: email })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.has_pattern && data.pattern) {
+                                            userPattern = data.pattern; // Store user's pattern from database
+                                            if (patternPane) {
+                                                let patternMsg = patternPane.querySelector('.pattern-status-msg');
+                                                if (!patternMsg) {
+                                                    patternMsg = document.createElement('p');
+                                                    patternMsg.className = 'text-success small mt-2 pattern-status-msg';
+                                                    patternPane.querySelector('.text-center').appendChild(patternMsg);
+                                                }
+                                                patternMsg.textContent = 'Pattern is set. Draw your pattern to login.';
+                                            }
+                                        } else {
+                                            userPattern = null;
+                                            if (patternPane) {
+                                                let patternMsg = patternPane.querySelector('.pattern-status-msg');
+                                                if (!patternMsg) {
+                                                    patternMsg = document.createElement('p');
+                                                    patternMsg.className = 'text-warning small mt-2 pattern-status-msg';
+                                                    patternPane.querySelector('.text-center').appendChild(patternMsg);
+                                                }
+                                                patternMsg.textContent = 'Pattern not set. Please set your pattern first in settings.';
+                                            }
+                                        }
+                                    });
+
+                                    // Check fingerprint status
+                                    fetch('{{ route("get.user.fingerprint.status") }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({ email: email })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        userHasFingerprint = data.has_fingerprint;
+                                        if (!userHasFingerprint) {
+                                            const fingerprintStatusEl = document.getElementById('fingerprintStatus');
+                                            if (fingerprintStatusEl) {
+                                                fingerprintStatusEl.textContent = 'Fingerprint not set. Please set your fingerprint first.';
+                                                fingerprintStatusEl.style.color = '#dc3545';
+                                            }
+                                        } else {
+                                            const fingerprintStatusEl = document.getElementById('fingerprintStatus');
+                                            if (fingerprintStatusEl) {
+                                                fingerprintStatusEl.textContent = 'Hold to Scan Finger';
+                                                fingerprintStatusEl.style.color = '';
+                                            }
+                                        }
+                                    });
+                                }
+
                                 if (emailInput && branchSelect && branchSelectionDiv) {
                                     // Auto-detect branch when email is entered (on input change)
                                     emailInput.addEventListener('input', function() {
                                         const email = this.value.trim();
+                                        
+                                        // Check pattern and fingerprint status
+                                        checkPatternFingerprintStatus(email);
                                         
                                         if (!email || !email.includes('@')) {
                                             branchSelectionDiv.style.display = 'none';
