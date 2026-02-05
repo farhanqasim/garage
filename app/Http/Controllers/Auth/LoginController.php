@@ -177,7 +177,7 @@ class LoginController extends Controller
      */
     protected function authenticated(Request $request, $user)
     {
-        // For normal users, branch is REQUIRED
+        // For normal users (role = 'user'), branch is REQUIRED and redirect to employee home
         if ($user->role === 'user') {
             // Check if branch was selected
             if (!$request->has('branch_id') || !$request->branch_id) {
@@ -215,10 +215,11 @@ class LoginController extends Controller
                 'selected_branch_code' => $branch->branch_code
             ]);
             
-            return redirect()->intended($this->redirectPath());
+            // User role redirects to employee home
+            return redirect()->route('employee.home');
         }
         
-        // For admin users, branch is OPTIONAL
+        // For admin users, branch is OPTIONAL and redirect to admin dashboard
         if ($user->role === 'admin') {
             // If branch selected from login form
             if ($request->has('branch_id') && $request->branch_id) {
@@ -237,11 +238,12 @@ class LoginController extends Controller
                 session()->forget(['selected_branch_id', 'selected_branch_name', 'selected_branch_code']);
             }
             
-            return redirect()->intended($this->redirectPath());
+            // Admin role redirects to admin dashboard (home)
+            return redirect()->route('home');
         }
         
-        // Default: redirect to home
-        return redirect()->intended($this->redirectPath());
+        // For employee role or any other role, redirect to employee home
+        return redirect()->route('employee.home');
     }
     
     /**
@@ -438,6 +440,330 @@ class LoginController extends Controller
                 ], 500)->header('Content-Type', 'application/json');
             }
             return redirect()->back()->with('error', 'An error occurred while switching branch');
+        }
+    }
+    
+    /**
+     * Log the user out of the application.
+     * Redirect to main login (which is now employee login).
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function logout(Request $request)
+    {
+        // Perform logout
+        $this->guard()->logout();
+        
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
+        // Redirect to main login (which is now employee login)
+        return redirect()->route('login');
+    }
+
+    /**
+     * Check if user has pattern lock set
+     */
+    public function getUserPatternStatus(Request $request)
+    {
+        $email = $request->input('email');
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'has_pattern' => false,
+                'pattern' => null,
+                'message' => 'User not found'
+            ]);
+        }
+
+        return response()->json([
+            'has_pattern' => !empty($user->pattern_lock),
+            'pattern' => $user->pattern_lock, // Return pattern for verification
+            'message' => $user->pattern_lock ? 'Pattern is set' : 'Pattern not set'
+        ]);
+    }
+
+    /**
+     * Check if user has fingerprint set
+     */
+    public function getUserFingerprintStatus(Request $request)
+    {
+        $email = $request->input('email');
+        $user = User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'has_fingerprint' => false,
+                'message' => 'User not found'
+            ]);
+        }
+
+        return response()->json([
+            'has_fingerprint' => !empty($user->fingerprint_data),
+            'message' => $user->fingerprint_data ? 'Fingerprint is set' : 'Fingerprint not set'
+        ]);
+    }
+
+    /**
+     * Save pattern lock for authenticated user
+     */
+    public function savePattern(Request $request)
+    {
+        // Ensure JSON response even on errors
+        if (!$request->wantsJson() && !$request->expectsJson()) {
+            $request->headers->set('Accept', 'application/json');
+        }
+
+        try {
+            // Manual validation to avoid HTML error pages
+            $pattern = $request->input('pattern');
+            
+            // Validate pattern format manually
+            if ($pattern !== null && $pattern !== '') {
+                // Check if pattern matches format (comma-separated numbers 0-8)
+                if (!preg_match('/^[0-8](,[0-8])*$/', $pattern)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid pattern format. Pattern must be comma-separated numbers (0-8).'
+                    ], 422)->header('Content-Type', 'application/json');
+                }
+                
+                // Validate pattern has at least 3 dots
+                $patternArray = explode(',', $pattern);
+                if (count($patternArray) < 3) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Pattern must have at least 3 dots'
+                    ], 422)->header('Content-Type', 'application/json');
+                }
+                
+                // Validate each dot is between 0-8
+                foreach ($patternArray as $dot) {
+                    $dotNum = intval(trim($dot));
+                    if ($dotNum < 0 || $dotNum > 8) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Invalid pattern. Dots must be between 0-8.'
+                        ], 422)->header('Content-Type', 'application/json');
+                    }
+                }
+            }
+
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401)->header('Content-Type', 'application/json');
+            }
+            
+            // If pattern is empty string, clear it
+            if (empty($pattern)) {
+                $user->pattern_lock = null;
+                $message = 'Pattern cleared successfully';
+            } else {
+                $user->pattern_lock = $pattern;
+                $message = 'Pattern saved successfully';
+            }
+
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ])->header('Content-Type', 'application/json');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed: ' . $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422)->header('Content-Type', 'application/json');
+            
+        } catch (\Exception $e) {
+            \Log::error('Pattern save error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while saving pattern: ' . $e->getMessage()
+            ], 500)->header('Content-Type', 'application/json');
+        }
+    }
+
+    /**
+     * Save fingerprint data for authenticated user
+     */
+    public function saveFingerprint(Request $request)
+    {
+        // Ensure JSON response even on errors
+        if (!$request->wantsJson() && !$request->expectsJson()) {
+            $request->headers->set('Accept', 'application/json');
+        }
+        
+        try {
+            $request->validate([
+                'fingerprint_data' => 'nullable|string'
+            ]);
+
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401)->header('Content-Type', 'application/json');
+            }
+
+            $fingerprintData = $request->input('fingerprint_data');
+            
+            // If fingerprint_data is empty string, clear it
+            if (empty($fingerprintData)) {
+                $user->fingerprint_data = null;
+                $message = 'Fingerprint cleared successfully';
+            } else {
+                // Encrypt fingerprint data before storing
+                $user->fingerprint_data = encrypt($fingerprintData);
+                $message = 'Fingerprint saved successfully';
+            }
+
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ])->header('Content-Type', 'application/json');
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422)->header('Content-Type', 'application/json');
+            
+        } catch (\Exception $e) {
+            \Log::error('Fingerprint save error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while saving fingerprint: ' . $e->getMessage()
+            ], 500)->header('Content-Type', 'application/json');
+        }
+    }
+
+    /**
+     * Verify pattern login
+     */
+    public function verifyPatternLogin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'pattern' => 'required|string',
+            'branch_id' => 'nullable|exists:branches,id'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'These credentials do not match our records.']);
+        }
+
+        // Check if pattern matches
+        if (empty($user->pattern_lock) || $user->pattern_lock !== $request->pattern) {
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['pattern' => 'Invalid pattern.']);
+        }
+
+        // Login the user
+        Auth::login($user, $request->has('remember'));
+
+        // Handle branch selection (same logic as regular login)
+        if ($user->role === 'user' && $request->branch_id) {
+            $branch = Branch::find($request->branch_id);
+            if ($branch && $branch->status === 'active') {
+                session([
+                    'selected_branch_id' => $branch->id,
+                    'selected_branch_name' => $branch->branch_name,
+                    'selected_branch_code' => $branch->branch_code
+                ]);
+            }
+        }
+
+        // Redirect based on role
+        if ($user->role === 'admin') {
+            return redirect()->route('home');
+        } else {
+            return redirect()->route('employee.home');
+        }
+    }
+
+    /**
+     * Verify fingerprint login
+     */
+    public function verifyFingerprintLogin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'fingerprint_data' => 'required|string',
+            'branch_id' => 'nullable|exists:branches,id'
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'These credentials do not match our records.']);
+        }
+
+        // Check if fingerprint is set
+        if (empty($user->fingerprint_data)) {
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['fingerprint' => 'Fingerprint not set for this user.']);
+        }
+
+        // Decrypt and compare fingerprint data
+        try {
+            $storedFingerprint = decrypt($user->fingerprint_data);
+            if ($storedFingerprint !== $request->fingerprint_data) {
+                return redirect()->back()
+                    ->withInput($request->only('email'))
+                    ->withErrors(['fingerprint' => 'Invalid fingerprint.']);
+            }
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['fingerprint' => 'Fingerprint verification failed.']);
+        }
+
+        // Login the user
+        Auth::login($user, $request->has('remember'));
+
+        // Handle branch selection (same logic as regular login)
+        if ($user->role === 'user' && $request->branch_id) {
+            $branch = Branch::find($request->branch_id);
+            if ($branch && $branch->status === 'active') {
+                session([
+                    'selected_branch_id' => $branch->id,
+                    'selected_branch_name' => $branch->branch_name,
+                    'selected_branch_code' => $branch->branch_code
+                ]);
+            }
+        }
+
+        // Redirect based on role
+        if ($user->role === 'admin') {
+            return redirect()->route('home');
+        } else {
+            return redirect()->route('employee.home');
         }
     }
 }

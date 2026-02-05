@@ -10,6 +10,7 @@ class CarWashAttendance extends Model
     protected $fillable = [
         'worker_id',
         'attended_user_id',
+        'attendance_type',
         'branch_id',
         'user_id',
         'captured_photo',

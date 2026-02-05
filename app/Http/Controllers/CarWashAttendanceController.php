@@ -44,6 +44,7 @@ class CarWashAttendanceController extends Controller
         $request->validate([
             'type' => 'nullable|in:worker,user',
             'employeeId' => 'required',
+            'attendanceType' => 'required|in:in,out',
             'photo' => 'required|image|mimes:jpeg,png,jpg|max:5120',
             'lat' => 'required|numeric',
             'lng' => 'required|numeric',
@@ -52,7 +53,7 @@ class CarWashAttendanceController extends Controller
             'mapsLink' => 'nullable|string|max:500',
             'capturedAt' => 'nullable|string',
             'isMockLocationDetected' => 'nullable|boolean',
-            'deviceInfo' => 'nullable|array',
+            'deviceInfo' => 'nullable', // Accept string or array, we'll parse it
         ]);
 
         $user = Auth::user();
@@ -95,11 +96,29 @@ class CarWashAttendanceController extends Controller
             $photoPath = saveSingleFile($request->file('photo'), 'attendance_photos');
         }
 
-        $capturedAt = $request->capturedAt ? \Carbon\Carbon::parse($request->capturedAt) : now();
+        // Get captured time in Pakistan timezone (Asia/Karachi)
+        // Frontend sends UTC time (ISO string), convert it to Pakistan timezone
+        if ($request->capturedAt) {
+            // Parse the UTC time from frontend (ISO string) and convert to Pakistan timezone
+            $capturedAt = \Carbon\Carbon::parse($request->capturedAt)->setTimezone('Asia/Karachi');
+        } else {
+            // Use current time in Pakistan timezone
+            $capturedAt = \Carbon\Carbon::now('Asia/Karachi');
+        }
+
+        // Parse deviceInfo if it's a JSON string
+        $deviceInfo = $request->deviceInfo;
+        if (is_string($deviceInfo)) {
+            $deviceInfo = json_decode($deviceInfo, true);
+        }
+        if (!is_array($deviceInfo)) {
+            $deviceInfo = [];
+        }
 
         $attendance = CarWashAttendance::create([
             'worker_id' => $workerId,
             'attended_user_id' => $attendedUserId,
+            'attendance_type' => $request->attendanceType,
             'branch_id' => $branchId,
             'user_id' => $user->id,
             'captured_photo' => $photoPath,
@@ -109,7 +128,7 @@ class CarWashAttendanceController extends Controller
             'address' => $request->address,
             'maps_link' => $request->mapsLink,
             'captured_at' => $capturedAt,
-            'device_info' => $request->deviceInfo,
+            'device_info' => $deviceInfo,
             'is_mock_location_detected' => (bool) $request->isMockLocationDetected,
         ]);
 
@@ -120,6 +139,7 @@ class CarWashAttendanceController extends Controller
                 'id' => $attendance->id,
                 'employeeId' => $workerId ?? $attendedUserId,
                 'employeeName' => $employeeName,
+                'attendanceType' => $attendance->attendance_type,
                 'capturedPhoto' => $attendance->captured_photo ? asset($attendance->captured_photo) : null,
                 'lat' => $attendance->lat,
                 'lng' => $attendance->lng,
@@ -128,6 +148,349 @@ class CarWashAttendanceController extends Controller
                 'mapsLink' => $attendance->maps_link,
                 'capturedAt' => $attendance->captured_at?->toIso8601String(),
             ],
+        ]);
+    }
+
+    /**
+     * Get attendance history for an employee
+     */
+    public function history(Request $request)
+    {
+        $request->validate([
+            'employeeId' => 'required',
+            'type' => 'required|in:worker,user',
+        ]);
+
+        $user = Auth::user();
+        $type = $request->type;
+        $employeeId = (int) $request->employeeId;
+
+        $query = CarWashAttendance::query();
+
+        if ($type === 'worker') {
+            $query->where('worker_id', $employeeId);
+        } else {
+            $query->where('attended_user_id', $employeeId);
+        }
+
+        // Apply branch filter
+        $branchId = $this->getUserBranchId($user);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $attendances = $query->orderBy('captured_at', 'desc')
+            ->limit(100)
+            ->get()
+            ->map(function ($att) {
+                return [
+                    'id' => $att->id,
+                    'type' => $att->attendance_type,
+                    'time' => $att->captured_at?->toIso8601String(),
+                    'location' => $att->lat && $att->lng ? ['lat' => $att->lat, 'lng' => $att->lng] : null,
+                    'address' => $att->address,
+                    'photo' => $att->captured_photo ? asset($att->captured_photo) : null,
+                ];
+            });
+
+        return response()->json(['success' => true, 'attendances' => $attendances]);
+    }
+
+    /**
+     * Get completed attendance (IN-OUT pairs) for table view
+     */
+    public function completed(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        $query = CarWashAttendance::query();
+        
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        // Apply date filters
+        if ($request->has('date_from') && $request->date_from) {
+            $query->whereDate('captured_at', '>=', $request->date_from);
+        }
+        if ($request->has('date_to') && $request->date_to) {
+            $query->whereDate('captured_at', '<=', $request->date_to);
+        }
+
+        // Apply worker filter
+        if ($request->has('worker_id') && $request->worker_id) {
+            $query->where('worker_id', $request->worker_id);
+        }
+
+        // Apply user filter
+        if ($request->has('user_id') && $request->user_id) {
+            $query->where('attended_user_id', $request->user_id);
+        }
+
+        // Get all attendances ordered by date
+        $allAttendances = $query->orderBy('captured_at', 'desc')
+            ->with(['worker', 'attendedUser', 'user'])
+            ->get();
+
+        // Group by employee and find IN-OUT pairs
+        $completed = [];
+        $employeeGroups = [];
+
+        foreach ($allAttendances as $att) {
+            $empId = $att->worker_id ? 'worker_' . $att->worker_id : 'user_' . $att->attended_user_id;
+            $empName = $att->worker ? $att->worker->name : ($att->attendedUser ? $att->attendedUser->name : 'Unknown');
+            $empType = $att->worker_id ? 'worker' : 'user';
+
+            if (!isset($employeeGroups[$empId])) {
+                $employeeGroups[$empId] = [
+                    'id' => $empId,
+                    'name' => $empName,
+                    'type' => $empType,
+                    'attendances' => []
+                ];
+            }
+
+            $employeeGroups[$empId]['attendances'][] = $att;
+        }
+
+        // Find completed pairs (IN followed by OUT) and also show incomplete IN records
+        foreach ($employeeGroups as $empId => $empData) {
+            $attendances = collect($empData['attendances'])->sortBy('captured_at')->values();
+            
+            for ($i = 0; $i < $attendances->count(); $i++) {
+                $inAttendance = $attendances[$i];
+                
+                if ($inAttendance->attendance_type === 'in') {
+                    // Find next OUT attendance
+                    $outAttendance = null;
+                    for ($j = $i + 1; $j < $attendances->count(); $j++) {
+                        if ($attendances[$j]->attendance_type === 'out') {
+                            $outAttendance = $attendances[$j];
+                            break;
+                        }
+                    }
+
+                    if ($outAttendance) {
+                        // Calculate hours for completed pair
+                        $hours = $inAttendance->captured_at->diffInHours($outAttendance->captured_at, true);
+                        $minutes = $inAttendance->captured_at->diffInMinutes($outAttendance->captured_at) % 60;
+                        
+                        $completed[] = [
+                            'id' => $inAttendance->id . '_' . $outAttendance->id,
+                            'employeeId' => $empId,
+                            'employeeName' => $empData['name'],
+                            'employeeType' => $empData['type'],
+                            'inTime' => $inAttendance->captured_at->toIso8601String(),
+                            'outTime' => $outAttendance->captured_at->toIso8601String(),
+                            'hours' => round($hours + ($minutes / 60), 2),
+                            'inLocation' => $inAttendance->lat && $inAttendance->lng ? [
+                                'lat' => $inAttendance->lat,
+                                'lng' => $inAttendance->lng,
+                                'address' => $inAttendance->address
+                            ] : null,
+                            'outLocation' => $outAttendance->lat && $outAttendance->lng ? [
+                                'lat' => $outAttendance->lat,
+                                'lng' => $outAttendance->lng,
+                                'address' => $outAttendance->address
+                            ] : null,
+                            'inPhoto' => $inAttendance->captured_photo ? asset($inAttendance->captured_photo) : null,
+                            'outPhoto' => $outAttendance->captured_photo ? asset($outAttendance->captured_photo) : null,
+                            'date' => $inAttendance->captured_at->format('Y-m-d'),
+                            'status' => 'completed'
+                        ];
+                    } else {
+                        // Show incomplete IN record (no OUT yet)
+                        $completed[] = [
+                            'id' => $inAttendance->id . '_incomplete',
+                            'employeeId' => $empId,
+                            'employeeName' => $empData['name'],
+                            'employeeType' => $empData['type'],
+                            'inTime' => $inAttendance->captured_at->toIso8601String(),
+                            'outTime' => null,
+                            'hours' => null,
+                            'inLocation' => $inAttendance->lat && $inAttendance->lng ? [
+                                'lat' => $inAttendance->lat,
+                                'lng' => $inAttendance->lng,
+                                'address' => $inAttendance->address
+                            ] : null,
+                            'outLocation' => null,
+                            'inPhoto' => $inAttendance->captured_photo ? asset($inAttendance->captured_photo) : null,
+                            'outPhoto' => null,
+                            'date' => $inAttendance->captured_at->format('Y-m-d'),
+                            'status' => 'incomplete'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Sort by date descending
+        usort($completed, function($a, $b) {
+            return strcmp($b['inTime'], $a['inTime']);
+        });
+
+        return response()->json(['success' => true, 'completed' => $completed]);
+    }
+
+    /**
+     * Show attendance history page
+     */
+    public function historyPage(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        $query = CarWashAttendance::query();
+        
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        // Apply date filters
+        if ($request->has('date_from') && $request->date_from) {
+            $query->whereDate('captured_at', '>=', $request->date_from);
+        }
+        if ($request->has('date_to') && $request->date_to) {
+            $query->whereDate('captured_at', '<=', $request->date_to);
+        }
+
+        // Apply worker filter
+        if ($request->has('worker_id') && $request->worker_id) {
+            $query->where('worker_id', $request->worker_id);
+        }
+
+        // Apply user filter
+        if ($request->has('user_id') && $request->user_id) {
+            $query->where('attended_user_id', $request->user_id);
+        }
+
+        // Get all attendances ordered by date
+        $allAttendances = $query->orderBy('captured_at', 'desc')
+            ->with(['worker', 'attendedUser', 'user'])
+            ->get();
+
+        // Group by employee and find IN-OUT pairs
+        $completed = [];
+        $employeeGroups = [];
+
+        foreach ($allAttendances as $att) {
+            $empId = $att->worker_id ? 'worker_' . $att->worker_id : 'user_' . $att->attended_user_id;
+            $empName = $att->worker ? $att->worker->name : ($att->attendedUser ? $att->attendedUser->name : 'Unknown');
+            $empType = $att->worker_id ? 'worker' : 'user';
+
+            if (!isset($employeeGroups[$empId])) {
+                $employeeGroups[$empId] = [
+                    'id' => $empId,
+                    'name' => $empName,
+                    'type' => $empType,
+                    'attendances' => []
+                ];
+            }
+
+            $employeeGroups[$empId]['attendances'][] = $att;
+        }
+
+        // Find completed pairs (IN followed by OUT) and also show incomplete IN records
+        foreach ($employeeGroups as $empId => $empData) {
+            $attendances = collect($empData['attendances'])->sortBy('captured_at')->values();
+            
+            for ($i = 0; $i < $attendances->count(); $i++) {
+                $inAttendance = $attendances[$i];
+                
+                if ($inAttendance->attendance_type === 'in') {
+                    // Find next OUT attendance
+                    $outAttendance = null;
+                    for ($j = $i + 1; $j < $attendances->count(); $j++) {
+                        if ($attendances[$j]->attendance_type === 'out') {
+                            $outAttendance = $attendances[$j];
+                            break;
+                        }
+                    }
+
+                    if ($outAttendance) {
+                        // Calculate hours for completed pair
+                        $hours = $inAttendance->captured_at->diffInHours($outAttendance->captured_at, true);
+                        $minutes = $inAttendance->captured_at->diffInMinutes($outAttendance->captured_at) % 60;
+                        
+                        $completed[] = [
+                            'id' => $inAttendance->id . '_' . $outAttendance->id,
+                            'employeeId' => $empId,
+                            'employeeName' => $empData['name'],
+                            'employeeType' => $empData['type'],
+                            'inTime' => $inAttendance->captured_at,
+                            'outTime' => $outAttendance->captured_at,
+                            'hours' => round($hours + ($minutes / 60), 2),
+                            'inLocation' => $inAttendance->lat && $inAttendance->lng ? [
+                                'lat' => $inAttendance->lat,
+                                'lng' => $inAttendance->lng,
+                                'address' => $inAttendance->address
+                            ] : null,
+                            'outLocation' => $outAttendance->lat && $outAttendance->lng ? [
+                                'lat' => $outAttendance->lat,
+                                'lng' => $outAttendance->lng,
+                                'address' => $outAttendance->address
+                            ] : null,
+                            'inPhoto' => $inAttendance->captured_photo,
+                            'outPhoto' => $outAttendance->captured_photo,
+                            'inAttendance' => $inAttendance,
+                            'outAttendance' => $outAttendance,
+                            'date' => $inAttendance->captured_at->format('Y-m-d'),
+                            'status' => 'completed'
+                        ];
+                    } else {
+                        // Show incomplete IN record (no OUT yet)
+                        $completed[] = [
+                            'id' => $inAttendance->id . '_incomplete',
+                            'employeeId' => $empId,
+                            'employeeName' => $empData['name'],
+                            'employeeType' => $empData['type'],
+                            'inTime' => $inAttendance->captured_at,
+                            'outTime' => null,
+                            'hours' => null,
+                            'inLocation' => $inAttendance->lat && $inAttendance->lng ? [
+                                'lat' => $inAttendance->lat,
+                                'lng' => $inAttendance->lng,
+                                'address' => $inAttendance->address
+                            ] : null,
+                            'outLocation' => null,
+                            'inPhoto' => $inAttendance->captured_photo,
+                            'outPhoto' => null,
+                            'inAttendance' => $inAttendance,
+                            'outAttendance' => null,
+                            'date' => $inAttendance->captured_at->format('Y-m-d'),
+                            'status' => 'incomplete'
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Sort by date descending
+        usort($completed, function($a, $b) {
+            return $b['inTime']->timestamp - $a['inTime']->timestamp;
+        });
+
+        // Get workers and users for filters
+        $workersQuery = CarWashWorker::query();
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->where('status', true)->orderBy('name', 'asc')->get(['id', 'name']);
+
+        $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser'])
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name']);
+
+        return view('attendance-history', [
+            'completed' => $completed,
+            'workers' => $workers,
+            'users' => $users,
+            'googleMapsApiKey' => config('services.google_maps.api_key'),
+            'filters' => [
+                'date_from' => $request->get('date_from', ''),
+                'date_to' => $request->get('date_to', ''),
+                'worker_id' => $request->get('worker_id', ''),
+                'user_id' => $request->get('user_id', ''),
+            ]
         ]);
     }
 }

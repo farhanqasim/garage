@@ -92,6 +92,106 @@
                                 </div>
                             </form>
                         </div>
+
+                        <!-- Pattern & Fingerprint Setup Card -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h4>Login Security Settings</h4>
+                                <p class="text-muted mb-0">Set up Pattern Lock and Fingerprint for quick login</p>
+                            </div>
+
+                            <div class="card-body">
+                                <!-- Pattern Lock Setup -->
+                                <div class="mb-4">
+                                    <h5 class="mb-3">
+                                        <i class="ti ti-grid-3x3 me-2"></i>Pattern Lock
+                                        @if(auth()->user()->pattern_lock)
+                                            <span class="badge bg-success ms-2">Set</span>
+                                        @else
+                                            <span class="badge bg-warning ms-2">Not Set</span>
+                                        @endif
+                                    </h5>
+                                    
+                                    @if(auth()->user()->pattern_lock)
+                                        <div class="alert alert-info">
+                                            <i class="ti ti-info-circle me-2"></i>Pattern is already set. Draw a new pattern below to update it.
+                                        </div>
+                                    @else
+                                        <div class="alert alert-warning">
+                                            <i class="ti ti-alert-triangle me-2"></i>Pattern is not set. Draw a pattern below to enable pattern login.
+                                        </div>
+                                    @endif
+
+                                    <div class="text-center mb-3">
+                                        <p class="text-muted small mb-3">Draw your pattern (minimum 3 dots)</p>
+                                        <div class="d-flex justify-content-center">
+                                            <div class="pattern-lock-container" style="background: #f8f9fa; padding: 2rem; border-radius: 1rem; display: inline-block;">
+                                                <div class="pattern-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                                                    @for($i = 0; $i < 9; $i++)
+                                                        <button type="button" class="pattern-dot-setup" data-index="{{ $i }}" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #dee2e6; background: #fff; cursor: pointer; transition: all 0.2s;">
+                                                        </button>
+                                                    @endfor
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p class="text-danger small mt-3" id="patternSetupError" style="display: none;"></p>
+                                        <p class="text-success small mt-3" id="patternSetupSuccess" style="display: none;"></p>
+                                        <button type="button" class="btn btn-primary mt-3" id="savePatternBtn" disabled>
+                                            <i class="ti ti-device-floppy me-2" id="savePatternIcon"></i><span id="savePatternText">Save Pattern</span>
+                                        </button>
+                                        @if(auth()->user()->pattern_lock)
+                                            <button type="button" class="btn btn-danger mt-3 ms-2" id="clearPatternBtn">
+                                                <i class="ti ti-trash me-2"></i>Clear Pattern
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <!-- Fingerprint Setup -->
+                                <div class="mb-4">
+                                    <h5 class="mb-3">
+                                        <i class="ti ti-fingerprint me-2"></i>Fingerprint / Biometric
+                                        @if(auth()->user()->fingerprint_data)
+                                            <span class="badge bg-success ms-2">Set</span>
+                                        @else
+                                            <span class="badge bg-warning ms-2">Not Set</span>
+                                        @endif
+                                    </h5>
+                                    
+                                    @if(auth()->user()->fingerprint_data)
+                                        <div class="alert alert-info">
+                                            <i class="ti ti-info-circle me-2"></i>Fingerprint is already set. Scan again to update it.
+                                        </div>
+                                    @else
+                                        <div class="alert alert-warning">
+                                            <i class="ti ti-alert-triangle me-2"></i>Fingerprint is not set. Scan your fingerprint below to enable fingerprint login.
+                                        </div>
+                                    @endif
+
+                                    <div class="text-center mb-3">
+                                        <div class="fingerprint-container mb-3">
+                                            <button type="button" id="fingerprintSetupBtn" class="btn btn-link p-0" style="border: none; background: none;">
+                                                <div class="fingerprint-icon-setup" style="width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; background: #f8f9fa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s;">
+                                                    <i class="ti ti-fingerprint" style="font-size: 64px; color: #3b82f6;"></i>
+                                                </div>
+                                            </button>
+                                            <div class="progress mt-3" id="fingerprintSetupProgress" style="display: none; max-width: 200px; margin: 0 auto;">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                        <p class="text-muted small mb-2" id="fingerprintSetupStatus">Hold to Scan Finger</p>
+                                        <p class="text-success small mt-3" id="fingerprintSetupSuccess" style="display: none;"></p>
+                                        @if(auth()->user()->fingerprint_data)
+                                            <button type="button" class="btn btn-danger mt-3" id="clearFingerprintBtn">
+                                                <i class="ti ti-trash me-2"></i>Clear Fingerprint
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -118,5 +218,430 @@
                 }
             });
         });
+
+        // Pattern Lock Setup
+        let patternDotsSetup = [];
+        let isDrawingSetup = false;
+        const patternDotsSetupElements = document.querySelectorAll('.pattern-dot-setup');
+        const savePatternBtn = document.getElementById('savePatternBtn');
+        const patternSetupError = document.getElementById('patternSetupError');
+        const patternSetupSuccess = document.getElementById('patternSetupSuccess');
+        const clearPatternBtn = document.getElementById('clearPatternBtn');
+
+        if (patternDotsSetupElements.length > 0) {
+            patternDotsSetupElements.forEach((dot, index) => {
+                dot.addEventListener('mousedown', function() {
+                    isDrawingSetup = true;
+                    patternDotsSetup = [index];
+                    updatePatternSetupDisplay();
+                });
+                
+                dot.addEventListener('mouseenter', function() {
+                    if (isDrawingSetup && !patternDotsSetup.includes(index)) {
+                        patternDotsSetup.push(index);
+                        updatePatternSetupDisplay();
+                    }
+                });
+                
+                dot.addEventListener('mouseup', function() {
+                    if (isDrawingSetup) {
+                        isDrawingSetup = false;
+                        if (patternDotsSetup.length >= 3) {
+                            savePatternBtn.disabled = false;
+                            patternSetupError.style.display = 'none';
+                        } else {
+                            patternSetupError.textContent = 'Pattern must have at least 3 dots';
+                            patternSetupError.style.display = 'block';
+                            savePatternBtn.disabled = true;
+                        }
+                    }
+                });
+            });
+
+            // Touch events for mobile
+            patternDotsSetupElements.forEach((dot, index) => {
+                dot.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    isDrawingSetup = true;
+                    patternDotsSetup = [index];
+                    updatePatternSetupDisplay();
+                });
+                
+                dot.addEventListener('touchmove', function(e) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (element && element.classList.contains('pattern-dot-setup')) {
+                        const dotIndex = parseInt(element.getAttribute('data-index'));
+                        if (isDrawingSetup && !patternDotsSetup.includes(dotIndex)) {
+                            patternDotsSetup.push(dotIndex);
+                            updatePatternSetupDisplay();
+                        }
+                    }
+                });
+                
+                dot.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    if (isDrawingSetup) {
+                        isDrawingSetup = false;
+                        if (patternDotsSetup.length >= 3) {
+                            savePatternBtn.disabled = false;
+                            patternSetupError.style.display = 'none';
+                        } else {
+                            patternSetupError.textContent = 'Pattern must have at least 3 dots';
+                            patternSetupError.style.display = 'block';
+                            savePatternBtn.disabled = true;
+                        }
+                    }
+                });
+            });
+        }
+
+        function updatePatternSetupDisplay() {
+            patternDotsSetupElements.forEach((dot, index) => {
+                if (patternDotsSetup.includes(index)) {
+                    dot.style.background = '#3b82f6';
+                    dot.style.borderColor = '#3b82f6';
+                    dot.style.transform = 'scale(1.1)';
+                } else {
+                    dot.style.background = '#fff';
+                    dot.style.borderColor = '#dee2e6';
+                    dot.style.transform = 'scale(1)';
+                }
+            });
+        }
+
+        // Save Pattern
+        if (savePatternBtn) {
+            savePatternBtn.addEventListener('click', function() {
+                if (patternDotsSetup.length < 3) {
+                    patternSetupError.textContent = 'Pattern must have at least 3 dots';
+                    patternSetupError.style.display = 'block';
+                    return;
+                }
+
+                const pattern = patternDotsSetup.join(',');
+                
+                // Disable button while saving
+                savePatternBtn.disabled = true;
+                const savePatternText = document.getElementById('savePatternText');
+                if (savePatternText) {
+                    savePatternText.textContent = 'Saving...';
+                }
+                
+                // Get CSRF token from meta tag or form
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                                 document.querySelector('input[name="_token"]')?.value || 
+                                 '{{ csrf_token() }}';
+                
+                console.log('Saving pattern:', pattern);
+                console.log('CSRF Token:', csrfToken ? 'Found' : 'Missing');
+                
+                fetch('{{ route("save.pattern") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ pattern: pattern })
+                })
+                .then(async response => {
+                    // Check if response is ok
+                    if (!response.ok) {
+                        const text = await response.text();
+                        // Try to parse as JSON first
+                        try {
+                            const jsonData = JSON.parse(text);
+                            return jsonData;
+                        } catch (e) {
+                            // If not JSON, it's probably HTML error page
+                            console.error('Server returned HTML instead of JSON:', text.substring(0, 200));
+                            throw new Error('Server error: ' + response.status + ' ' + response.statusText);
+                        }
+                    }
+                    
+                    // Check content type
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        // If not JSON, read as text
+                        const text = await response.text();
+                        console.error('Expected JSON but got:', contentType, text.substring(0, 200));
+                        throw new Error('Server returned non-JSON response');
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        patternSetupSuccess.textContent = 'Pattern saved successfully! You can now use it to login.';
+                        patternSetupSuccess.style.display = 'block';
+                        patternSetupError.style.display = 'none';
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        patternSetupError.textContent = data.message || 'Failed to save pattern';
+                        patternSetupError.style.display = 'block';
+                        savePatternBtn.disabled = false;
+                        if (savePatternText) {
+                            savePatternText.textContent = 'Save Pattern';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Pattern save error:', error);
+                    patternSetupError.textContent = 'An error occurred: ' + (error.message || 'Failed to save pattern. Please try again.');
+                    patternSetupError.style.display = 'block';
+                    savePatternBtn.disabled = false;
+                    if (savePatternText) {
+                        savePatternText.textContent = 'Save Pattern';
+                    }
+                });
+            });
+        }
+
+        // Clear Pattern
+        if (clearPatternBtn) {
+            clearPatternBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear your pattern? You will not be able to login using pattern until you set a new one.')) {
+                    fetch('{{ route("save.pattern") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ pattern: '' })
+                    })
+                    .then(response => {
+                        // Check if response is OK
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                try {
+                                    const jsonData = JSON.parse(text);
+                                    throw new Error(jsonData.message || 'Server returned error: ' + response.status);
+                                } catch (e) {
+                                    throw new Error('Server error (Status: ' + response.status + '). Please try again.');
+                                }
+                            });
+                        }
+                        
+                        // Check content type
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            return response.text().then(text => {
+                                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                                    throw new Error('Server returned HTML error page. Please try again.');
+                                }
+                                try {
+                                    return JSON.parse(text);
+                                } catch (e) {
+                                    throw new Error('Invalid JSON response from server.');
+                                }
+                            });
+                        }
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert(data.message || 'Failed to clear pattern');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Pattern clear error:', error);
+                        alert(error.message || 'Failed to clear pattern');
+                    });
+                }
+            });
+        }
+
+        // Fingerprint Setup
+        const fingerprintSetupBtn = document.getElementById('fingerprintSetupBtn');
+        const fingerprintSetupProgress = document.getElementById('fingerprintSetupProgress');
+        const fingerprintSetupStatus = document.getElementById('fingerprintSetupStatus');
+        const fingerprintSetupSuccess = document.getElementById('fingerprintSetupSuccess');
+        const clearFingerprintBtn = document.getElementById('clearFingerprintBtn');
+        let scanIntervalSetup = null;
+        let scanProgressSetup = 0;
+
+        if (fingerprintSetupBtn) {
+            fingerprintSetupBtn.addEventListener('mousedown', startFingerprintSetupScan);
+            fingerprintSetupBtn.addEventListener('mouseup', stopFingerprintSetupScan);
+            fingerprintSetupBtn.addEventListener('mouseleave', stopFingerprintSetupScan);
+            
+            fingerprintSetupBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                startFingerprintSetupScan();
+            });
+            
+            fingerprintSetupBtn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                stopFingerprintSetupScan();
+            });
+        }
+
+        function startFingerprintSetupScan() {
+            scanProgressSetup = 0;
+            fingerprintSetupProgress.style.display = 'block';
+            fingerprintSetupStatus.textContent = 'Scanning...';
+            fingerprintSetupBtn.querySelector('.fingerprint-icon-setup').style.background = '#3b82f6';
+            fingerprintSetupBtn.querySelector('.fingerprint-icon-setup i').style.color = '#fff';
+            
+            scanIntervalSetup = setInterval(function() {
+                scanProgressSetup += 5;
+                fingerprintSetupProgress.querySelector('.progress-bar').style.width = scanProgressSetup + '%';
+                
+                if (scanProgressSetup >= 100) {
+                    stopFingerprintSetupScan();
+                    saveFingerprint();
+                }
+            }, 50);
+        }
+
+        function stopFingerprintSetupScan() {
+            if (scanIntervalSetup) {
+                clearInterval(scanIntervalSetup);
+                scanIntervalSetup = null;
+            }
+            
+            if (scanProgressSetup < 100) {
+                fingerprintSetupProgress.style.display = 'none';
+                fingerprintSetupStatus.textContent = 'Hold to Scan Finger';
+                fingerprintSetupBtn.querySelector('.fingerprint-icon-setup').style.background = '#f8f9fa';
+                fingerprintSetupBtn.querySelector('.fingerprint-icon-setup i').style.color = '#3b82f6';
+                fingerprintSetupProgress.querySelector('.progress-bar').style.width = '0%';
+                scanProgressSetup = 0;
+            }
+        }
+
+        function saveFingerprint() {
+            const fingerprintData = 'fingerprint_' + '{{ auth()->user()->email }}' + '_' + Date.now();
+            
+            fetch('{{ route("save.fingerprint") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ fingerprint_data: fingerprintData })
+            })
+            .then(response => {
+                // Check if response is OK
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        // Try to parse as JSON first
+                        try {
+                            const jsonData = JSON.parse(text);
+                            throw new Error(jsonData.message || 'Server returned error: ' + response.status);
+                        } catch (e) {
+                            // If not JSON, it's probably an HTML error page
+                            throw new Error('Server error (Status: ' + response.status + '). Please try again.');
+                        }
+                    });
+                }
+                
+                // Check content type
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    // If not JSON, get text and try to parse
+                    return response.text().then(text => {
+                        // Check if it's HTML (error page)
+                        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                            throw new Error('Server returned HTML error page. Please try again.');
+                        }
+                        
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            throw new Error('Invalid JSON response from server.');
+                        }
+                    });
+                }
+            })
+            .then(data => {
+                if (data.success) {
+                    fingerprintSetupSuccess.textContent = 'Fingerprint saved successfully! You can now use it to login.';
+                    fingerprintSetupSuccess.style.display = 'block';
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    fingerprintSetupStatus.textContent = data.message || 'Failed to save fingerprint';
+                    fingerprintSetupStatus.style.color = '#dc3545';
+                }
+            })
+            .catch(error => {
+                console.error('Fingerprint save error:', error);
+                fingerprintSetupStatus.textContent = error.message || 'An error occurred while saving fingerprint';
+                fingerprintSetupStatus.style.color = '#dc3545';
+            });
+        }
+
+        // Clear Fingerprint
+        if (clearFingerprintBtn) {
+            clearFingerprintBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear your fingerprint? You will not be able to login using fingerprint until you set a new one.')) {
+                    fetch('{{ route("save.fingerprint") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ fingerprint_data: '' })
+                    })
+                    .then(response => {
+                        // Check if response is OK
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                try {
+                                    const jsonData = JSON.parse(text);
+                                    throw new Error(jsonData.message || 'Server returned error: ' + response.status);
+                                } catch (e) {
+                                    throw new Error('Server error (Status: ' + response.status + '). Please try again.');
+                                }
+                            });
+                        }
+                        
+                        // Check content type
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            return response.json();
+                        } else {
+                            return response.text().then(text => {
+                                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                                    throw new Error('Server returned HTML error page. Please try again.');
+                                }
+                                try {
+                                    return JSON.parse(text);
+                                } catch (e) {
+                                    throw new Error('Invalid JSON response from server.');
+                                }
+                            });
+                        }
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert(data.message || 'Failed to clear fingerprint');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fingerprint clear error:', error);
+                        alert(error.message || 'Failed to clear fingerprint');
+                    });
+                }
+            });
+        }
     </script>
 @endsection
