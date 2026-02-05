@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\CarWashService;
 use App\Models\CarWashWorker;
 use App\Models\CarWashJob;
+use App\Models\CarWashShopExpense;
 use App\Models\PaymentMethod;
 use App\Models\BankAccount;
 use App\Http\Controllers\CarWashPaymentController;
@@ -38,7 +39,14 @@ class HomeController extends Controller
 
     public function userprofile($id){
       $user = User::find($id);
-      return view('admin.pages.profile',compact('user'));
+      $currentUser = auth()->user();
+      
+      // Check if current user is accessing their own profile
+      if ($currentUser->id != $id) {
+          abort(403, 'Unauthorized access');
+      }
+      
+      return view('admin.pages.profile', compact('user'));
      }
 
 
@@ -70,6 +78,55 @@ public function userprofileupdate(Request $request, $id)
     return redirect()->back()->with('success', 'Profile updated successfully!');
 }
 
+/**
+ * Show employee profile page
+ */
+public function employeeProfile($id)
+{
+    $user = User::find($id);
+    $currentUser = auth()->user();
+    
+    // Check if current user is accessing their own profile
+    if ($currentUser->id != $id) {
+        abort(403, 'Unauthorized access');
+    }
+    
+    // Get branch info
+    $branchInfo = $this->getBranchInfoForDisplay($currentUser);
+    $branchName = $branchInfo['name'];
+    $userName = $user->name ?? 'Guest';
+    
+    return view('employee.profile', compact('user', 'branchName', 'userName'));
+}
+
+/**
+ * Update employee profile
+ */
+public function employeeProfileUpdate(Request $request, $id)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email,' . $id,
+        'profile_img' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+    ]);
+    $user = User::findOrFail($id);
+    // Profile Image Handling
+    if ($request->hasFile('profile_img')) {
+        $user->profile_img = saveSingleFile($request->file('profile_img'), 'profile');
+    }
+    $user->name = $request->input('name');
+    $user->email = $request->input('email');
+    $user->phone = $request->input('phone');
+    // Password Update Logic
+    if ($request->filled('new_password')) {
+        $request->validate([
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+        $user->password = Hash::make($request->new_password);
+    }
+    $user->save();
+    return redirect()->route('employee.profile', $id)->with('success', 'Profile updated successfully!');
+}
 
 // Route for verifying old password
 public function verifyOldPassword(Request $request)
@@ -139,6 +196,84 @@ public function carWash()
 
     return view('car-wash', compact('branchName', 'userName', 'services', 'workers', 'activeJobs', 'completedJobs'));
 }
+
+/**
+ * Show the Car Wash Home/Dashboard page.
+ *
+ * @return \Illuminate\Contracts\Support\Renderable
+ */
+public function carWashHome()
+{
+    $user = auth()->user();
+    $userName = $user->name ?? 'Guest';
+    
+    // Get branch info using helper method
+    $branchInfo = $this->getBranchInfoForDisplay($user);
+    $branchId = $branchInfo['id'];
+    $branchName = $branchInfo['name'];
+
+    // Get today's stats
+    // Today's completed jobs
+    $todayCompletedQuery = CarWashJob::query();
+    $this->applyBranchFilter($todayCompletedQuery, 'branch_id', $user);
+    $todayCompletedJobs = $todayCompletedQuery
+        ->whereDate('created_at', today())
+        ->where('status', 'completed')
+        ->get();
+    
+    $todayRevenue = $todayCompletedJobs->sum('price');
+    $todayJobsCount = $todayCompletedJobs->count();
+    
+    // Active jobs count
+    $activeJobsQuery = CarWashJob::query();
+    $this->applyBranchFilter($activeJobsQuery, 'branch_id', $user);
+    $activeJobsCount = $activeJobsQuery
+        ->where('status', 'active')
+        ->count();
+    
+    // Total workers
+    $workersQuery = CarWashWorker::query();
+    $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+    $totalWorkers = $workersQuery->where('status', true)->count();
+    
+    // Total services
+    $servicesQuery = CarWashService::query();
+    $this->applyBranchFilter($servicesQuery, 'branch_id', $user);
+    $totalServices = $servicesQuery->where('status', true)->count();
+    
+    // Recent completed jobs (last 5)
+    $recentJobsQuery = CarWashJob::query();
+    $this->applyBranchFilter($recentJobsQuery, 'branch_id', $user);
+    $recentJobs = $recentJobsQuery
+        ->where('status', 'completed')
+        ->orderBy('end_time', 'desc')
+        ->limit(5)
+        ->get();
+    
+    // Today's expenses (from shop expenses)
+    $todayExpenses = \App\Models\CarWashShopExpense::query()
+        ->whereDate('created_at', today())
+        ->when($branchId, function($q) use ($branchId) {
+            $q->where('branch_id', $branchId);
+        })
+        ->sum('amount');
+    
+    $todayNetProfit = $todayRevenue - $todayExpenses;
+
+    return view('car-wash-home', compact(
+        'branchName', 
+        'userName', 
+        'todayRevenue', 
+        'todayJobsCount', 
+        'activeJobsCount',
+        'totalWorkers',
+        'totalServices',
+        'recentJobs',
+        'todayExpenses',
+        'todayNetProfit'
+    ));
+}
+
 
 /**
  * Show the Completed Jobs page.

@@ -1009,6 +1009,8 @@
 
 @endsection
 @push('scripts')
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places"></script>
 <!-- Tesseract.js for OCR -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Cropper.js JS -->

@@ -30,9 +30,9 @@ class Handler extends ExceptionHandler
         // Handle authentication exceptions - redirect to login
         $this->renderable(function (\Illuminate\Auth\AuthenticationException $e, $request) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Unauthenticated.', 'redirect' => url('/')], 401);
+                return response()->json(['message' => 'Unauthenticated.', 'redirect' => route('login')], 401);
             }
-            return redirect('/')->with('error', 'Your session has expired. Please login again.');
+            return redirect()->route('login')->with('error', 'Your session has expired. Please login again.');
         });
         
         // Handle general errors with authentication issues
@@ -42,9 +42,9 @@ class Handler extends ExceptionHandler
                 // Check if it's an auth-related error
                 if (!auth()->check()) {
                     if ($request->expectsJson()) {
-                        return response()->json(['message' => 'Authentication required.', 'redirect' => url('/')], 401);
+                        return response()->json(['message' => 'Authentication required.', 'redirect' => route('login')], 401);
                     }
-                    return redirect('/')->with('error', 'Your session has expired. Please login again.');
+                    return redirect()->route('login')->with('error', 'Your session has expired. Please login again.');
                 }
             }
         });
@@ -61,9 +61,63 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
-        // Handle branch switch route - ALWAYS return JSON for POST requests
-        if (($request->is('branch/switch') || $request->routeIs('branch.switch')) && $request->isMethod('POST')) {
-            // Always return JSON for branch switch POST requests
+        // Handle API routes that should ALWAYS return JSON for POST requests
+        $apiRoutes = ['branch/switch', 'save-pattern', 'save-fingerprint'];
+        $apiRouteNames = ['branch.switch', 'save.pattern', 'save.fingerprint'];
+        $isApiRoute = false;
+        
+        // Get current path and URI (normalize by removing query string and trailing slashes)
+        $currentPath = trim($request->path(), '/');
+        $currentUri = $request->getRequestUri();
+        $currentUrl = $request->url();
+        
+        // Check by URL path (more flexible matching)
+        foreach ($apiRoutes as $route) {
+            $normalizedRoute = trim($route, '/');
+            
+            // Exact match on path
+            if ($currentPath === $normalizedRoute || $currentPath === $route) {
+                $isApiRoute = true;
+                break;
+            }
+            // Check URI (includes query string)
+            if (str_contains($currentUri, $normalizedRoute) || str_contains($currentUri, $route)) {
+                $isApiRoute = true;
+                break;
+            }
+            // Ends with route
+            if (str_ends_with($currentPath, $normalizedRoute) || str_ends_with($currentPath, $route)) {
+                $isApiRoute = true;
+                break;
+            }
+            // Contains route in path
+            if (str_contains($currentPath, $normalizedRoute) || str_contains($currentPath, $route)) {
+                $isApiRoute = true;
+                break;
+            }
+        }
+        
+        // Check by route name
+        if (!$isApiRoute && $request->route()) {
+            $routeName = $request->route()->getName();
+            if ($routeName && in_array($routeName, $apiRouteNames)) {
+                $isApiRoute = true;
+            }
+        }
+        
+        // Also check if request expects JSON
+        if (!$isApiRoute && ($request->expectsJson() || $request->wantsJson())) {
+            // Check if it's one of our API routes by path
+            foreach ($apiRoutes as $route) {
+                if (str_contains($currentPath, $route)) {
+                    $isApiRoute = true;
+                    break;
+                }
+            }
+        }
+        
+        if ($isApiRoute && $request->isMethod('POST')) {
+            // Always return JSON for API POST requests
             if ($exception instanceof \Illuminate\Validation\ValidationException) {
                 return response()->json([
                     'success' => false,
@@ -79,16 +133,38 @@ class Handler extends ExceptionHandler
                 ], 401)->header('Content-Type', 'application/json');
             }
             
-            // For any other exception in branch switch route, return JSON
+            // Handle CSRF token mismatch
+            if ($exception instanceof \Illuminate\Session\TokenMismatchException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'CSRF token mismatch. Please refresh the page and try again.',
+                    'error' => 'TokenMismatchException'
+                ], 419)->header('Content-Type', 'application/json');
+            }
+            
+            // Handle HTTP exceptions (404, 500, etc.)
+            if ($exception instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                $statusCode = $exception->getStatusCode();
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage() ?: 'HTTP Error ' . $statusCode,
+                    'error' => 'HttpException',
+                    'status_code' => $statusCode
+                ], $statusCode)->header('Content-Type', 'application/json');
+            }
+            
+            // For any other exception in API routes, return JSON
+            $statusCode = method_exists($exception, 'getStatusCode') ? $exception->getStatusCode() : 500;
             return response()->json([
                 'success' => false,
-                'message' => $exception->getMessage() ?: 'An error occurred while switching branch',
-                'error' => config('app.debug') ? [
+                'message' => $exception->getMessage() ?: 'An error occurred',
+                'error' => get_class($exception),
+                'debug' => config('app.debug') ? [
                     'file' => $exception->getFile(),
                     'line' => $exception->getLine(),
                     'trace' => $exception->getTraceAsString()
                 ] : null
-            ], 500)->header('Content-Type', 'application/json');
+            ], $statusCode)->header('Content-Type', 'application/json');
         }
         
         // Handle WebAuthn routes - always return JSON
@@ -119,9 +195,9 @@ class Handler extends ExceptionHandler
         // Handle authentication errors
         if ($exception instanceof \Illuminate\Auth\AuthenticationException) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Unauthenticated.', 'redirect' => url('/')], 401);
+                return response()->json(['message' => 'Unauthenticated.', 'redirect' => route('login')], 401);
             }
-            return redirect('/')->with('error', 'Your session has expired. Please login again.');
+            return redirect()->route('login')->with('error', 'Your session has expired. Please login again.');
         }
         
         // Handle null user errors
@@ -130,9 +206,9 @@ class Handler extends ExceptionHandler
                 (str_contains($exception->getMessage(), 'user') || str_contains($exception->getMessage(), 'auth'))) {
                 if (!auth()->check()) {
                     if ($request->expectsJson()) {
-                        return response()->json(['message' => 'Authentication required.', 'redirect' => url('/')], 401);
+                        return response()->json(['message' => 'Authentication required.', 'redirect' => route('login')], 401);
                     }
-                    return redirect('/')->with('error', 'Your session has expired. Please login again.');
+                    return redirect()->route('login')->with('error', 'Your session has expired. Please login again.');
                 }
             }
         }

@@ -10,11 +10,13 @@
           <div class="mb-3">
             <h1 class="mb-1">Welcome, {{ auth()->user()->name?? "Guest" }} bhai</h1>
             <p class="fw-medium">You have <span class="text-primary fw-bold">200+</span> Orders, Today</p>
+            @if(auth()->user()->role === 'admin')
             <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
               <a href="{{ route('car.wash') }}" class="btn btn-primary btn-lg">
                 <i class="ti ti-car me-2"></i> Elite Car Wash
               </a>
           </div>
+            @endif
           </div>
           <div class="d-flex align-items-center gap-3">
           <div class="input-icon-start position-relative mb-3">
