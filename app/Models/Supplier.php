@@ -21,6 +21,7 @@ class Supplier extends Model
         'company',
         'email',
         'address',
+        'area',
         'carnumber',
         'group_id',
         'password',

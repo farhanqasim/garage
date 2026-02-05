@@ -1634,6 +1634,35 @@
             const [shopExpensesList, setShopExpensesList] = useState([]);
             const [shopExpenseDate, setShopExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
             const [shopExpenseForm, setShopExpenseForm] = useState({ category: '', amount: '', notes: '' });
+            // Check current day - Friday (5), Saturday (6), Sunday (0) should be OFF, others ON
+            const getDefaultInspectionState = () => {
+                const today = new Date();
+                const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                // Friday = 5, Saturday = 6, Sunday = 0
+                // OFF on Friday, Saturday, Sunday; ON on Monday-Thursday
+                return !(dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
+            };
+            const [inspectionCompulsoryToggle, setInspectionCompulsoryToggle] = useState(getDefaultInspectionState());
+            
+            // Update inspection toggle based on day of week
+            useEffect(() => {
+                const updateInspectionState = () => {
+                    const today = new Date();
+                    const dayOfWeek = today.getDay();
+                    // Friday = 5, Saturday = 6, Sunday = 0
+                    const shouldBeOff = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
+                    setInspectionCompulsoryToggle(!shouldBeOff);
+                };
+                
+                // Update on mount
+                updateInspectionState();
+                
+                // Check every minute to see if day changed (optional, for long-running sessions)
+                const interval = setInterval(updateInspectionState, 60000); // Check every minute
+                
+                return () => clearInterval(interval);
+            }, []);
+            
             const [showCompletedJobsModal, setShowCompletedJobsModal] = useState(false);
             const [showDailyReportModal, setShowDailyReportModal] = useState(false);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
@@ -2507,7 +2536,32 @@
                         return dateMatch;
                     });
                     
-                    setFilteredCompletedJobs(filtered);
+                    // Sort jobs by END time (completion time): PEHLE COMPLETE HUI JOB UPAR, BAAD MEIN COMPLETE HUI NEECHE
+                    // Example: 5:25 PM complete → UPAR, 5:34 PM complete → NEECHE
+                    // Sort by endTime in ASCENDING order (earlier completion time = smaller number = comes first = UPAR)
+                    const sorted = [...filtered].sort((a, b) => {
+                        // Get end time (completion time) for both jobs (pehle complete hui job upar aayegi)
+                        const timeA = a.endTime ? new Date(a.endTime).getTime() : 0;
+                        const timeB = b.endTime ? new Date(b.endTime).getTime() : 0;
+                        
+                        // Handle jobs without end time - unko neeche bhejo
+                        if (timeA === 0 && timeB === 0) {
+                            // If both don't have endTime, sort by startTime as fallback
+                            const startTimeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+                            const startTimeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+                            return startTimeA - startTimeB;
+                        }
+                        if (timeA === 0) return 1; // Job A without endTime goes to bottom
+                        if (timeB === 0) return -1; // Job B without endTime goes to bottom
+                        
+                        // ASCENDING ORDER: timeA - timeB
+                        // Agar timeA < timeB (pehle complete hui), to negative number = A pehle aayega = UPAR
+                        // Agar timeA > timeB (baad mein complete hui), to positive number = B pehle aayega = A neeche
+                        // Result: Pehle complete hui (chhota time) UPAR, Baad mein complete hui (bada time) NEECHE
+                        return timeA - timeB;
+                    });
+                    
+                    setFilteredCompletedJobs(sorted);
                 } else {
                     setFilteredCompletedJobs([]);
                 }
@@ -3416,6 +3470,46 @@
                                                 </div>
                                                 <span className="text-sm sm:text-base font-black uppercase tracking-wide truncate">Logout</span>
                                             </button>
+
+                                            {/* Inspection Compulsory Toggle Switch */}
+                                            <div className="flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 border-t border-slate-200 bg-slate-50">
+                                                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center flex-shrink-0">
+                                                        <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block truncate">Inspection Required</span>
+                                                        <span className="text-[10px] sm:text-xs text-slate-600 block mt-0.5">
+                                                            {inspectionCompulsoryToggle ? 'Inspection is compulsory' : 'Inspection is optional'}
+                                                        </span>
+                                                        <span className="text-[9px] sm:text-[10px] text-slate-500 block mt-0.5 italic">
+                                                            OFF: Fri, Sat, Sun | ON: Mon-Thu
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setInspectionCompulsoryToggle(!inspectionCompulsoryToggle);
+                                                    }}
+                                                    className={`relative inline-flex h-6 sm:h-7 w-11 sm:w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-shrink-0 ${
+                                                        inspectionCompulsoryToggle ? 'bg-emerald-500' : 'bg-slate-400'
+                                                    }`}
+                                                    role="switch"
+                                                    aria-checked={inspectionCompulsoryToggle}
+                                                    aria-label={inspectionCompulsoryToggle ? 'Inspection compulsory (ON)' : 'Inspection optional (OFF)'}
+                                                    title={inspectionCompulsoryToggle ? 'Inspection is compulsory - Click to make optional' : 'Inspection is optional - Click to make compulsory'}
+                                                >
+                                                    <span
+                                                        className={`inline-block h-5 sm:h-6 w-5 sm:w-6 transform rounded-full bg-white transition-transform shadow-lg ${
+                                                            inspectionCompulsoryToggle ? 'translate-x-5 sm:translate-x-5' : 'translate-x-0.5'
+                                                        }`}
+                                                    />
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </button>
@@ -4247,7 +4341,9 @@
                                     
                                     // Whether this job's service requires inspection before completion
                                     const jobService = allServices.find(s => s.label === job.service);
-                                    const inspectionCompulsoryForJob = jobService ? (jobService.inspection_compulsory !== false) : true;
+                                    const serviceRequiresInspection = jobService ? (jobService.inspection_compulsory !== false) : true;
+                                    // Check global toggle - if OFF, inspection is not compulsory even if service requires it
+                                    const inspectionCompulsoryForJob = inspectionCompulsoryToggle && serviceRequiresInspection;
                                     
                                     // Get expense items for this job (from expenseItems state or from backend)
                                     const currentJobExpenseItems = expenseItems || {};
@@ -7878,7 +7974,9 @@
                                                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
                                                                 {(() => {
                                                                     const jobServiceForInspection = allServices.find(s => s.label === job.service);
-                                                                    const inspectionCompulsoryForThisJob = jobServiceForInspection ? (jobServiceForInspection.inspection_compulsory !== false) : true;
+                                                                    const serviceRequiresInspection = jobServiceForInspection ? (jobServiceForInspection.inspection_compulsory !== false) : true;
+                                                                    // Check global toggle - if OFF, don't show inspection button
+                                                                    const inspectionCompulsoryForThisJob = inspectionCompulsoryToggle && serviceRequiresInspection;
                                                                     if (!inspectionCompulsoryForThisJob) return null;
                                                                     const inspectionCompleted = completedInspections.has(job.id);
                                                                     const jobStarted = job.startTime && job.startTime !== null;
@@ -9157,19 +9255,7 @@
                         <button
                             type="button"
                             onClick={() => {
-                                setShowServicesDropdown(false);
-                                setShowAttendanceModal(true);
-                                setAttendanceStep('select');
-                                setSelectedAttendanceEmployee(null);
-                                setAttendanceEmployeeSearch('');
-                                setAttendancePhotoBlob(null);
-                                setAttendancePhotoUrl(null);
-                                setAttendanceLocation(null);
-                                setAttendanceLocationError(null);
-                                setAttendanceAccuracyWarning(false);
-                                setAttendancePermissionError(null);
-                                setAttendanceCameraError(null);
-                                setAttendanceSuccess(false);
+                                window.location.href = '{{ route("attendance") }}';
                             }}
                             className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
                             title="Mark Attendance"

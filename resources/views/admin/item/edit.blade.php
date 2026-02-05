@@ -1038,33 +1038,45 @@
                                 </div>
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="low_stock_parts">Low Stock:</label>
-                                    <input type="number" class="form-control @error('l_stock') is-invalid @enderror"
-                                        name="l_stock" id="low_stock_parts" value="{{ $item->l_stock ?? old('l_stock') }}" />
+                                    <label for="low_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">LOW STOCK:</label>
+                                    <select class="form-control searchable-select @error('l_stock') is-invalid @enderror"
+                                        name="l_stock" id="low_stock_parts">
+                                        <option value="">Select Low Stock</option>
+                                        @for($i = 1; $i <= 1000; $i++)
+                                            <option value="{{ $i }}" {{ old('l_stock', $item->l_stock ?? '') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                        @endfor
+                                    </select>
                                     @error('l_stock') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="maintain_stock_parts">Maintain Stock:</label>
-                                    <input type="number"
-                                        class="form-control @error('m_stock') is-invalid @enderror"
-                                        name="m_stock" id="maintain_stock_parts"
-                                        value="{{ $item->m_stock ?? old('m_stock') }}" />
+                                    <label for="maintain_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">MAINTAIN STOCK:</label>
+                                    <select class="form-control searchable-select @error('m_stock') is-invalid @enderror"
+                                        name="m_stock" id="maintain_stock_parts">
+                                        <option value="">Select Maintain Stock</option>
+                                        @for($i = 1; $i <= 1000; $i++)
+                                            <option value="{{ $i }}" {{ old('m_stock', $item->m_stock ?? '') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                        @endfor
+                                    </select>
                                     @error('m_stock') <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="on_hand">Opening Stock:</label>
-                                    <input type="number"
-                                        class="form-control @error('on_hand') is-invalid @enderror" name="on_hand"
-                                        id="on_hand" value="{{ $item->on_hand ?? old('on_hand') }}" />
+                                    <label for="on_hand" class="text-center fw-bold d-block" style="font-weight: 900 !important;">OPENING STOCK:</label>
+                                    <select class="form-control searchable-select @error('on_hand') is-invalid @enderror"
+                                        name="on_hand" id="on_hand">
+                                        <option value="">Select Opening Stock</option>
+                                        @for($i = 1; $i <= 1000; $i++)
+                                            <option value="{{ $i }}" {{ old('on_hand', $item->on_hand ?? '') == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                        @endfor
+                                    </select>
                                     @error('on_hand') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
 
                                 <!-- Weight -->
                                     <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                        <label for="weight">Weight:</label>
+                                        <label for="weight" class="text-center fw-bold d-block" style="font-weight: 900 !important;">WEIGHT:</label>
                                         <input type="number" step="0.01"
                                             class="form-control @error('weight_for_delivery') is-invalid @enderror" name="weight_for_delivery"
                                             id="weight" value="{{ $item->weight_for_delivery ?? old('weight_for_delivery') }}" placeholder="Enter weight" />
@@ -1073,11 +1085,12 @@
                                     
                                     <!-- Weight Unit -->
                                     <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                        <label for="weight_unit">Weight Unit:</label>
+                                        <label for="weight_unit" class="text-center fw-bold d-block" style="font-weight: 900 !important;">WEIGHT UNIT:</label>
                                         <select class="form-control searchable-select @error('weight_unit') is-invalid @enderror"
                                             name="weight_unit" id="weight_unit">
                                             <option value="">Select Weight Unit</option>
                                             <optgroup label="Metric System (most used worldwide)">
+                                                <option value="ml" {{ old('weight_unit', $item->weight_unit ?? '') == 'ml' ? 'selected' : '' }}>MilliLiter (Ml)</option>
                                                 <option value="mg" {{ old('weight_unit', $item->weight_unit ?? '') == 'mg' ? 'selected' : '' }}>Milligram (mg)</option>
                                                 <option value="g" {{ old('weight_unit', $item->weight_unit ?? '') == 'g' ? 'selected' : '' }}>Gram (g)</option>
                                                 <option value="kg" {{ old('weight_unit', $item->weight_unit ?? '') == 'kg' ? 'selected' : '' }}>Kilogram (kg)</option>
@@ -1095,85 +1108,200 @@
                                         @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
 
-                                <div class="col-md-12 mt-4" x-show="selectedType === 'battery' || selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <div class="col-md-4 mt-3 d-none">
-                                        <label for="vehical_id">Vehicle Type:</label>
-                                        <div class="input-group">
-                                            <select
-                                                class="form-control searchable-select @error('vehical_id') is-invalid @enderror"
-                                                name="vehical_id" id="vehical_id">
-                                                <option value="">Select Vehicle Type</option>
-                                                @foreach ($Vehicals as $vehicle)
-                                                    <option value="{{ $vehicle->id }}"
-                                                    {{ old('vehical_id', $item->vehical_id) == $vehicle->id ? 'selected' : '' }}>
-                                                        {{ $vehicle->manutacturer_vehical->name??'-' }}
-                                                        {{ $vehicle->model_vehical->name??'-' }}
-                                                        {{ $vehicle->engine_vehical->name??'-' }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-
+                                <div class="col-md-4 mt-3">
+                                    <label for="vehical_id">Vehicle Type:</label>
+                                    <div class="input-group inputswidth">
+                                        <select class="form-control searchable-select @error('vehical_id') is-invalid @enderror"
+                                            name="vehical_id" id="vehical_id">
+                                            <option value="">Select Vehicle Type</option>
+                                            @foreach ($Vehicals as $vehicle)
+                                            <option value="{{ $vehicle->id }}"
+                                                {{ old('vehical_id', $item->vehical_id ?? '') == $vehicle->id ? 'selected' : '' }}>
+                                                {{ $vehicle->manutacturer_vehical->name??'-' }}
+                                                {{ $vehicle->model_vehical->name??'-' }}
+                                                {{ $vehicle->engine_vehical->name??'-' }}
+                                            </option>
+                                            @endforeach
+                                        </select>
                                     </div>
-                                    {{-- VEHICLE TABLE --}}
+                                    @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                                {{-- PART NUMBER SELECT --}}
+
+                                {{-- VEHICLE TABLE --}}
                                 <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <div class="table-responsive mt-4" style="max-height:250px;overflow-y:auto;">
-                                        <table class="table table-bordered" id="vehicleTable">
+                                    <div class="table-responsive mt-4" style="max-height:250px;overflow-x:auto;overflow-y:auto;background-color:#ffffff;">
+                                        <table class="table table-bordered" id="vehicleTable" style="background-color:#ffffff;">
                                             <thead class="table-dark">
                                                 <tr>
-                                                    <th>Manufacturer</th>
-                                                    <th>Model</th>
-                                                    <th>Year</th>
-                                                    <th>Engine</th>
-                                                    <th>Country</th>
-                                                    <th>Part Number</th>
-                                                    <th>Action</th>
+                                                    <th style="width: 50px; text-align: center;">
+                                                        <div class="d-flex flex-column">
+                                                            <div class="mb-2 fw-bold">Select</div>
+                                                            <div class="text-center">
+                                                                <input type="checkbox" id="selectAllVehicles" style="cursor: pointer;" title="Select All">
+                                                            </div>
+                                                        </div>
+                                                    </th>
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <div class="mb-2 fw-bold">Manufacturer</div>
+                                                            <div class="input-group inputswidth">
+                                                                <select id="vehicle_manufacturer_select" class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                                    <option value="">Select</option>
+                                                                    @foreach ($carManufacturers as $manufacturer)
+                                                                    <option value="{{ $manufacturer->id }}">{{ $manufacturer->name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                                    data-mode="edit" data-title="Edit Manufacturer"
+                                                                    data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
+                                                                    data-update-route="{{ route('update.car.manufacturer', ':id') }}"
+                                                                    data-delete-route="{{ route('destory.car.manufacturer', ':id') }}"
+                                                                    data-target-select=".car-manufacturer-select">
+                                                                    <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </th>
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <div class="mb-2 fw-bold">Model</div>
+                                                            <div class="input-group inputswidth">
+                                                                <select id="vehicle_model_select" class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                                    <option value="">Select</option>
+                                                                    @foreach ($carModels as $item)
+                                                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                                    data-mode="edit" data-title="Edit Car Model"
+                                                                    data-fetch-route="{{ route('show.car.model', ':id') }}"
+                                                                    data-update-route="{{ route('update.car.model', ':id') }}"
+                                                                    data-delete-route="{{ route('destory.car.model', ':id') }}"
+                                                                    data-target-select=".car-model-select">
+                                                                    <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </th>
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <div class="mb-2 fw-bold">Country</div>
+                                                            <div class="input-group inputswidth">
+                                                                <select id="vehicle_country_select" class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                                    <option value="">Select</option>
+                                                                    @foreach ($carCountries as $item)
+                                                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                                    data-mode="edit" data-title="Edit Country"
+                                                                    data-fetch-route="{{ route('show.car.country', ':id') }}"
+                                                                    data-update-route="{{ route('update.car.country', ':id') }}"
+                                                                    data-delete-route="{{ route('destory.car.country', ':id') }}"
+                                                                    data-target-select=".car-country-select">
+                                                                    <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </th>
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <button type="button" class="btn btn-sm btn-primary open-year-range-modal mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                                <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
+                                                                <span style="margin-left: 4px;">Year Range</span>
+                                                            </button>
+                                                            <div id="selectedYearRangesDisplay" class="border rounded p-2" style="min-height: 40px; max-height: 80px; overflow-y: auto; background-color: #f8f9fa; font-size: 10px; cursor: pointer;" data-show-all="false">
+                                                                <div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>
+                                                            </div>
+                                                        </div>
+                                                    </th>
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <div class="mb-2 fw-bold">Engine</div>
+                                                            <div class="input-group inputswidth">
+                                                                <select id="vehicle_engine_select" class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
+                                                                    <option value="">Select</option>
+                                                                    @foreach ($engineccs as $item)
+                                                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                                    data-mode="edit" data-title="Edit Engine CC"
+                                                                    data-fetch-route="{{ route('show.engine_cc', ':id') }}"
+                                                                    data-update-route="{{ route('update.engine_cc', ':id') }}"
+                                                                    data-delete-route="{{ route('destory.engine_cc', ':id') }}"
+                                                                    data-target-select=".car-engine-select">
+                                                                    <i data-feather="edit" style="width: 14px; height: 14px;"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </th>
+                                                  
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <button type="button" class="btn btn-sm btn-warning clearVehicleFiltersBtn mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                                <i data-feather="x-circle" style="width: 12px; height: 12px;"></i>
+                                                                <span style="margin-left: 4px;">Empty</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-primary loadVehicleBtn" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
+                                                                <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
+                                                                <span style="margin-left: 4px;">Load</span>
+                                                            </button>
+                                                        </div>
+                                                    </th>
+                                                    <th>
+                                                        <div class="d-flex flex-column">
+                                                            <div class="mb-2 fw-bold">Part Number</div>
+                                                        </div>
+                                                    </th>
                                                 </tr>
                                             </thead>
-                                        <tbody>
-                                            @foreach ($Vehis as $car)
-                                            <tr data-part="{{ $car->v_part_number_id??'' }}">
+                                            <tbody>
+                                                @foreach ($Vehis as $car)
+                                                <tr data-part="{{ $car->v_part_number_id??'' }}">
+                                                    <td style="text-align: center;">
+                                                        <input type="checkbox" class="vehicle-checkbox" 
+                                                            data-vehicle-id="{{ $car->id ?? '' }}"
+                                                            data-part="{{ $car->v_part_number_id??'' }}"
+                                                            data-manufacturer="{{ $car->car_manufacturer }}"
+                                                            data-model="{{ $car->car_model_name }}"
+                                                            data-engine="{{ $car->engine_cc }}"
+                                                            data-country="{{ $car->car_manufactured_country }}"
+                                                            style="cursor: pointer;">
+                                                    </td>
+                                                    <td>{{ $car->manutacturer_vehical->name ?? '-' }}</td>
 
-                                                <td>{{ $car->manutacturer_vehical->name ?? '-' }}</td>
-
-                                                <td>{{ $car->model_vehical->name ?? '-' }}</td>
-                                                <td>
-                                                    @if($car->year_ranges && count($car->year_ranges) > 0)
-                                                        <div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                                                            @foreach($car->year_ranges as $yearRange)
-                                                                <span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">{{ $yearRange }}</span>
-                                                            @endforeach
-                                                        </div>
-                                                    @else
-                                                        <span class="badge bg-secondary">-</span>
-                                                    @endif
-                                                </td>
-                                                <td>{{ $car->engine_vehical->name ?? '-' }}</td>
-
-                                                <td>{{ $car->country_vehical->name ?? '-' }}</td>
-
-                                                <td>{{ $car->vehical_part_number->name ?? '-' }}</td>
-
-                                                <td>
-                                                    <button
-                                                    type="button"
-                                                    class="btn btn-sm btn-primary editVehicleBtn"
-                                                    data-part="{{ $car->v_part_number_id }}"
-                                                    data-manufacturer="{{ $car->car_manufacturer }}"
-                                                    data-model="{{ $car->car_model_name }}"
-                                                    data-engine="{{ $car->engine_cc }}"
-                                                    data-country="{{ $car->car_manufactured_country }}"
-                                                    data-year-ranges="{{ json_encode($car->year_ranges ?? []) }}"
-                                                    data-year-from="{{ $car->year_from ?? '' }}"
-                                                    data-year-to="{{ $car->year_to ?? '' }}">
-                                                    <i class="ti ti-pencil"></i>
-                                                </button>
-
-                                                </td>
-
-                                            </tr>
-                                            @endforeach
+                                                    <td>{{ $car->model_vehical->name ?? '-' }}</td>
+                                                    <td>{{ $car->country_vehical->name ?? '-' }}</td>
+                                                    <td>
+                                                        @if($car->year_ranges && count($car->year_ranges) > 0)
+                                                            <div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                                                @foreach($car->year_ranges as $yearRange)
+                                                                    <span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">{{ $yearRange }}</span>
+                                                                @endforeach
+                                                            </div>
+                                                        @else
+                                                            <span class="badge bg-secondary">-</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>{{ $car->engine_vehical->name ?? '-' }}</td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
+                                                            data-part="{{ $car->v_part_number_id }}"
+                                                            data-manufacturer="{{ $car->car_manufacturer }}"
+                                                            data-model="{{ $car->car_model_name }}"
+                                                            data-engine="{{ $car->engine_cc }}"
+                                                            data-country="{{ $car->car_manufactured_country }}"
+                                                            data-year-ranges="{{ json_encode($car->year_ranges ?? []) }}"
+                                                            data-year-from="{{ $car->year_from ?? '' }}"
+                                                            data-year-to="{{ $car->year_to ?? '' }}">
+                                                            <i class="ti ti-pencil"></i>
+                                                        </button>
+                                                    </td>
+                                                    <td>{{ $car->vehical_part_number->name ?? '-' }}</td>
+                                                </tr>
+                                                @endforeach
                                             </tbody>
                                         </table>
                                     </div>
@@ -1852,6 +1980,64 @@ $("#part_number_id").on("change", function () {
     </script>
     <script>
     // Set hidden input based on which submit button was clicked
+    // Global AJAX setup for CSRF token
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        error: function(xhr, status, error) {
+            if (xhr.status === 419) {
+                // CSRF token expired - show user-friendly error message
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Session Expired',
+                        text: 'Your session has expired. Please refresh the page and try again.',
+                        confirmButtonText: 'Refresh Page',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then((result) => {
+                        window.location.reload();
+                    });
+                } else {
+                    alert('Your session has expired. Please refresh the page and try again.');
+                    window.location.reload();
+                }
+                return false;
+            }
+        }
+    });
+
+    // Handle 419 errors globally for all AJAX requests
+    $(document).ajaxError(function(event, xhr, settings) {
+        if (xhr.status === 419) {
+            // Prevent multiple error dialogs
+            if ($('body').data('showing-419-error')) {
+                return;
+            }
+            $('body').data('showing-419-error', true);
+            
+            // Show user-friendly error message
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Session Expired',
+                    text: 'Your session has expired. Please refresh the page and try again.',
+                    confirmButtonText: 'Refresh Page',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                }).then((result) => {
+                    $('body').data('showing-419-error', false);
+                    window.location.reload();
+                });
+            } else {
+                alert('Your session has expired. Please refresh the page and try again.');
+                $('body').data('showing-419-error', false);
+                window.location.reload();
+            }
+        }
+    });
+
     $("#vehical-form button[type=submit]").on("click", function() {
         $("#submit_type").val($(this).data("action"));
     });
@@ -2314,7 +2500,7 @@ $('.delete-single-image').on('click', function (e) {
         url: `/item/delete-image/${id}`,
         type: "POST",
         data: {
-            _token: '{{ csrf_token() }}'
+            _token: $('meta[name="csrf-token"]').attr('content')
         },
         success: function (res) {
             if (res.status === true) {
@@ -2335,7 +2521,7 @@ function removeExistingImage(imgPath, itemId) {
         url: '/item/delete-single-from-array',  // new route
         type: 'POST',
         data: {
-            _token: '{{ csrf_token() }}',
+            _token: $('meta[name="csrf-token"]').attr('content'),
             item_id: itemId,
             image: imgPath
         },
@@ -4269,6 +4455,400 @@ function md5(string) {
             }
         }
         console.log('=== END FORM SUBMIT HANDLER ===');
+    });
+</script>
+<script>
+    // Common function to filter vehicle table
+    function filterVehicleTable() {
+        // Get filter values from table headers
+        let selectedManufacturer = $('#vehicle_manufacturer_select').val() || $('.car-manufacturer-select').val();
+        let selectedModel = $('#vehicle_model_select').val() || $('.car-model-select').val();
+        let selectedEngine = $('#vehicle_engine_select').val() || $('.car-engine-select').val();
+        let selectedCountry = $('#vehicle_country_select').val() || $('.car-country-select').val();
+        let selectedPartNumber = $('#part_number_id').val() || $('#part_number').val();
+        
+        // Get selected year ranges
+        let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
+        
+        // Check if any filter is selected
+        const hasFilters = selectedManufacturer || selectedModel || selectedEngine || selectedCountry || selectedPartNumber || selectedYearRanges.length > 0;
+        
+        // Hide all rows first only if filters are applied
+        if (hasFilters) {
+            $("#vehicleTable tbody tr").hide();
+        } else {
+            // If no filters, show all rows
+            $("#vehicleTable tbody tr").show();
+            return;
+        }
+        
+        // Filter rows based on selected criteria
+        $("#vehicleTable tbody tr").each(function() {
+            let $row = $(this);
+            let shouldShow = true;
+            
+            // Check Manufacturer
+            if (selectedManufacturer) {
+                let rowManufacturer = $row.find('.editVehicleBtn').data('manufacturer');
+                if (rowManufacturer != selectedManufacturer) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Model
+            if (shouldShow && selectedModel) {
+                let rowModel = $row.find('.editVehicleBtn').data('model');
+                if (rowModel != selectedModel) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Engine
+            if (shouldShow && selectedEngine) {
+                let rowEngine = $row.find('.editVehicleBtn').data('engine');
+                if (rowEngine != selectedEngine) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Country
+            if (shouldShow && selectedCountry) {
+                let rowCountry = $row.find('.editVehicleBtn').data('country');
+                if (rowCountry != selectedCountry) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Part Number
+            if (shouldShow && selectedPartNumber) {
+                let rowPartNumber = $row.data('part') || $row.find('.editVehicleBtn').data('part');
+                if (rowPartNumber != selectedPartNumber) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Check Year Ranges
+            if (shouldShow && selectedYearRanges.length > 0) {
+                let yearCell = $row.find('td:nth-child(5)');
+                let yearText = yearCell.text();
+                let yearMatch = false;
+                
+                // Extract year ranges from table cell
+                let tableRanges = [];
+                if (yearText.includes('-')) {
+                    let rangeMatches = yearText.match(/\d{4}(-\d{4})?/g) || [];
+                    rangeMatches.forEach(function(range) {
+                        let rangeParts = range.split('-');
+                        let rangeFrom = parseInt(rangeParts[0]);
+                        let rangeTo = rangeParts[1] ? parseInt(rangeParts[1]) : rangeFrom;
+                        tableRanges.push({ from: rangeFrom, to: rangeTo });
+                    });
+                } else {
+                    let yearMatch = yearText.match(/\d{4}/);
+                    if (yearMatch) {
+                        let year = parseInt(yearMatch[0]);
+                        tableRanges.push({ from: year, to: year });
+                    }
+                }
+                
+                // Check if any selected range overlaps with table ranges
+                selectedYearRanges.forEach(function(selectedRange) {
+                    let rangeParts = selectedRange.split('-');
+                    let selectedFrom = parseInt(rangeParts[0]);
+                    let selectedTo = rangeParts.length > 1 ? parseInt(rangeParts[1]) : selectedFrom;
+                    
+                    tableRanges.forEach(function(tableRange) {
+                        if (tableRange.from <= selectedTo && tableRange.to >= selectedFrom) {
+                            yearMatch = true;
+                        }
+                    });
+                });
+                
+                if (!yearMatch) {
+                    shouldShow = false;
+                }
+            }
+            
+            // Show row if it matches all criteria
+            if (shouldShow) {
+                $row.show();
+            }
+        });
+    }
+
+    // Clear All Vehicle Filters Button
+    $(document).on('click', '.clearVehicleFiltersBtn', function() {
+        // Clear all Select2 dropdowns
+        $('#vehicle_manufacturer_select').val('').trigger('change');
+        $('#vehicle_model_select').val('').trigger('change');
+        $('#vehicle_country_select').val('').trigger('change');
+        $('#vehicle_engine_select').val('').trigger('change');
+        
+        // Clear part number if exists
+        if ($('#part_number_id').length) {
+            $('#part_number_id').val('').trigger('change');
+        }
+        if ($('#part_number').length) {
+            $('#part_number').val('').trigger('change');
+        }
+        
+        // Clear year ranges
+        $('#selectedYearRangesDisplay').data('all-ranges', []);
+        $('#selectedYearRangesDisplay').attr('data-show-all', 'false');
+        $('#selectedYearRangesDisplay').html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
+        
+        // Show all rows in table
+        filterVehicleTable();
+        
+        toastr.success('All filters cleared successfully.');
+    });
+
+    // Select All Vehicles Checkbox
+    $(document).on('change', '#selectAllVehicles', function() {
+        const isChecked = $(this).is(':checked');
+        $('.vehicle-checkbox').prop('checked', isChecked);
+    });
+    
+    // Individual checkbox change - update select all checkbox
+    $(document).on('change', '.vehicle-checkbox', function() {
+        const totalCheckboxes = $('.vehicle-checkbox').length;
+        const checkedCheckboxes = $('.vehicle-checkbox:checked').length;
+        $('#selectAllVehicles').prop('checked', totalCheckboxes === checkedCheckboxes);
+    });
+    
+    // Function to collect checked vehicle IDs
+    function getCheckedVehicleIds() {
+        const checkedVehicles = [];
+        $('.vehicle-checkbox:checked').each(function() {
+            const vehicleId = $(this).data('vehicle-id');
+            if (vehicleId) {
+                checkedVehicles.push(vehicleId);
+            }
+        });
+        return checkedVehicles;
+    }
+    
+
+    // Load Vehicle Button - Filter table and save if no match found
+    $(document).on('click', '.loadVehicleBtn', function() {
+        // Check if part number is selected first
+        let selectedPartNumber = $('#part_number_id').val() || $('#part_number').val();
+        if (!selectedPartNumber || selectedPartNumber.trim() === '') {
+            toastr.warning('Please select Part Number first.');
+            return;
+        }
+        
+        // First filter the table
+        filterVehicleTable();
+        
+        // Count visible rows
+        let visibleRows = $("#vehicleTable tbody tr:visible").length;
+        
+        // If no vehicles match, save the vehicle
+        if (visibleRows === 0) {
+            // Get all filter values
+            let selectedManufacturer = $('.car-manufacturer-select').val();
+            let selectedModel = $('.car-model-select').val();
+            let selectedEngine = $('.car-engine-select').val();
+            let selectedCountry = $('.car-country-select').val();
+            let selectedYearRanges = $('#selectedYearRangesDisplay').data('all-ranges') || [];
+            
+            // Check if all required fields are filled
+            if (!selectedManufacturer || !selectedModel || !selectedEngine || !selectedCountry || selectedYearRanges.length === 0) {
+                toastr.warning('Please fill all fields (Manufacturer, Model, Engine, Country, and Year Ranges) before loading.');
+                return;
+            }
+            
+            // Prepare form data
+            let formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('car_manufacturer', selectedManufacturer);
+            formData.append('car_model_name', selectedModel);
+            formData.append('engine_cc', selectedEngine);
+            formData.append('car_manufactured_country', selectedCountry);
+            formData.append('v_part_number_id', selectedPartNumber);
+            
+            // Add year ranges
+            selectedYearRanges.forEach(function(range) {
+                let rangeParts = range.split('-');
+                let fromYear = rangeParts[0];
+                let toYear = rangeParts.length > 1 ? rangeParts[1] : rangeParts[0];
+                formData.append('year_from[]', fromYear);
+                formData.append('year_to[]', toYear);
+            });
+            
+            // Save vehicle via AJAX
+            $.ajax({
+                url: "{{ route('post.product_vehical') }}",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    if (res.errors && res.errors.length > 0) {
+                        res.errors.forEach(function(error) {
+                            toastr.error(error);
+                        });
+                        return;
+                    }
+                    
+                    if (res.vehicles && res.vehicles.length > 0) {
+                        toastr.success(res.message || "Vehicle saved and loaded successfully!");
+                        
+                        // Add vehicles to table
+                        let vehicleGroups = {};
+                        res.vehicles.forEach(function(v) {
+                            let key = `${v.v_part_number_id}-${v.car_manufacturer}-${v.car_model_name}-${v.engine_cc}-${v.car_manufactured_country}`;
+                            if (!vehicleGroups[key]) {
+                                vehicleGroups[key] = {
+                                    v_part_number_id: v.v_part_number_id,
+                                    car_manufacturer: v.car_manufacturer,
+                                    car_model_name: v.car_model_name,
+                                    engine_cc: v.engine_cc,
+                                    car_manufactured_country: v.car_manufactured_country,
+                                    manutacturer_vehical: v.manutacturer_vehical,
+                                    model_vehical: v.model_vehical,
+                                    engine_vehical: v.engine_vehical,
+                                    country_vehical: v.country_vehical,
+                                    vehical_part_number: v.vehical_part_number,
+                                    yearRanges: []
+                                };
+                            }
+                            if (v.year_from && v.year_to) {
+                                let yearStr = v.year_from == v.year_to ? v.year_from : v.year_from + '-' + v.year_to;
+                                if (vehicleGroups[key].yearRanges.indexOf(yearStr) === -1) {
+                                    vehicleGroups[key].yearRanges.push(yearStr);
+                                }
+                            }
+                        });
+                        
+                        // Add new vehicles to table
+                        Object.keys(vehicleGroups).forEach(function(key) {
+                            let group = vehicleGroups[key];
+                            
+                            // Check if row already exists
+                            let exists = false;
+                            $("#vehicleTable tbody tr").each(function() {
+                                let $row = $(this);
+                                if ($row.data('part') == group.v_part_number_id &&
+                                    $row.find('.editVehicleBtn').data('manufacturer') == group.car_manufacturer &&
+                                    $row.find('.editVehicleBtn').data('model') == group.car_model_name &&
+                                    $row.find('.editVehicleBtn').data('engine') == group.engine_cc &&
+                                    $row.find('.editVehicleBtn').data('country') == group.car_manufactured_country) {
+                                    exists = true;
+                                    return false;
+                                }
+                            });
+                            
+                            if (!exists) {
+                                // Build year ranges HTML
+                                let yearRangesHtml = '';
+                                if (group.yearRanges.length > 0) {
+                                    group.yearRanges.sort(function(a, b) {
+                                        let aFrom = parseInt(a.split('-')[0]);
+                                        let bFrom = parseInt(b.split('-')[0]);
+                                        return aFrom - bFrom;
+                                    });
+                                    yearRangesHtml = '<div style="display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">';
+                                    group.yearRanges.forEach(function(range) {
+                                        yearRangesHtml += `<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 6px 12px; border-radius: 6px; font-weight: 500; font-size: 13px; white-space: nowrap;">${range}</span>`;
+                                    });
+                                    yearRangesHtml += '</div>';
+                                } else {
+                                    yearRangesHtml = '<span class="badge bg-secondary">-</span>';
+                                }
+                                
+                                // Add new row
+                                let newRow = `
+                                    <tr data-part="${group.v_part_number_id}">
+                                        <td style="text-align: center;">
+                                            <input type="checkbox" class="vehicle-checkbox" 
+                                                data-vehicle-id="${group.id || ''}"
+                                                data-part="${group.v_part_number_id}"
+                                                data-manufacturer="${group.car_manufacturer}"
+                                                data-model="${group.car_model_name}"
+                                                data-engine="${group.engine_cc}"
+                                                data-country="${group.car_manufactured_country}"
+                                                style="cursor: pointer;">
+                                        </td>
+                                        <td>${group.manutacturer_vehical?.name || '-'}</td>
+                                        <td>${group.model_vehical?.name || '-'}</td>
+                                        <td>${group.country_vehical?.name || '-'}</td>
+                                        <td>${yearRangesHtml}</td>
+                                        <td>${group.engine_vehical?.name || '-'}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary editVehicleBtn"
+                                                data-part="${group.v_part_number_id}"
+                                                data-manufacturer="${group.car_manufacturer}"
+                                                data-model="${group.car_model_name}"
+                                                data-engine="${group.engine_cc}"
+                                                data-country="${group.car_manufactured_country}"
+                                                data-year-ranges='${JSON.stringify(group.yearRanges)}'
+                                                data-year-from="${group.yearRanges.length > 0 ? group.yearRanges[0].split('-')[0] : ''}"
+                                                data-year-to="${group.yearRanges.length > 0 ? (group.yearRanges[0].includes('-') ? group.yearRanges[0].split('-')[1] : group.yearRanges[0]) : ''}">
+                                                <i class="ti ti-pencil"></i>
+                                            </button>
+                                        </td>
+                                        <td>${group.vehical_part_number?.name || '-'}</td>
+                                    </tr>
+                                `;
+                                $("#vehicleTable tbody").prepend(newRow);
+                            }
+                        });
+                        
+                        // Filter again to show the new vehicle
+                        filterVehicleTable();
+                    }
+                },
+                error: function(xhr) {
+                    let response = xhr.responseJSON;
+                    if (response && response.errors && Array.isArray(response.errors)) {
+                        response.errors.forEach(function(error) {
+                            toastr.error(error);
+                        });
+                    } else {
+                        toastr.error(response?.message || 'Error saving vehicle');
+                    }
+                }
+            });
+        }
+    });
+
+    // Auto-filter on dropdown change - Manufacturer
+    $(document).on('change', '.car-manufacturer-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Model
+    $(document).on('change', '.car-model-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Engine
+    $(document).on('change', '.car-engine-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on dropdown change - Country
+    $(document).on('change', '.car-country-select', function() {
+        filterVehicleTable();
+    });
+
+    // Auto-filter on Part Number change
+    $(document).on('change', '#part_number_id, #part_number', function() {
+        filterVehicleTable();
+    });
+
+    // Show all vehicles on page load (if no filters are applied)
+    $(document).ready(function() {
+        // Show all vehicles initially
+        $("#vehicleTable tbody tr").show();
+        
+        // If part number is selected, filter by it
+        const selectedPartNumber = $('#part_number_id').val() || $('#part_number').val();
+        if (selectedPartNumber) {
+            filterVehicleTable();
+        }
     });
 </script>
 @endpush

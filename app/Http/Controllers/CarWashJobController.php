@@ -314,15 +314,18 @@ class CarWashJobController extends Controller
                 // Worker cash account balance and total paid
                 $workerBalance = null;
                 $workerTotalPaid = null;
+                $workerTotalEarned = null;
                 if ($job->worker && $job->worker->relationLoaded('workerCashAccount') && $job->worker->workerCashAccount) {
                     $acc = $job->worker->workerCashAccount;
                     $workerBalance = (float) $acc->balance;
                     $workerTotalPaid = (float) ($acc->total_paid ?? 0);
+                    $workerTotalEarned = (float) ($acc->total_earned ?? 0);
                 } elseif ($job->worker_id) {
                     $cashAccount = WorkerCashAccount::where('worker_id', $job->worker_id)->first();
                     if ($cashAccount) {
                         $workerBalance = (float) $cashAccount->balance;
                         $workerTotalPaid = (float) ($cashAccount->total_paid ?? 0);
+                        $workerTotalEarned = (float) ($cashAccount->total_earned ?? 0);
                     }
                 }
 
@@ -347,6 +350,7 @@ class CarWashJobController extends Controller
                     'commissionPaid' => round($commissionPaid, 2),
                     'workerBalance' => $workerBalance !== null ? round($workerBalance, 2) : null,
                     'workerTotalPaid' => $workerTotalPaid !== null ? round($workerTotalPaid, 2) : null,
+                    'workerTotalEarned' => $workerTotalEarned !== null ? round($workerTotalEarned, 2) : null,
                     'status' => $job->status,
                     'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
                     'endTime' => $job->end_time ? $job->end_time->toISOString() : null,
