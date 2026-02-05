@@ -404,9 +404,25 @@
                     });
             }
 
-            // Cash on Hand card shows report's ftCashTotal (cashT.cashOnHand), not API balance – set only in renderReport()
+            // Cash on Hand card shows logged-in user's cash account balance
             function loadCashAccountBalance() {
-                // Do not update totCashOnHand here – it is set from the daily report table total (ftCashTotal)
+                if (!routes.cashAccountBalance) return;
+                fetch(routes.cashAccountBalance)
+                    .then(function(res) {
+                        return res.json();
+                    })
+                    .then(function(data) {
+                        if (data.success && data.balance != null) {
+                            const userBalance = parseFloat(data.balance) || 0;
+                            document.getElementById('totCashOnHand').textContent = 'Rs.' + Math.round(userBalance);
+                        } else {
+                            document.getElementById('totCashOnHand').textContent = 'Rs.0';
+                        }
+                    })
+                    .catch(function(err) {
+                        console.error('Error loading cash account balance:', err);
+                        document.getElementById('totCashOnHand').textContent = 'Rs.0';
+                    });
             }
 
             function showLoading() {
@@ -486,7 +502,8 @@
                 lastReportCashOnHand = cashTotalVal;
                 document.getElementById('ftCashCredit').textContent = 'Rs.' + cashCreditVal;
                 document.getElementById('ftCashTotal').textContent = 'Rs.' + cashTotalVal;
-                document.getElementById('totCashOnHand').textContent = 'Rs.' + cashTotalVal;
+                // Cash on Hand card shows logged-in user's cash account balance (loaded separately)
+                loadCashAccountBalance();
                 const bankTotalVal = Math.round(bankT.cashOnHand || 0);
                 lastReportBankBalance = bankTotalVal;
                 document.getElementById('ftBankCredit').textContent = 'Rs.' + Math.round(bankT.totalCredit || 0);

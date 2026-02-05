@@ -55,6 +55,14 @@ Auth::routes();
 // Get user branch by email (for login form auto-detection)
 Route::post('/get-user-branch', [LoginController::class, 'getUserBranchByEmail'])->name('get.user.branch');
 
+// Check pattern/fingerprint status
+Route::post('/get-user-pattern-status', [LoginController::class, 'getUserPatternStatus'])->name('get.user.pattern.status');
+Route::post('/get-user-fingerprint-status', [LoginController::class, 'getUserFingerprintStatus'])->name('get.user.fingerprint.status');
+
+// Pattern and Fingerprint login routes
+Route::post('/login/pattern', [LoginController::class, 'verifyPatternLogin'])->name('login.pattern');
+Route::post('/login/fingerprint', [LoginController::class, 'verifyFingerprintLogin'])->name('login.fingerprint');
+
 // WebAuthn Routes (fingerprint / passkey login)
 Route::prefix('webauthn')->name('webauthn.')->group(function () {
     Route::post('/login/options', [WebAuthnController::class, 'getLoginOptions'])->name('login.options');
@@ -78,6 +86,10 @@ Route::middleware('auth')->group(function () {
     // Branch switching for admin ONLY (can switch to any branch)
     Route::post('/branch/switch', [LoginController::class, 'switchBranch'])
         ->name('branch.switch');
+
+    // Save pattern and fingerprint (requires authentication)
+    Route::post('/save-pattern', [LoginController::class, 'savePattern'])->name('save.pattern');
+    Route::post('/save-fingerprint', [LoginController::class, 'saveFingerprint'])->name('save.fingerprint');
 });
      
 // Normal user dashboard
@@ -85,7 +97,9 @@ Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
 Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
 Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
+Route::get('/attendance/history-page', [\App\Http\Controllers\CarWashAttendanceController::class, 'historyPage'])->name('attendance.history.page')->middleware('auth');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
+Route::get('/employee/home', [HomeController::class, 'carWashHome'])->name('employee.home')->middleware('auth');
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
 Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
 Route::get('/car-wash/services/rate-list', [\App\Http\Controllers\CarWashServiceController::class, 'rateList'])->name('car.wash.services.rate-list')->middleware('auth');
@@ -129,6 +143,8 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     // Attendance Routes
     Route::get('/attendance/employees', [\App\Http\Controllers\CarWashAttendanceController::class, 'employees'])->name('attendance.employees');
     Route::post('/attendance', [\App\Http\Controllers\CarWashAttendanceController::class, 'store'])->name('attendance.store');
+    Route::get('/attendance/history', [\App\Http\Controllers\CarWashAttendanceController::class, 'history'])->name('attendance.history');
+    Route::get('/attendance/completed', [\App\Http\Controllers\CarWashAttendanceController::class, 'completed'])->name('attendance.completed');
 
     // Workers Routes
     Route::get('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'index'])->name('workers.index');
@@ -222,6 +238,11 @@ Route::post('settings/save',[SettingController::class,"save"])->name('admin.sett
 Route::get('user/profile/{id}', [HomeController::class, 'userprofile'])->name('user.profile');
 Route::post('user/password/verify', [HomeController::class, 'verifyOldPassword'])->name('user.password.verify');
 Route::put('user/profile/update/{id}', [HomeController::class, 'userprofileupdate'])->name('user.profile.update');
+
+// Employee Profile Routes
+Route::get('employee/profile/{id}', [HomeController::class, 'employeeProfile'])->name('employee.profile')->middleware('auth');
+Route::put('employee/profile/update/{id}', [HomeController::class, 'employeeProfileUpdate'])->name('employee.profile.update')->middleware('auth');
+Route::post('employee/password/verify', [HomeController::class, 'verifyOldPassword'])->name('employee.password.verify')->middleware('auth');
 
 
 Route::get('/all/category', [CategoryController::class, 'all_category'])->name('all.category');
