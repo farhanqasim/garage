@@ -688,7 +688,7 @@ class ItemController extends Controller
         $warrenties      = Warrenty::where('status', 'active')->get();
         $made_ins      = MadeIn::where('status', 'active')->get();
         $levels      = Level::where('status', 'active')->get();
-        // Get all vehicles - each record already has all year ranges in years JSON column
+        // Get latest 5 vehicles - each record already has all year ranges in years JSON column
         $Vehis = VehicalType::with([
             'manutacturer_vehical',
             'model_vehical',
@@ -697,6 +697,8 @@ class ItemController extends Controller
             'vehical_part_number'
         ])
             ->where('status', 'active')
+            ->orderBy('id', 'desc')
+            ->take(5) // Limit to 5 latest vehicles
             ->get()
             ->map(function($vehicle) {
                 // Format year ranges from JSON column and sort them by 'from' year

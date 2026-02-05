@@ -501,10 +501,94 @@ label{
   <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
   <script src="{{asset('assets/js/script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
 
-  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer>
+  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer onerror="this.onerror=null;">
   </script>
 
- 	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+  
+  <script>
+  // Suppress 404 errors for Cloudflare resources and missing files
+  (function() {
+      const originalError = window.onerror;
+      window.onerror = function(msg, url, line, col, error) {
+          // Suppress Cloudflare cdn-cgi/rum errors
+          if (url && (url.includes('cdn-cgi/rum') || url.includes('cdn-cgi/scripts') || url.includes('cloudflare'))) {
+              return true; // Suppress error
+          }
+          // Suppress 404 errors for images and SVGs
+          if (msg && (msg.includes('404') || msg.includes('Failed to load resource'))) {
+              if (url && (url.includes('.svg') || url.includes('.png') || url.includes('.jpg') || url.includes('.jpeg') || url.includes('cdn-cgi') || url.includes('cloudflare'))) {
+                  return true; // Suppress error
+              }
+          }
+          // Call original error handler for other errors
+          if (originalError) {
+              return originalError.apply(this, arguments);
+          }
+          return false;
+      };
+      
+      // Suppress console errors for Cloudflare and missing files
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+          const message = args[0] || '';
+          if (typeof message === 'string') {
+              // Suppress Cloudflare errors
+              if (message.includes('cdn-cgi/rum') || message.includes('cdn-cgi/scripts') || message.includes('cloudflare') || message.includes('POST http') && message.includes('cdn-cgi')) {
+                  return; // Suppress
+              }
+              // Suppress 404 errors for images and Cloudflare
+              if (message.includes('404') || message.includes('Failed to load resource')) {
+                  if (message.includes('.svg') || message.includes('.png') || message.includes('.jpg') || message.includes('.jpeg') || message.includes('cdn-cgi') || message.includes('cloudflare')) {
+                      return; // Suppress
+                  }
+              }
+          }
+          originalConsoleError.apply(console, args);
+      };
+      
+      // Suppress fetch/XMLHttpRequest errors for Cloudflare RUM
+      const originalFetch = window.fetch;
+      if (originalFetch) {
+          window.fetch = function(...args) {
+              const url = args[0];
+              if (typeof url === 'string' && (url.includes('cdn-cgi/rum') || url.includes('cloudflare'))) {
+                  return Promise.reject(new Error('Suppressed Cloudflare RUM request'));
+              }
+              return originalFetch.apply(this, args).catch(function(error) {
+                  if (error && error.message && error.message.includes('Suppressed')) {
+                      return Promise.resolve(new Response(null, { status: 200 }));
+                  }
+                  throw error;
+              });
+          };
+      }
+      
+      // Suppress XMLHttpRequest errors for Cloudflare
+      const originalXHROpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (typeof url === 'string' && (url.includes('cdn-cgi/rum') || url.includes('cloudflare'))) {
+              this._suppressError = true;
+          }
+          return originalXHROpen.apply(this, [method, url, ...rest]);
+      };
+      
+      const originalXHRSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.send = function(...args) {
+          if (this._suppressError) {
+              this.addEventListener('error', function(e) {
+                  e.stopPropagation();
+              }, true);
+              this.addEventListener('loadend', function() {
+                  if (this.status === 404 && this.responseURL && this.responseURL.includes('cdn-cgi')) {
+                      // Suppress 404 for Cloudflare endpoints
+                  }
+              });
+          }
+          return originalXHRSend.apply(this, args);
+      };
+  })();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

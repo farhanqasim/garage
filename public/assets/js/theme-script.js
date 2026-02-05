@@ -366,7 +366,7 @@ let themesettings = `
                             <div class="theme-sidebarbg me-3 mb-3">
                                 <input type="radio" name="sidebarbg" id="sidebarBg3" value="sidebarbg3">
                                 <label for="sidebarBg3" class="d-block rounded">
-                                    <img src="/assets/img/theme/sidebar-bg-03.svg" alt="img" class="rounded">
+                                    <img src="/assets/img/theme/bg-03.jpg" alt="img" class="rounded" onerror="this.src='/assets/img/theme/default.svg';">
                                 </label>
                             </div>
                             <div class="theme-sidebarbg me-3 mb-3">

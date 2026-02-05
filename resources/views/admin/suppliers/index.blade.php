@@ -2393,7 +2393,7 @@
                 const imgContainer = document.getElementById('visiting_img_container');
                 const fileInfo = document.getElementById('visiting_file_info');
                 const filename = document.getElementById('visiting_filename');
-                const existing = document.querySelector('.existing-file');
+                const existing = document.querySelector('.existing-file, .existing-visiting-doc');
                 
                 if (file) {
                     if (file.type.startsWith('image/')) {
@@ -3215,6 +3215,7 @@
             const imgContainer = document.getElementById('visiting_img_container');
             const fileInfo = document.getElementById('visiting_file_info');
             const cancelBtn = document.getElementById('cancelVisitingDoc');
+            const existing = document.querySelector('.existing-file, .existing-visiting-doc');
             
             // Clear file input
             if (visitingInput) {
@@ -3227,6 +3228,9 @@
             if (imgContainer) imgContainer.style.display = 'none';
             if (fileInfo) fileInfo.style.display = 'none';
             if (cancelBtn) cancelBtn.style.display = 'none';
+            
+            // Show existing document if it exists
+            if (existing) existing.style.display = 'block';
             
             // Clear cropper if exists
             if (window.visitingDocCropper) {
@@ -4356,7 +4360,7 @@
         
         // Extract Email(s)
         const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/gi;
-        const emailMatches = fullText.match(emailRegex);
+        const emailMatches = fullText.match(emailRegex) || [];
         if (emailMatches && emailMatches.length > 0) {
             // Remove duplicates
             const uniqueEmails = [...new Set(emailMatches)];
@@ -4663,7 +4667,7 @@
         
         // Mark used lines
         if (companyName) usedLines.add(companyName);
-        if (emailMatch) emailMatch.forEach(e => usedLines.add(e));
+        if (emailMatches && emailMatches.length > 0) emailMatches.forEach(e => usedLines.add(e));
         if (allPhoneMatches) allPhoneMatches.forEach(p => usedLines.add(p));
         if (address) usedLines.add(address);
         productLines.forEach(p => usedLines.add(p));

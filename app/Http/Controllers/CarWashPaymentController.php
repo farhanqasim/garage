@@ -194,17 +194,23 @@ class CarWashPaymentController extends Controller
                     throw new \Exception('No unpaid jobs found for this worker with the given job IDs.');
                 }
                 $totalAmount = array_sum(array_column($paymentsToCreate, 'amount'));
-                if (abs((float) $request->amount - $totalAmount) > 0.02) {
-                    throw new \Exception('Amount does not match sum of job commissions (Rs ' . number_format($totalAmount, 2) . ').');
-                }
+                $requestedAmount = (float) $request->amount;
+                
+                // Allow custom/edited amounts - distribute proportionally or add to first job
+                $amountDifference = $requestedAmount - $totalAmount;
                 $createdPayments = [];
-                foreach ($paymentsToCreate as $item) {
+                foreach ($paymentsToCreate as $index => $item) {
+                    $paymentAmount = $item['amount'];
+                    // If amount is different, add the difference to the first job
+                    if ($index === 0 && abs($amountDifference) > 0.01) {
+                        $paymentAmount += $amountDifference;
+                    }
                     $p = CarWashPayment::create([
                         'branch_id' => $branchId,
                         'worker_id' => $request->worker_id,
                         'car_wash_job_id' => $item['job']->id,
                         'payment_type' => 'commission',
-                        'amount' => $item['amount'],
+                        'amount' => $paymentAmount,
                         'payment_method_id' => $request->payment_method_id,
                         'bank_account_id' => $request->bank_account_id,
                         'from_account_id' => null,
@@ -221,7 +227,7 @@ class CarWashPaymentController extends Controller
                 $cashService = app(CashAccountService::class);
                 $cashService->debit(
                     $user->id,
-                    $totalAmount,
+                    $requestedAmount,
                     'commission',
                     $firstPayment->id,
                     'car_wash_payments',
@@ -232,11 +238,9 @@ class CarWashPaymentController extends Controller
                 if (!$workerCash) {
                     throw new \Exception("Worker cash account not found. Create it from Staff page.");
                 }
-                if ($workerCash->balance < $totalAmount) {
-                    throw new \Exception("Worker cash balance (Rs " . number_format($workerCash->balance, 2) . ") is less than payment amount (Rs " . number_format($totalAmount, 2) . ").");
-                }
-                $workerCash->balance -= $totalAmount;
-                $workerCash->total_paid = (float) $workerCash->total_paid + $totalAmount;
+                // Removed balance check to allow custom/edited amounts (including advance payments)
+                $workerCash->balance -= $requestedAmount;
+                $workerCash->total_paid = (float) $workerCash->total_paid + $requestedAmount;
                 $workerCash->save();
                 foreach ($createdPayments as $p) {
                     WorkerCashTransaction::create([
@@ -488,6 +492,22 @@ class CarWashPaymentController extends Controller
             ];
         });
         return view('car-wash-worker-cash-accounts', compact('workers'));
+    }
+
+    /**
+     * Worker Commission / Pay / Total Balance page
+     * Shows detailed transaction history with running balance
+     */
+    public function workerCommissionPayBalance()
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+        
+        $workersQuery = CarWashWorker::with(['workerCashAccount', 'branch']);
+        $this->applyBranchFilter($workersQuery, 'branch_id', $user);
+        $workers = $workersQuery->orderBy('name')->get();
+        
+        return view('car-wash-worker-commission-pay-balance', compact('workers', 'branchId'));
     }
 
     /**
@@ -806,14 +826,16 @@ class CarWashPaymentController extends Controller
         }
 
         $amount = (float) $payment->amount;
-        $createdBy = (int) $payment->created_by;
+        // Credit current logged-in user (who is reversing), not the original creator
+        // This ensures the amount goes back to the account of the user who reversed it
+        $currentUserId = $user->id;
 
         DB::beginTransaction();
         try {
-            // Credit payer's (created_by) cash account (type must be one of: job_payment, cash_transfer, bank_transfer, commission, admin_adjustment)
+            // Credit current user's cash account (the one who is reversing the payment)
             $cashService = app(CashAccountService::class);
             $cashService->credit(
-                $createdBy,
+                $currentUserId,
                 $amount,
                 'admin_adjustment',
                 $payment->id,

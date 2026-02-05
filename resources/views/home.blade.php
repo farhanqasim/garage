@@ -46,7 +46,7 @@
             </a>
           </div>
           <div class="col-xl-3 col-sm-6 col-12 d-flex">
-            <a href="{{ route('all_sales') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+            <a href="{{ route('create.sale') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
               <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="card-body d-flex align-items-center text-white">
                   <span class="sale-icon bg-white text-primary">

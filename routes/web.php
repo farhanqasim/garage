@@ -83,6 +83,8 @@ Route::middleware('auth')->group(function () {
 // Normal user dashboard
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
+Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
+Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
 Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
@@ -135,6 +137,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::patch('/workers/{id}/bank', [\App\Http\Controllers\CarWashWorkerController::class, 'updateBankDetails'])->name('workers.update-bank');
     Route::post('/workers/{id}/cash-account', [\App\Http\Controllers\CarWashWorkerController::class, 'createCashAccount'])->name('workers.create-cash-account');
     Route::get('/workers/{id}/cash-timeline', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashTimeline'])->name('workers.cash-timeline');
+    Route::get('/workers/commission-pay-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCommissionPayBalance'])->name('workers.commission-pay-balance');
     Route::delete('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'destroy'])->name('workers.destroy');
     
     // Jobs Routes
@@ -571,6 +574,10 @@ Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
     ->name('sales.items.ajax.search');
 Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])
     ->name('sales.filter.options');
+Route::get('/sales/next-estimate-number', [SalesController::class, 'getNextEstimateNumber'])
+    ->name('sales.next.estimate.number');
+Route::get('/sales/next-sale-order-number', [SalesController::class, 'getNextSaleOrderNumber'])
+    ->name('sales.next.sale.order.number');
 Route::get('sales/items/{id}',[SalesController::class,'getItemDetails'])->name('sales.items.details');
 Route::get('sales/items/{id}/stock-status',[SalesController::class,'getItemStockStatus'])->name('sales.items.stock.status');
 Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemPurchaseHistory'])->name('sales.items.purchase.history');
@@ -587,6 +594,7 @@ Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOp
     ->name('purchases.filter.options');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
+Route::get('purchases/suppliers/{id}/balance',[PurchaseController::class,'getSupplierBalance'])->name('purchases.suppliers.balance');
 Route::get('purchases/items/{id}/purchase-history',[PurchaseController::class,'getItemPurchaseHistory'])->name('purchases.items.purchase.history');
 Route::get('purchases/suppliers/search-phone',[PurchaseController::class,'searchSuppliersByPhone'])->name('purchases.suppliers.search.phone');
 Route::get('purchases/cart', [PurchaseController::class, 'getPurchaseCart'])->name('purchases.cart.get')->middleware('auth');

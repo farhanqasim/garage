@@ -52,6 +52,76 @@ class SalesController extends Controller
     }
 
     /**
+     * Get next estimate number
+     */
+    public function getNextEstimateNumber()
+    {
+        $branchId = session('selected_branch_id');
+        
+        if (!$branchId) {
+            return response()->json(['error' => 'Branch not selected'], 400);
+        }
+        
+        // Get the last estimate number for this branch
+        $lastEstimate = Sale::where('branch_id', $branchId)
+            ->where('status', 'estimate')
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        $nextNumber = 0; // Start from 00000
+        if ($lastEstimate) {
+            // Extract number from reference if it exists, otherwise use ID
+            if ($lastEstimate->reference && preg_match('/EST\s*#?\s*(\d+)/i', $lastEstimate->reference, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            } else {
+                // Count estimates for this branch (start from 0, so count gives next number)
+                $nextNumber = Sale::where('branch_id', $branchId)
+                    ->where('status', 'estimate')
+                    ->count();
+            }
+        }
+        
+        return response()->json([
+            'number' => str_pad($nextNumber, 5, '0', STR_PAD_LEFT)
+        ]);
+    }
+
+    /**
+     * Get next sale order number
+     */
+    public function getNextSaleOrderNumber()
+    {
+        $branchId = session('selected_branch_id');
+        
+        if (!$branchId) {
+            return response()->json(['error' => 'Branch not selected'], 400);
+        }
+        
+        // Get the last sale order number for this branch
+        $lastSaleOrder = Sale::where('branch_id', $branchId)
+            ->where('status', 'sale_order')
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        $nextNumber = 0; // Start from 00000
+        if ($lastSaleOrder) {
+            // Extract number from reference if it exists
+            if ($lastSaleOrder->reference && preg_match('/SO\s*#?\s*(\d+)/i', $lastSaleOrder->reference, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            } else {
+                // Count sale orders for this branch (start from 0, so count gives next number)
+                $nextNumber = Sale::where('branch_id', $branchId)
+                    ->where('status', 'sale_order')
+                    ->count();
+            }
+        }
+        
+        return response()->json([
+            'number' => str_pad($nextNumber, 5, '0', STR_PAD_LEFT)
+        ]);
+    }
+
+    /**
      * Get filter options for the search filter
      */
     public function getFilterOptions()

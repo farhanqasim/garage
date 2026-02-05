@@ -335,4 +335,14 @@ public function carWashServices()
 
         return view('car-wash-staff', compact('branchName', 'userName', 'workers', 'paymentMethods', 'bankAccounts', 'userCashBalance'));
     }
+
+    /**
+     * Show the Attendance Management System.
+     *
+     * @return \Illuminate\Contracts\Support\Renderable
+     */
+    public function attendance()
+    {
+        return view('attendance');
+    }
 }
