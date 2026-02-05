@@ -1486,4 +1486,53 @@ class PurchaseController extends Controller
 
         return response()->json($results);
     }
+
+    /**
+     * Get supplier balance (outstanding amount to pay)
+     */
+    public function getSupplierBalance(Request $request, $supplierId)
+    {
+        try {
+            $supplier = Supplier::findOrFail($supplierId);
+            
+            // Get opening balance
+            $openingBalance = $supplier->opening_balance ?? 0;
+            $balanceType = $supplier->balance_type ?? 'pay'; // 'pay' means we owe supplier
+            
+            // Get all purchases from this supplier
+            $purchases = Purchase::where('supplier_id', $supplier->id)->get();
+            
+            // Calculate total purchases
+            $totalPurchases = $purchases->sum('grand_total');
+            
+            // Get all payments made to this supplier (sum of allocated amounts from purchase_payments)
+            $totalPayments = PurchasePayment::whereHas('purchase', function($query) use ($supplierId) {
+                $query->where('supplier_id', $supplierId);
+            })->sum('allocated_amount');
+            
+            // Calculate balance
+            // If balance_type is 'pay', we owe: opening_balance + purchases - payments
+            // If balance_type is 'receive', supplier owes us: opening_balance - purchases + payments
+            if ($balanceType == 'pay') {
+                $balance = $openingBalance + $totalPurchases - $totalPayments;
+            } else {
+                $balance = $openingBalance - $totalPurchases + $totalPayments;
+            }
+            
+            return response()->json([
+                'success' => true,
+                'balance' => round($balance, 2),
+                'opening_balance' => round($openingBalance, 2),
+                'total_purchases' => round($totalPurchases, 2),
+                'total_payments' => round($totalPayments, 2),
+                'balance_type' => $balanceType
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'balance' => 0,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

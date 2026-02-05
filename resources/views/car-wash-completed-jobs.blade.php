@@ -15,14 +15,26 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-        body {
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
                 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
                 sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            background-color: #f1f5f9;
+        }
+        
+        #root {
+            width: 100%;
+            min-height: 100vh;
         }
         
         @media print {
@@ -148,6 +160,7 @@
             const [showCashPayModal, setShowCashPayModal] = useState(false);
             const [userCashBalance, setUserCashBalance] = useState(null);
             const [workerPendingCommission, setWorkerPendingCommission] = useState(null);
+            const [originalPendingCommission, setOriginalPendingCommission] = useState(null); // Store original commission to prevent advance payment
             const [cashPayLoading, setCashPayLoading] = useState(false);
             const [cashPaySending, setCashPaySending] = useState(false);
             const [cashMethodId, setCashMethodId] = useState(null);
@@ -164,6 +177,47 @@
                 const workerMatch = !selectedWorker || (job.workerName || job.worker_name || job.worker || '').toUpperCase() === selectedWorker.toUpperCase();
                 return dateMatch && workerMatch;
             });
+            
+            // Sort jobs by END time (completion time): PEHLE COMPLETE HUI JOB UPAR, BAAD MEIN COMPLETE HUI NEECHE
+            // Example: 5:25 PM complete → UPAR, 5:34 PM complete → NEECHE
+            const sortJobsByTime = (jobs) => {
+                return [...jobs].sort((a, b) => {
+                    // Get end time (completion time) for both jobs (pehle complete hui job upar aayegi)
+                    const timeA = a.endTime ? new Date(a.endTime).getTime() : 0;
+                    const timeB = b.endTime ? new Date(b.endTime).getTime() : 0;
+                    
+                    // Handle jobs without end time - unko neeche bhejo
+                    if (timeA === 0 && timeB === 0) {
+                        // If both don't have endTime, sort by startTime as fallback
+                        const startTimeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+                        const startTimeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+                        return startTimeA - startTimeB;
+                    }
+                    if (timeA === 0) return 1; // Job A without endTime goes to bottom
+                    if (timeB === 0) return -1; // Job B without endTime goes to bottom
+                    
+                    // ASCENDING ORDER: timeA - timeB
+                    // Agar timeA < timeB (pehle complete hui), to negative number = A pehle aayega = UPAR
+                    // Agar timeA > timeB (baad mein complete hui), to positive number = B pehle aayega = A neeche
+                    // Result: Pehle complete hui (chhota time) UPAR, Baad mein complete hui (bada time) NEECHE
+                    return timeA - timeB;
+                });
+            };
+            
+            const sortedJobs = sortJobsByTime(filteredJobs);
+            
+            // Group jobs by worker when "All" is selected
+            const jobsByWorker = !selectedWorker ? filteredJobs.reduce((acc, job) => {
+                const workerName = (job.workerName || job.worker_name || job.worker || 'No Worker').toUpperCase();
+                if (!acc[workerName]) {
+                    acc[workerName] = [];
+                }
+                acc[workerName].push(job);
+                return acc;
+            }, {}) : null;
+            
+            // Sort workers alphabetically
+            const sortedWorkerNames = jobsByWorker ? Object.keys(jobsByWorker).sort() : [];
 
             // Close dropdown when clicking outside
             useEffect(() => {
@@ -295,16 +349,30 @@
                                                     setUserCashBalance(null);
                                                     setWorkerPendingCommission(null);
                                                     try {
-                                                        const [balanceRes, commissionRes, methodRes] = await Promise.all([
+                                                        // Calculate pending commission from jobs data (sum of unpaid commissions)
+                                                        const workerJobs = completedJobs.filter(j => (j.workerId ?? j.worker_id) == workerId);
+                                                        let calculatedPendingCommission = 0;
+                                                        workerJobs.forEach(job => {
+                                                            const commissionAmount = Number(job.commissionAmount || 0);
+                                                            const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                                            const unpaidForThisJob = commissionAmount - paidCommission;
+                                                            if (unpaidForThisJob > 0) {
+                                                                calculatedPendingCommission += unpaidForThisJob;
+                                                            }
+                                                        });
+                                                        
+                                                        const [balanceRes, methodRes] = await Promise.all([
                                                             fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
-                                                            fetch(API_ROUTES.payments.pendingCommission(workerId), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
                                                             fetch(API_ROUTES.payments.cashMethod, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
                                                         ]);
                                                         const balanceData = balanceRes.ok ? await balanceRes.json() : {};
-                                                        const commissionData = commissionRes.ok ? await commissionRes.json() : {};
                                                         const methodData = methodRes.ok ? await methodRes.json() : {};
+                                                        
                                                         setUserCashBalance(balanceData.balance != null ? balanceData.balance : null);
-                                                        setWorkerPendingCommission(commissionData.pending_commission != null ? commissionData.pending_commission : null);
+                                                        
+                                                        // Use calculated pending commission from jobs data
+                                                        setWorkerPendingCommission(calculatedPendingCommission);
+                                                        setOriginalPendingCommission(calculatedPendingCommission); // Store original commission amount
                                                         setCashMethodId(methodData.id || null);
                                                     } catch (e) {
                                                         console.error(e);
@@ -337,6 +405,15 @@
                                         <div className="text-center py-6 text-slate-500 font-bold">Loading…</div>
                                     ) : (
                                         <>
+                                            <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200 hidden">
+                                                <p className="text-xs font-bold text-slate-500 uppercase mb-1">Total Revenue</p>
+                                                <p className="text-xl font-black text-emerald-600 font-mono">
+                                                    Rs.{(() => {
+                                                        const totalRevenue = filteredJobs.reduce((sum, job) => sum + (Number(job.price) || 0), 0);
+                                                        return Math.round(totalRevenue).toLocaleString('en-PK');
+                                                    })()}
+                                                </p>
+                                            </div>
                                             <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
                                                 <p className="text-xs font-bold text-slate-500 uppercase mb-1">Your cash account</p>
                                                 <p className="text-xl font-black text-slate-900 font-mono">
@@ -345,17 +422,46 @@
                                             </div>
                                             <div className="bg-emerald-50 rounded-xl p-4 border-2 border-emerald-200">
                                                 <p className="text-xs font-bold text-emerald-700 uppercase mb-1">Worker total commission (pending)</p>
-                                                <p className="text-xl font-black text-emerald-800 font-mono">
-                                                    Rs.{workerPendingCommission != null ? Number(workerPendingCommission).toFixed(2) : '—'}
-                                                </p>
+                                                <input 
+                                                    type="number" 
+                                                    step="1" 
+                                                    min="0"
+                                                    value={workerPendingCommission != null ? Math.round(Number(workerPendingCommission)) : ''} 
+                                                    onChange={(e) => {
+                                                        const value = e.target.value === '' ? null : Math.round(parseFloat(e.target.value) || 0);
+                                                        setWorkerPendingCommission(value);
+                                                    }}
+                                                    className="text-xl font-black text-emerald-800 font-mono w-full bg-transparent border-none outline-none focus:ring-2 focus:ring-emerald-500 rounded px-2 py-1"
+                                                    placeholder="0"
+                                                />
                                             </div>
                                             <button
                                                 type="button"
-                                                disabled={cashPaySending || userCashBalance == null || workerPendingCommission == null || workerPendingCommission <= 0 || !cashMethodId || (userCashBalance != null && Number(userCashBalance) < Number(workerPendingCommission))}
+                                                disabled={cashPaySending || workerPendingCommission == null || workerPendingCommission <= 0 || !cashMethodId}
                                                 onClick={async () => {
                                                     const jobWithWorker = completedJobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
                                                     const workerId = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
                                                     if (!workerId || !cashMethodId || workerPendingCommission == null || workerPendingCommission <= 0) return;
+                                                    
+                                                    // Prevent advance payment: if original commission is zero or null, don't allow payment
+                                                    if (originalPendingCommission == null || originalPendingCommission <= 0) {
+                                                        alert('Cannot pay commission: Worker has no pending commission. Advance payments are not allowed.');
+                                                        setCashPaySending(false);
+                                                        return;
+                                                    }
+                                                    
+                                                    // Prevent advance payment: don't allow paying more than original commission
+                                                    const editedAmount = Math.round(Number(workerPendingCommission));
+                                                    const originalAmount = Math.round(Number(originalPendingCommission));
+                                                    if (editedAmount > originalAmount) {
+                                                        alert(`Cannot pay more than pending commission. Maximum allowed: Rs ${originalAmount}`);
+                                                        setCashPaySending(false);
+                                                        return;
+                                                    }
+                                                    
+                                                    // Convert to integer (no decimals) and ensure minimum is 1
+                                                    const paymentAmount = Math.max(1, Math.round(Number(workerPendingCommission)));
+                                                    
                                                     setCashPaySending(true);
                                                     try {
                                                         const today = new Date().toISOString().split('T')[0];
@@ -363,10 +469,11 @@
                                                         formData.append('_token', csrfToken);
                                                         formData.append('payment_type', 'commission');
                                                         formData.append('worker_id', workerId);
-                                                        formData.append('amount', Number(workerPendingCommission));
+                                                        formData.append('amount', paymentAmount);
                                                         formData.append('payment_date', today);
                                                         formData.append('payment_method_id', cashMethodId);
                                                         formData.append('notes', 'Cash pay from Completed Jobs – ' + selectedWorker);
+                                                        // Send job_ids to link payments with jobs for proper commission display
                                                         const jobIdsForWorker = completedJobs.filter(j => (j.workerId ?? j.worker_id) == workerId && (j.commissionAmount > 0)).map(j => j.id);
                                                         jobIdsForWorker.forEach(id => formData.append('job_ids[]', id));
                                                         const res = await fetch(API_ROUTES.payments.store, {
@@ -382,11 +489,18 @@
                                                             if (listData.success && listData.jobs) setCompletedJobs(listData.jobs);
                                                             alert('Payment successful.');
                                                         } else {
-                                                            alert(data.message || 'Payment failed.');
+                                                            // Show detailed error message
+                                                            let errorMsg = data.message || 'Payment failed.';
+                                                            if (data.errors) {
+                                                                const errorDetails = Object.values(data.errors).flat().join(', ');
+                                                                if (errorDetails) errorMsg += '\n' + errorDetails;
+                                                            }
+                                                            alert(errorMsg);
+                                                            console.error('Payment error:', data);
                                                         }
                                                     } catch (e) {
-                                                        console.error(e);
-                                                        alert('Payment failed.');
+                                                        console.error('Payment exception:', e);
+                                                        alert('Payment failed: ' + (e.message || 'Network error'));
                                                     }
                                                     setCashPaySending(false);
                                                 }}
@@ -419,30 +533,166 @@
                                     <p className="text-3xl font-black text-slate-800 uppercase tracking-tight mb-3">No Completed Jobs Found</p>
                                     <p className="text-lg text-slate-500 mt-6 font-bold">Completed jobs will appear here once you complete them</p>
                                 </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
-                                            <tr>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">ITEM NAME</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
-                                                <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission Paid</th>
-                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Total Balance</th>
-                                                <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-slate-200">
-                                            {filteredJobs.map((job, jobIdx) => {
-                                                const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                                                const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                                                const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
-                                                const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
+                            ) : !selectedWorker && jobsByWorker ? (
+                                // Show grouped by workers when "All" is selected
+                                <div className="p-6 space-y-8">
+                                    {/* Overall Summary for All Workers */}
+                                    {(() => {
+                                        // Calculate totals for all workers combined
+                                        let allTotalRevenue = 0;
+                                        let allTotalCommission = 0;
+                                        let allTotalPaid = 0;
+                                        let allTotalPending = 0;
+                                        let allTotalJobs = 0;
+                                        
+                                        sortedWorkerNames.forEach((workerName) => {
+                                            const workerJobs = jobsByWorker[workerName];
+                                            allTotalJobs += workerJobs.length;
+                                            
+                                            workerJobs.forEach(job => {
+                                                const commissionAmount = Number(job.commissionAmount || 0);
+                                                const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                                allTotalCommission += commissionAmount;
+                                                allTotalPaid += paidCommission;
+                                                allTotalPending += (commissionAmount - paidCommission);
+                                                allTotalRevenue += Number(job.price || 0);
+                                            });
+                                        });
+                                        
+                                        return (
+                                            <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-slate-300 shadow-lg overflow-hidden mb-8">
+                                                <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-4 sm:p-6">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                        <div>
+                                                            <h2 className="text-xl sm:text-2xl font-black uppercase mb-2">All Workers Summary</h2>
+                                                            <p className="text-xs sm:text-sm opacity-90">Total Jobs: {allTotalJobs} | Total Workers: {sortedWorkerNames.length}</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Revenue</p>
+                                                                <p className="text-sm sm:text-base font-black">Rs.{Math.round(allTotalRevenue)}</p>
+                                                            </div>
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Commission</p>
+                                                                <p className="text-sm sm:text-base font-black">Rs.{Math.round(allTotalCommission)}</p>
+                                                            </div>
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Paid</p>
+                                                                <p className="text-sm sm:text-base font-black text-emerald-200">Rs.{Math.round(allTotalPaid)}</p>
+                                                            </div>
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Pending</p>
+                                                                <p className="text-sm sm:text-base font-black text-yellow-200">Rs.{Math.round(allTotalPending)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                    
+                                    {sortedWorkerNames.map((workerName, workerIdx) => {
+                                        const workerJobs = sortJobsByTime(jobsByWorker[workerName]);
+                                        const workerId = workerJobs[0] && (workerJobs[0].workerId != null || workerJobs[0].worker_id != null) ? (workerJobs[0].workerId ?? workerJobs[0].worker_id) : null;
+                                        
+                                        // Calculate worker commission summary
+                                        let totalCommission = 0;
+                                        let totalPaid = 0;
+                                        let totalUnpaid = 0;
+                                        let totalRevenue = 0;
+                                        
+                                        workerJobs.forEach(job => {
+                                            const commissionAmount = Number(job.commissionAmount || 0);
+                                            const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                            totalCommission += commissionAmount;
+                                            totalPaid += paidCommission;
+                                            totalUnpaid += (commissionAmount - paidCommission);
+                                            totalRevenue += Number(job.price || 0);
+                                        });
+                                        
+                                        return (
+                                            <div key={workerName} className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-slate-300 shadow-lg overflow-hidden">
+                                                {/* Worker Header with Summary */}
+                                                <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-4 sm:p-6">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                        <div>
+                                                            <h2 className="text-xl sm:text-2xl font-black uppercase mb-2">{workerName}</h2>
+                                                            <p className="text-xs sm:text-sm opacity-90">Total Jobs: {workerJobs.length}</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Revenue</p>
+                                                                <p className="text-sm sm:text-base font-black">Rs.{Math.round(totalRevenue)}</p>
+                                                            </div>
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Commission</p>
+                                                                <p className="text-sm sm:text-base font-black">Rs.{Math.round(totalCommission)}</p>
+                                                            </div>
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Paid</p>
+                                                                <p className="text-sm sm:text-base font-black text-emerald-200">Rs.{Math.round(totalPaid)}</p>
+                                                            </div>
+                                                            <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                                <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Pending</p>
+                                                                <p className="text-sm sm:text-base font-black text-yellow-200">Rs.{Math.round(totalUnpaid)}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 
-                                                return (
+                                                {/* Worker Jobs Table */}
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full">
+                                                        <thead className="bg-slate-200">
+                                                            <tr>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">ITEM NAME</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
+                                                                <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission Paid</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Total Balance</th>
+                                                                <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="bg-white divide-y divide-slate-200">
+                                                            {(() => {
+                                                // Calculate cumulative balance (running total of unpaid commissions) for this worker
+                                                let cumulativeBalance = 0;
+                                                
+                                                // First, calculate opening balance if exists
+                                                let openingBalance = 0;
+                                                if (workerJobs.length > 0 && workerJobs[0].workerBalance != null) {
+                                                    const firstJob = workerJobs[0];
+                                                    const totalBalance = Number(firstJob.workerBalance || 0);
+                                                    const totalEarned = Number(firstJob.workerTotalEarned || 0);
+                                                    const totalPaid = Number(firstJob.workerTotalPaid || 0);
+                                                    const calculatedBalance = totalEarned - totalPaid;
+                                                    openingBalance = Math.max(0, totalBalance - calculatedBalance);
+                                                    cumulativeBalance = openingBalance;
+                                                }
+                                                
+                                                return workerJobs.map((job, jobIdx) => {
+                                                    const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                                                    const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                                                    const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                                                    const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
+                                                    
+                                                    // Calculate this job's unpaid commission
+                                                    const commissionAmount = Number(job.commissionAmount || 0);
+                                                    const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                                    const unpaidForThisJob = commissionAmount - paidCommission;
+                                                    
+                                                    // Add to cumulative balance (for jobs before this one, we've already added them)
+                                                    // For current job, add its unpaid amount
+                                                    if (jobIdx === 0) {
+                                                        cumulativeBalance = openingBalance + unpaidForThisJob;
+                                                    } else {
+                                                        cumulativeBalance += unpaidForThisJob;
+                                                    }
+                                                    
+                                                    return (
                                                 <tr key={job.id || jobIdx} className="hover:bg-slate-50 transition-colors">
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="flex items-center">
@@ -569,8 +819,46 @@
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-black text-slate-800 font-mono">
-                                                            {job.workerBalance != null ? `Rs.${Math.round(Number(job.workerBalance))}` : '—'}
+                                                        <div className="flex flex-col">
+                                                            {(() => {
+                                                                // Use cumulative balance (already calculated above)
+                                                                // cumulativeBalance includes opening balance + all unpaid commissions up to this job
+                                                                
+                                                                // Get opening balance for display
+                                                                let displayOpeningBalance = 0;
+                                                                if (jobIdx === 0 && job.workerBalance != null) {
+                                                                    const totalBalance = Number(job.workerBalance || 0);
+                                                                    const totalEarned = Number(job.workerTotalEarned || 0);
+                                                                    const totalPaid = Number(job.workerTotalPaid || 0);
+                                                                    const calculatedBalance = totalEarned - totalPaid;
+                                                                    displayOpeningBalance = Math.max(0, totalBalance - calculatedBalance);
+                                                                }
+                                                                
+                                                                // If opening balance exists and is positive, show it ABOVE the cumulative balance
+                                                                if (displayOpeningBalance > 0 && jobIdx === 0) {
+                                                                    return (
+                                                                        <>
+                                                                            <span className="text-[10px] text-blue-600 font-semibold mb-0.5">
+                                                                                Opening: Rs.{Math.round(displayOpeningBalance)}
+                                                                            </span>
+                                                                            <span className={`text-sm font-black font-mono ${
+                                                                                cumulativeBalance === 0 ? 'text-emerald-600' : 'text-slate-800'
+                                                                            }`}>
+                                                                                Rs.{Math.round(cumulativeBalance)}
+                                                                            </span>
+                                                                        </>
+                                                                    );
+                                                                }
+                                                                
+                                                                // Show cumulative balance (includes all unpaid commissions)
+                                                                return (
+                                                                    <span className={`text-sm font-black font-mono ${
+                                                                        cumulativeBalance === 0 ? 'text-emerald-600' : 'text-slate-800'
+                                                                    }`}>
+                                                                        Rs.{Math.round(cumulativeBalance)}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -709,16 +997,45 @@
                                                                                     const result = await response.json();
                                                                                     if (result.success) {
                                                                                         alert('Commission payment reversed successfully.');
+                                                                                        // Reload jobs to update commission amounts
                                                                                         const reloadResponse = await fetch(API_ROUTES.jobs.completed);
                                                                                         const reloadData = await reloadResponse.json();
                                                                                         if (reloadData.success && reloadData.jobs) setCompletedJobs(reloadData.jobs);
-                                                                                        if (selectedWorker) {
+                                                                                        
+                                                                                        // Refresh cash account balance and commission if modal is open
+                                                                                        if (showCashPayModal && selectedWorker) {
                                                                                             const jobWithWorker = reloadData.jobs && reloadData.jobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
                                                                                             const sid = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
                                                                                             if (sid) {
-                                                                                                const tlRes = await fetch(API_ROUTES.workers.cashTimeline(sid), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
-                                                                                                const tlData = await tlRes.json();
-                                                                                                if (tlData.success && tlData.transactions) setCashTimelineTransactions(tlData.transactions);
+                                                                                                // Calculate pending commission from jobs data
+                                                                                                const workerJobs = reloadData.jobs.filter(j => (j.workerId ?? j.worker_id) == sid);
+                                                                                                let calculatedPendingCommission = 0;
+                                                                                                workerJobs.forEach(job => {
+                                                                                                    const commissionAmount = Number(job.commissionAmount || 0);
+                                                                                                    const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                                                                                    const unpaidForThisJob = commissionAmount - paidCommission;
+                                                                                                    if (unpaidForThisJob > 0) {
+                                                                                                        calculatedPendingCommission += unpaidForThisJob;
+                                                                                                    }
+                                                                                                });
+                                                                                                
+                                                                                                // Reload cash balance
+                                                                                                try {
+                                                                                                    const balanceRes = await fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                    const balanceData = balanceRes.ok ? await balanceRes.json() : {};
+                                                                                                    setUserCashBalance(balanceData.balance != null ? balanceData.balance : null);
+                                                                                                    
+                                                                                                    // Use calculated pending commission
+                                                                                                    setWorkerPendingCommission(calculatedPendingCommission);
+                                                                                                    setOriginalPendingCommission(calculatedPendingCommission);
+                                                                                                    
+                                                                                                    // Reload timeline
+                                                                                                    const tlRes = await fetch(API_ROUTES.workers.cashTimeline(sid), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                    const tlData = await tlRes.json();
+                                                                                                    if (tlData.success && tlData.transactions) setCashTimelineTransactions(tlData.transactions);
+                                                                                                } catch (e) {
+                                                                                                    console.error('Error refreshing cash pay data:', e);
+                                                                                                }
                                                                                             }
                                                                                         }
                                                                                     } else {
@@ -743,12 +1060,511 @@
                                                     </td>
                                                 </tr>
                                                 );
-                                            })}
+                                                });
+                                            })()}
+                                                        </tbody>
+                                                        <tfoot className="bg-slate-100 border-t-2 border-slate-300">
+                                                            <tr>
+                                                                <td className="px-6 py-3 text-xs font-black text-slate-600 uppercase" colSpan="5">Total earning (commission sum)</td>
+                                                                <td className="px-6 py-3 whitespace-nowrap">
+                                                                    <div className="text-sm font-black text-emerald-700 font-mono">
+                                                                        Rs {Math.round(totalCommission)}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-3 whitespace-nowrap">
+                                                                    <div className="text-sm font-black text-emerald-600 font-mono">
+                                                                        Rs {Math.round(totalPaid)}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-3 whitespace-nowrap">
+                                                                    <div className="text-sm font-black text-yellow-600 font-mono">
+                                                                        Rs {Math.round(totalUnpaid)}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                // Show single table when a specific worker is selected
+                                <div>
+                                    {/* Worker Summary Header - Show when single worker is selected */}
+                                    {selectedWorker && (() => {
+                                        // Calculate worker commission summary for selected worker
+                                        let totalCommission = 0;
+                                        let totalPaid = 0;
+                                        let totalUnpaid = 0;
+                                        let totalRevenue = 0;
+                                        
+                                        sortedJobs.forEach(job => {
+                                            const commissionAmount = Number(job.commissionAmount || 0);
+                                            const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                            totalCommission += commissionAmount;
+                                            totalPaid += paidCommission;
+                                            totalUnpaid += (commissionAmount - paidCommission);
+                                            totalRevenue += Number(job.price || 0);
+                                        });
+                                        
+                                        return (
+                                            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-4 sm:p-6 mb-6 rounded-2xl">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                    <div>
+                                                        <h2 className="text-xl sm:text-2xl font-black uppercase mb-2">{selectedWorker}</h2>
+                                                        <p className="text-xs sm:text-sm opacity-90">Total Jobs: {sortedJobs.length}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                                                        <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                            <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Revenue</p>
+                                                            <p className="text-sm sm:text-base font-black">Rs.{Math.round(totalRevenue)}</p>
+                                                        </div>
+                                                        <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                            <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Commission</p>
+                                                            <p className="text-sm sm:text-base font-black">Rs.{Math.round(totalCommission)}</p>
+                                                        </div>
+                                                        <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                            <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Paid</p>
+                                                            <p className="text-sm sm:text-base font-black text-emerald-200">Rs.{Math.round(totalPaid)}</p>
+                                                        </div>
+                                                        <div className="bg-white/20 rounded-lg p-2 sm:p-3 backdrop-blur-sm">
+                                                            <p className="text-[10px] sm:text-xs font-bold uppercase opacity-90 mb-1">Pending</p>
+                                                            <p className="text-sm sm:text-base font-black text-yellow-200">Rs.{Math.round(totalUnpaid)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                    
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                        <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
+                                            <tr>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">#</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">ITEM NAME</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Date/Time</th>
+                                                <th className="px-3 sm:px-4 md:px-6 py-4 text-left text-[10px] sm:text-xs font-black uppercase tracking-wider w-[100px] sm:w-auto">Vehicle No</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Amount</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Commission Paid</th>
+                                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider">Total Balance</th>
+                                                <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-slate-200">
+                                            {(() => {
+                                                // Calculate cumulative balance (running total of unpaid commissions)
+                                                let cumulativeBalance = 0;
+                                                
+                                                // First, calculate opening balance if exists
+                                                let openingBalance = 0;
+                                                if (sortedJobs.length > 0 && sortedJobs[0].workerBalance != null) {
+                                                    const firstJob = sortedJobs[0];
+                                                    const totalBalance = Number(firstJob.workerBalance || 0);
+                                                    const totalEarned = Number(firstJob.workerTotalEarned || 0);
+                                                    const totalPaid = Number(firstJob.workerTotalPaid || 0);
+                                                    const calculatedBalance = totalEarned - totalPaid;
+                                                    openingBalance = Math.max(0, totalBalance - calculatedBalance);
+                                                    cumulativeBalance = openingBalance;
+                                                }
+                                                
+                                                return sortedJobs.map((job, jobIdx) => {
+                                                    const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                                                    const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                                                    const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                                                    const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
+                                                    
+                                                    // Calculate this job's unpaid commission
+                                                    const commissionAmount = Number(job.commissionAmount || 0);
+                                                    const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                                    const unpaidForThisJob = commissionAmount - paidCommission;
+                                                    
+                                                    // Add to cumulative balance (for jobs before this one, we've already added them)
+                                                    // For current job, add its unpaid amount
+                                                    if (jobIdx === 0) {
+                                                        cumulativeBalance = openingBalance + unpaidForThisJob;
+                                                    } else {
+                                                        cumulativeBalance += unpaidForThisJob;
+                                                    }
+                                                    
+                                                    return (
+                                                <tr key={job.id || jobIdx} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-lg">
+                                                                {jobIdx + 1}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-normal leading-tight">
+                                                        {(() => {
+                                                            // Format date as DD/MM/YY
+                                                            const formatDate = (dateStr) => {
+                                                                if (!dateStr) return 'N/A';
+                                                                const date = new Date(dateStr);
+                                                                const day = String(date.getDate()).padStart(2, '0');
+                                                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                                                const year = String(date.getFullYear()).slice(-2);
+                                                                return `${day}/${month}/${year}`;
+                                                            };
+                                                            
+                                                            // Format time as HH:MM AM/PM
+                                                            const formatTime = (dateStr) => {
+                                                                if (!dateStr) return 'N/A';
+                                                                const date = new Date(dateStr);
+                                                                let hours = date.getHours();
+                                                                const minutes = String(date.getMinutes()).padStart(2, '0');
+                                                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                                                hours = hours % 12;
+                                                                hours = hours ? hours : 12;
+                                                                return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+                                                            };
+                                                            
+                                                            // Calculate total time
+                                                            const calculateTotalTime = (startStr, endStr) => {
+                                                                if (!startStr || !endStr) return '';
+                                                                const start = new Date(startStr);
+                                                                const end = new Date(endStr);
+                                                                const diffMs = end - start;
+                                                                const diffMins = Math.floor(diffMs / 60000);
+                                                                const hours = Math.floor(diffMins / 60);
+                                                                const mins = diffMins % 60;
+                                                                if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+                                                                if (hours > 0) return `${hours}h`;
+                                                                if (mins > 0) return `${mins}m`;
+                                                                return '';
+                                                            };
+                                                            
+                                                            const jobDate = job.endTime ? formatDate(job.endTime) : 'N/A';
+                                                            const startTimeFormatted = job.startTime ? formatTime(job.startTime) : 'N/A';
+                                                            const endTimeFormatted = job.endTime ? formatTime(job.endTime) : 'N/A';
+                                                            const totalTime = calculateTotalTime(job.startTime, job.endTime);
+                                                            const workerName = job.workerName || job.worker_name || '';
+                                                            
+                                                            return (
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-bold text-slate-900">{jobDate}</span>
+                                                                    {startTimeFormatted !== 'N/A' && endTimeFormatted !== 'N/A' && (
+                                                                        <span className="text-[8px] sm:text-[9px] text-slate-600">{startTimeFormatted} - {endTimeFormatted}</span>
+                                                                    )}
+                                                                    {totalTime && (
+                                                                        <span className="text-[8px] sm:text-[9px] font-semibold inline-flex items-center gap-0.5 text-slate-700">
+                                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                            </svg>
+                                                                            {totalTime}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-normal leading-tight">
+                                                        <div className="flex flex-col">
+                                                            {(job.serviceName || job.service_name || job.service) && (
+                                                                <span className="text-sm font-black text-slate-900 mb-0.5 whitespace-nowrap">{(job.serviceName || job.service_name || job.service).replace(/\s+/g, '-')}</span>
+                                                            )}
+                                                            <span className="font-semibold text-slate-900 whitespace-nowrap">{job.vehicleNo || job.vehicle_no || 'N/A'}</span>
+                                                            {job.customerName || job.customer_name ? (
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-600">{job.customerName || job.customer_name}</span>
+                                                            ) : null}
+                                                            {job.mobile ? (
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-500">
+                                                                    {job.mobile}
+                                                                    {job.userName || job.user_name ? (
+                                                                        <>
+                                                                            <br />
+                                                                            <span className="text-[8px] sm:text-[9px] text-slate-400 italic">({job.userName || job.user_name})</span>
+                                                                        </>
+                                                                    ) : null}
+                                                                </span>
+                                                            ) : job.userName || job.user_name ? (
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-400 italic">({job.userName || job.user_name})</span>
+                                                            ) : null}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-black text-blue-600">Rs.{Math.round(job.price || 0)}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-normal leading-tight">
+                                                        {job.workerCommission > 0 ? (
+                                                            <div className="flex flex-col">
+                                                                <div className="text-sm font-black text-emerald-600 font-mono">Rs.{Math.round(job.commissionAmount || 0)}</div>
+                                                                <div className="text-xs text-slate-500">({job.workerCommission}%)</div>
+                                                                {(job.workerName || job.worker_name || job.worker) && (
+                                                                    <span className="text-[8px] sm:text-[9px] text-slate-600">({job.workerName || job.worker_name || job.worker})</span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-sm text-slate-400">-</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex flex-col">
+                                                            {(job.commissionPaid != null && Number(job.commissionPaid) > 0) ? (
+                                                                <>
+                                                                    <span className="text-sm font-black text-emerald-700 font-mono">{Math.round(Number(job.commissionPaid))}</span>
+                                                                    <span className="text-xs font-bold text-slate-500 uppercase mt-0.5">paid</span>
+                                                                </>
+                                                            ) : (job.commissionAmount != null && job.commissionAmount > 0) ? (
+                                                                <span className="text-sm font-mono text-slate-500">0</span>
+                                                            ) : (
+                                                                <span className="text-sm text-slate-400">—</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex flex-col">
+                                                            {(() => {
+                                                                // Use cumulative balance (already calculated above)
+                                                                // cumulativeBalance includes opening balance + all unpaid commissions up to this job
+                                                                
+                                                                // Get opening balance for display
+                                                                let displayOpeningBalance = 0;
+                                                                if (jobIdx === 0 && job.workerBalance != null) {
+                                                                    const totalBalance = Number(job.workerBalance || 0);
+                                                                    const totalEarned = Number(job.workerTotalEarned || 0);
+                                                                    const totalPaid = Number(job.workerTotalPaid || 0);
+                                                                    const calculatedBalance = totalEarned - totalPaid;
+                                                                    displayOpeningBalance = Math.max(0, totalBalance - calculatedBalance);
+                                                                }
+                                                                
+                                                                // If opening balance exists and is positive, show it ABOVE the cumulative balance
+                                                                if (displayOpeningBalance > 0 && jobIdx === 0) {
+                                                                    return (
+                                                                        <>
+                                                                            <span className="text-[10px] text-blue-600 font-semibold mb-0.5">
+                                                                                Opening: Rs.{Math.round(displayOpeningBalance)}
+                                                                            </span>
+                                                                            <span className={`text-sm font-black font-mono ${
+                                                                                cumulativeBalance === 0 ? 'text-emerald-600' : 'text-slate-800'
+                                                                            }`}>
+                                                                                Rs.{Math.round(cumulativeBalance)}
+                                                                            </span>
+                                                                        </>
+                                                                    );
+                                                                }
+                                                                
+                                                                // Show cumulative balance (includes all unpaid commissions)
+                                                                return (
+                                                                    <span className={`text-sm font-black font-mono ${
+                                                                        cumulativeBalance === 0 ? 'text-emerald-600' : 'text-slate-800'
+                                                                    }`}>
+                                                                        Rs.{Math.round(cumulativeBalance)}
+                                                                    </span>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                        <div className="relative inline-block dropdown-container">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenDropdownId(openDropdownId === job.id ? null : job.id);
+                                                                }}
+                                                                className="px-4 py-2 bg-slate-600 text-white rounded-lg text-xs font-black uppercase hover:bg-slate-700 transition-colors shadow-md flex items-center gap-2"
+                                                                title="Actions"
+                                                            >
+                                                                Actions
+                                                                <svg className={`w-4 h-4 transition-transform ${openDropdownId === job.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
+                                                            </button>
+                                                            {openDropdownId === job.id && (
+                                                                <div className="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-xl border-2 border-slate-200 z-50 overflow-hidden">
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDropdownId(null);
+                                                                            try {
+                                                                                // Load inspection
+                                                                                let inspection = null;
+                                                                                try {
+                                                                                    const inspResponse = await fetch(API_ROUTES.inspections.show(job.id));
+                                                                                    if (inspResponse.ok) {
+                                                                                        const inspData = await inspResponse.json();
+                                                                                        if (inspData.success) inspection = inspData.inspection;
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    console.log('No inspection found');
+                                                                                }
+                                                                                
+                                                                                // Load expense
+                                                                                let expense = null;
+                                                                                try {
+                                                                                    const expResponse = await fetch(API_ROUTES.expenses.show(job.id));
+                                                                                    if (expResponse.ok) {
+                                                                                        const expData = await expResponse.json();
+                                                                                        if (expData.success) expense = expData.expense;
+                                                                                    }
+                                                                                } catch (e) {
+                                                                                    console.log('No expense found');
+                                                                                }
+                                                                                
+                                                                                setSelectedJobForDetail({ ...job, inspection, expense });
+                                                                            } catch (error) {
+                                                                                console.error('Error loading job details:', error);
+                                                                                setSelectedJobForDetail(job);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                        </svg>
+                                                                        Detail
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDropdownId(null);
+                                                                            setSelectedJobForEdit(job);
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 transition-colors border-t border-slate-200 flex items-center gap-2"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                        </svg>
+                                                                        Edit
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenDropdownId(null);
+                                                                            if (confirm(`Are you sure you want to delete job #${jobIdx + 1}?`)) {
+                                                                                try {
+                                                                                    const response = await fetch(API_ROUTES.jobs.destroy(job.id), {
+                                                                                        method: 'DELETE',
+                                                                                        headers: {
+                                                                                            'Content-Type': 'application/json',
+                                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                                            'Accept': 'application/json'
+                                                                                        }
+                                                                                    });
+                                                                                    
+                                                                                    const result = await response.json();
+                                                                                    
+                                                                                    if (result.success) {
+                                                                                        setCompletedJobs(prev => prev.filter(j => j.id !== job.id));
+                                                                                        alert('Job deleted successfully!');
+                                                                                        
+                                                                                        // Reload completed jobs from backend
+                                                                                        const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                                        const reloadData = await reloadResponse.json();
+                                                                                        if (reloadData.success && reloadData.jobs) {
+                                                                                            setCompletedJobs(reloadData.jobs);
+                                                                                        }
+                                                                                    } else {
+                                                                                        alert('Error deleting job: ' + (result.message || 'Unknown error'));
+                                                                                    }
+                                                                                } catch (error) {
+                                                                                    console.error('Error deleting job:', error);
+                                                                                    alert('Error deleting job. Please try again.');
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-red-600 hover:bg-red-50 transition-colors border-t border-slate-200 flex items-center gap-2"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        </svg>
+                                                                        Delete
+                                                                    </button>
+                                                                    {(job.workerId != null || job.worker_id != null) && (job.commissionAmount > 0 || job.workerCommission > 0) && (
+                                                                        <button
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                setOpenDropdownId(null);
+                                                                                const wid = job.workerId ?? job.worker_id;
+                                                                                if (!confirm('Reverse the last cash commission payment for this worker? Only commission payment will be reversed. Your cash will be refunded and the amount added back to the worker\'s balance.')) return;
+                                                                                try {
+                                                                                    const response = await fetch(API_ROUTES.payments.reverseLastForWorker, {
+                                                                                        method: 'POST',
+                                                                                        headers: {
+                                                                                            'Content-Type': 'application/json',
+                                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                                            'Accept': 'application/json'
+                                                                                        },
+                                                                                        body: JSON.stringify({ worker_id: wid, job_id: job.id })
+                                                                                    });
+                                                                                    const result = await response.json();
+                                                                                    if (result.success) {
+                                                                                        alert('Commission payment reversed successfully.');
+                                                                                        // Reload jobs to update commission amounts
+                                                                                        const reloadResponse = await fetch(API_ROUTES.jobs.completed);
+                                                                                        const reloadData = await reloadResponse.json();
+                                                                                        if (reloadData.success && reloadData.jobs) setCompletedJobs(reloadData.jobs);
+                                                                                        
+                                                                                        // Refresh cash account balance and commission if modal is open
+                                                                                        if (showCashPayModal && selectedWorker) {
+                                                                                            const jobWithWorker = reloadData.jobs && reloadData.jobs.find(j => (j.workerName || j.worker_name || j.worker) === selectedWorker);
+                                                                                            const sid = jobWithWorker && (jobWithWorker.workerId != null || jobWithWorker.worker_id != null) ? (jobWithWorker.workerId ?? jobWithWorker.worker_id) : null;
+                                                                                            if (sid) {
+                                                                                                // Calculate pending commission from jobs data
+                                                                                                const workerJobs = reloadData.jobs.filter(j => (j.workerId ?? j.worker_id) == sid);
+                                                                                                let calculatedPendingCommission = 0;
+                                                                                                workerJobs.forEach(job => {
+                                                                                                    const commissionAmount = Number(job.commissionAmount || 0);
+                                                                                                    const paidCommission = (job.commissionPaid != null && Number(job.commissionPaid) > 0) ? Number(job.commissionPaid) : 0;
+                                                                                                    const unpaidForThisJob = commissionAmount - paidCommission;
+                                                                                                    if (unpaidForThisJob > 0) {
+                                                                                                        calculatedPendingCommission += unpaidForThisJob;
+                                                                                                    }
+                                                                                                });
+                                                                                                
+                                                                                                // Reload cash balance
+                                                                                                try {
+                                                                                                    const balanceRes = await fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                    const balanceData = balanceRes.ok ? await balanceRes.json() : {};
+                                                                                                    setUserCashBalance(balanceData.balance != null ? balanceData.balance : null);
+                                                                                                    
+                                                                                                    // Use calculated pending commission
+                                                                                                    setWorkerPendingCommission(calculatedPendingCommission);
+                                                                                                    setOriginalPendingCommission(calculatedPendingCommission);
+                                                                                                    
+                                                                                                    // Reload timeline
+                                                                                                    const tlRes = await fetch(API_ROUTES.workers.cashTimeline(sid), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                    const tlData = await tlRes.json();
+                                                                                                    if (tlData.success && tlData.transactions) setCashTimelineTransactions(tlData.transactions);
+                                                                                                } catch (e) {
+                                                                                                    console.error('Error refreshing cash pay data:', e);
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    } else {
+                                                                                        alert('Error: ' + (result.message || 'Could not reverse commission payment.'));
+                                                                                    }
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    alert('Error reversing commission payment. Please try again.');
+                                                                                }
+                                                                            }}
+                                                                            className="w-full px-4 py-2.5 text-left text-xs font-bold text-amber-700 hover:bg-amber-50 transition-colors border-t border-slate-200 flex items-center gap-2"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                                            </svg>
+                                                                            Reverse commission payment
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                );
+                                                });
+                                            })()}
                                         </tbody>
                                         <tfoot className="bg-slate-100 border-t-2 border-slate-300">
                                             <tr>
                                                 <td className="px-6 py-3 text-xs font-black text-slate-600 uppercase" colSpan="5">Total earning (commission sum)</td>
-                                                                <td className="px-6 py-3 whitespace-nowrap">
+                                                <td className="px-6 py-3 whitespace-nowrap">
                                                     <div className="text-sm font-black text-emerald-700 font-mono">
                                                         Rs {Math.round(filteredJobs.reduce((sum, j) => sum + (Number(j.commissionPaid) || 0), 0))}
                                                     </div>
@@ -758,11 +1574,13 @@
                                             </tr>
                                         </tfoot>
                                     </table>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Commission / Pay / Total balance (running) – when a worker is selected */}
-                            {selectedWorker && (
+                            {/* Commented out - Commission / Pay / Total Balance section */}
+                            {/* {selectedWorker && (
                                 <div className="mt-6 bg-white rounded-3xl shadow-xl border-2 border-slate-200 overflow-hidden">
                                     <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
                                         <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Commission / Pay / Total balance</h3>
@@ -814,7 +1632,7 @@
                                         )}
                                     </div>
                                 </div>
-                            )}
+                            )} */}
                         </div>
                     </main>
 

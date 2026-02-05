@@ -9,7 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->json('attachments')->nullable()->after('credit_limit');
+            if (!Schema::hasColumn('users', 'attachments')) {
+                // Add attachments column after updated_at (which always exists)
+                $table->json('attachments')->nullable()->after('updated_at');
+            }
         });
     }
 

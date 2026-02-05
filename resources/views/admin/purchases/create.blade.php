@@ -19,7 +19,7 @@
         <div class="col-lg-12">
             <div class="card">
                 <div class="card-body p-4">
-                    <form action="{{ route('purchases.store') }}" method="POST" id="purchaseForm">
+                    <form action="{{ route('purchases.store') }}" method="POST" id="purchaseForm" enctype="multipart/form-data">
                         @csrf
                         
                         <!-- ACTIVE BRANCH Selector (Pill-shaped like Gemini design) -->
@@ -102,7 +102,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">SUPPLIER NAME</label>
                                 <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="" selected></option>
+                                    <option value="" selected>Select vendor</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" 
                                                 data-name="{{ $supplier->names[0] ?? '' }}" 
@@ -110,7 +110,7 @@
                                                 data-company="{{ $supplier->company ?? '' }}"
                                                 data-address="{{ $supplier->address ?? '' }}"
                                                 data-area="{{ $supplier->area ?? '' }}">
-                                            {{ $supplier->names[0] ?? 'N/A' }} @if($supplier->company) - {{ $supplier->company }} @endif
+                                            {{ $supplier->names[0] ?? 'N/A' }}@if($supplier->company) - {{ $supplier->company }}@endif @if(!empty($supplier->phones[0])) - {{ $supplier->phones[0] }}@endif
                                         </option>
                                     @endforeach
                                 </select>
@@ -206,37 +206,76 @@
                                         <h5 class="mb-0"><i class="ti ti-credit-card me-2"></i>Payment Information</h5>
                                     </div>
                                     <div class="card-body">
-                                        <!-- Payment Amount (moved inside payment card, right-aligned) -->
-                                        <div id="payment-amount-row" class="row mb-4 pb-3 border-bottom">
-                                            <div class="col-12 d-flex justify-content-end">
-                                                <div class="text-end" style="min-width: 280px;">
-                                                    <label class="form-label fw-bold">PAYMENT AMOUNT</label>
-                                                    <div class="input-group">
-                                                        <input type="number" name="payment_amount" id="payment_amount" class="form-control" step="0.01" min="0" value="0">
-                                                        <button type="button" class="btn btn-outline-primary" id="fillFullAmount" title="Fill full amount">
-                                                            <i class="ti ti-arrow-down"></i> Full
-                                                        </button>
-                                                    </div>
-                                                    <small class="text-muted d-block mt-1">Enter payment amount (can be partial)</small>
-                                                    <small class="text-info"><strong>Remaining:</strong> <span id="remaining_amount">Rs 0.00</span></small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label fw-bold">Payment Method</label>
+                                        <!-- Payment Method and Payment Amount in same row -->
+                                        <div class="row mb-3">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold">PAYMENT METHOD</label>
                                                 <select name="payment_method_id" id="payment_method_id" class="form-select">
                                                     <option value="">Select Payment Method</option>
                                                     @php
-                                                        $paymentMethods = \App\Models\PaymentMethod::active()->get();
+                                                        $paymentMethods = \App\Models\PaymentMethod::active()->get()->reject(function($method) {
+                                                            return in_array($method->code, ['bank_transfer', 'nift', 'ibft']);
+                                                        });
+                                                        $cashMethod = $paymentMethods->firstWhere('code', 'cash');
                                                     @endphp
                                                     @foreach($paymentMethods as $method)
-                                                        <option value="{{ $method->id }}" data-requires-bank="{{ $method->requires_bank_account ? '1' : '0' }}">
+                                                        <option value="{{ $method->id }}" data-requires-bank="{{ $method->requires_bank_account ? '1' : '0' }}" data-method-code="{{ $method->code }}" {{ $method->code === 'cash' ? 'selected' : '' }}>
                                                             {{ $method->name }}
                                                         </option>
                                                     @endforeach
                                                 </select>
                                             </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold">ATTACH PHOTO</label>
+                                                <input type="file" name="payment_photo" id="payment_photo" class="form-control" accept="image/*">
+                                                <small class="text-muted d-block mt-1">Upload payment receipt/screenshot</small>
+                                                <div id="payment_photo_preview" class="mt-2" style="display: none;">
+                                                    <img id="payment_photo_preview_img" src="" alt="Payment Photo Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; object-fit: cover;">
+                                                    <button type="button" class="btn btn-sm btn-danger mt-2" id="remove_payment_photo">
+                                                        <i class="ti ti-x"></i> Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3" id="transaction_id_wrapper" style="display: none;">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold">TRANSACTION ID / REFERENCE <span class="text-danger">*</span></label>
+                                                <input type="text" name="payment_transaction_id" id="payment_transaction_id" class="form-control" placeholder="Enter transaction reference" required>
+                                            </div>
+                                        </div>
+                                        <div id="payment-amount-row" class="row mb-4 pb-3 border-bottom">
+                                            <div class="col-md-6 mb-3">
+                                                <div class="text-end">
+                                                    <small class="text-muted d-block mb-2" style="display: flex; justify-content: space-between; align-items: center; max-width: 250px; margin-left: auto;"><strong>Grand Total:</strong> <span id="payment_grand_total_display" style="font-size: 1.8em; font-weight: bold;">Rs 0</span></small>
+                                                    <div style="max-width: 250px; margin-left: auto; margin-bottom: 10px;">
+                                                        <label class="form-label fw-bold mb-1 d-block" style="text-align: left;">DISCOUNT</label>
+                                                        <div class="input-group mb-2">
+                                                            <input type="number" name="discount" id="discount" class="form-control" step="0.01" min="0" value="0" style="text-align: left;">
+                                                            <select name="discount_type" id="discount_type" class="form-select" style="max-width: 80px;">
+                                                                <option value="amount">Rs</option>
+                                                                <option value="percent">%</option>
+                                                            </select>
+                                                        </div>
+                                                        <div id="discount_percent_input" style="display: none; margin-bottom: 10px;">
+                                                            <label class="form-label fw-bold mb-1 d-block" style="text-align: left; font-size: 0.9em;">PERCENTAGE (%)</label>
+                                                            <input type="number" name="discount_percent" id="discount_percent" class="form-control" step="0.01" min="0" max="100" value="0" style="text-align: left;" placeholder="Enter % (e.g., 1, 2)">
+                                                        </div>
+                                                        <small class="text-muted d-block mt-2" style="text-align: left;"><strong>Total After Discount:</strong> <span id="total_after_discount" style="font-size: 1.2em; font-weight: bold;">Rs 0</span></small>
+                                                    </div>
+                                                    <div style="max-width: 250px; margin-left: auto;">
+                                                        <label class="form-label fw-bold mb-1 d-block" style="text-align: left;">PAYMENT AMOUNT</label>
+                                                        <div class="input-group" style="flex-wrap: nowrap;">
+                                                            <button type="button" class="btn btn-outline-primary" id="fillFullAmount" title="Fill full amount">
+                                                                <i class="ti ti-arrow-down"></i> Full
+                                                            </button>
+                                                            <input type="number" name="payment_amount" id="payment_amount" class="form-control" step="0.01" min="0" value="0">
+                                                        </div>
+                                                    </div>
+                                                    <small class="text-info"><strong>Balance:</strong> <span id="remaining_amount">Rs 0</span></small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
                                             <div class="col-md-4 mb-3" id="bank_account_wrapper" style="display: none;">
                                                 <label class="form-label fw-bold">Bank Account</label>
                                                 <select name="bank_account_id" id="bank_account_id" class="form-select">
@@ -255,30 +294,9 @@
                                                 <label class="form-label fw-bold">Payment Date</label>
                                                 <input type="date" name="payment_date" id="payment_date" class="form-control" value="{{ date('Y-m-d') }}">
                                             </div>
-                                            <div class="col-md-4 mb-3">
-                                                <label class="form-label fw-bold">Transaction ID / Reference</label>
-                                                <input type="text" name="payment_transaction_id" id="payment_transaction_id" class="form-control" placeholder="Optional transaction reference">
-                                            </div>
                                             <div class="col-md-12 mb-3">
                                                 <label class="form-label fw-bold">Payment Notes</label>
                                                 <textarea name="payment_notes" id="payment_notes" class="form-control" rows="2" placeholder="Additional payment notes (optional)"></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="row mt-3">
-                                            <div class="col-md-12">
-                                                <div class="alert alert-info mb-0">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <strong>Payment Summary:</strong>
-                                                            <span class="ms-2">Grand Total: <span id="payment_grand_total">Rs 0.00</span></span>
-                                                            <span class="ms-3">Payment Amount: <span id="payment_amount_display">Rs 0.00</span></span>
-                                                            <span class="ms-3">Remaining: <span id="payment_remaining_display" class="fw-bold">Rs 0.00</span></span>
-                                                        </div>
-                                                        <div>
-                                                            <span id="payment_status_badge" class="badge bg-secondary">No Payment</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -289,22 +307,18 @@
                         <!-- Add Item, Scrap In, Claim Receive & Return -->
                         <div class="text-center mb-4 d-flex flex-wrap justify-content-center align-items-center gap-3">
                             <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn">
-                                <i class="ti ti-plus me-2"></i>ADD NEW ITEM
+                                <i class="ti ti-plus me-2"></i>PURCHASE ITEM
                             </button>
-                            <a href="#" class="btn btn-outline-secondary btn-lg" id="scrap-purchase-btn">
-                                <i class="ti ti-recycle me-2"></i>SCRAP IN
-                            </a>
                             <a href="#" class="btn btn-outline-secondary btn-lg" id="claim-receive-btn">
-                                <i class="ti ti-truck-delivery me-2"></i>CLAIM RECEIVE
+                                <i class="ti ti-truck-delivery me-2"></i>CLAIM RETURN
                             </a>
                             <a href="#" class="btn btn-outline-secondary btn-lg" id="return-btn">
                                 <i class="ti ti-arrow-back-up me-2"></i>RETURN
                             </a>
                         </div>
 
-                        <!-- Hidden fields for order tax, discount, shipping -->
+                        <!-- Hidden fields for order tax, shipping -->
                         <input type="hidden" name="order_tax" id="order_tax" value="0">
-                        <input type="hidden" name="discount" id="discount" value="0">
                         <input type="hidden" name="shipping" id="shipping" value="0">
                         <input type="hidden" name="status" value="pending">
 
@@ -506,21 +520,17 @@
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
                             </div>
+                        <!-- Selected Item Details Display (below input) -->
+                        <div id="selected-item-details-display" class="mt-2 d-none" style="font-size: 0.85rem;">
+                            <div class="text-muted mb-1" id="selected-item-details-line1"></div>
+                            <div class="text-muted mb-1" id="selected-item-details-line2"></div>
+                            <div class="text-warning fw-semibold" id="selected-item-details-line3"></div>
+                        </div>
                         </div>
                         <!-- Item Image Preview -->
                         <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
                             <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
-                        </div>
-                    </div>
-                    <div class="mt-2">
-                        <label class="form-label small fw-bold text-muted mb-1 d-flex align-items-center">
-                            <i class="ti ti-barcode me-1"></i> Barcode scanner
-                        </label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <input type="text" id="barcode-scan-input" class="form-control form-control-sm flex-grow-1" placeholder="Scan barcode or type code" autocomplete="off" style="font-size: 0.85rem;">
-                            <button type="button" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" id="open-camera-scan-btn" title="Open camera scanner (mobile/if no scanner)">
-                                <i class="ti ti-camera"></i> Camera
-                            </button>
+                            <div id="item-search-stock" class="text-center mt-1" style="font-size: 0.75rem; font-weight: 600;"></div>
                         </div>
                     </div>
                     <input type="hidden" id="selected-item-id">
@@ -611,9 +621,15 @@
                                 <select id="warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
                                     <option value="">-</option>
                                     <option value="1">1</option>
+                                    <option value="3">3</option>
+                                    <option value="6">6</option>
                                     <option value="7">7</option>
+                                    <option value="12">12</option>
                                     <option value="15">15</option>
+                                    <option value="18">18</option>
+                                    <option value="24">24</option>
                                     <option value="30">30</option>
+                                    <option value="36">36</option>
                                     <option value="60">60</option>
                                     <option value="90">90</option>
                                     <option value="180">180</option>
@@ -1338,10 +1354,48 @@ $(document).ready(function() {
         const phone = selected.data('phone') || '';
         const address = selected.data('address') || '';
         const area = selected.data('area') || '';
+        const supplierId = $(this).val();
         
         $('#supplier_mobile').val(phone);
         $('#supplier_address').val(address);
         $('#supplier_area').val(area);
+        
+        // Fetch supplier balance (previous balance we owe to supplier)
+        if (supplierId) {
+            $.ajax({
+                url: '{{ route("purchases.suppliers.balance", ":id") }}'.replace(':id', supplierId),
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        const balance = parseFloat(response.balance) || 0;
+                        $('#remaining_amount').text('Rs ' + Math.round(balance));
+                        
+                        // Update color based on balance
+                        if (balance === 0) {
+                            $('#remaining_amount').removeClass('text-warning text-danger').addClass('text-success');
+                        } else if (balance > 0) {
+                            // Positive balance means we owe money (red)
+                            $('#remaining_amount').removeClass('text-success text-warning').addClass('text-danger');
+                        } else {
+                            // Negative balance means supplier owes us (yellow/warning)
+                            $('#remaining_amount').removeClass('text-success text-danger').addClass('text-warning');
+                        }
+                    } else {
+                        console.error('Failed to fetch supplier balance:', response.message);
+                        $('#remaining_amount').text('Rs 0');
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error fetching supplier balance:', xhr);
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        console.error('Error message:', xhr.responseJSON.message);
+                    }
+                    $('#remaining_amount').text('Rs 0.00');
+                }
+            });
+        } else {
+            $('#remaining_amount').text('Rs 0.00');
+        }
     });
     
     // Auto-select supplier name when phone number is entered
@@ -1548,26 +1602,7 @@ $(document).ready(function() {
     });
 
     // Handle "Scrap In" button - same modal as Add Item (like Smart Invoice Scrap In)
-    $('#scrap-purchase-btn').on('click', function(e) {
-        e.preventDefault();
-        const branchId = $('#purchaseBranchId').val();
-        
-        if (!branchId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Branch Required',
-                text: 'Please select a branch first before adding scrap items.',
-                confirmButtonText: 'OK'
-            });
-            return;
-        }
-        
-        currentEntryType = 'scrap';
-        $('#add-item-modal-title').html('<i class="ti ti-recycle me-2"></i>SCRAP IN');
-        $('#add-item-modal').modal('show');
-    });
-
-    // Handle "Claim Receive" button - same modal as Add Item (like Smart Invoice Claim)
+    // Handle "Claim Return" button - same modal as Add Item (like Smart Invoice Claim)
     $('#claim-receive-btn').on('click', function(e) {
         e.preventDefault();
         const branchId = $('#purchaseBranchId').val();
@@ -1583,7 +1618,7 @@ $(document).ready(function() {
         }
         
         currentEntryType = 'claim';
-        $('#add-item-modal-title').html('<i class="ti ti-truck-delivery me-2"></i>CLAIM RECEIVE');
+        $('#add-item-modal-title').html('<i class="ti ti-truck-delivery me-2"></i>CLAIM RETURN');
         $('#add-item-modal').modal('show');
     });
 
@@ -1628,6 +1663,12 @@ $(document).ready(function() {
         // Hide image preview
         $('#item-search-image-preview').addClass('d-none');
         $('#item-search-image').attr('src', '');
+        $('#item-search-stock').html('');
+        // Hide selected item details display
+        $('#selected-item-details-display').addClass('d-none');
+        $('#selected-item-details-line1').html('');
+        $('#selected-item-details-line2').html('');
+        $('#selected-item-details-line3').html('');
     });
         
     // Focus on search input when modal is fully shown
@@ -1690,6 +1731,17 @@ $(document).ready(function() {
                                 $('#item-search-image-preview').addClass('d-none');
                             }
                             
+                            // Show stock below image
+                            if (response.stock !== undefined) {
+                                const stockValue = parseFloat(response.stock) || 0;
+                                const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
+                                const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
+                                const unit = response.unit || 'Unit';
+                                $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                            } else {
+                                $('#item-search-stock').html('');
+                            }
+                            
                             loadItemStockStatus(itemId);
                             loadCustomerHistory(itemId);
                         },
@@ -1719,8 +1771,32 @@ $(document).ready(function() {
         runBarcodeSearch(barcode);
     });
     
+    // Barcode scanner: auto-search when barcode is entered (debounced for manual typing)
+    let barcodeInputTimeout = null;
+    $('#barcode-scan-input').on('input', function() {
+        const barcode = $(this).val().trim();
+        
+        // Clear previous timeout
+        clearTimeout(barcodeInputTimeout);
+        
+        // If barcode is empty, clear search
+        if (!barcode) {
+            $('#item-search').val('');
+            $('#item-search-results').hide();
+            return;
+        }
+        
+        // Wait 500ms after user stops typing, then search
+        // This handles both barcode scanner (fast input) and manual typing
+        barcodeInputTimeout = setTimeout(function() {
+            if (barcode.length >= 3) { // Only search if at least 3 characters
+                runBarcodeSearch(barcode);
+            }
+        }, 500);
+    });
+    
     // Enter in main search also runs search immediately (for scanner typing into search box)
-    $('#item-search').on('keydown', function(e) {
+    $(document).on('keydown', '#item-search', function(e) {
         if (e.which === 13) {
             e.preventDefault();
             $(this).trigger('input');
@@ -1790,7 +1866,9 @@ $(document).ready(function() {
     
     // Product name search with dropdown - COMPREHENSIVE SEARCH
     let itemSearchTimeout = null;
-    $('#item-search').on('input', function() {
+    
+    // Use event delegation to ensure it works even if modal is dynamically loaded
+    $(document).on('input', '#item-search', function() {
         const query = $(this).val().trim();
         const branchId = $('#purchaseBranchId').val();
         const resultsDiv = $('#item-search-results');
@@ -1804,6 +1882,12 @@ $(document).ready(function() {
             // Hide image preview when search is cleared
             $('#item-search-image-preview').addClass('d-none');
             $('#item-search-image').attr('src', '');
+            $('#item-search-stock').html('');
+            // Hide selected item details display when search is cleared
+            $('#selected-item-details-display').addClass('d-none');
+            $('#selected-item-details-line1').html('');
+            $('#selected-item-details-line2').html('');
+            $('#selected-item-details-line3').html('');
             return;
         }
         
@@ -2064,8 +2148,9 @@ $(document).ready(function() {
                                 
                                 // Build first line HTML for battery items
                                 let firstLineHtml = '';
+                                let firstLineText = productName; // Default to product name
                                 if (itemType === 'battery' && firstLineParts.length > 0) {
-                                    const firstLineText = firstLineParts.join(' ');
+                                    firstLineText = firstLineParts.join(' ');
                                     const highlightedFirstLine = highlightText(firstLineText, query);
                                     firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
                                 } else {
@@ -2099,6 +2184,22 @@ $(document).ready(function() {
                                     displayString += ' ' + inputDetails.join(' ');
                                 }
                                 
+                                // Build details strings for display below input
+                                const detailsText = searchDetails.length > 0 ? searchDetails.join(' • ') : '';
+                                const vehicleText = vehicleInfo || '';
+                                const codeText = codeInfo || '';
+                                
+                                // For battery items, build line 1: company + volt (if available)
+                                let line1Details = '';
+                                if (itemType === 'battery') {
+                                    const line1Parts = [];
+                                    if (company) line1Parts.push(company);
+                                    if (volt) line1Parts.push(volt + 'V');
+                                    line1Details = line1Parts.join(' • ');
+                                } else {
+                                    line1Details = detailsText;
+                                }
+                                
                                 // Highlight barcode
                                 const highlightedCodeInfo = codeInfo ? highlightText(codeInfo, query) : '';
                                 
@@ -2111,6 +2212,12 @@ $(document).ready(function() {
                                          data-id="${item.id}" 
                                          data-name="${productName.replace(/"/g, '&quot;')}"
                                          data-display="${displayString.replace(/"/g, '&quot;')}"
+                                         data-first-line="${firstLineText.replace(/"/g, '&quot;')}"
+                                         data-details="${detailsText.replace(/"/g, '&quot;')}"
+                                         data-line1-details="${line1Details.replace(/"/g, '&quot;')}"
+                                         data-vehicle="${vehicleText.replace(/"/g, '&quot;')}"
+                                         data-code="${codeText.replace(/"/g, '&quot;')}"
+                                         data-cca="${(itemType === 'battery' && cca) ? (cca + 'CCA') : ''}"
                                          data-rate="${rate}"
                                          data-unit="${unit}"
                                          data-warehouse-id="${result.warehouse_id || ''}"
@@ -2179,16 +2286,78 @@ $(document).ready(function() {
             // Select item - load full details to get total_price and warehouse
             const itemId = resultId;
             const itemName = $(this).data('name');
+            const itemFirstLine = $(this).data('first-line') || itemName; // Use first line text (black text from search result)
             const itemDisplay = $(this).data('display') || itemName; // Use display string (product name + details)
+            const itemDetails = $(this).data('details') || ''; // All details
+            const itemLine1Details = $(this).data('line1-details') || ''; // Line 1 details (company + volt for battery)
+            const itemVehicle = $(this).data('vehicle') || ''; // Vehicle like "HONDA City"
+            const itemCode = $(this).data('code') || ''; // Barcode/code like "6704861980"
+            const itemCca = $(this).data('cca') || ''; // CCA like "380CCA"
             const itemRate = $(this).data('rate');
             const itemUnit = $(this).data('unit');
             const warehouseId = $(this).closest('.item-search-result').data('warehouse-id');
             
-            // Set input value: Product Name first, then details
-            $('#item-search').val(itemDisplay);
+            // Set input value: Use first line text (the black text from search result)
+            $('#item-search').val(itemFirstLine);
             $('#selected-item-id').val(itemId);
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
+            
+            // Show item details below input (matching image format)
+            let line1 = '';
+            let line2 = '';
+            let line3 = '';
+            
+            // Line 1: Volt only (remove company like "AGS")
+            if (itemLine1Details) {
+                // Remove company from line1Details (e.g., "AGS • 12V" -> "12V")
+                // Split by bullet and take everything after the first part (company)
+                const parts = itemLine1Details.split('•').map(p => p.trim());
+                if (parts.length > 1) {
+                    // Remove first part (company) and join the rest
+                    line1 = parts.slice(1).join(' • ').trim();
+                } else {
+                    line1 = itemLine1Details;
+                }
+            } else if (itemDetails) {
+                // Fallback: use details without vehicle, CCA, and company
+                let detailsOnly = itemDetails;
+                if (itemVehicle && detailsOnly.includes(itemVehicle)) {
+                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\\s*' + itemVehicle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+                }
+                if (itemCca && detailsOnly.includes(itemCca)) {
+                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\s*' + itemCca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+                }
+                // Remove company from start if present (first part before first bullet)
+                const parts = detailsOnly.split('•').map(p => p.trim());
+                if (parts.length > 1) {
+                    detailsOnly = parts.slice(1).join(' • ').trim();
+                }
+                line1 = detailsOnly.trim();
+            }
+            
+            // Line 2: CCA + Vehicle (e.g., "380CCA • HONDA City" with vehicle in orange)
+            if (itemCca && itemVehicle) {
+                line2 = itemCca + ' • <span class="text-warning fw-semibold">' + itemVehicle + '</span>';
+            } else if (itemCca) {
+                line2 = itemCca;
+            } else if (itemVehicle) {
+                line2 = '<span class="text-warning fw-semibold">' + itemVehicle + '</span>';
+            }
+            
+            // Line 3: Barcode/Code (in orange with icon)
+            if (itemCode) {
+                line3 = '<i class="ti ti-barcode me-1"></i><span class="text-warning fw-semibold">' + itemCode + '</span>';
+            }
+            
+            if (line1 || line2 || line3) {
+                $('#selected-item-details-line1').html(line1 || '&nbsp;');
+                $('#selected-item-details-line2').html(line2 || '&nbsp;');
+                $('#selected-item-details-line3').html(line3 || '&nbsp;');
+                $('#selected-item-details-display').removeClass('d-none');
+            } else {
+                $('#selected-item-details-display').addClass('d-none');
+            }
             
             // Load full item details to get total_price and warehouse
             $.ajax({
@@ -2216,6 +2385,17 @@ $(document).ready(function() {
                         $('#item-search-image-preview').removeClass('d-none');
                     } else {
                         $('#item-search-image-preview').addClass('d-none');
+                    }
+                    
+                    // Show stock below image
+                    if (response.stock !== undefined) {
+                        const stockValue = parseFloat(response.stock) || 0;
+                        const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
+                        const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
+                        const unit = response.unit || 'Unit';
+                        $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                    } else {
+                        $('#item-search-stock').html('');
                     }
                     
                     // Set warranty if available
@@ -2370,6 +2550,17 @@ $(document).ready(function() {
                     $('#item-search-image-preview').removeClass('d-none');
                 } else {
                     $('#item-search-image-preview').addClass('d-none');
+                }
+                
+                // Show stock below image
+                if (response.stock !== undefined) {
+                    const stockValue = parseFloat(response.stock) || 0;
+                    const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
+                    const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
+                    const unit = response.unit || 'Unit';
+                    $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                } else {
+                    $('#item-search-stock').html('');
                 }
                 
                 // Set warranty if available
@@ -2657,14 +2848,26 @@ $(document).ready(function() {
         });
 
         const orderTax = parseFloat($('#order_tax').val()) || 0;
-        const discount = parseFloat($('#discount').val()) || 0;
+        const discountType = $('#discount_type').val();
+        let discount = 0;
+        
+        if (discountType === 'percent') {
+            const discountPercent = parseFloat($('#discount_percent').val()) || 0;
+            const subtotalBeforeDiscount = itemTotal + orderTax;
+            discount = (subtotalBeforeDiscount * discountPercent) / 100;
+        } else {
+            discount = parseFloat($('#discount').val()) || 0;
+        }
+        
         const shipping = parseFloat($('#shipping').val()) || 0;
 
         const grossTotal = itemTotal;
         const grandTotal = itemTotal + orderTax - discount + shipping;
 
-        $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
-        $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
+        $('#gross-amount').text('Rs ' + Math.round(parseFloat(grossTotal)));
+        $('#grand-total').text('Rs ' + Math.round(parseFloat(grandTotal)));
+        $('#payment_grand_total_display').text('Rs ' + Math.round(parseFloat(grandTotal)));
+        $('#total_after_discount').text('Rs ' + Math.round(parseFloat(grandTotal)));
         
         // Set max payment amount to grand total (if negative e.g. all scrap, use 0)
         const grandTotalValue = Math.max(0, parseFloat(grandTotal));
@@ -2678,43 +2881,16 @@ $(document).ready(function() {
         updateRemainingAmount();
     }
     
-    // Update remaining amount display
+    // Update remaining amount display (for purchase calculation - not used for supplier balance display)
     function updateRemainingAmount() {
+        // Note: remaining_amount now shows supplier balance, not purchase remaining
+        // This function is kept for other calculations but doesn't update remaining_amount
         const grandTotal = parseFloat($('#grand-total').text().replace('Rs ', '').replace(/,/g, '')) || 0;
         const paymentAmount = parseFloat($('#payment_amount').val()) || 0;
         const remaining = Math.max(0, grandTotal - paymentAmount);
         
-        // Update remaining amount in input field area
-        $('#remaining_amount').text('Rs ' + remaining.toFixed(2));
-        
-        // Update payment summary
-        $('#payment_grand_total').text('Rs ' + grandTotal.toFixed(2));
-        $('#payment_amount_display').text('Rs ' + paymentAmount.toFixed(2));
-        $('#payment_remaining_display').text('Rs ' + remaining.toFixed(2));
-        
-        // Update payment status badge
-        const paymentStatusBadge = $('#payment_status_badge');
-        if (paymentAmount === 0) {
-            paymentStatusBadge.removeClass('bg-success bg-warning bg-danger').addClass('bg-secondary').text('No Payment');
-        } else if (remaining === 0) {
-            paymentStatusBadge.removeClass('bg-secondary bg-warning bg-danger').addClass('bg-success').text('Fully Paid');
-        } else if (remaining < grandTotal * 0.5) {
-            paymentStatusBadge.removeClass('bg-secondary bg-success bg-danger').addClass('bg-warning').text('Partially Paid');
-        } else {
-            paymentStatusBadge.removeClass('bg-secondary bg-success bg-warning').addClass('bg-danger').text('Unpaid');
-        }
-        
-        // Change color based on remaining amount
-        if (remaining === 0) {
-            $('#remaining_amount').removeClass('text-warning text-danger').addClass('text-success');
-            $('#payment_remaining_display').removeClass('text-warning text-danger').addClass('text-success');
-        } else if (remaining < grandTotal * 0.5) {
-            $('#remaining_amount').removeClass('text-success text-danger').addClass('text-warning');
-            $('#payment_remaining_display').removeClass('text-success text-danger').addClass('text-warning');
-        } else {
-            $('#remaining_amount').removeClass('text-success text-warning').addClass('text-danger');
-            $('#payment_remaining_display').removeClass('text-success text-warning').addClass('text-danger');
-        }
+        // Don't update remaining_amount here - it shows supplier balance instead
+        // Remaining amount calculation is kept for internal use if needed
     }
     
     // Fill full amount button
@@ -2731,6 +2907,18 @@ $(document).ready(function() {
         const selectedOption = $(this).find('option:selected');
         const requiresBank = selectedOption.data('requires-bank') == '1';
         const paymentAmount = parseFloat($('#payment_amount').val()) || 0;
+        const methodCode = selectedOption.data('method-code') || '';
+        const isCash = methodCode.toLowerCase() === 'cash';
+        
+        // Show/hide transaction ID field (required for non-cash methods)
+        if (!isCash && $(this).val()) {
+            $('#transaction_id_wrapper').show();
+            $('#payment_transaction_id').prop('required', true);
+        } else {
+            $('#transaction_id_wrapper').hide();
+            $('#payment_transaction_id').prop('required', false);
+            $('#payment_transaction_id').val('');
+        }
         
         if (requiresBank && paymentAmount > 0) {
             $('#bank_account_wrapper').show();
@@ -2741,6 +2929,70 @@ $(document).ready(function() {
             $('#bank_account_id').val('');
         }
     });
+    
+    // Trigger change on page load to set initial state (Cash is selected by default)
+    $('#payment_method_id').trigger('change');
+    
+    // Payment photo preview
+    $('#payment_photo').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#payment_photo_preview_img').attr('src', e.target.result);
+                    $('#payment_photo_preview').show();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                alert('Please select an image file');
+                $(this).val('');
+                $('#payment_photo_preview').hide();
+            }
+        } else {
+            $('#payment_photo_preview').hide();
+        }
+    });
+    
+    // Remove payment photo
+    $('#remove_payment_photo').on('click', function() {
+        $('#payment_photo').val('');
+        $('#payment_photo_preview').hide();
+        $('#payment_photo_preview_img').attr('src', '');
+    });
+    
+    // Show/hide percentage input based on discount type
+    $('#discount_type').on('change', function() {
+        const discountType = $(this).val();
+        if (discountType === 'percent') {
+            $('#discount_percent_input').show();
+            $('#discount').val(0).prop('disabled', true);
+        } else {
+            $('#discount_percent_input').hide();
+            $('#discount').prop('disabled', false);
+            $('#discount_percent').val(0);
+        }
+        calculateTotals();
+    });
+    
+    // Recalculate totals when discount changes
+    $('#discount').on('input change', function() {
+        calculateTotals();
+    });
+    
+    // Recalculate totals when discount percentage changes
+    $('#discount_percent').on('input change', function() {
+        calculateTotals();
+    });
+    
+    // Initialize discount type on page load
+    if ($('#discount_type').val() === 'percent') {
+        $('#discount_percent_input').show();
+        $('#discount').prop('disabled', true);
+    } else {
+        $('#discount_percent_input').hide();
+        $('#discount').prop('disabled', false);
+    }
     
     // Show/hide bank account based on payment amount
     $('#payment_amount').on('input change', function() {
@@ -2764,6 +3016,11 @@ $(document).ready(function() {
         calculateTotals();
         updateRemainingAmount();
         
+        // Fetch supplier balance if supplier is already selected
+        const selectedSupplierId = $('#supplier_id').val();
+        if (selectedSupplierId) {
+            $('#supplier_id').trigger('change');
+        }
     });
 
     // Form submission
@@ -2789,7 +3046,7 @@ $(document).ready(function() {
         
         // If payment amount exceeds grand total
         if (paymentAmount > grandTotal) {
-            alert('Payment amount cannot exceed grand total (Rs ' + grandTotal.toFixed(2) + ')!');
+            alert('Payment amount cannot exceed grand total (Rs ' + Math.round(grandTotal) + ')!');
             $('#payment_amount').focus();
             return false;
         }

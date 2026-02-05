@@ -68,9 +68,19 @@ class CarWashJobObserver
             // Route payment based on payment method
             $paymentMethod = $job->payment_method ?? 'cash';
             
-            if ($paymentMethod === 'bank' && $job->bank_account_id) {
-                // Bank payment: Credit to bank account
-                $bankAccount = BankAccount::find($job->bank_account_id);
+            if ($paymentMethod === 'bank') {
+                // Bank payment: Credit to logged-in user's bank account
+                // First try to find primary bank account, otherwise get first active bank account for the user
+                $bankAccount = BankAccount::where('user_id', $userId)
+                    ->where('status', true)
+                    ->where(function($query) {
+                        $query->where('is_primary', true)
+                              ->orWhereNull('is_primary');
+                    })
+                    ->orderByDesc('is_primary')
+                    ->orderBy('id')
+                    ->first();
+                
                 if ($bankAccount) {
                     BankTransaction::create([
                         'bank_account_id' => $bankAccount->id,
@@ -82,17 +92,18 @@ class CarWashJobObserver
                         'reconciled' => false,
                     ]);
                     
-                    Log::info('Job payment credited to bank account', [
+                    Log::info('Job payment credited to user bank account', [
                         'job_id' => $job->id,
+                        'user_id' => $userId,
                         'bank_account_id' => $bankAccount->id,
                         'amount' => $totalServiceCharges,
                     ]);
                 } else {
-                    Log::warning('Bank account not found for job payment', [
+                    Log::warning('User bank account not found for job payment, falling back to cash', [
                         'job_id' => $job->id,
-                        'bank_account_id' => $job->bank_account_id,
+                        'user_id' => $userId,
                     ]);
-                    // Fallback to cash account if bank account not found
+                    // Fallback to cash account if user's bank account not found
                     $this->cashAccountService->credit(
                         userId: $userId,
                         amount: $totalServiceCharges,
@@ -100,7 +111,7 @@ class CarWashJobObserver
                         referenceId: $job->id,
                         referenceTable: 'car_wash_jobs',
                         branchId: $job->branch_id,
-                        note: "Job payment for job #{$job->id} - {$job->service_name} (bank account not found, credited to cash)"
+                        note: "Job payment for job #{$job->id} - {$job->service_name} (user bank account not found, credited to cash)"
                     );
                 }
             } else {
