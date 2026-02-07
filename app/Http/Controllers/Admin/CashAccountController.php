@@ -48,20 +48,31 @@ class CashAccountController extends Controller
             $users = User::orderBy('name', 'asc')->get();
         } else {
             // Branch owner - get their branch users
-            $branch = $user->branches;
-            if ($branch) {
-                $users = User::where(function($query) use ($branch) {
-                    $query->whereHas('branches', function($q) use ($branch) {
-                        $q->where('branches.id', $branch->id);
+            $branchId = $user->branch_id;
+            if ($branchId) {
+                $users = User::where(function($query) use ($branchId) {
+                    $query->whereHas('assignedBranches', function($q) use ($branchId) {
+                        $q->where('branch_id', $branchId);
                     })
-                    ->orWhereHas('assignedBranches', function($q) use ($branch) {
-                        $q->where('branch_id', $branch->id);
-                    });
+                    ->orWhere('branch_id', $branchId);
                 })
                 ->orderBy('name', 'asc')
                 ->get();
             } else {
-                $users = collect();
+                // Check assigned branches
+                $assignedBranch = $user->assignedBranches()->first();
+                if ($assignedBranch) {
+                    $users = User::where(function($query) use ($assignedBranch) {
+                        $query->whereHas('assignedBranches', function($q) use ($assignedBranch) {
+                            $q->where('branch_id', $assignedBranch->id);
+                        })
+                        ->orWhere('branch_id', $assignedBranch->id);
+                    })
+                    ->orderBy('name', 'asc')
+                    ->get();
+                } else {
+                    $users = collect();
+                }
             }
         }
         
@@ -90,16 +101,30 @@ class CashAccountController extends Controller
         
         // If branch owner, ensure they can only create accounts for their branch users
         if ($user->role !== 'admin') {
-            $userBranch = $user->branches;
-            if ($userBranch) {
+            $userBranchId = $user->branch_id;
+            if ($userBranchId) {
                 $targetUser = User::findOrFail($validated['user_id']);
-                $isBranchUser = $targetUser->branches && $targetUser->branches->id == $userBranch->id;
-                $isAssignedUser = $targetUser->assignedBranches()->where('branch_id', $userBranch->id)->exists();
+                $isBranchUser = $targetUser->branch_id == $userBranchId;
+                $isAssignedUser = $targetUser->assignedBranches()->where('branch_id', $userBranchId)->exists();
                 
                 if (!$isBranchUser && !$isAssignedUser) {
                     return redirect()->back()
                         ->withInput()
                         ->with('error', 'You can only create cash accounts for users in your branch.');
+                }
+            } else {
+                // Check assigned branches
+                $assignedBranch = $user->assignedBranches()->first();
+                if ($assignedBranch) {
+                    $targetUser = User::findOrFail($validated['user_id']);
+                    $isBranchUser = $targetUser->branch_id == $assignedBranch->id;
+                    $isAssignedUser = $targetUser->assignedBranches()->where('branch_id', $assignedBranch->id)->exists();
+                    
+                    if (!$isBranchUser && !$isAssignedUser) {
+                        return redirect()->back()
+                            ->withInput()
+                            ->with('error', 'You can only create cash accounts for users in your branch.');
+                    }
                 }
             }
         }

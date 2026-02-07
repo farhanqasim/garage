@@ -765,9 +765,8 @@ class CarWashPaymentController extends Controller
         // Get all users connected to this branch (owners or assigned)
         $users = \App\Models\User::where(function($query) use ($branchId) {
             // Branch owners
-            $query->whereHas('branches', function($q) use ($branchId) {
-                $q->where('branches.id', $branchId);
-            })
+            // Users with matching branch_id
+            $query->where('branch_id', $branchId)
             // Assigned users
             ->orWhereHas('assignedBranches', function($q) use ($branchId) {
                 $q->where('branch_id', $branchId);
@@ -921,8 +920,8 @@ class CarWashPaymentController extends Controller
         
         if (!$isAdminTransfer) {
             // Get to_user's branch
-            if ($toUser->branches) {
-                $toUserBranchId = $toUser->branches->id;
+            if ($toUser->branch_id) {
+                $toUserBranchId = $toUser->branch_id;
             } else {
                 $assignedBranch = $toUser->assignedBranches()->first();
                 if ($assignedBranch) {

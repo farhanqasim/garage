@@ -47,18 +47,29 @@ class BankAccountController extends Controller
             $selectedBranchId = null;
         } else {
             // Branch owner - get their branch
-            $branch = $user->branches;
-            $branches = $branch ? collect([$branch]) : collect();
-            $selectedBranchId = $branch ? $branch->id : null;
+            $branchId = $user->branch_id;
+            if ($branchId) {
+                $branch = Branch::find($branchId);
+                $branches = $branch ? collect([$branch]) : collect();
+                $selectedBranchId = $branchId;
+            } else {
+                // Check assigned branches
+                $assignedBranch = $user->assignedBranches()->first();
+                if ($assignedBranch) {
+                    $branches = collect([$assignedBranch]);
+                    $selectedBranchId = $assignedBranch->id;
+                } else {
+                    $branches = collect();
+                    $selectedBranchId = null;
+                }
+            }
         }
         
         // Get initial users for selected branch (if branch owner)
         $users = collect();
         if ($selectedBranchId) {
             $users = User::where(function($query) use ($selectedBranchId) {
-                $query->whereHas('branches', function($q) use ($selectedBranchId) {
-                    $q->where('branches.id', $selectedBranchId);
-                })
+                $query->where('branch_id', $selectedBranchId)
                 ->orWhereHas('assignedBranches', function($q) use ($selectedBranchId) {
                     $q->where('branch_id', $selectedBranchId);
                 });
@@ -96,11 +107,15 @@ class BankAccountController extends Controller
         
         // If branch owner, ensure they can only create accounts for their branch
         if ($user->role !== 'admin') {
-            $userBranch = $user->branches;
-            if (!$userBranch || $userBranch->id != $validated['branch_id']) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('error', 'You can only create bank accounts for your own branch.');
+            $userBranchId = $user->branch_id;
+            $isAssigned = $user->assignedBranches()->where('branch_id', $validated['branch_id'])->exists();
+            
+            if (!$userBranchId || $userBranchId != $validated['branch_id']) {
+                if (!$isAssigned) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'You can only create bank accounts for your own branch.');
+                }
             }
         }
 
@@ -271,20 +286,22 @@ class BankAccountController extends Controller
         
         // Verify branch access
         if ($user->role !== 'admin') {
-            $userBranch = $user->branches;
-            if (!$userBranch || $userBranch->id != $branchId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized access to this branch',
-                    'users' => []
-                ], 403);
+            $userBranchId = $user->branch_id;
+            $isAssigned = $user->assignedBranches()->where('branch_id', $branchId)->exists();
+            
+            if (!$userBranchId || $userBranchId != $branchId) {
+                if (!$isAssigned) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized access to this branch',
+                        'users' => []
+                    ], 403);
+                }
             }
         }
         
         $users = User::where(function($query) use ($branchId) {
-            $query->whereHas('branches', function($q) use ($branchId) {
-                $q->where('branches.id', $branchId);
-            })
+            $query->where('branch_id', $branchId)
             ->orWhereHas('assignedBranches', function($q) use ($branchId) {
                 $q->where('branch_id', $branchId);
             });

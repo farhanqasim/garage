@@ -97,6 +97,16 @@ class Handler extends ExceptionHandler
             }
         }
         
+        // Also check if request has X-Requested-With header (AJAX indicator)
+        if (!$isApiRoute && $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            foreach ($apiRoutes as $route) {
+                if (str_contains($currentPath, $route) || str_contains($currentUri, $route)) {
+                    $isApiRoute = true;
+                    break;
+                }
+            }
+        }
+        
         // Check by route name
         if (!$isApiRoute && $request->route()) {
             $routeName = $request->route()->getName();
@@ -116,7 +126,13 @@ class Handler extends ExceptionHandler
             }
         }
         
-        if ($isApiRoute && $request->isMethod('POST')) {
+        // Check if request is AJAX/JSON for branch/switch route
+        $isAjaxRequest = $request->ajax() || 
+                        $request->wantsJson() || 
+                        $request->header('X-Requested-With') === 'XMLHttpRequest' ||
+                        str_contains($request->header('Accept', ''), 'application/json');
+        
+        if (($isApiRoute || $isAjaxRequest) && $request->isMethod('POST')) {
             // Always return JSON for API POST requests
             if ($exception instanceof \Illuminate\Validation\ValidationException) {
                 return response()->json([
