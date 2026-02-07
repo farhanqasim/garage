@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function all_users(){
       $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser'])
-                     ->with(['branches', 'assignedBranches'])
+                     ->with(['assignedBranches'])
                      ->paginate(10);
       $branches = Branch::all();
         return view('admin.users.index', compact('users', 'branches'));
@@ -188,5 +188,22 @@ class UserController extends Controller
         return redirect()->back()->with('success', 'User updated successfully!');
     }
 
+    /**
+     * Show all users for a specific branch
+     */
+    public function branchUsers($branchId)
+    {
+        $branch = Branch::findOrFail($branchId);
+        
+        // Get all users for this branch (where branch_id matches)
+        $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser'])
+            ->where('branch_id', $branchId)
+            ->with(['assignedBranches'])
+            ->paginate(10);
+        
+        $branches = Branch::all();
+        
+        return view('admin.users.branch-users', compact('users', 'branches', 'branch'));
+    }
 
 }

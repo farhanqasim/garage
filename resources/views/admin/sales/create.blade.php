@@ -36,6 +36,10 @@
                                         @php
                                             $branches = \App\Models\Branch::where('status', 'active')->get();
                                             $currentBranchId = session('selected_branch_id');
+                                            // Find Barki Express branch for auto-select
+                                            $barkiBranch = $branches->first(function($branch) {
+                                                return stripos($branch->branch_name, 'barki') !== false;
+                                            });
                                         @endphp
                                         @foreach($branches as $branch)
                                         <li>
@@ -462,7 +466,7 @@
 </div>
 
 <!-- Add Item Modal - ITEM DETAIL BOX -->
-<div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="add-item-modal" tabindex="-1" role="dialog" aria-labelledby="addItemModalLabel" aria-modal="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
             <div class="modal-header border-0 pb-2">
@@ -905,25 +909,27 @@
 @push('styles')
 <style>
     /* ========== Premium Search Filter (unique, beautiful) ========== */
+    /* YouTube-style search input */
     .item-search-input {
-        background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%) !important;
-        border: 2px solid rgba(102, 126, 234, 0.2) !important;
-        border-radius: 12px !important;
-        padding: 12px 44px 12px 16px !important;
-        font-size: 0.95rem !important;
-        transition: all 0.3s ease !important;
+        background: #fff !important;
+        border: 1px solid #ccc !important;
+        border-radius: 40px !important;
+        padding: 10px 50px 10px 20px !important;
+        font-size: 1rem !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
     }
     .item-search-input::placeholder {
-        color: #8b9dc3;
-        font-weight: 500;
+        color: #999;
+        font-weight: 400;
     }
     .item-search-input:hover {
-        border-color: rgba(102, 126, 234, 0.4) !important;
-        background: linear-gradient(135deg, #fff 0%, #f8f9fc 100%) !important;
+        border-color: #999 !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
     }
     .item-search-input:focus {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15) !important;
+        border-color: #1a73e8 !important;
+        box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2) !important;
         background: #fff !important;
         outline: none !important;
     }
@@ -932,14 +938,14 @@
         opacity: 0.85;
     }
     
+    /* YouTube-style results dropdown */
     .item-search-results-box {
-        background: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(102, 126, 234, 0.15);
-        border-radius: 14px;
-        box-shadow: 0 12px 40px rgba(102, 126, 234, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
-        animation: searchResultsIn 0.25s ease-out;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        animation: searchResultsIn 0.2s ease-out;
+        margin-top: 4px !important;
     }
     
     @keyframes searchResultsIn {
@@ -959,10 +965,19 @@
     .item-search-result:last-child {
         border-bottom: none !important;
     }
+    /* YouTube-style result hover */
     .item-search-result:hover,
     .item-search-result.selected {
-        background-color: rgba(102, 126, 234, 0.08) !important;
-        transform: translateX(4px);
+        background-color: #f5f5f5 !important;
+        cursor: pointer;
+    }
+    
+    .item-search-result {
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .item-search-result:last-child {
+        border-bottom: none !important;
     }
     
     #item-search-results .p-3 {
@@ -1636,6 +1651,33 @@ $(document).ready(function() {
     }
     window.selectSalesBranch = selectSalesBranch;
 
+    // Auto-select Barki Express branch on page load (after function is defined)
+    setTimeout(function() {
+        // Find Barki Express branch from dropdown
+        const branchDropdown = $('#branchDropdown').next('.dropdown-menu');
+        const barkiBranch = branchDropdown.find('a').filter(function() {
+            const branchText = $(this).text().toUpperCase();
+            return branchText.includes('BARKI');
+        }).first();
+        
+        if (barkiBranch.length > 0) {
+            // Extract branch info from onclick attribute
+            const onclickAttr = barkiBranch.attr('onclick');
+            if (onclickAttr) {
+                // Parse: selectSalesBranch(branchId, 'branchName', 'branchCode')
+                const match = onclickAttr.match(/selectSalesBranch\((\d+),\s*'([^']+)',\s*'([^']*)'\)/);
+                if (match) {
+                    const branchId = parseInt(match[1]);
+                    const branchName = match[2];
+                    const branchCode = match[3];
+                    
+                    // Auto-select Barki Express branch
+                    selectSalesBranch(branchId, branchName, branchCode);
+                }
+            }
+        }
+    }, 800);
+
     // Load warehouse info for selected branch
     function loadBranchWarehouseInfo(branchId) {
         $.ajax({
@@ -1660,6 +1702,7 @@ $(document).ready(function() {
             }
         });
     }
+
 
     // Update date/time display every second
     function updateDateTime() {
@@ -2076,21 +2119,7 @@ $(document).ready(function() {
         salesNoResults.hide();
         salesLoadingResults.show();
         
-        // Get selected branch ID
-        const branchId = $('#salesBranchId').val();
-        if (!branchId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Branch Required',
-                text: 'Please select a branch first.'
-            });
-            return;
-        }
-        
-        // Add branch_id to params
-        params.branch_id = branchId;
-        
-        // Perform AJAX search
+        // Perform AJAX search (no branch_id required)
         $.ajax({
             url: "{{ route('sales.items.ajax.search') }}",
             data: params,
@@ -2141,6 +2170,44 @@ $(document).ready(function() {
                 };
                 
                 items.forEach(itemData => {
+                    // Handle branch results
+                    if (itemData.type === 'branch') {
+                        html += `
+                            <div class="p-2 border-bottom branch-search-result" 
+                                 data-type="branch"
+                                 data-id="${itemData.id}"
+                                 style="background-color: #e7f3ff; cursor: pointer; transition: background 0.2s;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ti ti-building me-2 text-primary"></i>
+                                    <div>
+                                        <div class="fw-bold text-primary">${itemData.display}</div>
+                                        <div class="small text-muted">Branch</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Handle warehouse results
+                    if (itemData.type === 'warehouse') {
+                        html += `
+                            <div class="p-2 border-bottom warehouse-search-result" 
+                                 data-type="warehouse"
+                                 data-id="${itemData.id}"
+                                 style="background-color: #f0f9ff; cursor: pointer; transition: background 0.2s;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ti ti-archive me-2 text-info"></i>
+                                    <div>
+                                        <div class="fw-bold text-info">${itemData.display}</div>
+                                        <div class="small text-muted">Warehouse${itemData.branch_name ? ' - ' + itemData.branch_name : ''}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
                     // Extract item and warehouse information
                     const item = itemData.item || itemData;
                     const itemType = item.type || '';
@@ -2446,6 +2513,11 @@ $(document).ready(function() {
         let totalAvailableStock = 0;
         
         items.forEach(itemData => {
+            // Skip branches and warehouses
+            if (itemData.type === 'branch' || itemData.type === 'warehouse') {
+                return;
+            }
+            
             const item = itemData.item || itemData;
             const warehouseQuantity = parseFloat(itemData.warehouse_quantity || item.on_hand || 0);
             const availableQuantity = parseFloat(itemData.available_quantity || warehouseQuantity);
@@ -2458,25 +2530,57 @@ $(document).ready(function() {
         $('#sales-shop-stock').text(totalAvailableStock.toFixed(2) + ' Available');
     }
     
-    // Add item to sales detail modal
-    $(document).on('click', '.item-search-result, .sales-add-item-btn', function(e) {
+    // Select from search results (branch, warehouse, or item) - purchase style
+    $(document).on('click', '.branch-search-result, .warehouse-search-result, .item-search-result, .sales-add-item-btn', function(e) {
         e.stopPropagation();
-        const card = $(this).closest('.item-search-result');
-        const itemId = card.data('id');
-        const itemName = card.data('name');
-        const itemFirstLine = card.data('first-line') || itemName; // Use first line text (black text from search result)
-        const itemDisplay = card.data('display') || itemName; // Use display string (product name + details)
-        const itemDetails = card.data('details') || ''; // All details
-        const itemLine1Details = card.data('line1-details') || ''; // Line 1 details (company + volt for battery)
-        const itemVehicle = card.data('vehicle') || ''; // Vehicle like "HONDA City"
-        const itemCode = card.data('code') || ''; // Barcode/code like "6704861980"
-        const itemCca = card.data('cca') || ''; // CCA like "380CCA"
-        const itemRate = card.data('rate');
-        const itemUnit = card.data('unit');
-        const warehouseId = card.data('warehouse-id');
+        const resultType = $(this).data('type');
+        const resultId = $(this).data('id');
         
-        // Close search modal
-        salesSearchModal.modal('hide');
+        if (resultType === 'branch') {
+            // Select branch and reload search
+            selectSalesBranch(resultId, $(this).find('.fw-bold').text(), '');
+            salesSearchInput.val(''); // Clear search to show all items for this branch
+            salesResultsContainer.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                    <p>Start typing to search items or use filters above</p>
+                </div>
+            `);
+            // Trigger search again after branch selection
+            setTimeout(function() {
+                salesSearchInput.trigger('input');
+            }, 500);
+            return;
+        } else if (resultType === 'warehouse') {
+            // Filter by warehouse - reload search with warehouse filter
+            const currentQuery = salesSearchInput.val();
+            salesSearchInput.val(currentQuery + ' [Warehouse: ' + resultId + ']');
+            salesResultsContainer.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                    <p>Start typing to search items or use filters above</p>
+                </div>
+            `);
+            // Could add warehouse filter here if needed
+            return;
+        } else if (resultType === 'item') {
+            // Select item - load full details
+            const card = $(this).closest('.item-search-result');
+            const itemId = resultId;
+            const itemName = card.data('name');
+            const itemFirstLine = card.data('first-line') || itemName; // Use first line text (black text from search result)
+            const itemDisplay = card.data('display') || itemName; // Use display string (product name + details)
+            const itemDetails = card.data('details') || ''; // All details
+            const itemLine1Details = card.data('line1-details') || ''; // Line 1 details (company + volt for battery)
+            const itemVehicle = card.data('vehicle') || ''; // Vehicle like "HONDA City"
+            const itemCode = card.data('code') || ''; // Barcode/code like "6704861980"
+            const itemCca = card.data('cca') || ''; // CCA like "380CCA"
+            const itemRate = card.data('rate');
+            const itemUnit = card.data('unit');
+            const warehouseId = card.data('warehouse-id');
+            
+            // Close search modal
+            salesSearchModal.modal('hide');
         
         // Set item data immediately
         $('#selected-item-id').val(itemId);
@@ -2545,9 +2649,23 @@ $(document).ready(function() {
         loadItemDetails(itemId, itemRate);
         
         // Open detail modal
-        $('#add-item-modal').modal('show');
+        const modal = $('#add-item-modal');
+        modal.removeAttr('aria-hidden');
+        modal.attr('aria-modal', 'true');
+        modal.modal('show');
     });
     // ========== End YouTube-Style Search Modal ==========
+
+    // Fix aria-hidden warning for all modals
+    $('.modal').on('show.bs.modal', function() {
+        $(this).removeAttr('aria-hidden');
+        $(this).attr('aria-modal', 'true');
+    });
+    
+    $('.modal').on('hidden.bs.modal', function() {
+        $(this).attr('aria-hidden', 'true');
+        $(this).removeAttr('aria-modal');
+    });
 
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
@@ -2600,283 +2718,200 @@ $(document).ready(function() {
         currentEntryType = 'sale';
     });
     
-    // Product name search with dropdown (Only Items)
-    let itemSearchTimeout = null;
-    // Advanced Filters Toggle
-    $('#advanced-filters-toggle').on('click', function() {
-        $('#advanced-filters-panel').slideToggle(200);
-        $(this).toggleClass('active');
-    });
+    // ========== NEW SIMPLE ITEM SEARCH WITH DEBUGGING ==========
+    let searchTimeout = null;
     
-    // Clear All Filters
-    $('#clear-all-filters').on('click', function() {
-        $('#filter-item-type').val('');
-        $('#filter-category').val('');
-        $('#filter-part-number').val('');
-        $('#filter-manufacturer').val('');
-        $('#filter-vehicle-model').val('');
-        $('#filter-barcode').val('');
-        $('#filter-min-price').val('');
-        $('#filter-max-price').val('');
-        activeFilters = {};
-        updateActiveFiltersChips();
-        performSearch();
-    });
-    
-    // Filter change handlers
-    $('#filter-item-type, #filter-category, #filter-part-number, #filter-manufacturer, #filter-vehicle-model, #filter-barcode, #filter-min-price, #filter-max-price').on('change input', function() {
-        updateActiveFilters();
-        performSearch();
-    });
-    
-    // Update active filters object
-    function updateActiveFilters() {
-        activeFilters = {};
-        const itemType = $('#filter-item-type').val();
-        const category = $('#filter-category').val();
-        const partNumber = $('#filter-part-number').val().trim();
-        const manufacturer = $('#filter-manufacturer').val().trim();
-        const vehicleModel = $('#filter-vehicle-model').val().trim();
-        const barcode = $('#filter-barcode').val().trim();
-        const minPrice = $('#filter-min-price').val();
-        const maxPrice = $('#filter-max-price').val();
-        
-        if (itemType) activeFilters.item_type = itemType;
-        if (category) activeFilters.category = category;
-        if (partNumber) activeFilters.part_number = partNumber;
-        if (manufacturer) activeFilters.manufacturer = manufacturer;
-        if (vehicleModel) activeFilters.vehicle_model = vehicleModel;
-        if (barcode) activeFilters.barcode = barcode;
-        if (minPrice) activeFilters.min_price = parseFloat(minPrice);
-        if (maxPrice) activeFilters.max_price = parseFloat(maxPrice);
-        
-        updateActiveFiltersChips();
-    }
-    
-    // Update active filter chips display
-    function updateActiveFiltersChips() {
-        const chipsContainer = $('#active-filters-chips');
-        chipsContainer.empty();
-        
-        Object.keys(activeFilters).forEach(key => {
-            const value = activeFilters[key];
-            const label = {
-                'item_type': 'Type',
-                'category': 'Category',
-                'part_number': 'Part Number',
-                'manufacturer': 'Manufacturer',
-                'vehicle_model': 'Vehicle Model',
-                'barcode': 'Barcode',
-                'min_price': 'Min Price',
-                'max_price': 'Max Price'
-            }[key] || key;
+    // Search function with full error handling
+    function searchItems() {
+        try {
+            console.log('=== SEARCH FUNCTION CALLED ===');
+            const query = $('#item-search').val().trim();
+            const resultsDiv = $('#item-search-results');
             
-            chipsContainer.append(`
-                <span class="badge bg-primary d-inline-flex align-items-center gap-1" style="font-size: 10px;">
-                    ${label}: ${value}
-                    <button type="button" class="btn-close btn-close-white" style="font-size: 8px;" data-filter="${key}"></button>
-                </span>
-            `);
-        });
-    }
-    
-    // Remove individual filter chip
-    $(document).on('click', '.badge .btn-close', function(e) {
-        e.stopPropagation();
-        const filterKey = $(this).data('filter');
-        delete activeFilters[filterKey];
-        
-        // Map filter keys to input IDs
-        const filterIdMap = {
-            'item_type': 'filter-item-type',
-            'category': 'filter-category',
-            'part_number': 'filter-part-number',
-            'manufacturer': 'filter-manufacturer',
-            'vehicle_model': 'filter-vehicle-model',
-            'barcode': 'filter-barcode',
-            'min_price': 'filter-min-price',
-            'max_price': 'filter-max-price'
-        };
-        
-        const inputId = filterIdMap[filterKey];
-        if (inputId) {
-            $(`#${inputId}`).val('');
-        }
-        
-        updateActiveFiltersChips();
-        performSearch();
-    });
-    
-    // Perform search with filters
-    function performSearch() {
-        const query = $('#item-search').val().trim();
-        const branchId = $('#salesBranchId').val();
-        const resultsDiv = $('#item-search-results');
-        
-        // Clear previous timeout
-        clearTimeout(itemSearchTimeout);
-        
-        // Check if branch is selected
-        if (!branchId) {
-            if (query.length > 0 || Object.keys(activeFilters).length > 0) {
-                resultsDiv.html('<div class="p-3 text-warning text-center"><i class="ti ti-alert-circle me-1"></i> Please select a branch first</div>');
-                resultsDiv.show();
-            } else {
-                resultsDiv.hide();
+            console.log('Query:', query);
+            console.log('Results div found:', resultsDiv.length > 0);
+            
+            if (resultsDiv.length === 0) {
+                console.error('ERROR: #item-search-results div not found!');
+                alert('Error: Search results container not found. Please refresh the page.');
+                return;
             }
-            return;
-        }
-        
-        // If no query and no filters, hide results
-        if (query.length < 1 && Object.keys(activeFilters).length === 0) {
-            resultsDiv.hide();
-            $('#selected-item-id').val('');
-            // Hide image preview when search is cleared
-            $('#item-search-image-preview').addClass('d-none');
-            $('#item-search-image').attr('src', '');
-            $('#item-search-stock').html('');
-            // Hide selected item details display when search is cleared
-            $('#selected-item-details-display').addClass('d-none');
-            $('#selected-item-details-line1').html('');
-            $('#selected-item-details-line2').html('');
-            $('#selected-item-details-line3').html('');
-            return;
-        }
-        
-        // Show loading state (premium style)
-        resultsDiv.html(`
-            <div class="p-4 text-center">
-                <div class="spinner-border text-primary mb-2" style="width: 2rem; height: 2rem; border-width: 0.2em;" role="status"></div>
-                <p class="mb-0 text-muted fw-500">Searching items...</p>
-            </div>
-        `).show();
-        
-        // Debounce search (300ms for smooth typing)
-        itemSearchTimeout = setTimeout(function() {
-            $.ajax({
-                url: "{{ route('sales.items.ajax.search') }}",
-                method: 'GET',
-                data: {
-                    q: query,
-                    branch_id: branchId,
-                    limit: 15,  // Show more results for better UX
-                    ...activeFilters
-                },
-                success: function(results) {
-                    console.log('Search results:', results);
+            
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            // Hide if empty
+            if (query.length < 1) {
+                console.log('Query empty, hiding results');
+                resultsDiv.hide();
+                return;
+            }
+            
+            // Show loading
+            console.log('Showing loading...');
+            resultsDiv.html('<div class="p-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div> Searching...</div>').show();
+            
+            // Debounce - wait 300ms after user stops typing
+            searchTimeout = setTimeout(function() {
+                try {
+                    console.log('Making AJAX request...');
+                    const searchUrl = "{{ route('sales.items.ajax.search') }}";
+                    console.log('URL:', searchUrl);
                     
-                    // Handle error response
-                    if (results && results.error) {
-                        resultsDiv.html(`<div class="p-3 text-warning text-center">${results.error}</div>`);
-                        resultsDiv.show();
-                        return;
-                    }
-                    
-                    if (!results || results.length === 0) {
-                        const escapedQuery = query.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                        resultsDiv.html(`
-                            <div class="p-5 text-center">
-                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);">
-                                    <i class="ti ti-search-off fs-32" style="color: #667eea;"></i>
-                                </div>
-                                <p class="fw-600 text-dark mb-1">No items found</p>
-                                <p class="text-muted small mb-0">Try: code + space + vehicle or keyword. e.g. 53495878 Toyota</p>
-                            </div>
-                        `);
-                        resultsDiv.show();
-                        return;
-                    }
-                    
-                    let html = '';
-                    let itemCount = 0;
-                    
-                    // Only show items, skip branches and warehouses
-                    results.forEach(function(result) {
-                        if (result.type === 'item') {
-                            itemCount++;
-                                // Item result - use the data from backend
-                                const item = result.item;
-                                const itemName = result.item_name || item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                                const partNumber = result.part_number || item.partnumber_item?.name || '';
-                                const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
-                                const model = item.vehical_item?.model_vehical?.name || '';
+                    $.ajax({
+                        url: searchUrl,
+                        method: 'GET',
+                        data: { q: query, limit: 20 },
+                        success: function(results) {
+                            try {
+                                console.log('AJAX Success!');
+                                console.log('Results:', results);
+                                console.log('Results type:', typeof results);
+                                console.log('Results length:', results ? results.length : 0);
                                 
-                                // Get price from result data
-                                const salePrice = parseFloat(result.sale_price || item.sale_price || 0);
-                                const calculatedPrice = parseFloat(result.calculated_price_per_unit || 0);
-                                const pricePerUnit = parseFloat(result.price_per_unit || item.price_per_unit || 0);
-                                const packingRate = parseFloat(result.packing_purchase_rate || item.packing_purchase_rate || 0);
-                                
-                                // Priority: sale_price > calculated_price_per_unit > price_per_unit > packing_purchase_rate
-                                let displayPrice = 0;
-                                if (salePrice > 0) {
-                                    displayPrice = salePrice;
-                                } else if (calculatedPrice > 0) {
-                                    displayPrice = calculatedPrice;
-                                } else if (pricePerUnit > 0) {
-                                    displayPrice = pricePerUnit;
-                                } else if (packingRate > 0) {
-                                    displayPrice = packingRate;
+                                if (!results || results.length === 0) {
+                                    console.log('No results found');
+                                    resultsDiv.html('<div class="p-3 text-center text-muted">No items found</div>');
+                                    resultsDiv.show();
+                                    return;
                                 }
                                 
-                                const warehouseQuantity = parseFloat(result.warehouse_quantity || 0);
-                                const warehouseId = result.warehouse_id || '';
+                                let html = '';
+                                let itemCount = 0;
                                 
-                                let displayName = itemName;
-                                if (partNumber) displayName += ' - ' + partNumber;
-                                if (manufacturer) displayName += ' ' + manufacturer;
-                                if (model) displayName += ' ' + model;
+                                results.forEach(function(result) {
+                                    try {
+                                        if (result.type === 'item') {
+                                            itemCount++;
+                                            const item = result.item;
+                                            const itemName = (item.product_item && item.product_item.name) || item.short_disc || item.pro_dis || (item.partnumber_item ? item.partnumber_item.name : '') || 'Item #' + item.id;
+                                            const price = parseFloat(result.sale_price || item.sale_price || item.price_per_unit || 0);
+                                            const stock = parseFloat(result.warehouse_quantity || item.on_hand || 0);
+                                            const barcode = item.bar_code || '';
+                                            
+                                            html += '<div class="p-3 border-bottom item-search-result" data-type="item" data-id="' + item.id + '" data-name="' + itemName.replace(/"/g, '&quot;') + '" data-rate="' + price + '" style="cursor: pointer;">';
+                                            html += '<div class="d-flex justify-content-between">';
+                                            html += '<div><div class="fw-bold">' + itemName + '</div>';
+                                            if (barcode) html += '<div class="small text-muted">Code: ' + barcode + '</div>';
+                                            html += '</div>';
+                                            html += '<div class="text-end"><div class="fw-bold text-primary">Rs ' + price.toFixed(2) + '</div><div class="small text-muted">Stock: ' + stock + '</div></div>';
+                                            html += '</div></div>';
+                                        }
+                                    } catch (itemError) {
+                                        console.error('Error processing item:', itemError);
+                                    }
+                                });
                                 
-                                html += `
-                                    <div class="p-2 border-bottom item-search-result" 
-                                         data-type="item"
-                                         data-id="${item.id}" 
-                                         data-name="${displayName.replace(/"/g, '&quot;')}"
-                                         data-rate="${displayPrice}"
-                                         data-unit="${result.unit || item.unit || 'Unit'}"
-                                         data-warehouse-id="${warehouseId}"
-                                         style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
-                                            <div class="flex-grow-1">
-                                                <div class="fw-bold">${displayName}</div>
-                                                <div class="small text-muted">
-                                                    ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
-                                                    ${warehouseQuantity > 0 ? ' | Stock: ' + warehouseQuantity.toFixed(2) : ''}
-                                                    ${displayPrice > 0 ? ' | Price: Rs ' + displayPrice.toFixed(2) : ''}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
+                                console.log('Items processed:', itemCount);
+                                
+                                if (html === '') {
+                                    resultsDiv.html('<div class="p-3 text-center text-muted">No items found</div>');
+                                } else {
+                                    resultsDiv.html(html);
+                                }
+                                resultsDiv.show();
+                                console.log('Results displayed successfully');
+                            } catch (successError) {
+                                console.error('Error in success handler:', successError);
+                                resultsDiv.html('<div class="p-3 text-center text-danger">Error processing results: ' + successError.message + '</div>');
+                                resultsDiv.show();
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('=== AJAX ERROR ===');
+                            console.error('Status:', status);
+                            console.error('Error:', error);
+                            console.error('Status Code:', xhr.status);
+                            console.error('Response:', xhr.responseText);
+                            console.error('Response JSON:', xhr.responseJSON);
+                            
+                            let errorMsg = 'Error loading items';
+                            if (xhr.status === 404) {
+                                errorMsg = 'Search route not found (404). Please check route configuration.';
+                            } else if (xhr.status === 500) {
+                                errorMsg = 'Server error (500). Please check server logs.';
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMsg = xhr.responseJSON.message;
+                            } else if (error) {
+                                errorMsg = error;
+                            }
+                            
+                            resultsDiv.html('<div class="p-3 text-center text-danger"><strong>Error:</strong> ' + errorMsg + '<br><small>Status: ' + xhr.status + '</small></div>');
+                            resultsDiv.show();
+                            
+                            // Show alert for debugging
+                            alert('Search Error:\n' + errorMsg + '\n\nStatus: ' + xhr.status + '\n\nCheck console for details.');
                         }
                     });
-                    
-                    if (itemCount === 0) {
-                        resultsDiv.html('<div class="p-3 text-muted text-center">No items found</div>');
-                    } else {
-                        resultsDiv.html(html);
-                    }
+                } catch (ajaxError) {
+                    console.error('Error setting up AJAX:', ajaxError);
+                    resultsDiv.html('<div class="p-3 text-center text-danger">Error: ' + ajaxError.message + '</div>');
                     resultsDiv.show();
-                },
-                error: function(xhr) {
-                    console.error('Search error:', xhr);
-                    let errorMsg = 'Error searching items';
-                    if (xhr.responseJSON && xhr.responseJSON.error) {
-                        errorMsg = xhr.responseJSON.error;
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMsg = xhr.responseJSON.message;
-                    }
-                    resultsDiv.html(`<div class="p-3 text-danger text-center">${errorMsg}</div>`);
-                    resultsDiv.show();
+                    alert('Error: ' + ajaxError.message);
                 }
-            });
-        }, 300);
+            }, 300);
+        } catch (error) {
+            console.error('=== FATAL ERROR IN searchItems ===');
+            console.error('Error:', error);
+            alert('Fatal Error in search function: ' + error.message + '\n\nCheck console for details.');
+        }
     }
     
-    // Attach input event handler to item-search
-    $('#item-search').on('input', function() {
-        performSearch();
+    // Trigger search on input with error handling
+    $(document).ready(function() {
+        console.log('Setting up search event handlers...');
+        
+        // Check if element exists
+        if ($('#item-search').length === 0) {
+            console.error('ERROR: #item-search input not found!');
+            alert('Error: Search input field not found. Please refresh the page.');
+            return;
+        }
+        
+        console.log('Search input found, attaching events...');
+        
+        // Multiple event handlers for better compatibility
+        $(document).on('input', '#item-search', function() {
+            console.log('Input event triggered');
+            try {
+                searchItems();
+            } catch (e) {
+                console.error('Error in input handler:', e);
+                alert('Error: ' + e.message);
+            }
+        });
+        
+        $(document).on('keyup', '#item-search', function(e) {
+            if (e.keyCode !== 13 && e.keyCode !== 27 && e.keyCode !== 38 && e.keyCode !== 40) {
+                console.log('Keyup event triggered, key:', e.keyCode);
+                try {
+                    searchItems();
+                } catch (e) {
+                    console.error('Error in keyup handler:', e);
+                }
+            }
+        });
+        
+        // Test function call
+        console.log('Search handlers attached successfully');
+        
+        // Manual test function (for debugging)
+        window.testSearch = function() {
+            console.log('=== MANUAL SEARCH TEST ===');
+            const testQuery = $('#item-search').val() || 'test';
+            $('#item-search').val(testQuery);
+            console.log('Setting query to:', testQuery);
+            searchItems();
+        };
+        
+        console.log('Test function available: window.testSearch()');
+    });
+    
+    // Hide results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#item-search-wrapper').length && !$(e.target).closest('#item-search-results').length) {
+            $('#item-search-results').hide();
+        }
     });
     
     // Select from search results (only items now)
@@ -3200,7 +3235,7 @@ $(document).ready(function() {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(function() {
             if (query.length >= 2 || Object.keys(oldActiveFilters).length > 0) {
-                performSearch();
+                performSalesModalSearch();
             } else {
                 resultsContainer.html(`
                     <div class="text-center text-muted py-5">
@@ -3216,7 +3251,7 @@ $(document).ready(function() {
     clearSearchBtn.on('click', function() {
         searchInput.val('');
         $(this).addClass('d-none');
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Filter chip clicks
@@ -3234,7 +3269,7 @@ $(document).ready(function() {
         }
         
         updateClearAllButton();
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Advanced filter changes
@@ -3249,7 +3284,7 @@ $(document).ready(function() {
         }
         
         updateClearAllButton();
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Toggle advanced filters
@@ -3264,7 +3299,7 @@ $(document).ready(function() {
         $('#filter-category, #filter-manufacturer, #filter-part-number, #filter-technology, #filter-grade, #filter-volt, #filter-cca, #filter-supplier, #filter-rack').val('');
         $('#filter-min-price, #filter-max-price').val('');
         updateClearAllButton();
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Update clear all button visibility
@@ -3273,8 +3308,8 @@ $(document).ready(function() {
         clearAllFiltersBtn.toggleClass('d-none', !hasFilters);
     }
     
-    // Perform search
-    function performSearch() {
+    // Perform search for sales-item-search-modal (renamed to avoid conflict)
+    function performSalesModalSearch() {
         const query = searchInput.val().trim();
         
         // Build search params

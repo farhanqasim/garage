@@ -13,8 +13,16 @@ return new class extends Migration
     {
         Schema::create('customer_cars', function (Blueprint $table) {
             $table->id();
-
+            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
+            $table->string('plate_number')->nullable();
+            $table->string('make')->nullable();
+            $table->string('model')->nullable();
+            $table->string('year')->nullable();
             $table->timestamps();
+            
+            // Index for faster lookups
+            $table->index('customer_id');
+            $table->index('plate_number');
         });
     }
 

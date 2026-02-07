@@ -65,10 +65,6 @@ class User extends Authenticatable
         'salary_percentage' => 'decimal:2',
     ];
 
-    public function branches()
-    {
-        return $this->hasOne(Branch::class, 'user_id');
-    }
 
     /**
      * Get all branches assigned to this user (many-to-many)

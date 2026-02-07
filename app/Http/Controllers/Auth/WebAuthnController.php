@@ -346,9 +346,12 @@ class WebAuthnController extends Controller
 
         // Handle branch selection if needed (similar to LoginController)
         if ($user->role === 'user') {
-            $branch = \App\Models\Branch::where('user_id', $user->id)
-                ->where('status', 'active')
-                ->first();
+            $branch = null;
+            if ($user->branch_id) {
+                $branch = \App\Models\Branch::where('id', $user->branch_id)
+                    ->where('status', 'active')
+                    ->first();
+            }
             
             if ($branch) {
                 Session::put([
@@ -559,9 +562,12 @@ class WebAuthnController extends Controller
             
             // Handle branch selection if needed
             if ($user->role === 'user') {
-                $branch = \App\Models\Branch::where('user_id', $user->id)
-                    ->where('status', 'active')
-                    ->first();
+                $branch = null;
+                if ($user->branch_id) {
+                    $branch = \App\Models\Branch::where('id', $user->branch_id)
+                        ->where('status', 'active')
+                        ->first();
+                }
                 
                 if ($branch) {
                     Session::put([

@@ -276,22 +276,103 @@ class ItemController extends Controller
             'technologies',
             'grades',
             'brands',
-            'product',
             'formulas',
+            'product',
             'qualities',
             'partnumbers',
             'engineccs',
             'latestItems',
             'Vehis',
+            'units',
+            'services',
             'warrenties',
             'groups',
             'made_ins',
-            'levels',
-            'services',
-            'units'
+            'levels'
         ));
     }
 
+    public function items_create_new()
+    {
+        // Ensure user is authenticated
+        if (!auth()->check()) {
+            return redirect('/')->with('error', 'Please login to continue.');
+        }
+        
+        $platos      = Platos::where('status', 'active')->get();
+        $amphors     = Amphor::where('status', 'active')->get();
+        $lineitems   = LineItem::where('status', 'active')->get();
+        $Companies   = Company::where('status', 'active')->get();
+        $Categories = Category::whereNull('parent_id')
+            ->where('status', 'active')
+            ->with('children')
+            ->get();
+        $packings    = Packing::where('status', 'active')->get();
+        $scales      = Scale::where('status', 'active')->get();
+        $milleages   = Mileage::where('status', 'active')->get();
+        $item_types  = Producttype::where('status', 'active')->get();
+        $items = collect([]);
+        $units = Unit::with('baseUnits')->orderBy('name')->get();
+        $carCompanies     = CarCompany::orderBy('name')->get();
+        $carNames         = CarName::orderBy('name')->get();
+        $carModels        = CarModel::orderBy('name')->get();
+        $carCountries     = CarCountry::orderBy('name')->get();
+        $carManufacturers = CarManufacturer::orderBy('name')->get();
+        $volts      = Volt::where('status', 'active')->get();
+        $ccas      = Cca::where('status', 'active')->get();
+        $minspols      = Minuspool::where('status', 'active')->get();
+        $technologies      = Technology::where('status', 'active')->get();
+        $grades      = Grade::where('status', 'active')->get();
+        $brands      = Brand::where('status', 'active')->get();
+        $formulas      = Formula::where('status', 'active')->get();
+        $product      = Product::where('status', 'active')->get();
+        $qualities      = Quality::where('status', 'active')->get();
+        $partnumbers      = PartNumber::select('id', 'name', 'type')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+        $engineccs      = EngineCc::where('status', 'active')->get();
+        $services      = Services::where('status', 'active')->get();
+        $warrenties      = Warrenty::where('status', 'active')->get();
+        $groups      = Group::where('status', 'active')->get();
+        $made_ins      = MadeIn::where('status', 'active')->get();
+        $levels      = Level::where('status', 'active')->get();
+
+        return view('admin.item.create-new', compact(
+            'platos',
+            'amphors',
+            'lineitems',
+            'Companies',
+            'Categories',
+            'packings',
+            'scales',
+            'milleages',
+            'item_types',
+            'items',
+            'carCompanies',
+            'carNames',
+            'carModels',
+            'carCountries',
+            'carManufacturers',
+            'volts',
+            'ccas',
+            'minspols',
+            'technologies',
+            'grades',
+            'brands',
+            'formulas',
+            'product',
+            'qualities',
+            'partnumbers',
+            'engineccs',
+            'units',
+            'services',
+            'warrenties',
+            'groups',
+            'made_ins',
+            'levels'
+        ));
+    }
 
     public function getSubcategories($id)
     {
@@ -440,6 +521,11 @@ class ItemController extends Controller
             $data['is_active'] = $data['is_active'] ?? true;
             $data['auto_deactive'] = $data['auto_deactive'] ?? false;
             $data['is_dead'] = $data['is_dead'] ?? false;
+            
+            /* ============================
+            ✅ Serial Number - Only use if provided
+            ============================ */
+            // Don't auto-generate serial number - only use if explicitly provided
 
             /* ============================
             ✅ Field Name Mapping (Form → Database)
@@ -1792,5 +1878,24 @@ class ItemController extends Controller
             Log::error('Product Specification PDF Generation Error: ' . $e->getMessage());
             return back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
         }
+    }
+
+    public function checkBarcode(Request $request)
+    {
+        $barCode = $request->input('bar_code');
+        
+        if (!$barCode) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'Barcode is required'
+            ], 400);
+        }
+        
+        $exists = Item::where('bar_code', $barCode)->exists();
+        
+        return response()->json([
+            'exists' => $exists,
+            'bar_code' => $barCode
+        ]);
     }
 }

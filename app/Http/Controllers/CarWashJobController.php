@@ -573,12 +573,21 @@ class CarWashJobController extends Controller
     }
 
     /**
-     * List bank accounts for the login user: uske branch ke + jinke branch_id null (unassigned).
+     * List bank accounts for the authenticated user ONLY.
+     * Shows only the logged-in user's bank accounts (where user_id matches authenticated user).
      * Har item bank account detail (bank, account title, number) ke sath.
      */
     public function bankAccountsIndex(Request $request)
     {
         $user = Auth::user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+                'bankAccounts' => []
+            ], 401);
+        }
 
         $query = BankAccount::with('bank')
             ->where('account_type', 'bank')
@@ -586,33 +595,72 @@ class CarWashJobController extends Controller
                 $q->where('status', true)->orWhereNull('status');
             });
         
-        // Filter by logged-in user's bank accounts only
-        // Show only accounts where user_id matches logged-in user
+        // STRICT FILTER: Only show accounts belonging to the authenticated user
+        // This ensures only the logged-in user's bank accounts are returned
         $query->where('user_id', $user->id);
 
-        $accounts = $query->orderBy('account_title')
-            ->get()
-            ->map(function ($a) {
-                $bankName = $a->bank ? $a->bank->name : 'N/A';
-                $title = $a->account_title ?? '';
-                $num = $a->account_number ?? '';
-                // Build account-level detail: Bank - Title (Number). If title+number empty, use "Bank — Account #id".
-                $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
-                if ($label === '' || (!$title && !$num)) {
-                    $label = $bankName . ' — Account #' . $a->id;
-                }
-                return [
-                    'id' => $a->id,
-                    'bank_id' => $a->bank_id,
-                    'bankName' => $bankName,
-                    'accountTitle' => $title,
-                    'accountNumber' => $num,
-                    'displayLabel' => $label,
-                    'balance' => (float) $a->current_balance, // Get balance from accessor
-                ];
-            });
+        // Get all accounts for the authenticated user (for total balance calculation)
+        $allAccounts = $query->orderBy('is_primary', 'desc') // Primary accounts first
+            ->orderBy('account_title')
+            ->get();
 
-        return response()->json(['success' => true, 'bankAccounts' => $accounts]);
+        // Determine which account to display in the UI
+        // If multiple accounts exist, show only the primary account
+        // If single account exists, show that one
+        // If no primary account is set but multiple accounts exist, show the first one
+        $displayAccountId = null;
+        if ($allAccounts->count() > 1) {
+            // Multiple accounts: find primary account
+            $primaryAccount = $allAccounts->firstWhere('is_primary', true);
+            
+            // If no primary account is set, use the first account as fallback
+            $selectedAccount = $primaryAccount ?: $allAccounts->first();
+            $displayAccountId = $selectedAccount->id;
+        } else if ($allAccounts->count() === 1) {
+            // Single account: show that one
+            $displayAccountId = $allAccounts->first()->id;
+        }
+
+        // Format all accounts with balance information
+        // Mark which account should be displayed in the UI
+        $formattedAccounts = $allAccounts->map(function ($a) use ($displayAccountId) {
+            $bankName = $a->bank ? $a->bank->name : 'N/A';
+            $title = $a->account_title ?? '';
+            $num = $a->account_number ?? '';
+            // Build account-level detail: Bank - Title (Number). If title+number empty, use "Bank — Account #id".
+            $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
+            if ($label === '' || (!$title && !$num)) {
+                $label = $bankName . ' — Account #' . $a->id;
+            }
+            
+            // Calculate balance: opening_balance + credits - debits (including all transactions, not just reconciled)
+            $openingBalance = (float) ($a->opening_balance ?? 0);
+            
+            // Get all credits (not just reconciled)
+            $credits = $a->bankTransactions()
+                ->where('type', 'credit')
+                ->sum('amount');
+            
+            // Get all debits (not just reconciled)
+            $debits = $a->bankTransactions()
+                ->where('type', 'debit')
+                ->sum('amount');
+            
+            $balance = $openingBalance + (float) $credits - (float) $debits;
+            
+            return [
+                'id' => $a->id,
+                'bank_id' => $a->bank_id,
+                'bankName' => $bankName,
+                'accountTitle' => $title,
+                'accountNumber' => $num,
+                'displayLabel' => $label,
+                'balance' => $balance, // Calculated balance (opening + credits - debits)
+                'isDisplayAccount' => ($a->id === $displayAccountId), // Mark which account to display
+            ];
+        });
+
+        return response()->json(['success' => true, 'bankAccounts' => $formattedAccounts->values()->all()]);
     }
 
     /**
@@ -634,9 +682,7 @@ class CarWashJobController extends Controller
 
         // Get all users from same branch (excluding logged-in user)
         $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
-            $query->whereHas('branches', function($q) use ($branchId) {
-                $q->where('branches.id', $branchId);
-            })
+            $query->where('branch_id', $branchId)
             ->orWhereHas('assignedBranches', function($q) use ($branchId) {
                 $q->where('branch_id', $branchId);
             });
@@ -952,8 +998,8 @@ class CarWashJobController extends Controller
         foreach ($previousJobs as $job) {
             $price = round((float) $job->price, 2);
             $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
-            $openingBalance += $price;
-            $openingBalance -= $expenseAmount;
+            // Expenses are now added to price instead of subtracted
+            $openingBalance += $price + $expenseAmount;
         }
         $openingBalance = round($openingBalance, 2);
         
@@ -990,9 +1036,12 @@ class CarWashJobController extends Controller
             $commissionAmount = round($commissionAmount, 2);
             $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
             $price = round((float) $job->price, 2);
+            // Cash Receipt column mein sirf job payment show hoga, expenses alag
+            // But account mein job payment + expenses dono jayenge
+            $totalWithExpense = $price + $expenseAmount; // For account credit
             $gTotal = round($price - $expenseAmount - $commissionAmount, 2);
-            $totalDebit += $expenseAmount;
-            $totalCredit += $price;
+            $totalDebit += $expenseAmount; // Keep for display in JOB EXPENSE column
+            $totalCredit += $totalWithExpense; // Credit includes both price and expense (for account)
             $vehicleSet[$job->vehicle_no ?: 'N/A'] = true;
             $workerSet[$job->worker_name ?: 'N/A'] = true;
             $commissionSum += $commissionAmount;
@@ -1022,8 +1071,9 @@ class CarWashJobController extends Controller
             }
             $dateOnly = $dt ? Carbon::parse($dt)->format('d/m/y') : '-';
 
-            // Row 1: Credit (debit empty, credit=price, worker, bank, commission, gTotal)
-            $running += $price;
+            // Row 1: Credit (debit=expense for display, credit=price only for Cash Receipt column, worker, bank, commission, gTotal)
+            // Note: credit field ab sirf price hai (expenses nahi), but account mein totalWithExpense jayega
+            $running += $price; // Add price to running total (for cash receipt)
             // Bank column: separate fields for bank name, account title, and account number
             $bankName = '-';
             $bankNameOnly = null;
@@ -1043,6 +1093,11 @@ class CarWashJobController extends Controller
                 $bankNameOnly = $job->bank->name;
                 $bankName = $bankNameOnly;
             }
+            // Subtract job expenses from running total (they reduce cash)
+            if ($expenseAmount > 0) {
+                $running -= $expenseAmount;
+            }
+            
             $rows[] = [
                 'dateTime' => $dateTime,
                 'date' => $dateOnly,
@@ -1053,8 +1108,8 @@ class CarWashJobController extends Controller
                 'customerName' => $customerName,
                 'mobile' => $mobile,
                 'userName' => $userName,
-                'debit' => 0,
-                'credit' => $price,
+                'debit' => $expenseAmount, // Show expense in JOB EXPENSE column
+                'credit' => $price, // Cash Receipt column: sirf job payment (expenses alag)
                 'gTotal' => $gTotal,
                 'total' => $running,
                 'worker' => $job->worker_name ?: 'N/A',
@@ -1066,37 +1121,11 @@ class CarWashJobController extends Controller
                 'jobId' => $job->id,
                 'isOpening' => false,
             ];
-
-            // Row 2: Debit (credit empty, debit=expense, worker/bank/commission empty) — sirf jab expense > 0
-            if ($expenseAmount > 0) {
-                $running -= $expenseAmount;
-                $rows[] = [
-                    'dateTime' => $dateTime,
-                    'date' => $dateOnly,
-                    'startTime' => '-',
-                    'endTime' => '-',
-                    'totalTime' => '-',
-                    'vehicle' => $vehicle,
-                    'customerName' => $customerName,
-                    'mobile' => $mobile,
-                    'userName' => $userName,
-                    'debit' => $expenseAmount,
-                    'credit' => 0,
-                    'gTotal' => null,
-                    'total' => $running,
-                    'worker' => '-',
-                    'bankName' => '-',
-                    'bankNameOnly' => null,
-                    'bankAccountTitle' => null,
-                    'bankAccountNumber' => null,
-                    'commission' => '-',
-                    'jobId' => $job->id,
-                    'isOpening' => false,
-                ];
-            }
         }
 
-        $sumGtotal = round($totalCredit - $totalDebit - $commissionSum, 2);
+        // Since expenses are now added to credit, sumGtotal = totalCredit - commissionSum
+        // (totalCredit already includes price + expense)
+        $sumGtotal = round($totalCredit - $commissionSum, 2);
 
         // Pending commission: total commission from jobs minus paid (completed, non-reversed) per job
         $jobIds = $jobs->pluck('id')->toArray();
@@ -1105,6 +1134,59 @@ class CarWashJobController extends Controller
             ->where('status', 'completed')
             ->sum('amount');
         $pendingCommission = max(0, round($commissionSum - $totalCommissionPaid, 2));
+
+        // Fetch shop expenses for the date range (only for cash filter)
+        $totalShopExpense = 0;
+        $shopExpenses = collect([]);
+        if ($paymentFilter !== 'bank') {
+            // Only fetch shop expenses for cash filter
+            $shopExpenseQuery = \App\Models\CarWashShopExpense::with('user');
+            $this->applyBranchFilter($shopExpenseQuery, 'branch_id', $user);
+            $shopExpenseQuery->whereBetween('expense_date', [$dateFrom, $dateTo]);
+            $shopExpenses = $shopExpenseQuery->orderBy('expense_date', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->get();
+            $totalShopExpense = (float) $shopExpenses->sum('amount');
+            
+            // Add shop expenses as separate rows
+            foreach ($shopExpenses as $shopExp) {
+                $expDate = $shopExp->expense_date;
+                $expDateTime = $expDate ? Carbon::parse($expDate)->format('d/m/y') . ' time ' . ($shopExp->created_at ? $shopExp->created_at->format('h:i A') : '12:00AM') : '-';
+                $expDateOnly = $expDate ? Carbon::parse($expDate)->format('d/m/y') : '-';
+                $expAmount = round((float) $shopExp->amount, 2);
+                $expUserName = $shopExp->user ? $shopExp->user->name : null;
+                
+                // Add shop expense to running total (subtract from cash)
+                $running -= $expAmount;
+                
+                $rows[] = [
+                    'dateTime' => $expDateTime,
+                    'date' => $expDateOnly,
+                    'startTime' => '-',
+                    'endTime' => '-',
+                    'totalTime' => '-',
+                    'vehicle' => 'Shop Expense: ' . ($shopExp->category ?: 'N/A'),
+                    'customerName' => null,
+                    'mobile' => null,
+                    'userName' => $expUserName,
+                    'debit' => 0, // Job expense nahi hai
+                    'credit' => 0, // Cash receipt nahi hai
+                    'shopExpense' => $expAmount, // Shop expense amount
+                    'gTotal' => null,
+                    'total' => $running,
+                    'worker' => '-',
+                    'bankName' => '-',
+                    'bankNameOnly' => null,
+                    'bankAccountTitle' => null,
+                    'bankAccountNumber' => null,
+                    'commission' => '-',
+                    'jobId' => null,
+                    'isOpening' => false,
+                    'isShopExpense' => true,
+                    'notes' => $shopExp->notes,
+                ];
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -1123,6 +1205,7 @@ class CarWashJobController extends Controller
                 'totalCommissionPaid' => round($totalCommissionPaid, 2),
                 'pendingCommission' => $pendingCommission,
                 'sumGtotal' => $sumGtotal,
+                'totalShopExpense' => round($totalShopExpense, 2),
             ],
         ]);
     }
@@ -1227,9 +1310,12 @@ class CarWashJobController extends Controller
             $commissionAmount = round($commissionAmount, 2);
             $expenseAmount = $job->expense ? round((float) ($job->expense->total_amount ?? 0), 2) : 0;
             $price = round((float) $job->price, 2);
+            // Cash Receipt column mein sirf job payment show hoga, expenses alag
+            // But account mein job payment + expenses dono jayenge
+            $totalWithExpense = $price + $expenseAmount; // For account credit
             $gTotal = round($price - $expenseAmount - $commissionAmount, 2);
-            $totalDebit += $expenseAmount;
-            $totalCredit += $price;
+            $totalDebit += $expenseAmount; // Keep for display in JOB EXPENSE column
+            $totalCredit += $totalWithExpense; // Credit includes both price and expense (for account)
             $vehicleSet[$job->vehicle_no ?: 'N/A'] = true;
             $workerSet[$job->worker_name ?: 'N/A'] = true;
             $commissionSum += $commissionAmount;
@@ -1239,8 +1325,9 @@ class CarWashJobController extends Controller
             $vehicle = $job->vehicle_no ?: 'N/A';
             $expenseItems = ($job->expense && is_array($job->expense->expense_items ?? null)) ? $job->expense->expense_items : [];
 
-            // Row 1: Credit (debit empty, credit=price, worker, bank, commission, gTotal)
-            $running += $price;
+            // Row 1: Credit (debit=expense for display, credit=price only for Cash Receipt column, worker, bank, commission, gTotal)
+            // Note: credit field ab sirf price hai (expenses nahi), but account mein totalWithExpense jayega
+            $running += $price; // Add price to running total (for cash receipt)
             $bankName = '-';
             if ($job->bankAccount) {
                 $b = $job->bankAccount;
@@ -1252,38 +1339,35 @@ class CarWashJobController extends Controller
             } elseif ($job->bank) {
                 $bankName = $job->bank->name;
             }
+            // Subtract job expenses from running total (they reduce cash)
+            if ($expenseAmount > 0) {
+                $running -= $expenseAmount;
+            }
+            
             $rows[] = [
                 'dateTime' => $dateTime,
                 'vehicle' => $vehicle,
-                'debit' => 0,
-                'credit' => $price,
+                'debit' => $expenseAmount, // Show expense in JOB EXPENSE column
+                'credit' => $price, // Cash Receipt column: sirf job payment (expenses alag)
                 'gTotal' => $gTotal,
                 'total' => $running,
                 'worker' => $job->worker_name ?: 'N/A',
                 'bankName' => $bankName,
                 'commission' => $commissionAmount,
-                'expenseItems' => [],
+                'expenseItems' => $expenseItems,
             ];
-
-            // Row 2: Debit (credit empty, debit=expense, worker/bank/commission empty) — sirf jab expense > 0
-            if ($expenseAmount > 0) {
-                $running -= $expenseAmount;
-                $rows[] = [
-                    'dateTime' => $dateTime,
-                    'vehicle' => $vehicle,
-                    'debit' => $expenseAmount,
-                    'credit' => 0,
-                    'gTotal' => null,
-                    'total' => $running,
-                    'worker' => '-',
-                    'bankName' => '-',
-                    'commission' => '-',
-                    'expenseItems' => $expenseItems,
-                ];
-            }
         }
 
-        $sumGtotal = round($totalCredit - $totalDebit - $commissionSum, 2);
+        // Since expenses are now added to credit, sumGtotal = totalCredit - commissionSum
+        // (totalCredit already includes price + expense)
+        $sumGtotal = round($totalCredit - $commissionSum, 2);
+
+        // Calculate shop expenses for the date range
+        $totalShopExpense = 0;
+        $shopExpenseQuery = \App\Models\CarWashShopExpense::query();
+        $this->applyBranchFilter($shopExpenseQuery, 'branch_id', $user);
+        $shopExpenseQuery->whereBetween('expense_date', [$dateFrom, $dateTo]);
+        $totalShopExpense = (float) $shopExpenseQuery->sum('amount');
 
         $data = [
             'date' => $dateCarbon->format('l, F d, Y'),
@@ -1298,6 +1382,7 @@ class CarWashJobController extends Controller
             'totalWorkers' => count($workerSet),
             'totalCommission' => round($commissionSum, 2),
             'sumGtotal' => $sumGtotal,
+            'totalShopExpense' => round($totalShopExpense, 2),
         ];
 
         $pdf = Pdf::loadView('car-wash-daily-report-pdf', $data)

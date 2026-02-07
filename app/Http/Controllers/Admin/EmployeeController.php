@@ -84,7 +84,7 @@ public function post_employees(Request $request)
         ]);
     }
 
-    return redirect()->back()->with('success', 'Employee added successfully!');
+    return redirect()->back()->with('success', 'User created successfully! Branch access configured.');
 }
 
 
