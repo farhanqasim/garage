@@ -389,6 +389,7 @@ Route::delete('/branch/delete/{id}', [BranchController::class, 'delete_branch'])
 
 // All Users
 Route::get('/all/users', [UserController::class, 'all_users'])->name('all.users');
+Route::get('/branch/{branchId}/users', [UserController::class, 'branchUsers'])->name('branch.users');
 Route::delete('/delete-user/{id}', [UserController::class, 'deleteuser'])->name('delete.user');
 Route::put('/update-user/{id}', [UserController::class, 'updateuser'])->name('update.user');
 
@@ -407,6 +408,7 @@ Route::post('/update-employees-status/{id}', [EmployeeController::class, 'update
 // items
 Route::get('/all/items', [ItemController::class, 'all_items'])->name('all.items');
 Route::get('/all/items/create', [ItemController::class, 'items_create'])->name('all.items.create');
+Route::get('/all/items/create/new', [ItemController::class, 'items_create_new'])->name('all.items.create.new');
 Route::post('/all/items/store', [ItemController::class, 'items_store'])->name('all.items.store');
 Route::get('/item/edit/{id}', [ItemController::class, 'item_edit'])->name('item.edit');
 Route::put('/item/update/{id}', [ItemController::class, 'item_update'])->name('item.update');
@@ -590,7 +592,16 @@ Route::get('all/suppliers',[SupplierController::class,'all_suppliers'])->name('a
 // sales
 Route::get('all/sales',[SalesController::class,'all_sales'])->name('all_sales');
 Route::get('create/sale',[SalesController::class,'create_sale'])->name('create.sale');
+Route::get('create/sale/new',[SalesController::class,'create_sale_new'])->name('create.sale.new');
 Route::post('create/sale',[SalesController::class,'store'])->name('sales.store');
+Route::get('sales/{id}',[SalesController::class,'show'])->name('sales.show');
+Route::get('sales/{id}/edit',[SalesController::class,'edit'])->name('sales.edit');
+Route::put('sales/{id}',[SalesController::class,'update'])->name('sales.update');
+Route::delete('sales/{id}',[SalesController::class,'destroy'])->name('sales.destroy');
+Route::get('sales/{id}/pdf',[SalesController::class,'pdf'])->name('sales.download.pdf');
+Route::get('sales/{id}/payments',[SalesController::class,'getPayments'])->name('sales.payments');
+Route::get('sales/{id}/payments/create',[SalesController::class,'showCreatePayment'])->name('sales.payments.create');
+Route::post('sales/{id}/payments',[SalesController::class,'createPayment'])->name('sales.payments.store');
 Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
     ->name('sales.items.ajax.search');
 Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])

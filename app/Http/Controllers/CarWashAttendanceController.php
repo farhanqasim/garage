@@ -70,7 +70,7 @@ class CarWashAttendanceController extends Controller
                 return response()->json(['success' => false, 'message' => 'User not found.'], 404);
             }
             $canAccess = $user->role === 'admin' || $attendee->id === $user->id
-                || ($attendee->branches && $attendee->branches->id == $branchId)
+                || ($attendee->branch_id == $branchId)
                 || $attendee->assignedBranches()->where('branch_id', $branchId)->exists();
             if (!$canAccess) {
                 return response()->json(['success' => false, 'message' => 'User not in your branch.'], 403);

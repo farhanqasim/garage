@@ -108,10 +108,16 @@ class LoginController extends Controller
         
         // For normal users, branch is REQUIRED
         if ($user->role === 'user') {
-            // Find user's branches (either as owner or as assigned member)
-            $ownerBranches = Branch::where('user_id', $user->id)
-                ->where('status', 'active')
-                ->get();
+            // Find user's branches (from branch_id or assigned branches)
+            $ownerBranches = collect();
+            if ($user->branch_id) {
+                $branch = Branch::where('id', $user->branch_id)
+                    ->where('status', 'active')
+                    ->first();
+                if ($branch) {
+                    $ownerBranches = collect([$branch]);
+                }
+            }
             
             $assignedBranches = $user->assignedBranches()
                 ->where('status', 'active')
@@ -179,44 +185,57 @@ class LoginController extends Controller
     {
         // For normal users (role = 'user'), branch is REQUIRED and redirect to employee home
         if ($user->role === 'user') {
-            // Check if branch was selected
-            if (!$request->has('branch_id') || !$request->branch_id) {
-                Auth::logout();
-                return redirect()->back()
-                    ->withInput($request->only('email'))
-                    ->withErrors(['branch_id' => 'Branch selection is required for user login.']);
+            $branch = null;
+            
+            // If branch_id is provided in request, use it
+            if ($request->has('branch_id') && $request->branch_id) {
+                $branch = Branch::find($request->branch_id);
             }
             
-            // Verify user has access to this branch (either as owner or assigned member)
-            $branch = Branch::find($request->branch_id);
-            
-            if (!$branch || $branch->status !== 'active') {
-                Auth::logout();
-                return redirect()->back()
-                    ->withInput($request->only('email'))
-                    ->withErrors(['branch_id' => 'Invalid or inactive branch selected.']);
+            // If no branch selected but user has branch_id, auto-select that branch
+            if (!$branch && $user->branch_id) {
+                $branch = Branch::find($user->branch_id);
             }
             
-            // Check if user is branch owner OR assigned to this branch
-            $isOwner = $branch->user_id == $user->id;
-            $isAssigned = $user->assignedBranches()->where('branch_id', $branch->id)->exists();
-            
-            if (!$isOwner && !$isAssigned) {
-                Auth::logout();
-                return redirect()->back()
-                    ->withInput($request->only('email'))
-                    ->withErrors(['branch_id' => 'You do not have access to this branch. Please select your branch.']);
+            // If still no branch, check assigned branches
+            if (!$branch) {
+                $assignedBranch = $user->assignedBranches()->where('status', 'active')->first();
+                if ($assignedBranch) {
+                    $branch = $assignedBranch;
+                }
             }
             
-            // Store selected branch in session
-            session([
-                'selected_branch_id' => $branch->id,
-                'selected_branch_name' => $branch->branch_name,
-                'selected_branch_code' => $branch->branch_code
-            ]);
+            // If branch found, verify access
+            if ($branch) {
+                if ($branch->status !== 'active') {
+                    Auth::logout();
+                    return redirect()->back()
+                        ->withInput($request->only('email'))
+                        ->withErrors(['branch_id' => 'Your assigned branch is inactive. Please contact administrator.']);
+                }
+                
+                // Check if user is branch owner OR assigned to this branch
+                $isOwner = $branch->user_id == $user->id;
+                $isAssigned = $user->assignedBranches()->where('branch_id', $branch->id)->exists();
+                
+                if ($isOwner || $isAssigned || $user->branch_id == $branch->id) {
+                    // Store selected branch in session
+                    session([
+                        'selected_branch_id' => $branch->id,
+                        'selected_branch_name' => $branch->branch_name,
+                        'selected_branch_code' => $branch->branch_code
+                    ]);
+                    
+                    // User role redirects to employee home
+                    return redirect()->route('employee.home');
+                }
+            }
             
-            // User role redirects to employee home
-            return redirect()->route('employee.home');
+            // If no branch found or no access, require branch selection
+            Auth::logout();
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['branch_id' => 'Branch selection is required. Please select your branch.']);
         }
         
         // For admin users, branch is OPTIONAL and redirect to admin dashboard
@@ -354,10 +373,21 @@ class LoginController extends Controller
                 return redirect()->back()->with('success', 'Branch selection cleared');
             }
 
-            // Validate branch_id exists
-            $request->validate([
+            // Validate branch_id exists - use manual validation to avoid exception bubbling
+            $validator = \Validator::make($request->all(), [
                 'branch_id' => 'required|exists:branches,id',
             ]);
+            
+            if ($validator->fails()) {
+                if ($isAjax) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validator->errors(),
+                    ], 422)->header('Content-Type', 'application/json');
+                }
+                return redirect()->back()->withErrors($validator)->withInput();
+            }
 
             // Find and switch to branch
             $branch = Branch::find($branchId);
@@ -513,7 +543,7 @@ class LoginController extends Controller
     {
         // Ensure JSON response even on errors
         if (!$request->wantsJson() && !$request->expectsJson()) {
-            $request->headers->set('Accept', 'application/json');
+        $request->headers->set('Accept', 'application/json');
         }
 
         try {
@@ -605,35 +635,35 @@ class LoginController extends Controller
         }
         
         try {
-            $request->validate([
-                'fingerprint_data' => 'nullable|string'
-            ]);
+        $request->validate([
+            'fingerprint_data' => 'nullable|string'
+        ]);
 
-            $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401)->header('Content-Type', 'application/json');
-            }
-
-            $fingerprintData = $request->input('fingerprint_data');
-            
-            // If fingerprint_data is empty string, clear it
-            if (empty($fingerprintData)) {
-                $user->fingerprint_data = null;
-                $message = 'Fingerprint cleared successfully';
-            } else {
-                // Encrypt fingerprint data before storing
-                $user->fingerprint_data = encrypt($fingerprintData);
-                $message = 'Fingerprint saved successfully';
-            }
-
-            $user->save();
-
+        $user = Auth::user();
+        if (!$user) {
             return response()->json([
-                'success' => true,
-                'message' => $message
+                'success' => false,
+                'message' => 'User not authenticated'
+                ], 401)->header('Content-Type', 'application/json');
+        }
+
+        $fingerprintData = $request->input('fingerprint_data');
+        
+        // If fingerprint_data is empty string, clear it
+        if (empty($fingerprintData)) {
+            $user->fingerprint_data = null;
+            $message = 'Fingerprint cleared successfully';
+        } else {
+            // Encrypt fingerprint data before storing
+            $user->fingerprint_data = encrypt($fingerprintData);
+            $message = 'Fingerprint saved successfully';
+        }
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $message
             ])->header('Content-Type', 'application/json');
             
         } catch (\Illuminate\Validation\ValidationException $e) {
