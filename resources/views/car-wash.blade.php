@@ -1825,6 +1825,30 @@
                 }
             }, [showCashTransferModal, transferTab]);
 
+            // Load cash balance when Bank Transfer modal opens
+            useEffect(() => {
+                if (showBankTransferModal && API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                    fetch(API_ROUTES.payments.cashAccountBalance, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.balance != null) {
+                                const cashBal = parseFloat(data.balance) || 0;
+                                // Update stats with fresh cash balance
+                                setStats(prev => ({
+                                    ...prev,
+                                    cashOnHand: cashBal,
+                                    reportCashOnHand: cashBal
+                                }));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading cash balance for bank transfer:', err);
+                        });
+                }
+            }, [showBankTransferModal]);
+
             // Load employees when Attendance modal opens
             useEffect(() => {
                 if (showAttendanceModal && API_ROUTES.attendance && API_ROUTES.attendance.employees) {
@@ -4541,7 +4565,8 @@
                                                                     </div>
                                                                 ) : (
                                                                     <div className="space-y-2">
-                                                                        {(bankAccounts || []).map(a => (
+                                                                        {/* Show only the display account (primary account if multiple, or single account) */}
+                                                                        {(bankAccounts || []).filter(a => a.isDisplayAccount !== false).map(a => (
                                                                             <button
                                                                                 key={a.id}
                                                                                 type="button"
@@ -4558,7 +4583,7 @@
                                                                                 {!a.accountTitle && !a.accountNumber ? <div className="text-xs text-slate-500 mt-0.5">Account #{a.id}</div> : null}
                                                                             </button>
                                                                         ))}
-                                                                        {!selectedBankId && (bankAccounts || []).length > 0 && (
+                                                                        {!selectedBankId && (bankAccounts || []).filter(a => a.isDisplayAccount !== false).length > 0 && (
                                                                             <p className="text-xs text-red-600 font-bold mt-2">⚠️ Please select a bank account to continue</p>
                                                                         )}
                                                                     </div>
@@ -6301,8 +6326,12 @@
                                                     <div className="text-xs sm:text-sm font-bold text-purple-700 uppercase mb-1">Bank Account Balance</div>
                                                     <div className="text-2xl sm:text-3xl font-black text-purple-600 font-mono">
                                                         Rs.{(() => {
-                                                            // Show total of logged-in user's bank accounts
-                                                            const userBankBalance = bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                            // Show total of logged-in user's bank accounts (all accounts, not just displayed one)
+                                                            if (!bankAccounts || bankAccounts.length === 0) return 0;
+                                                            const userBankBalance = bankAccounts.reduce((sum, acc) => {
+                                                                const balance = parseFloat(acc.balance);
+                                                                return sum + (isNaN(balance) ? 0 : balance);
+                                                            }, 0);
                                                             return userBankBalance > 0 ? Math.round(userBankBalance) : 0;
                                                         })()}
                                                     </div>
@@ -6318,18 +6347,47 @@
                                                             // Allow any input - no restrictions while typing
                                                             setBankTransferAmount(e.target.value);
                                                         }}
-                                                        onBlur={(e) => {
+                                                        onBlur={async (e) => {
                                                             // Validate only when user leaves the field
                                                             const val = parseFloat(e.target.value);
                                                             if (isNaN(val) || val < 0) {
-                                                                setBankTransferAmount('0');
+                                                                // Don't reset to 0, just clear invalid input
+                                                                if (isNaN(val)) {
+                                                                    setBankTransferAmount('');
+                                                                } else if (val < 0) {
+                                                                    setBankTransferAmount('0');
+                                                                }
                                                                 return;
                                                             }
-                                                            // Use cashOnHand or reportCashOnHand, whichever is available
-                                                            const cashBal = stats && typeof stats.cashOnHand !== 'undefined' && stats.cashOnHand > 0 
-                                                                ? stats.cashOnHand 
-                                                                : (stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 999999999);
-                                                            if (val > cashBal && cashBal < 999999999) {
+                                                            
+                                                            // Load fresh cash balance from API for validation
+                                                            let cashBal = 0;
+                                                            try {
+                                                                const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
+                                                                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                                                                });
+                                                                if (cashRes.ok) {
+                                                                    const cashData = await cashRes.json();
+                                                                    if (cashData.balance != null) {
+                                                                        cashBal = parseFloat(cashData.balance) || 0;
+                                                                        // Update stats
+                                                                        setStats(prev => ({
+                                                                            ...prev,
+                                                                            cashOnHand: cashBal,
+                                                                            reportCashOnHand: cashBal
+                                                                        }));
+                                                                    }
+                                                                }
+                                                            } catch (e) {
+                                                                console.error('Error loading cash balance:', e);
+                                                                // Use stats as fallback
+                                                                cashBal = stats && typeof stats.cashOnHand !== 'undefined' && stats.cashOnHand > 0 
+                                                                    ? stats.cashOnHand 
+                                                                    : (stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 0);
+                                                            }
+                                                            
+                                                            // Only validate if cash balance is available and amount exceeds it
+                                                            if (cashBal > 0 && val > cashBal) {
                                                                 setBankTransferAmount(String(Math.round(cashBal)));
                                                                 alert(`Amount cannot exceed available cash balance (Rs.${Math.round(cashBal)})`);
                                                             }

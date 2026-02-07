@@ -102,7 +102,7 @@
                     <p id="totBankBalance" class="text-base sm:text-lg font-black text-purple-900">Rs.0</p>
                 </div>
                 <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
-                    <p class="text-[9px] sm:text-[10px] font-bold text-amber-800 uppercase mb-1">Ref Expence</p>
+                    <p class="text-[9px] sm:text-[10px] font-bold text-amber-800 uppercase mb-1">Job Expense</p>
                     <p id="totDebit" class="text-base sm:text-lg font-black text-amber-800">Rs.0</p>
                 </div>
                 <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
@@ -119,13 +119,12 @@
                             <tr>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Date & Time</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Vehicle</th>
-                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">REF EXPENCE</th>
-                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-indigo-500/50">Cash Credit</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-indigo-500/50">Cash Receipt</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">SHOP EXPENSE</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">JOB EXPENSE</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-indigo-500/50">Cash Total</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-purple-500/50">Bank Credit</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-purple-500/50">Bank Total</th>
-                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Commission</th>
-                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">G.total</th>
                             </tr>
                         </thead>
                         <tbody id="reportTableBody" class="divide-y divide-slate-200">
@@ -134,13 +133,12 @@
                             <tr class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-black">
                                 <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap font-bold">TOTAL</td>
                                 <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">-</td>
-                                <td id="ftExpenses" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
                                 <td id="ftCashCredit" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-indigo-500/30">Rs.0.00</td>
+                                <td id="ftShopExpense" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
+                                <td id="ftExpenses" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
                                 <td id="ftCashTotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-indigo-500/30">Rs.0.00</td>
                                 <td id="ftBankCredit" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-purple-500/30">Rs.0.00</td>
                                 <td id="ftBankTotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-purple-500/30">Rs.0.00</td>
-                                <td id="ftCommission" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
-                                <td id="ftGtotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -497,6 +495,7 @@
                 
                 // All totals in single footer row
                 document.getElementById('ftExpenses').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
+                document.getElementById('ftShopExpense').textContent = 'Rs.' + Math.round(t.totalShopExpense || 0);
                 const cashCreditVal = Math.round(cashT.totalCredit || 0);
                 const cashTotalVal = Math.round(cashT.cashOnHand || 0);
                 lastReportCashOnHand = cashTotalVal;
@@ -513,8 +512,6 @@
                     return sum + (parseFloat(acc.balance) || 0);
                 }, 0);
                 document.getElementById('totBankBalance').textContent = 'Rs.' + (userBranchBankBalance > 0 ? Math.round(userBranchBankBalance) : bankTotalVal);
-                document.getElementById('ftCommission').textContent = 'Rs.' + commissionVal;
-                document.getElementById('ftGtotal').textContent = 'Rs.' + Math.round(t.sumGtotal != null ? t.sumGtotal : ((t.cashOnHand || 0) - (t.totalCommission || 0)));
 
                 function fmtNum(n) {
                     if (n === 0 || n === '-') return n === 0 ? '0' : '-';
@@ -529,18 +526,11 @@
                     const isOpening = r.isOpening;
                     
                     const creditStr = (r.credit || 0) > 0 ? fmtNum(r.credit) : '-';
-                    const gTotalStr = (r.gTotal != null && r.gTotal !== '') ? fmtNum(r.gTotal) : '-';
                     const totalStr = r.total != null ? fmtNum(r.total) : '-';
                     const expenseStr = (r.debit || 0) > 0 ? fmtNum(r.debit) : '-';
-                    let commStr = (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) ? fmtNum(r.commission) : '-';
-                    // Add worker name below commission if available and not opening row
-                    if (!isOpening && (r.commission !== '-' && r.commission != null && (r.commission || 0) > 0) && r.worker && r.worker !== '-') {
-                        commStr = '<div class="flex flex-col items-end">' +
-                            '<span>' + fmtNum(r.commission) + '</span>' +
-                            '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.worker + ')</span>' +
-                            '</div>';
-                    }
-                    const rowClass = isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
+                    const isShopExpense = r.isShopExpense === true;
+                    const shopExpenseStr = isShopExpense && (r.shopExpense || 0) > 0 ? fmtNum(r.shopExpense) : '-';
+                    const rowClass = isOpening ? 'bg-slate-100 font-semibold' : (isShopExpense ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50');
                     
                     // Cash columns with user name
                     let cashCreditStr = (isCash && (r.credit || 0) > 0) ? fmtNum(r.credit) : '-';
@@ -616,7 +606,18 @@
                     
                     // Format vehicle with customer name, mobile, and user name
                     let vehicleStr = (r.vehicle || '-');
-                    if (!r.isOpening && (r.customerName || r.mobile || r.userName)) {
+                    if (isShopExpense) {
+                        // Shop expense row: show category and user name
+                        vehicleStr = '<div class="flex flex-col">' +
+                            '<span class="font-semibold text-red-700">' + (r.vehicle || '-') + '</span>';
+                        if (r.userName) {
+                            vehicleStr += '<span class="text-[8px] sm:text-[9px] text-slate-500">(' + r.userName + ')</span>';
+                        }
+                        if (r.notes) {
+                            vehicleStr += '<span class="text-[8px] sm:text-[9px] text-slate-400 italic">' + r.notes + '</span>';
+                        }
+                        vehicleStr += '</div>';
+                    } else if (!r.isOpening && (r.customerName || r.mobile || r.userName)) {
                         vehicleStr = '<div class="flex flex-col">' +
                             '<span class="font-semibold">' + (r.vehicle || '-') + '</span>';
                         if (r.customerName) {
@@ -639,13 +640,12 @@
                     html += '<tr class="' + rowClass + '">' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-slate-700 whitespace-normal leading-tight">' + dateTimeStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-slate-900 whitespace-normal leading-tight">' + vehicleStr + '</td>' +
-                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500') + ' whitespace-nowrap">' + expenseStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && (r.credit || 0) > 0 ? 'font-bold text-indigo-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + cashCreditStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isShopExpense && (r.shopExpense || 0) > 0 ? 'font-bold text-red-600' : 'text-slate-500') + ' whitespace-nowrap">' + shopExpenseStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500') + ' whitespace-nowrap">' + expenseStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCash && r.total != null ? 'font-bold text-indigo-700' : 'text-slate-500') + ' whitespace-nowrap">' + cashTotalStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && (r.credit || 0) > 0 ? 'font-bold text-purple-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + bankCreditStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((isBank && r.total != null) || (r.isOpening && (bankT.cashOnHand != null || bankT.cashOnHand === 0)) ? 'font-bold text-purple-700' : 'text-slate-500') + ' whitespace-nowrap">' + bankTotalStr + '</td>' +
-                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.commission !== '-' && (r.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + commStr + '</td>' +
-                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right font-bold text-indigo-600 whitespace-nowrap">' + gTotalStr + '</td>' +
                         '</tr>';
                 });
                 tableBody.innerHTML = html;
@@ -706,7 +706,8 @@
                                 totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
                                 totalCommission: (cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0),
                                 pendingCommission: (cashTotals.pendingCommission || 0) + (bankTotals.pendingCommission || 0),
-                                sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0))
+                                sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0)),
+                                totalShopExpense: (cashTotals.totalShopExpense || 0) + (bankTotals.totalShopExpense || 0)
                             };
                             
                             // Merge customers and workers (unique)

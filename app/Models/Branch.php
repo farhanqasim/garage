@@ -17,7 +17,6 @@ class Branch extends Model
     protected $table = 'branches';
 
     protected $fillable = [
-        'user_id',
         'branch_name',
         'branch_code',
         'manager_name',
@@ -31,10 +30,6 @@ class Branch extends Model
         'location',
     ];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
 
     /**
      * Get all users assigned to this branch (many-to-many)

@@ -79,6 +79,7 @@
                                 </th>
                                 <th>Product Image</th>
                                 <th>Actions</th>
+                                <th>Serial Number</th>
                                 <th>Update History</th>
                                 <th>Part Number</th>
                                 <th>User Name</th>
@@ -144,6 +145,13 @@
                             </div>
                         </td>
                                 <td>
+                                    @if($item->serial_number && $item->serial_number != $item->id)
+                                        <span class="badge bg-primary">{{ $item->serial_number }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td>
                                     @if($item->updated_by_user)
                                         <div class="small">
                                             <div> {{ $item->updated_by_user->name ?? 'N/A' }}</div>
@@ -179,7 +187,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="11" class="text-center">No items found.</td>
+                                <td colspan="12" class="text-center">No items found.</td>
                             </tr>
                             @endforelse
                         </tbody>

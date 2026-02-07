@@ -27,17 +27,18 @@ trait HasBranchAccess
             if ($user->role === 'admin') {
                 return $sessionBranchId;
             }
-            $isOwner = $user->branches && $user->branches->id == $sessionBranchId;
+            // Check if user has branch_id matching session branch
+            $isBranchMatch = $user->branch_id == $sessionBranchId;
             $isAssigned = $user->assignedBranches()->where('branch_id', $sessionBranchId)->exists();
 
-            if ($isOwner || $isAssigned) {
+            if ($isBranchMatch || $isAssigned) {
                 return $sessionBranchId;
             }
         }
 
-        // Check if user is owner of a branch
-        if ($user->branches) {
-            return $user->branches->id;
+        // Check if user has branch_id set
+        if ($user->branch_id) {
+            return $user->branch_id;
         }
 
         // Check if user is assigned to any branch (get first one)

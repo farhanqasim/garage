@@ -44,12 +44,19 @@ class CarWashJobObserver
                 return;
             }
 
-            // Calculate total service charges (price + additional prices)
+            // Load expense relationship if not already loaded
+            if (!$job->relationLoaded('expense')) {
+                $job->load('expense');
+            }
+
+            // Calculate total service charges (price + additional prices + expenses)
             $basePrice = (float) ($job->price ?? 0);
             $additionalPrices = is_array($job->additional_prices) 
                 ? array_sum(array_column($job->additional_prices, 'price')) 
                 : 0;
-            $totalServiceCharges = $basePrice + (float) $additionalPrices;
+            // Include job expenses in total amount
+            $expenseAmount = $job->expense ? (float) ($job->expense->total_amount ?? 0) : 0;
+            $totalServiceCharges = $basePrice + (float) $additionalPrices + $expenseAmount;
 
             if ($totalServiceCharges <= 0) {
                 Log::info('Job completion payment skipped: Zero service charges', [
@@ -69,34 +76,56 @@ class CarWashJobObserver
             $paymentMethod = $job->payment_method ?? 'cash';
             
             if ($paymentMethod === 'bank') {
-                // Bank payment: Credit to logged-in user's bank account
-                // First try to find primary bank account, otherwise get first active bank account for the user
-                $bankAccount = BankAccount::where('user_id', $userId)
-                    ->where('status', true)
-                    ->where(function($query) {
-                        $query->where('is_primary', true)
-                              ->orWhereNull('is_primary');
-                    })
-                    ->orderByDesc('is_primary')
-                    ->orderBy('id')
-                    ->first();
+                // Bank payment: Credit to the bank account selected in the job
+                // Use the bank_account_id from the job if available, otherwise fallback to user's primary account
+                $bankAccount = null;
+                
+                // First, try to use the bank account selected when completing the job
+                if ($job->bank_account_id) {
+                    $bankAccount = BankAccount::where('id', $job->bank_account_id)
+                        ->where('account_type', 'bank')
+                        ->where('user_id', $userId)
+                        ->first();
+                }
+                
+                // If no account from job, try to find primary bank account
+                if (!$bankAccount) {
+                    $bankAccount = BankAccount::where('user_id', $userId)
+                        ->where('account_type', 'bank')
+                        ->where('status', true)
+                        ->where(function($query) {
+                            $query->where('is_primary', true)
+                                  ->orWhereNull('is_primary');
+                        })
+                        ->orderByDesc('is_primary')
+                        ->orderBy('id')
+                        ->first();
+                }
                 
                 if ($bankAccount) {
+                    $description = "Job payment for job #{$job->id} - {$job->service_name}";
+                    if ($expenseAmount > 0) {
+                        $description .= " (including expenses: Rs. " . number_format($expenseAmount, 2) . ")";
+                    }
+                    
                     BankTransaction::create([
                         'bank_account_id' => $bankAccount->id,
                         'transaction_date' => now(),
-                        'description' => "Job payment for job #{$job->id} - {$job->service_name}",
+                        'description' => $description,
                         'amount' => $totalServiceCharges,
                         'type' => 'credit',
                         'statement_reference' => 'JOB-' . $job->id,
-                        'reconciled' => false,
+                        'reconciled' => true, // Auto-reconcile job payments as they are immediate
                     ]);
                     
-                    Log::info('Job payment credited to user bank account', [
+                    Log::info('Job payment (with expenses) credited to user bank account', [
                         'job_id' => $job->id,
                         'user_id' => $userId,
                         'bank_account_id' => $bankAccount->id,
                         'amount' => $totalServiceCharges,
+                        'price' => $basePrice,
+                        'additional_prices' => $additionalPrices,
+                        'expenses' => $expenseAmount,
                     ]);
                 } else {
                     Log::warning('User bank account not found for job payment, falling back to cash', [
@@ -104,6 +133,12 @@ class CarWashJobObserver
                         'user_id' => $userId,
                     ]);
                     // Fallback to cash account if user's bank account not found
+                    $note = "Job payment for job #{$job->id} - {$job->service_name}";
+                    if ($expenseAmount > 0) {
+                        $note .= " (including expenses: Rs. " . number_format($expenseAmount, 2) . ")";
+                    }
+                    $note .= " (user bank account not found, credited to cash)";
+                    
                     $this->cashAccountService->credit(
                         userId: $userId,
                         amount: $totalServiceCharges,
@@ -111,11 +146,16 @@ class CarWashJobObserver
                         referenceId: $job->id,
                         referenceTable: 'car_wash_jobs',
                         branchId: $job->branch_id,
-                        note: "Job payment for job #{$job->id} - {$job->service_name} (user bank account not found, credited to cash)"
+                        note: $note
                     );
                 }
             } else {
                 // Cash payment: Credit to cash account (default behavior)
+                $note = "Job payment for job #{$job->id} - {$job->service_name}";
+                if ($expenseAmount > 0) {
+                    $note .= " (including expenses: Rs. " . number_format($expenseAmount, 2) . ")";
+                }
+                
                 $this->cashAccountService->credit(
                     userId: $userId,
                     amount: $totalServiceCharges,
@@ -123,22 +163,13 @@ class CarWashJobObserver
                     referenceId: $job->id,
                     referenceTable: 'car_wash_jobs',
                     branchId: $job->branch_id,
-                    note: "Job payment for job #{$job->id} - {$job->service_name}"
+                    note: $note
                 );
             }
 
-            // Debit commission from user wallet if commission exists (always from cash account)
-            if ($commissionAmount > 0) {
-                $this->cashAccountService->debit(
-                    userId: $userId,
-                    amount: $commissionAmount,
-                    type: 'commission',
-                    referenceId: $job->id,
-                    referenceTable: 'car_wash_jobs',
-                    branchId: $job->branch_id,
-                    note: "Commission ({$job->worker->commission}%) for worker: {$job->worker_name} - Job #{$job->id}"
-                );
-            }
+            // Commission handling removed: Full payment amount goes to auth user's cash account
+            // Commission is already credited to worker's cash account in CarWashJobController::complete()
+            // No need to debit commission from user's account - full payment stays with user
 
             Log::info('Job completion payment processed successfully', [
                 'job_id' => $job->id,

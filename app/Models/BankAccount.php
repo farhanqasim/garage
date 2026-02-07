@@ -59,14 +59,14 @@ class BankAccount extends Model
     {
         $openingBalance = $this->opening_balance ?? 0;
         
+        // Include ALL transactions (both reconciled and unreconciled) for current balance
+        // This ensures job payments and other transactions are immediately reflected in balance
         $credits = $this->bankTransactions()
             ->where('type', 'credit')
-            ->where('reconciled', true)
             ->sum('amount');
         
         $debits = $this->bankTransactions()
             ->where('type', 'debit')
-            ->where('reconciled', true)
             ->sum('amount');
         
         return $openingBalance + $credits - $debits;

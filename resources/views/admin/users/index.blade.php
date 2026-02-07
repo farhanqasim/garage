@@ -55,8 +55,8 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table id="searchableTable" class="table table-hover table-center " id="branchTable">
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto; width: 100%;">
+                    <table id="searchableTable" class="table table-hover table-center " id="branchTable" style="min-width: 1200px;">
                         <thead class="thead-primary">
                             <tr>
                                 <th>#</th>
@@ -97,48 +97,33 @@
                                   @endif
                                 </td>
                                 <td>
-                                    @if($user->branches)
-                                        <div>
-                                            <strong>{{ $user->branches->branch_name }}</strong>
-                                            <span class="badge badge-primary ms-1">Owner</span>
-                                        </div>
-                                    @elseif($user->assignedBranches->count() > 0)
-                                        @foreach($user->assignedBranches->take(2) as $branch)
-                                            @php
-                                                $userRole = $branch->pivot->role ?? 'staff';
-                                                $roleBadges = [
-                                                    'manager' => 'badge-primary',
-                                                    'staff' => 'badge-info',
-                                                    'worker' => 'badge-warning',
-                                                    'salesman' => 'badge-success',
-                                                    'purchaser' => 'badge-warning',
-                                                    'user' => 'badge-info',
-                                                    'other' => 'badge-secondary'
-                                                ];
-                                                $roleColor = $roleBadges[$userRole] ?? 'badge-secondary';
-                                                $roleLabels = ['salesman' => 'Sales man', 'user' => 'User', 'manager' => 'Manager', 'purchaser' => 'Purchaser'];
-                                                $roleLabel = $roleLabels[$userRole] ?? ucfirst($userRole);
-                                            @endphp
-                                            <div class="small mb-1">
-                                                {{ $branch->branch_name }}
-                                                <span class="badge {{ $roleColor }}">{{ $roleLabel }}</span>
-                                            </div>
-                                        @endforeach
-                                        @if($user->assignedBranches->count() > 2)
-                                            <small class="text-muted">+{{ $user->assignedBranches->count() - 2 }} more</small>
+                                    @if($user->branch_id)
+                                        @php
+                                            $branch = \App\Models\Branch::find($user->branch_id);
+                                        @endphp
+                                        @if($branch)
+                                            <strong>{{ $branch->branch_name }}</strong>
+                                        @else
+                                            <span class="text-muted">No Branch</span>
                                         @endif
+                                    @elseif($user->assignedBranches->count() > 0)
+                                        <strong>{{ $user->assignedBranches->first()->branch_name }}</strong>
                                     @else
                                         <span class="text-muted">No Branch</span>
                                     @endif
                                 </td>
                                 <td>
-                                    @if($user->branches)
-                                        <span>{{ $user->branches->branch_code }}</span>
+                                    @if($user->branch_id)
+                                        @php
+                                            $branch = \App\Models\Branch::find($user->branch_id);
+                                        @endphp
+                                        @if($branch)
+                                            <span>{{ $branch->branch_code }}</span>
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
                                     @elseif($user->assignedBranches->count() > 0)
                                         <span>{{ $user->assignedBranches->first()->branch_code }}</span>
-                                        @if($user->assignedBranches->count() > 1)
-                                            <small class="text-muted">(+{{ $user->assignedBranches->count() - 1 }})</small>
-                                        @endif
                                     @else
                                         <span class="text-muted">N/A</span>
                                     @endif
