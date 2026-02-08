@@ -734,7 +734,7 @@
 
                 React.createElement('main', { 
                     style: { 
-                        maxWidth: '28rem', 
+                        maxWidth: '56rem', 
                         margin: '0 auto', 
                         padding: '1rem',
                         marginTop: '1.5rem'
@@ -1197,37 +1197,35 @@
                                 alignItems: 'center'
                             } 
                         },
-                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
-                                React.createElement('h2', { 
-                                    style: { 
-                                        fontSize: '1.5rem', 
-                                        fontWeight: 900, 
-                                        color: '#0f172a', 
-                                        letterSpacing: '-0.05em',
-                                        margin: 0
-                                    } 
-                                }, 'Dashboard'),
-                                React.createElement('a', {
-                                    href: '{{ route("attendance.history.page") }}',
-                                    style: {
-                                        backgroundColor: '#10b981',
-                                        color: 'white',
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '0.5rem',
-                                        textDecoration: 'none',
-                                        fontWeight: 700,
-                                        fontSize: '0.875rem',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        transition: 'background-color 0.2s'
-                                    },
-                                    onMouseEnter: (e) => e.target.style.backgroundColor = '#059669',
-                                    onMouseLeave: (e) => e.target.style.backgroundColor = '#10b981'
+                            React.createElement('h2', { 
+                                style: { 
+                                    fontSize: '1.5rem', 
+                                    fontWeight: 900, 
+                                    color: '#0f172a', 
+                                    letterSpacing: '-0.05em',
+                                    margin: 0
+                                } 
+                            }, 'Dashboard'),
+                            React.createElement('a', {
+                                href: '{{ route("attendance.history.page") }}',
+                                style: {
+                                    backgroundColor: '#10b981',
+                                    color: 'white',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.5rem',
+                                    textDecoration: 'none',
+                                    fontWeight: 700,
+                                    fontSize: '0.875rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    transition: 'background-color 0.2s'
                                 },
-                                    React.createElement(Calendar, { size: 16 }),
-                                    'View History'
-                                )
+                                onMouseEnter: (e) => e.target.style.backgroundColor = '#059669',
+                                onMouseLeave: (e) => e.target.style.backgroundColor = '#10b981'
+                            },
+                                React.createElement(Calendar, { size: 16 }),
+                                'View History'
                             )
                         ),
 

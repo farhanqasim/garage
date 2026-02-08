@@ -10,8 +10,8 @@
             </div>
         </div>
         <div class="page-btn">
-            <a href="{{ route('all.users') }}" class="btn btn-secondary me-2">
-                <i class="ti ti-arrow-left me-1"></i>Back to All Users
+            <a href="{{ route('all.branches') }}" class="btn btn-secondary me-2">
+                <i class="ti ti-arrow-left me-1"></i>Back to All Branches
             </a>
         </div>
     </div>
@@ -29,7 +29,6 @@
                             <th>Email</th>
                             <th>Phone</th>
                             <th>Status</th>
-                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -66,31 +65,10 @@
                                     <span class="badge bg-danger">Inactive</span>
                                 @endif
                             </td>
-                            <td class="action-table-data">
-                                <div class="edit-delete-action">
-                                    <a class="me-2 p-2" href="#" data-bs-toggle="modal"
-                                        data-bs-target="#edit-category{{ $user->id }}">
-                                        <i data-feather="edit" class="feather-edit"></i>
-                                    </a>
-                                    <a href="javascript:void(0)"
-                                        onclick="confirmDelete('delete-form-{{ $user->id }}')"
-                                        class="p-2 text-danger">
-                                        <i data-feather="trash-2" class="feather-trash-2"></i>
-                                    </a>
-                                    <!-- Hidden delete form -->
-                                    <form id="delete-form-{{ $user->id }}"
-                                        action="{{ route('delete.user', $user->id) }}"
-                                        method="POST"
-                                        style="display: none;">
-                                        @csrf
-                                        @method('DELETE')
-                                    </form>
-                                </div>
-                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted">No users found for this branch</td>
+                            <td colspan="7" class="text-center text-muted">No users found for this branch</td>
                         </tr>
                     @endforelse
                     </tbody>
