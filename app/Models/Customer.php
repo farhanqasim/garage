@@ -41,6 +41,12 @@ class Customer extends Model
         'password',
     ];
 
+    // Relationship with CustomerCar
+    public function customerCars()
+    {
+        return $this->hasMany(CustomerCar::class);
+    }
+
     // Always return array for names
     public function getNamesAttribute($value)
     {

@@ -138,6 +138,11 @@
         const Grid3X3 = (props) => createIcon('ti ti-grid-3x3', props);
         const KeyRound = (props) => createIcon('ti ti-key', props);
         const UserCircle = (props) => createIcon('ti ti-user-circle', props);
+        const ClockCheck = (props) => createIcon('ti ti-clock-check', props);
+        const Checkbox = (props) => createIcon('ti ti-checkbox', props);
+        const Receipt = (props) => createIcon('ti ti-receipt', props);
+        const History = (props) => createIcon('ti ti-history', props);
+        const Tools = (props) => createIcon('ti ti-tools', props);
         
         const App = () => {
             // No login state needed - user is already authenticated via Laravel middleware
@@ -233,9 +238,96 @@
             ];
 
             const quickActions = [
-                { label: "Elite Wash", icon: Car, color: "bg-cyan-500", shadow: "shadow-cyan-50", desc: "Premium Cleaning", route: ROUTES.carWash },
-                { label: "Sale", icon: Handshake, color: "bg-orange-500", shadow: "shadow-orange-50", desc: "Battery Sale", route: ROUTES.sale },
-                { label: "Reports", icon: BarChart3, color: "bg-indigo-600", shadow: "shadow-indigo-50", desc: "Accounts", route: ROUTES.dailyReport },
+                { 
+                    label: "Elite Wash", 
+                    icon: Car, 
+                    gradient: "from-cyan-500 via-blue-500 to-cyan-600", 
+                    shadow: "shadow-cyan-200/50", 
+                    hoverShadow: "hover:shadow-cyan-300/60",
+                    iconBg: "bg-cyan-400/20",
+                    desc: "Premium Cleaning", 
+                    route: ROUTES.carWash 
+                },
+                { 
+                    label: "Sale", 
+                    icon: Handshake, 
+                    gradient: "from-orange-500 via-amber-500 to-orange-600", 
+                    shadow: "shadow-orange-200/50", 
+                    hoverShadow: "hover:shadow-orange-300/60",
+                    iconBg: "bg-orange-400/20",
+                    desc: "Battery Sale", 
+                    route: ROUTES.sale 
+                },
+                { 
+                    label: "Reports", 
+                    icon: BarChart3, 
+                    gradient: "from-indigo-600 via-purple-600 to-indigo-700", 
+                    shadow: "shadow-indigo-200/50", 
+                    hoverShadow: "hover:shadow-indigo-300/60",
+                    iconBg: "bg-indigo-400/20",
+                    desc: "Accounts", 
+                    route: ROUTES.dailyReport 
+                },
+                { 
+                    label: "Attendance", 
+                    icon: ClockCheck, 
+                    gradient: "from-emerald-500 via-teal-500 to-emerald-600", 
+                    shadow: "shadow-emerald-200/50", 
+                    hoverShadow: "hover:shadow-emerald-300/60",
+                    iconBg: "bg-emerald-400/20",
+                    desc: "Mark Attendance", 
+                    route: ROUTES.attendance 
+                },
+                { 
+                    label: "Services", 
+                    icon: Package, 
+                    gradient: "from-violet-500 via-purple-500 to-violet-600", 
+                    shadow: "shadow-violet-200/50", 
+                    hoverShadow: "hover:shadow-violet-300/60",
+                    iconBg: "bg-violet-400/20",
+                    desc: "Manage Services", 
+                    route: ROUTES.services 
+                },
+                { 
+                    label: "Staff", 
+                    icon: Users, 
+                    gradient: "from-pink-500 via-rose-500 to-pink-600", 
+                    shadow: "shadow-pink-200/50", 
+                    hoverShadow: "hover:shadow-pink-300/60",
+                    iconBg: "bg-pink-400/20",
+                    desc: "Manage Workers", 
+                    route: ROUTES.staff 
+                },
+                { 
+                    label: "Completed", 
+                    icon: Checkbox, 
+                    gradient: "from-green-500 via-emerald-500 to-green-600", 
+                    shadow: "shadow-green-200/50", 
+                    hoverShadow: "hover:shadow-green-300/60",
+                    iconBg: "bg-green-400/20",
+                    desc: "Completed Jobs", 
+                    route: ROUTES.completedJobs 
+                },
+                { 
+                    label: "Expenses", 
+                    icon: Receipt, 
+                    gradient: "from-red-500 via-rose-500 to-red-600", 
+                    shadow: "shadow-red-200/50", 
+                    hoverShadow: "hover:shadow-red-300/60",
+                    iconBg: "bg-red-400/20",
+                    desc: "Shop Expenses", 
+                    route: ROUTES.shopExpenses 
+                },
+                { 
+                    label: "History", 
+                    icon: History, 
+                    gradient: "from-slate-600 via-gray-600 to-slate-700", 
+                    shadow: "shadow-slate-200/50", 
+                    hoverShadow: "hover:shadow-slate-300/60",
+                    iconBg: "bg-slate-400/20",
+                    desc: "Attendance History", 
+                    route: ROUTES.attendanceHistory 
+                },
             ];
 
             return (
@@ -324,7 +416,7 @@
                         ),
 
                         // Content Body
-                        React.createElement('div', { className: 'p-4 md:p-6 max-w-6xl w-full mx-auto flex-1' },
+                        React.createElement('div', { className: 'p-3 md:p-4 max-w-full w-full mx-auto flex-1' },
                             // Date and Time Cards
                             React.createElement('div', { className: 'mb-8 flex flex-wrap items-center gap-3 md:gap-4 justify-center md:justify-start' },
                                 React.createElement('div', { className: 'bg-white border border-slate-200 px-4 py-2.5 rounded-2xl flex items-center space-x-3 shadow-sm' },
@@ -353,19 +445,44 @@
                                     React.createElement('p', { className: 'text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] italic' }, 'Operational Dashboard'),
                                     React.createElement('div', { className: 'h-[2px] bg-slate-100 flex-1 ml-4 rounded-full' })
                                 ),
-                                React.createElement('div', { className: 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4' },
+                                React.createElement('div', { className: 'grid grid-cols-3 gap-3 md:gap-4' },
                                     quickActions.map((action, index) =>
                                         React.createElement('a', {
                                             key: index,
                                             href: action.route,
-                                            className: 'group relative overflow-hidden flex flex-col items-center justify-center text-center p-4 md:p-5 rounded-3xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl active:scale-95 shadow-sm border border-transparent ' + action.color + ' ' + action.shadow
+                                            className: 'group relative overflow-hidden flex flex-col items-center justify-center text-center p-4 md:p-5 rounded-3xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 active:scale-95 ' +
+                                                       'bg-gradient-to-br ' + action.gradient + ' ' + action.shadow + ' ' + action.hoverShadow + 
+                                                       ' border-2 border-white/20 hover:border-white/40 backdrop-blur-sm'
                                         },
-                                            React.createElement('div', { className: 'absolute -top-3 -right-3 w-10 h-10 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-500' }),
-                                            React.createElement('div', { className: 'bg-white/20 p-3 rounded-2xl mb-2 backdrop-blur-sm group-hover:bg-white/30 transition-colors' },
-                                                React.createElement(action.icon, { size: 22, className: 'text-white', strokeWidth: 2.5 })
+                                            // Animated background circles
+                                            React.createElement('div', { className: 'absolute -top-6 -right-6 w-20 h-20 bg-white/10 rounded-full group-hover:scale-150 group-hover:bg-white/20 transition-all duration-700 blur-sm' }),
+                                            React.createElement('div', { className: 'absolute -bottom-4 -left-4 w-16 h-16 bg-white/5 rounded-full group-hover:scale-125 group-hover:bg-white/15 transition-all duration-700 blur-sm' }),
+                                            
+                                            // Icon container with enhanced styling
+                                            React.createElement('div', { 
+                                                className: 'relative z-10 bg-white/25 backdrop-blur-md p-4 md:p-5 rounded-2xl mb-3 group-hover:bg-white/35 group-hover:scale-110 transition-all duration-300 shadow-lg border border-white/30' 
+                                            },
+                                                React.createElement(action.icon, { 
+                                                    size: 28, 
+                                                    className: 'text-white drop-shadow-lg', 
+                                                    strokeWidth: 2.5 
+                                                })
                                             ),
-                                            React.createElement('span', { className: 'text-xs font-black text-white uppercase tracking-tight' }, action.label),
-                                            React.createElement('span', { className: 'text-white/60 text-[9px] font-bold uppercase mt-0.5 tracking-widest hidden sm:block' }, action.desc)
+                                            
+                                            // Label with better typography
+                                            React.createElement('span', { 
+                                                className: 'relative z-10 text-sm md:text-base font-black text-white uppercase tracking-tight drop-shadow-md group-hover:drop-shadow-lg transition-all' 
+                                            }, action.label),
+                                            
+                                            // Description with subtle styling
+                                            React.createElement('span', { 
+                                                className: 'relative z-10 text-white/80 text-[10px] md:text-[11px] font-bold uppercase mt-1.5 tracking-wider hidden sm:block group-hover:text-white transition-colors' 
+                                            }, action.desc),
+                                            
+                                            // Shine effect on hover
+                                            React.createElement('div', { 
+                                                className: 'absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000' 
+                                            })
                                         )
                                     )
                                 )

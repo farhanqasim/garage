@@ -659,6 +659,7 @@ Route::get('pos/search', [PosController::class, 'search'])->name('pos.search');
 
 Route::get('/customers', [CustomerController::class, 'all_customers'])->name('customers.index');
 Route::post('/customers', [CustomerController::class, 'customer_store'])->name('customers.store');
+Route::get('/admin/customers/{id}/edit-data', [CustomerController::class, 'getCustomerForEdit'])->name('customers.edit.data');
 Route::put('/customers/{customer}', [CustomerController::class, 'customer_update'])->name('customers.update');
 Route::get('/customers/{customer}/ledger', [CustomerController::class, 'getCustomerLedger'])->name('customers.ledger');
 Route::delete('/customers/{customer}', [CustomerController::class, 'customer_delete'])->name('customers.delete');

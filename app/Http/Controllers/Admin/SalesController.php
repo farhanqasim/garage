@@ -38,10 +38,11 @@ class SalesController extends Controller
     }
     
     public function create_sale_new(){
-        $customers = Customer::orderBy('created_at', 'desc')->get();
+        $customers = Customer::with('customerCars')->orderBy('created_at', 'desc')->get();
         $branches = \App\Models\Branch::where('status', 'active')->get();
         $units = \App\Models\Unit::all();
-        return view('admin.sales.create-new', compact('customers', 'branches', 'units'));
+        $suppliers = \App\Models\Supplier::orderBy('created_at', 'desc')->get();
+        return view('admin.sales.create-new', compact('customers', 'branches', 'units', 'suppliers'));
     }
     
     public function create_sale(){
@@ -785,6 +786,23 @@ class SalesController extends Controller
                 'user_id' => auth()->id(),
             ]);
 
+            // Check if any item has supplier selected (zero stock items)
+            $hasSupplierItems = false;
+            foreach ($request->items as $itemData) {
+                $supplierId = $itemData['supplier_id'] ?? null;
+                $isZeroStock = isset($itemData['is_zero_stock']) && $itemData['is_zero_stock'] == true;
+                if ($supplierId && $isZeroStock) {
+                    $hasSupplierItems = true;
+                    break;
+                }
+            }
+            
+            // Set status to pending if supplier items exist
+            if ($hasSupplierItems) {
+                $sale->status = 'pending';
+                $sale->save();
+            }
+            
             foreach ($request->items as $itemData) {
                 SaleItem::create([
                     'sale_id' => $sale->id,
@@ -800,6 +818,14 @@ class SalesController extends Controller
                 ]);
 
                 $saleQuantity = floatval($itemData['quantity']);
+                $supplierId = $itemData['supplier_id'] ?? null;
+                $isZeroStock = isset($itemData['is_zero_stock']) && $itemData['is_zero_stock'] == true;
+                
+                // Skip stock update if supplier is selected and stock was 0
+                if ($supplierId && $isZeroStock) {
+                    continue; // Don't update stock for this item
+                }
+                
                 $warehouseItem = WarehouseItem::lockForUpdate()
                     ->where('warehouse_id', $warehouse->id)
                     ->where('item_id', $itemData['item_id'])
