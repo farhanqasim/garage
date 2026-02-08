@@ -52,106 +52,176 @@
                             </div>
                             <input type="hidden" name="branch_id" id="salesBranchId" value="{{ session('selected_branch_id') }}" required>
                         </div>
-
+                        
                         <!-- Business Information Panel (Like Screenshot Design) -->
-                        <div class="mb-4 p-3 rounded" id="salesDocTypePanel" style="border: 1px solid #0d6efd; background: #f8f9fa;">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                <div class="d-flex align-items-center">
-                                    <div>
-                                        <h4 class="mb-0 fw-bold text-primary" style="font-size: 24px;">BARKI EXPRESS</h4>
-                                        <p class="mb-0 text-primary fw-semibold" style="font-size: 14px;">AUTO OIL & SPARE PARTS SPECIALIST</p>
-                                        <p class="mb-0 text-primary mt-1" style="font-size: 13px;">
-                                            <i class="ti ti-phone me-1"></i>
-                                            HELPLINE: <span id="helplineNumber">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
-                                        </p>
-                                    </div>
+                        <div class="mb-4 p-4 rounded" id="salesDocTypePanel" style="border: 1px solid #0d6efd; background: #ffffff;">
+                            <div class="row align-items-center">
+                                <!-- Left Side: Company Information -->
+                                <div class="col-md-6">
+                                    <h2 class="mb-1 fw-bold" style="color: #0d6efd; font-size: 28px; line-height: 1.2;">{{ setting_value('logo_text', 'BARKI EXPRESS') }}</h2>
+                                    <p class="mb-2" style="color: #0d6efd; font-size: 14px; font-weight: 500;">AUTO OIL & SPARE PARTS SPECIALIST</p>
+                                    <p class="mb-0" style="color: #6c757d; font-size: 13px;">
+                                        <i class="ti ti-phone me-1"></i>HELPLINE: <span id="helplineNumber" style="color: #0d6efd; font-weight: 500;">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
+                                    </p>
                                 </div>
-                                <div class="d-flex align-items-center gap-3">
-                                    <div class="text-end">
-                                        <div class="mb-1">
-                                            @php
-                                                $nextSaleNum = str_pad((\App\Models\Sale::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
-                                            @endphp
-                                            <span class="text-primary fw-bold" style="font-size: 16px;" id="sales-number">INV #{{ $nextSaleNum }}</span>
-                                            <!-- E/O Toggle Switch -->
-                                            <div class="d-inline-block ms-3 position-relative" style="vertical-align: middle;">
-                                                <div class="switch-container" style="position: relative; width: 60px; height: 30px; background: #e0e0e0; border-radius: 15px; cursor: pointer; transition: all 0.3s ease;" id="estimate-order-toggle">
-                                                    <div class="switch-slider" style="position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-                                                    <div class="switch-indicators" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; pointer-events: none; font-size: 10px; font-weight: bold;">
-                                                        <span style="color: #666;">E</span>
-                                                        <span style="color: #666;">O</span>
-                                                    </div>
+                                
+                                <!-- Right Side: Invoice Details -->
+                                <div class="col-md-6 text-end">
+                                    <div class="mb-2" style="font-size: 13px; color: #6c757d;">
+                                        <span id="currentDateTime">{{ date('d/m/Y, h:i:s A') }}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center justify-content-end gap-2" style="flex-wrap: wrap;">
+                                        @php
+                                            $nextSaleNum = str_pad((\App\Models\Sale::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
+                                        @endphp
+                                        <span class="text-primary fw-bold" style="font-size: 18px;" id="sales-number">INV #{{ $nextSaleNum }}</span>
+                                        <!-- S/E/O Toggle Switch -->
+                                        <div class="d-inline-block position-relative" style="vertical-align: middle;">
+                                            <div class="switch-container" style="position: relative; width: 80px; height: 30px; background: #2563eb; border-radius: 15px; cursor: pointer; transition: all 0.3s ease;" id="estimate-order-toggle">
+                                                <div class="switch-slider" style="position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                                                <div class="switch-indicators" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; pointer-events: none;">
+                                                    <span style="font-size: 8px; color: rgba(255,255,255,0.5);">S</span>
+                                                    <span style="font-size: 8px; color: rgba(255,255,255,0.5);">E</span>
+                                                    <span style="font-size: 8px; color: rgba(255,255,255,0.5);">O</span>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div style="font-size: 13px; color: #6c757d;">
-                                            <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
+                            
                         <!-- Hidden sale date field -->
                         <input type="hidden" name="sale_date" id="sale_date" value="{{ date('Y-m-d') }}" required>
                         <input type="hidden" name="status" id="sale-status" value="pending">
 
                         <!-- Vehicle Section (Like Screenshot) -->
-                        <div class="mb-4">
-                            <button type="button" class="btn w-100 mb-3" id="add-vehicle-btn" style="background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 12px; padding: 18px; color: #2563eb; font-weight: 900; text-transform: uppercase; font-size: 14px;">
+                            <div class="mb-4">
+                                <button type="button" class="btn w-100 mb-3" id="add-vehicle-btn" style="background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 12px; padding: 18px; color: #2563eb; font-weight: 900; text-transform: uppercase; font-size: 14px;">
                                 <i class="ti ti-car me-2"></i>ADD / LINK VEHICLE DETAILS
-                            </button>
-                            
-                            <div id="vehicle-display-section" style="display: none;">
-                                <p class="text-primary fw-bold mb-2" style="font-size: 11px;">ACTIVE VEHICLES</p>
-                                <div id="vehicles-list" class="flex-column gap-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
-                                    <!-- Vehicles will be dynamically added here -->
+                                </button>
+                                
+                                <div id="vehicle-display-section" style="display: none;">
+                                    <p class="text-primary fw-bold mb-2" style="font-size: 11px;">ACTIVE VEHICLES</p>
+                                    <div id="vehicles-list" class="flex-column gap-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+                                        <!-- Vehicles will be dynamically added here -->
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
+                            
                         <!-- Customer Information (Like Screenshot Design) -->
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">PARTY NAME</label>
+                                <div class="input-group">
+                                    <select name="party_name_search" id="party_name_search" class="form-control select2-party-name-search" style="border-radius: 6px 0 0 6px;">
+                                        <option value="">SEARCH PARTY NAME...</option>
+                                        @foreach($customers as $customer)
+                                            @php
+                                                $customerName = $customer->names[0] ?? 'N/A';
+                                                $displayText = $customerName;
+                                                if($customer->company) {
+                                                    $displayText .= ' - ' . $customer->company;
+                                                }
+                                                if(!empty($customer->phones[0])) {
+                                                    $displayText .= ' - ' . $customer->phones[0];
+                                                }
+                                            @endphp
+                                            <option value="{{ $customer->id }}" 
+                                                    data-customer-id="{{ $customer->id }}"
+                                                    data-name="{{ $customer->names[0] ?? '' }}" 
+                                                    data-phone="{{ $customer->phones[0] ?? '' }}"
+                                                    data-company="{{ $customer->company ?? '' }}"
+                                                    data-address="{{ $customer->address ?? '' }}"
+                                                    data-area="{{ $customer->area ?? '' }}">
+                                                {{ $displayText }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="edit-party-btn" style="border-radius: 0 6px 6px 0; border-left: 0;" title="Edit Customer">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">PARTY NAME / VEHICLE #</label>
                                 <select name="customer_id" id="customer_id" class="form-control select2-customer-search @error('customer_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="" selected>Search Customer or Plate...</option>
+                                    <option value="" selected>SEARCH PARTY NAME / VEHICLE #...</option>
                                     @foreach($customers as $customer)
+                                        @php
+                                            $customerName = $customer->names[0] ?? 'N/A';
+                                            $displayText = $customerName;
+                                            if($customer->company) {
+                                                $displayText .= ' - ' . $customer->company;
+                                            }
+                                            if(!empty($customer->phones[0])) {
+                                                $displayText .= ' - ' . $customer->phones[0];
+                                            }
+                                        @endphp
                                         <option value="{{ $customer->id }}" 
                                                 data-name="{{ $customer->names[0] ?? '' }}" 
                                                 data-phone="{{ $customer->phones[0] ?? '' }}"
                                                 data-company="{{ $customer->company ?? '' }}"
                                                 data-address="{{ $customer->address ?? '' }}"
-                                                data-area="{{ $customer->area ?? '' }}">
-                                            {{ $customer->names[0] ?? 'N/A' }}@if($customer->company) - {{ $customer->company }}@endif @if(!empty($customer->phones[0])) - {{ $customer->phones[0] }}@endif
+                                                data-area="{{ $customer->area ?? '' }}"
+                                                data-search-text="{{ strtolower($displayText) }}">
+                                            {{ $displayText }}
                                         </option>
-                                    @endforeach
-                                </select>
-                                @error('customer_id')
-                                    <div class="text-danger small">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NO.</label>
-                                <select name="customer_mobile" id="customer_mobile" class="form-control select2-mobile-search" style="border-radius: 6px;">
-                                    <option value="">Search Mobile Number...</option>
-                                    @foreach($customers as $customer)
-                                        @if(!empty($customer->phones[0]))
-                                            <option value="{{ $customer->phones[0] }}" 
-                                                    data-customer-id="{{ $customer->id }}"
-                                                    data-name="{{ $customer->names[0] ?? '' }}"
-                                                    data-phone="{{ $customer->phones[0] ?? '' }}"
-                                                    data-company="{{ $customer->company ?? '' }}"
-                                                    data-address="{{ $customer->address ?? '' }}"
-                                                    data-area="{{ $customer->area ?? '' }}">
-                                                {{ $customer->phones[0] }} @if($customer->names[0]) - {{ $customer->names[0] }}@endif
-                                            </option>
+                                        @if($customer->customerCars && $customer->customerCars->count() > 0)
+                                            @foreach($customer->customerCars as $vehicle)
+                                                @php
+                                                    $vehicleText = $customerName . ' - ' . $vehicle->plate_number;
+                                                    if($vehicle->make) {
+                                                        $vehicleText .= ' (' . $vehicle->make;
+                                                        if($vehicle->model) {
+                                                            $vehicleText .= ' ' . $vehicle->model;
+                                                        }
+                                                        $vehicleText .= ')';
+                                                    }
+                                                @endphp
+                                                <option value="{{ $customer->id }}" 
+                                                        data-name="{{ $customer->names[0] ?? '' }}" 
+                                                        data-phone="{{ $customer->phones[0] ?? '' }}"
+                                                        data-company="{{ $customer->company ?? '' }}"
+                                                        data-address="{{ $customer->address ?? '' }}"
+                                                        data-area="{{ $customer->area ?? '' }}"
+                                                        data-search-text="{{ strtolower($vehicleText . ' ' . $vehicle->plate_number) }}">
+                                                    {{ $vehicleText }}
+                                                </option>
+                                            @endforeach
                                         @endif
                                     @endforeach
                                 </select>
+                                    @error('customer_id')
+                                        <div class="text-danger small">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NO.</label>
+                                <div class="input-group">
+                                    <select name="customer_mobile" id="customer_mobile" class="form-control select2-mobile-search" style="border-radius: 6px 0 0 6px;">
+                                        <option value="">Search Mobile Number...</option>
+                                        @foreach($customers as $customer)
+                                            @if(!empty($customer->phones[0]))
+                                                <option value="{{ $customer->phones[0] }}" 
+                                                        data-customer-id="{{ $customer->id }}"
+                                                        data-name="{{ $customer->names[0] ?? '' }}"
+                                                        data-phone="{{ $customer->phones[0] ?? '' }}"
+                                                        data-company="{{ $customer->company ?? '' }}"
+                                                        data-address="{{ $customer->address ?? '' }}"
+                                                        data-area="{{ $customer->area ?? '' }}">
+                                                    {{ $customer->phones[0] }}
+                                                </option>
+                                            @endif
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="edit-mobile-btn" style="border-radius: 0 6px 6px 0; border-left: 0;" title="Edit Customer">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                </div>
                                 <input type="hidden" id="customer_mobile_hidden" name="customer_mobile_hidden" value="">
-                            </div>
-                        </div>
+                                </div>
+                                </div>
                         
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
@@ -161,17 +231,17 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">AREA</label>
                                 <input type="text" id="customer_area" name="customer_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;">
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Reference (Optional) -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
+                            
+                            <!-- Reference (Optional) -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
                                 <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;">
                             </div>
                         </div>
-
+                        
                         <!-- Items Summary Section (Like Screenshot) -->
                         <div class="mb-4">
                             <div id="items-summary-container" class="text-center py-5" style="background: #fff; border-radius: 8px; min-height: 200px; border: 1px dashed #dee2e6;">
@@ -197,10 +267,10 @@
                                             </tbody>
                                         </table>
                                     </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
+                            
                         <!-- Horizontal Line Separator -->
                         <hr style="border-top: 1px dashed #dee2e6; margin: 20px 0;">
 
@@ -226,9 +296,9 @@
                                     <span class="fw-bold text-primary">NET PAYABLE</span>
                                     <span class="fw-bold text-primary" id="net-payable" style="font-size: 18px;">Rs 0</span>
                                 </div>
-                            </div>
-                        </div>
-
+                                    </div>
+                                </div>
+                                
                         <!-- Payment Section (Like Screenshot) -->
                         <div class="row mb-4" id="payment-section" style="display: none;">
                             <!-- CASH RECEIVED Section -->
@@ -240,7 +310,7 @@
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <label class="form-label fw-bold mb-0">CASH ENTRY</label>
                                                 <input type="number" name="cash_entry" id="cash_entry" class="form-control" step="0.01" min="0" value="0" style="width: 150px; text-align: right;" placeholder="RS 0">
-                                            </div>
+                                        </div>
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="attach-cash-photo" style="font-size: 12px;">
                                                 <i class="ti ti-camera me-1"></i>ATTACH PHOTO
                                             </button>
@@ -251,14 +321,14 @@
                                                     <i class="ti ti-x"></i> Remove
                                                 </button>
                                             </div>
-                                        </div>
+                                            </div>
                                         <button type="button" class="btn btn-primary w-100" id="add-more-cash-btn" style="background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd;">
                                             <i class="ti ti-plus me-1"></i>+ ADD MORE CASH RECEIVED
                                         </button>
                                     </div>
+                                    </div>
                                 </div>
-                            </div>
-                            
+                                
                             <!-- BANK RECEIVED Section -->
                             <div class="col-md-6 mb-4">
                                 <div class="card" style="border: 1px solid #dee2e6;">
@@ -269,13 +339,13 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                            
+                                </div>
+                                
                             <!-- CURRENT REMAINING and PREVIOUS BALANCE -->
                             <div class="col-12">
                                 <div class="row mb-3">
                                     <div class="col-md-6">
-                                        <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center">
                                             <span class="fw-bold text-warning">CURRENT REMAINING</span>
                                             <span class="fw-bold text-warning" id="current-remaining" style="font-size: 18px;">Rs 0</span>
                                         </div>
@@ -288,10 +358,10 @@
                                             <input type="number" name="previous_balance" id="previous-balance-input" class="form-control" step="0.01" min="0" value="0" style="width: 150px; text-align: right; border: none; background: transparent; font-weight: bold;" placeholder="RS 0">
                                         </div>
                                     </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        
+                                
                         <!-- Hidden payment fields -->
                         <input type="hidden" name="payment_method_id" id="payment_method_id" value="">
                         <input type="hidden" name="payment_amount" id="payment_amount" value="0">
@@ -303,12 +373,12 @@
                         <!-- Bottom Section (Like Screenshot) -->
                         <!-- TOTAL FINAL BALANCE Bar -->
                         <div class="mb-4 p-3 rounded" style="background: #1e3a8a; color: white;">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
                                     <h5 class="mb-0 fw-bold">TOTAL FINAL BALANCE</h5>
                                     <p class="mb-0" style="font-size: 14px; opacity: 0.9;" id="items-count">0 Items Listed</p>
-                                </div>
-                                <div class="text-end">
+                                        </div>
+                                        <div class="text-end">
                                     <span class="me-2" style="font-size: 14px;">PKR</span>
                                     <span class="fw-bold" style="font-size: 24px;" id="total-final-balance">0</span>
                                 </div>
@@ -321,57 +391,57 @@
                                 <i class="ti ti-plus me-2"></i>ADD SALE ITEM
                             </button>
                         </div>
-                        
+
                         <!-- Action Buttons Grid (Like Screenshot) -->
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
                                 <button type="button" class="btn w-100" id="return-entry-btn" style="background: #fce7f3; color: #ec4899; border: 1px solid #f9a8d4; padding: 15px; font-weight: bold;">
                                     <i class="ti ti-arrow-back-up me-2"></i>RETURN
-                                </button>
-                            </div>
+                            </button>
+                        </div>
                             <div class="col-md-6 mb-3">
                                 <button type="button" class="btn w-100" id="claim-entry-btn" style="background: #fef3c7; color: #f59e0b; border: 1px solid #fcd34d; padding: 15px; font-weight: bold;">
                                     <i class="ti ti-tag me-2"></i>CLAIM
-                                </button>
-                            </div>
+                            </button>
+                        </div>
                             <div class="col-md-6 mb-3">
                                 <button type="button" class="btn w-100" id="scrap-in-btn" style="background: #fed7aa; color: #ea580c; border: 1px solid #fdba74; padding: 15px; font-weight: bold;">
                                     <i class="ti ti-recycle me-2"></i>SCRAP IN
-                                </button>
-                            </div>
+                            </button>
+                        </div>
                             <div class="col-md-6 mb-3">
                                 <button type="button" class="btn w-100" id="scrap-sale-btn" style="background: #d1fae5; color: #059669; border: 1px solid #6ee7b7; padding: 15px; font-weight: bold;">
                                     <i class="ti ti-file-text me-2"></i>SCRAP SALE
-                                </button>
-                            </div>
-                        </div>
-                        
+                        </button>
+                    </div>
+                </div>
+
                         <!-- Bottom Action Buttons -->
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <div>
                                 <button type="button" class="btn" id="delivery-entry-btn" style="background: #ea580c; color: white; border: none; padding: 12px 20px; font-weight: bold;">
                                     <i class="ti ti-truck me-2"></i>DELIVERY ENTRY
-                                </button>
+                        </button>
                                 <button type="button" class="btn btn-outline-secondary ms-2" style="padding: 12px 20px;">
                                     <i class="ti ti-share"></i>
-                                </button>
+                        </button>
                             </div>
                             <div>
                                 <a href="{{ route('all_sales') }}" class="btn btn-secondary me-2" style="padding: 12px 30px;">Cancel</a>
                                 <button type="submit" class="btn btn-success" id="submit-sale-btn" style="padding: 12px 30px; font-weight: bold;">
                                     <i class="ti ti-check me-1"></i> Save Sale
-                                </button>
-                            </div>
-                        </div>
+                        </button>
+                    </div>
+                </div>
 
                         <!-- Hidden fields for order tax, shipping -->
                         <input type="hidden" name="order_tax" id="order_tax" value="0">
                         <input type="hidden" name="shipping" id="shipping" value="0">
                         <input type="hidden" name="status" value="pending">
                     </form>
-                </div>
-            </div>
-        </div>
+                            </div>
+                            </div>
+                            </div>
     </div>
 </div>
 
@@ -474,13 +544,13 @@
                                     <option value="{{ $unit->name ?? $unit->short_name }}">{{ $unit->name ?? $unit->short_name }}</option>
                                 @endforeach
                             @else
-                                <option value="Unit">Unit</option>
-                                <option value="Piece">Piece</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Piece">Piece</option>
                                 <option value="Box">Box</option>
-                                <option value="Kg">Kg</option>
-                                <option value="Liter">Liter</option>
-                                <option value="Pack">Pack</option>
-                                <option value="Set">Set</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Liter">Liter</option>
+                            <option value="Pack">Pack</option>
+                            <option value="Set">Set</option>
                             @endif
                         </select>
                     </div>
@@ -547,6 +617,32 @@
                     </div>
                 </div>
 
+                <!-- SUPPLIER SELECTION (Shows when stock is 0) -->
+                <div id="supplier-selection-section" class="mb-3" style="display: none;">
+                    <label class="form-label fw-bold mb-2 d-flex align-items-center">
+                        <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff;">
+                            <i class="ti ti-truck" style="font-size: 12px;"></i>
+                        </span>
+                        SELECT SUPPLIER (Stock is 0)
+                    </label>
+                    <select name="item_supplier_id" id="item_supplier_id" class="form-control" style="border-radius: 6px;">
+                        <option value="">Select Supplier...</option>
+                        @if(isset($suppliers))
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}" 
+                                        data-name="{{ $supplier->names[0] ?? '' }}" 
+                                        data-phone="{{ $supplier->phones[0] ?? '' }}"
+                                        data-company="{{ $supplier->company ?? '' }}">
+                                    {{ $supplier->names[0] ?? 'N/A' }}@if($supplier->company) - {{ $supplier->company }}@endif @if(!empty($supplier->phones[0])) - {{ $supplier->phones[0] }}@endif
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                    <small class="text-muted d-block mt-1">
+                        <i class="ti ti-info-circle me-1"></i>Selecting a supplier will mark this sale as <strong>PENDING</strong> and stock will <strong>NOT</strong> be updated.
+                    </small>
+                </div>
+
                 <!-- Additional Fields (Hidden by default, can be shown if needed) -->
                 <div id="additional-fields" style="display: none;">
                     <!-- Discount -->
@@ -592,29 +688,29 @@
             </div>
             <div class="modal-body" style="padding: 20px;">
                 <form id="vehicle-form">
-                    <div class="mb-3">
+                <div class="mb-3">
                         <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">REG # / NUMBER</label>
                         <input type="text" id="vehicle-plate-number" class="form-control" placeholder="PLATE # (LEC-22-1234)" style="text-transform: uppercase; border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
-                    </div>
-                    <div class="mb-3">
+                </div>
+                <div class="mb-3">
                         <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">MAKE / BRAND</label>
                         <input type="text" id="vehicle-make" class="form-control" placeholder="Toyota, Honda..." style="border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
-                    </div>
-                    <div class="mb-3">
+                </div>
+                <div class="mb-3">
                         <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">MODEL / NAME</label>
                         <div class="d-flex gap-2">
                             <input type="text" id="vehicle-model" class="form-control flex-grow-1" placeholder="Civic, Corolla..." style="border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
                             <button type="button" class="btn" id="add-model-btn" style="background: #0d6efd; color: white; border-radius: 8px; width: 50px; height: 50px; padding: 0; display: flex; align-items: center; justify-content: center; border: none;">
                                 <i class="ti ti-plus" style="font-size: 20px;"></i>
-                            </button>
-                        </div>
+                </button>
                     </div>
-                    <div class="mb-3">
+                </div>
+                <div class="mb-3">
                         <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">MODEL YEAR</label>
                         <input type="text" id="vehicle-year" class="form-control" placeholder="e.g. 2022" style="border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
-                    </div>
+                </div>
                 </form>
-            </div>
+                </div>
             <div class="modal-footer border-0 pt-0 pb-3 px-3" style="flex-direction: column; gap: 10px;">
                 <button type="button" class="btn btn-primary fw-bold w-100" id="save-vehicle-btn" style="background-color: #0d6efd; border-radius: 8px; padding: 14px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">
                     SAVE & APPLY
@@ -640,10 +736,10 @@
             <div class="modal-body p-3">
                 <div id="camera-barcode-reader" style="width: 100%; min-height: 240px; border-radius: 8px; overflow: hidden; background: #000;"></div>
                 <p class="small text-muted mb-0 mt-2 text-center">Point camera at barcode</p>
-            </div>
-        </div>
-    </div>
-</div>
+                </div>
+                </div>
+                    </div>
+                    </div>
 
 @push('styles')
 <style>
@@ -829,13 +925,214 @@ $(document).ready(function() {
     const initialBranchId = $('#salesBranchId').val();
     if (initialBranchId) {
         $('#empty-state-hint').text('Click "Add Item" to add items to cart');
-    } else {
+        } else {
         $('#empty-state-hint').text('Select a branch first, then add items');
     }
 
     // ========== Item Search is handled in the add-item-modal ==========
     // Search functionality is already implemented in the #item-search input within #add-item-modal
 
+    // Edit button handlers - open customer edit modal
+    $('#edit-party-btn, #edit-mobile-btn').on('click', function() {
+        const customerId = $('#customer_id').val() || $('#party_name_search').val();
+        if (!customerId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'No Customer Selected',
+                text: 'Please select a customer first before editing.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        // Load customer data and open edit modal
+        loadCustomerForEdit(customerId);
+    });
+    
+    // Function to load customer data and open edit modal
+    function loadCustomerForEdit(customerId) {
+        // Show loading
+        Swal.fire({
+            title: 'Loading...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Fetch customer data via AJAX
+        $.ajax({
+            url: '/admin/customers/' + customerId + '/edit-data',
+            method: 'GET',
+            success: function(response) {
+                Swal.close();
+                if (response.success && response.customer) {
+                    // Populate modal with customer data
+                    populateEditModal(response.customer);
+                    // Open modal
+                    $('#editCustomerModal').modal('show');
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to load customer data.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.close();
+                // If route doesn't exist, try alternative approach
+                if (xhr.status === 404) {
+                    // Redirect to customers page as fallback
+                    const baseUrl = window.location.origin;
+                    const customersUrl = baseUrl + '/all/customers';
+                    window.location.href = customersUrl;
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to load customer data.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            }
+        });
+    }
+    
+    // Function to populate edit modal with customer data
+    function populateEditModal(customer) {
+        // Update form action URL with customer ID
+        const customerId = $('#customer_id').val() || $('#party_name_search').val();
+        $('#editCustomerForm').attr('action', '/customers/' + customerId);
+        
+        // Populate form fields
+        if (customer.names && Array.isArray(customer.names) && customer.names.length > 0) {
+            $('#edit_customer_names').val(customer.names[0] || '');
+        } else if (customer.names) {
+            $('#edit_customer_names').val(customer.names || '');
+        }
+        
+        if (customer.phones && Array.isArray(customer.phones) && customer.phones.length > 0) {
+            $('#edit_customer_phones').val(customer.phones[0] || '');
+        } else if (customer.phones) {
+            $('#edit_customer_phones').val(customer.phones || '');
+        }
+        
+        $('#edit_customer_company').val(customer.company || '');
+        $('#edit_customer_email').val(customer.email || '');
+        $('#edit_customer_address').val(customer.address || '');
+        $('#edit_customer_area').val(customer.area || '');
+        
+        // Display existing profile image if available
+        if (customer.profile_img) {
+            const imgUrl = customer.profile_img.startsWith('http') ? customer.profile_img : '/' + customer.profile_img;
+            $('#edit_profile_img_display').attr('src', imgUrl);
+            $('#edit_profile_img_preview').show();
+        }
+        
+        // Display existing visiting doc if available
+        if (customer.visiting_doc) {
+            const docUrl = customer.visiting_doc.startsWith('http') ? customer.visiting_doc : '/' + customer.visiting_doc;
+            $('#edit_visiting_doc_preview').html('<a href="' + docUrl + '" target="_blank" class="btn btn-sm btn-outline-primary">View Current Document</a>').show();
+        }
+        
+        // Clear existing additional name/phone fields and add them
+        $('#edit_namePhoneContainer .name-phone-row').not(':first').remove();
+        if (customer.names && Array.isArray(customer.names) && customer.names.length > 1) {
+            for (let i = 1; i < customer.names.length; i++) {
+                const phone = customer.phones && customer.phones[i] ? customer.phones[i] : '';
+                addNamePhoneField(customer.names[i], phone);
+            }
+        }
+        updateRemoveButtons();
+    }
+    
+    // Function to add more name & phone fields
+    function addNamePhoneField(name = '', phone = '') {
+        const fieldHtml = `
+            <div class="row g-3 mb-3 align-items-end name-phone-row">
+                <div class="col-md-6">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <input type="text" name="names[]" class="form-control" placeholder="Enter name" value="${name}" required>
+                        <button type="button" class="btn btn-danger remove-row">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">WhatsApp Number</label>
+                    <input type="text" name="phones[]" class="form-control" placeholder="Enter phone number" value="${phone}">
+                </div>
+            </div>
+        `;
+        $('#edit_namePhoneContainer').append(fieldHtml);
+        updateRemoveButtons();
+    }
+    
+    // Update remove button visibility
+    function updateRemoveButtons() {
+        const rows = $('#edit_namePhoneContainer .name-phone-row');
+        rows.each(function(index) {
+            const removeBtn = $(this).find('.remove-row');
+            if (rows.length > 1) {
+                removeBtn.show();
+            } else {
+                removeBtn.hide();
+            }
+        });
+    }
+    
+    // Handle "Add More Name & Phone" button
+    $('#edit_add_more_name_phone').on('click', function() {
+        addNamePhoneField();
+    });
+    
+    // Handle remove row button
+    $(document).on('click', '#edit_namePhoneContainer .remove-row', function() {
+        $(this).closest('.name-phone-row').remove();
+        updateRemoveButtons();
+    });
+    
+    // Handle profile image preview
+    $('#edit_profile_img').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#edit_profile_img_display').attr('src', e.target.result);
+                $('#edit_profile_img_preview').show();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Party name search handler - auto-fill customer_id and other fields
+    $('#party_name_search').on('change select2:select', function() {
+        const selected = $(this).find('option:selected');
+        const customerId = selected.data('customer-id') || $(this).val();
+        const name = selected.data('name') || '';
+        const phone = selected.data('phone') || '';
+        const address = selected.data('address') || '';
+        const area = selected.data('area') || '';
+        
+        if (customerId) {
+            // Update customer_id dropdown
+            $('#customer_id').val(customerId).trigger('change.select2');
+            
+            // Update mobile dropdown if it's a select
+            if (phone && $('#customer_mobile').is('select')) {
+                $('#customer_mobile').val(phone).trigger('change.select2');
+                $('#customer_mobile_hidden').val(phone);
+            } else if (phone) {
+                $('#customer_mobile').val(phone);
+            }
+            $('#customer_address').val(address);
+            $('#customer_area').val(area);
+        }
+    });
+    
     // Customer change handler - auto-fill phone when name is selected
     // Use 'select2:select' event for Select2 compatibility
     $('#customer_id').on('change select2:select', function() {
@@ -846,12 +1143,17 @@ $(document).ready(function() {
         const area = selected.data('area') || '';
         const customerId = $(this).val();
         
+        // Update party name search if customer_id is changed
+        if (customerId) {
+            $('#party_name_search').val(customerId).trigger('change.select2');
+        }
+        
         // Update mobile dropdown if it's a select
         if (phone && $('#customer_mobile').is('select')) {
             $('#customer_mobile').val(phone).trigger('change.select2');
             $('#customer_mobile_hidden').val(phone);
         } else if (phone) {
-            $('#customer_mobile').val(phone);
+        $('#customer_mobile').val(phone);
         }
         $('#customer_address').val(address);
         $('#customer_area').val(area);
@@ -1122,10 +1424,10 @@ $(document).ready(function() {
                     $('#item-search-results').hide();
                     $('#barcode-scan-input').val('');
                     
-                    $.ajax({
+            $.ajax({
                         url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
-                        method: 'GET',
-                        success: function(response) {
+                method: 'GET',
+                success: function(response) {
                             $('#item-rate').val(parseFloat(response.total_price || response.rate || itemRate).toFixed(2));
                             if (response.unit) $('#item-unit').val(response.unit);
                             if (response.warehouse_id || warehouseId) $('#selected-warehouse-id').val(response.warehouse_id || warehouseId);
@@ -1134,7 +1436,7 @@ $(document).ready(function() {
                             if (response.image) {
                                 $('#item-search-image').attr('src', response.image);
                                 $('#item-search-image-preview').removeClass('d-none');
-                            } else {
+                    } else {
                                 $('#item-search-image-preview').addClass('d-none');
                             }
                             
@@ -1145,14 +1447,25 @@ $(document).ready(function() {
                                 const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                                 const unit = response.unit || 'Unit';
                                 $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                                
+                                // Show supplier selection if stock is 0
+                                if (stockValue === 0) {
+                                    $('#supplier-selection-section').show();
+                                    $('#item_supplier_id').prop('required', true);
+                                } else {
+                                    $('#supplier-selection-section').hide();
+                                    $('#item_supplier_id').prop('required', false).val('');
+                                }
                             } else {
                                 $('#item-search-stock').html('');
+                                $('#supplier-selection-section').hide();
+                                $('#item_supplier_id').prop('required', false).val('');
                             }
                             
                             loadItemStockStatus(itemId);
                             loadCustomerHistory(itemId);
-                        },
-                        error: function() {
+                },
+                error: function() {
                             loadItemStockStatus(itemId);
                             loadCustomerHistory(itemId);
                         }
@@ -1295,9 +1608,9 @@ $(document).ready(function() {
             $('#selected-item-details-line1').html('');
             $('#selected-item-details-line2').html('');
             $('#selected-item-details-line3').html('');
-            return;
-        }
-        
+                    return;
+                }
+                
         // Show loading state (premium style)
         resultsDiv.html(`
             <div class="p-4 text-center">
@@ -1329,7 +1642,7 @@ $(document).ready(function() {
                             </div>
                         `);
                     } else {
-                        let html = '';
+                let html = '';
                         results.forEach(function(result) {
                             if (result.type === 'branch') {
                                 // Branch result
@@ -1371,298 +1684,298 @@ $(document).ready(function() {
                                 const barCode = item.bar_code || '';
                                 const shortDisc = (item.short_disc || '').trim();
                                 const proDis = (item.pro_dis || '').trim();
-                                
-                                // Helper to check if text is dummy/invalid
-                                const isDummy = function(t) {
-                                    if (!t || t.length > 200) return true;
-                                    const lower = t.toLowerCase().trim();
-                                    return lower.indexOf('lorem') !== -1 || 
-                                           lower.indexOf('dummy') !== -1 || 
-                                           lower.indexOf('simply') !== -1 ||
-                                           lower === 'sdfsdf' ||
-                                           lower === 'test' ||
-                                           /^[a-z]{5,}$/.test(lower) && lower.split('').every(c => c === lower[0]); // All same character repeated
-                                };
-                                
-                                // Helper to highlight search terms in text (only the matching part, not whole word)
-                                const highlightText = function(text, searchQuery) {
-                                    if (!text || !searchQuery) return text;
-                                    const searchTerms = searchQuery.trim().split(/\s+/).filter(t => t.length > 0);
-                                    if (searchTerms.length === 0) return text;
-                                    
-                                    let highlighted = text;
-                                    searchTerms.forEach(term => {
-                                        if (term.length < 1) return; // Allow single character matching
-                                        // Escape special regex characters and match case-insensitively
-                                        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                        const regex = new RegExp(`(${escapedTerm})`, 'gi');
-                                        // Replace only the matching part, not the whole word
-                                        highlighted = highlighted.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: 600;">$1</mark>');
-                                    });
-                                    return highlighted;
-                                };
-                                
-                                // PRIMARY: Get product name (product_item.name first, then short_disc or pro_dis) - NOT code
-                                let productName = '';
-                                
-                                // Priority 1: product_item.name (actual product name)
-                                const productFromRelation = item.product_item ? item.product_item.name : '';
-                                if (productFromRelation && !isDummy(productFromRelation)) {
-                                    productName = productFromRelation.trim();
-                                }
-                                
-                                // Priority 2: short_disc (if product_item.name not available)
-                                if (!productName && !isDummy(shortDisc)) {
-                                    productName = shortDisc;
-                                }
-                                
-                                // Priority 3: pro_dis (if still no product name)
-                                if (!productName && !isDummy(proDis)) {
-                                    productName = proDis;
-                                }
-                                
-                                // Priority 4: Part Number (if available, but NOT barcode)
-                                if (!productName && partNumber) {
-                                    productName = partNumber;
-                                }
-                                
-                                // Last resort: Item ID (never use barcode as product name)
-                                if (!productName) {
-                                    productName = 'Item #' + item.id;
-                                }
-                                
-                                // Truncate if too long
-                                if (productName.length > 100) {
-                                    productName = productName.substring(0, 97) + '...';
-                                }
-                                
-                                // SECONDARY: Code line (barcode/part number)
-                                let codeInfo = '';
-                                if (barCode) {
-                                    codeInfo = barCode;
-                                    if (partNumber && partNumber !== barCode) {
-                                        codeInfo += ' | ' + partNumber;
-                                    }
-                                } else if (partNumber) {
-                                    codeInfo = partNumber;
-                                }
-                                
-                                // Get all item details based on type
-                                const manufacturer = item.vehical_item && item.vehical_item.manutacturer_vehical ? item.vehical_item.manutacturer_vehical.name : '';
-                                const model = item.vehical_item && item.vehical_item.model_vehical ? item.vehical_item.model_vehical.name : '';
+                
+                // Helper to check if text is dummy/invalid
+                const isDummy = function(t) {
+                    if (!t || t.length > 200) return true;
+                    const lower = t.toLowerCase().trim();
+                    return lower.indexOf('lorem') !== -1 || 
+                           lower.indexOf('dummy') !== -1 || 
+                           lower.indexOf('simply') !== -1 ||
+                           lower === 'sdfsdf' ||
+                           lower === 'test' ||
+                           /^[a-z]{5,}$/.test(lower) && lower.split('').every(c => c === lower[0]); // All same character repeated
+                };
+                
+                // Helper to highlight search terms in text (only the matching part, not whole word)
+                const highlightText = function(text, searchQuery) {
+                    if (!text || !searchQuery) return text;
+                    const searchTerms = searchQuery.trim().split(/\s+/).filter(t => t.length > 0);
+                    if (searchTerms.length === 0) return text;
+                    
+                    let highlighted = text;
+                    searchTerms.forEach(term => {
+                        if (term.length < 1) return; // Allow single character matching
+                        // Escape special regex characters and match case-insensitively
+                        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`(${escapedTerm})`, 'gi');
+                        // Replace only the matching part, not the whole word
+                        highlighted = highlighted.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: 600;">$1</mark>');
+                    });
+                    return highlighted;
+                };
+                    
+                    // PRIMARY: Get product name (product_item.name first, then short_disc or pro_dis) - NOT code
+                    let productName = '';
+                    
+                    // Priority 1: product_item.name (actual product name)
+                    const productFromRelation = item.product_item ? item.product_item.name : '';
+                    if (productFromRelation && !isDummy(productFromRelation)) {
+                        productName = productFromRelation.trim();
+                    }
+                    
+                    // Priority 2: short_disc (if product_item.name not available)
+                    if (!productName && !isDummy(shortDisc)) {
+                        productName = shortDisc;
+                    }
+                    
+                    // Priority 3: pro_dis (if still no product name)
+                    if (!productName && !isDummy(proDis)) {
+                        productName = proDis;
+                    }
+                    
+                    // Priority 4: Part Number (if available, but NOT barcode)
+                    if (!productName && partNumber) {
+                        productName = partNumber;
+                    }
+                    
+                    // Last resort: Item ID (never use barcode as product name)
+                    if (!productName) {
+                        productName = 'Item #' + item.id;
+                    }
+                    
+                    // Truncate if too long
+                    if (productName.length > 100) {
+                        productName = productName.substring(0, 97) + '...';
+                    }
+                    
+                    // SECONDARY: Code line (barcode/part number)
+                    let codeInfo = '';
+                    if (barCode) {
+                        codeInfo = barCode;
+                        if (partNumber && partNumber !== barCode) {
+                            codeInfo += ' | ' + partNumber;
+                        }
+                    } else if (partNumber) {
+                        codeInfo = partNumber;
+                    }
+                    
+                    // Get all item details based on type
+                    const manufacturer = item.vehical_item && item.vehical_item.manutacturer_vehical ? item.vehical_item.manutacturer_vehical.name : '';
+                    const model = item.vehical_item && item.vehical_item.model_vehical ? item.vehical_item.model_vehical.name : '';
                                 const category = item.category ? item.category.name : '';
-                                const subcategory = item.subcategory ? item.subcategory.name : '';
-                                const company = item.company_item ? item.company_item.name : '';
-                                const product = item.product_item ? item.product_item.name : '';
-                                const quality = item.quality_item ? item.quality_item.name : '';
-                                const technology = item.technology_item ? item.technology_item.name : '';
-                                const grade = item.grade_item ? item.grade_item.name : '';
-                                const volt = item.volt_item ? item.volt_item.name : '';
-                                const cca = item.cca_item ? item.cca_item.name : '';
-                                const group = item.group_item ? item.group_item.name : '';
-                                const madeIn = item.made_in_item ? item.made_in_item.name : '';
-                                const level = item.level_item ? item.level_item.name : '';
-                                const batterySize = item.battery_size || '';
-                                const plate = item.plate_item ? item.plate_item.name : '';
-                                const amperes = item.amphors_item ? item.amphors_item.name : '';
+                    const subcategory = item.subcategory ? item.subcategory.name : '';
+                    const company = item.company_item ? item.company_item.name : '';
+                    const product = item.product_item ? item.product_item.name : '';
+                    const quality = item.quality_item ? item.quality_item.name : '';
+                    const technology = item.technology_item ? item.technology_item.name : '';
+                    const grade = item.grade_item ? item.grade_item.name : '';
+                    const volt = item.volt_item ? item.volt_item.name : '';
+                    const cca = item.cca_item ? item.cca_item.name : '';
+                    const group = item.group_item ? item.group_item.name : '';
+                    const madeIn = item.made_in_item ? item.made_in_item.name : '';
+                    const level = item.level_item ? item.level_item.name : '';
+                    const batterySize = item.battery_size || '';
+                    const plate = item.plate_item ? item.plate_item.name : '';
+                    const amperes = item.amphors_item ? item.amphors_item.name : '';
                                 const stock = item.on_hand || 0;
                                 const rate = item.packing_purchase_rate || item.total_price || 0;
-                                const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) 
-                                    ? (item.unit_item.name || item.unit_item.short_name) 
+                    const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) 
+                        ? (item.unit_item.name || item.unit_item.short_name) 
                                     : 'Unit';
-                                
-                                // Update product name: Priority 1 - product_item.name (actual product name)
-                                if (product && !isDummy(product)) {
-                                    productName = product;
-                                }
-                                
-                                // Build first line for battery: Product Name + Plates + Amperes + Company
-                                let firstLineParts = [];
-                                if (itemType === 'battery') {
-                                    firstLineParts.push(productName);
-                                    if (plate) firstLineParts.push(plate + 'PL');
-                                    if (amperes) firstLineParts.push(amperes + 'AH');
-                                    if (company) firstLineParts.push(company);
-                                }
-                                
-                                // Build short details array for search display (includes vehicle)
-                                let searchDetails = [];
-                                
-                                // Common fields (short format) - exclude company for battery (it's on first line)
-                                if (itemType !== 'battery' && company) searchDetails.push(company);
-                                if (category) searchDetails.push(category);
-                                
-                                // Type-specific details (short format)
-                                if (itemType === 'battery') {
-                                    if (group && !isDummy(group)) searchDetails.push(group);
-                                    if (volt) searchDetails.push(volt + 'V');
-                                    if (cca) searchDetails.push(cca + 'CCA');
-                                    if (technology && !isDummy(technology)) searchDetails.push(technology);
-                                    if (grade && !isDummy(grade)) searchDetails.push(grade);
-                                    if (batterySize && !isDummy(batterySize)) searchDetails.push(batterySize);
+                    
+                    // Update product name: Priority 1 - product_item.name (actual product name)
+                    if (product && !isDummy(product)) {
+                        productName = product;
+                    }
+                    
+                    // Build first line for battery: Product Name + Plates + Amperes + Company
+                    let firstLineParts = [];
+                    if (itemType === 'battery') {
+                        firstLineParts.push(productName);
+                        if (plate) firstLineParts.push(plate + 'PL');
+                        if (amperes) firstLineParts.push(amperes + 'AH');
+                        if (company) firstLineParts.push(company);
+                    }
+                    
+                    // Build short details array for search display (includes vehicle)
+                    let searchDetails = [];
+                    
+                    // Common fields (short format) - exclude company for battery (it's on first line)
+                    if (itemType !== 'battery' && company) searchDetails.push(company);
+                    if (category) searchDetails.push(category);
+                    
+                    // Type-specific details (short format)
+                    if (itemType === 'battery') {
+                        if (group && !isDummy(group)) searchDetails.push(group);
+                        if (volt) searchDetails.push(volt + 'V');
+                        if (cca) searchDetails.push(cca + 'CCA');
+                        if (technology && !isDummy(technology)) searchDetails.push(technology);
+                        if (grade && !isDummy(grade)) searchDetails.push(grade);
+                        if (batterySize && !isDummy(batterySize)) searchDetails.push(batterySize);
                                     // Plates and amperes are on first line, not here
-                                } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
-                                    if (partNumber && !isDummy(partNumber)) searchDetails.push(partNumber);
-                                    if (quality && !isDummy(quality)) searchDetails.push(quality);
-                                    if (manufacturer && model) {
-                                        searchDetails.push(manufacturer + ' ' + model);
-                                    } else if (manufacturer) {
-                                        searchDetails.push(manufacturer);
-                                    }
-                                } else if (itemType === 'oil') {
-                                    if (technology && !isDummy(technology)) searchDetails.push(technology);
-                                    if (grade && !isDummy(grade)) searchDetails.push(grade);
-                                }
-                                
-                                // Vehicle info (ONLY for search display, NOT for input field) - separate for styling
-                                let vehicleInfo = '';
-                                if (itemType !== 'parts' && itemType !== 'filters' && itemType !== 'breakpad') {
-                                    if (manufacturer && model) {
-                                        vehicleInfo = manufacturer + ' ' + model;
-                                    } else if (manufacturer) {
-                                        vehicleInfo = manufacturer;
-                                    }
-                                }
-                                
-                                // Build details for input field (NO vehicle)
-                                let inputDetails = [];
-                                if (company) inputDetails.push(company);
-                                if (category) inputDetails.push(category);
-                                
-                                // Type-specific details (NO vehicle)
-                                if (itemType === 'battery') {
-                                    if (group && !isDummy(group)) inputDetails.push(group);
-                                    if (volt) inputDetails.push(volt + 'V');
-                                    if (cca) inputDetails.push(cca + 'CCA');
-                                    if (technology && !isDummy(technology)) inputDetails.push(technology);
-                                    if (grade && !isDummy(grade)) inputDetails.push(grade);
-                                    if (batterySize && !isDummy(batterySize)) inputDetails.push(batterySize);
-                                    if (plate) inputDetails.push(plate + ' PL');
-                                    if (amperes) inputDetails.push(amperes + ' AH');
-                                } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
-                                    if (partNumber && !isDummy(partNumber)) inputDetails.push(partNumber);
-                                    if (quality && !isDummy(quality)) inputDetails.push(quality);
-                                } else if (itemType === 'oil') {
-                                    if (technology && !isDummy(technology)) inputDetails.push(technology);
-                                    if (grade && !isDummy(grade)) inputDetails.push(grade);
-                                }
-                                
-                                // Stock status color and icon
-                                const stockValue = parseFloat(stock) || 0;
-                                let stockColor = stockValue > 10 ? 'success' : (stockValue > 0 ? 'secondary' : 'danger');
-                                let stockIcon = stockValue > 10 ? 'ti-check' : (stockValue > 0 ? '' : 'ti-x');
-                                const stockDisplay = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(2);
-                                
-                                // Build first line HTML for battery items
-                                let firstLineHtml = '';
-                                let firstLineText = productName; // Default to product name
-                                if (itemType === 'battery' && firstLineParts.length > 0) {
-                                    firstLineText = firstLineParts.join(' ');
-                                    const highlightedFirstLine = highlightText(firstLineText, query);
-                                    firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
-                                } else {
-                                    // For non-battery items, show product name as before
-                                    const highlightedProductName = highlightText(productName, query);
-                                    firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedProductName + '</div>';
-                                }
-                                
-                                // Build short details HTML for search display (includes vehicle) with highlighting
-                                let detailsHtml = '';
-                                if (searchDetails.length > 0) {
-                                    const detailsText = searchDetails.join(' • ');
-                                    const highlightedDetails = highlightText(detailsText, query);
-                                    
-                                    // Add vehicle info with different color if available
-                                    if (vehicleInfo) {
-                                        const highlightedVehicle = highlightText(vehicleInfo, query);
-                                        detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + ' • <span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
-                                    } else {
-                                        detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + '</div>';
-                                    }
-                                } else if (vehicleInfo) {
-                                    // Only vehicle info, no other details
-                                    const highlightedVehicle = highlightText(vehicleInfo, query);
-                                    detailsHtml = '<div class="small text-muted mt-1"><span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
-                                }
-                                
-                                // Build display string for input: Product Name + Details (NO vehicle)
-                                let displayString = productName;
-                                if (inputDetails.length > 0) {
-                                    displayString += ' ' + inputDetails.join(' ');
-                                }
-                                
-                                // Build details strings for display below input
-                                const detailsText = searchDetails.length > 0 ? searchDetails.join(' • ') : '';
-                                const vehicleText = vehicleInfo || '';
-                                const codeText = codeInfo || '';
-                                
-                                // For battery items, build line 1: company + volt (if available)
-                                let line1Details = '';
-                                if (itemType === 'battery') {
-                                    const line1Parts = [];
-                                    if (company) line1Parts.push(company);
-                                    if (volt) line1Parts.push(volt + 'V');
-                                    line1Details = line1Parts.join(' • ');
-                                } else {
-                                    line1Details = detailsText;
-                                }
-                                
-                                // Highlight barcode
-                                const highlightedCodeInfo = codeInfo ? highlightText(codeInfo, query) : '';
-                                
-                                // Get item image URL
+                    } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                        if (partNumber && !isDummy(partNumber)) searchDetails.push(partNumber);
+                        if (quality && !isDummy(quality)) searchDetails.push(quality);
+                        if (manufacturer && model) {
+                            searchDetails.push(manufacturer + ' ' + model);
+                        } else if (manufacturer) {
+                            searchDetails.push(manufacturer);
+                        }
+                    } else if (itemType === 'oil') {
+                        if (technology && !isDummy(technology)) searchDetails.push(technology);
+                        if (grade && !isDummy(grade)) searchDetails.push(grade);
+                    }
+                    
+                    // Vehicle info (ONLY for search display, NOT for input field) - separate for styling
+                    let vehicleInfo = '';
+                    if (itemType !== 'parts' && itemType !== 'filters' && itemType !== 'breakpad') {
+                        if (manufacturer && model) {
+                            vehicleInfo = manufacturer + ' ' + model;
+                        } else if (manufacturer) {
+                            vehicleInfo = manufacturer;
+                        }
+                    }
+                    
+                    // Build details for input field (NO vehicle)
+                    let inputDetails = [];
+                    if (company) inputDetails.push(company);
+                    if (category) inputDetails.push(category);
+                    
+                    // Type-specific details (NO vehicle)
+                    if (itemType === 'battery') {
+                        if (group && !isDummy(group)) inputDetails.push(group);
+                        if (volt) inputDetails.push(volt + 'V');
+                        if (cca) inputDetails.push(cca + 'CCA');
+                        if (technology && !isDummy(technology)) inputDetails.push(technology);
+                        if (grade && !isDummy(grade)) inputDetails.push(grade);
+                        if (batterySize && !isDummy(batterySize)) inputDetails.push(batterySize);
+                        if (plate) inputDetails.push(plate + ' PL');
+                        if (amperes) inputDetails.push(amperes + ' AH');
+                    } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                        if (partNumber && !isDummy(partNumber)) inputDetails.push(partNumber);
+                        if (quality && !isDummy(quality)) inputDetails.push(quality);
+                    } else if (itemType === 'oil') {
+                        if (technology && !isDummy(technology)) inputDetails.push(technology);
+                        if (grade && !isDummy(grade)) inputDetails.push(grade);
+                    }
+                    
+                    // Stock status color and icon
+                    const stockValue = parseFloat(stock) || 0;
+                    let stockColor = stockValue > 10 ? 'success' : (stockValue > 0 ? 'secondary' : 'danger');
+                    let stockIcon = stockValue > 10 ? 'ti-check' : (stockValue > 0 ? '' : 'ti-x');
+                    const stockDisplay = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(2);
+                    
+                    // Build first line HTML for battery items
+                    let firstLineHtml = '';
+                    let firstLineText = productName; // Default to product name
+                    if (itemType === 'battery' && firstLineParts.length > 0) {
+                        firstLineText = firstLineParts.join(' ');
+                        const highlightedFirstLine = highlightText(firstLineText, query);
+                        firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
+                    } else {
+                        // For non-battery items, show product name as before
+                        const highlightedProductName = highlightText(productName, query);
+                        firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedProductName + '</div>';
+                    }
+                    
+                    // Build short details HTML for search display (includes vehicle) with highlighting
+                    let detailsHtml = '';
+                    if (searchDetails.length > 0) {
+                        const detailsText = searchDetails.join(' • ');
+                        const highlightedDetails = highlightText(detailsText, query);
+                        
+                        // Add vehicle info with different color if available
+                        if (vehicleInfo) {
+                            const highlightedVehicle = highlightText(vehicleInfo, query);
+                            detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + ' • <span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
+                        } else {
+                            detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + '</div>';
+                        }
+                    } else if (vehicleInfo) {
+                        // Only vehicle info, no other details
+                        const highlightedVehicle = highlightText(vehicleInfo, query);
+                        detailsHtml = '<div class="small text-muted mt-1"><span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
+                    }
+                    
+                    // Build display string for input: Product Name + Details (NO vehicle)
+                    let displayString = productName;
+                    if (inputDetails.length > 0) {
+                        displayString += ' ' + inputDetails.join(' ');
+                    }
+                    
+                    // Build details strings for display below input
+                    const detailsText = searchDetails.length > 0 ? searchDetails.join(' • ') : '';
+                    const vehicleText = vehicleInfo || '';
+                    const codeText = codeInfo || '';
+                    
+                    // For battery items, build line 1: company + volt (if available)
+                    let line1Details = '';
+                    if (itemType === 'battery') {
+                        const line1Parts = [];
+                        if (company) line1Parts.push(company);
+                        if (volt) line1Parts.push(volt + 'V');
+                        line1Details = line1Parts.join(' • ');
+                    } else {
+                        line1Details = detailsText;
+                    }
+                    
+                    // Highlight barcode
+                    const highlightedCodeInfo = codeInfo ? highlightText(codeInfo, query) : '';
+                    
+                    // Get item image URL
                                 const itemImage = item.image || '';
-                                
-                                html += `
-                                    <div class="p-3 border-bottom item-search-result" 
-                                         data-type="item"
-                                         data-id="${item.id}" 
-                                         data-name="${productName.replace(/"/g, '&quot;')}"
-                                         data-display="${displayString.replace(/"/g, '&quot;')}"
-                                         data-first-line="${firstLineText.replace(/"/g, '&quot;')}"
-                                         data-details="${detailsText.replace(/"/g, '&quot;')}"
-                                         data-line1-details="${line1Details.replace(/"/g, '&quot;')}"
-                                         data-vehicle="${vehicleText.replace(/"/g, '&quot;')}"
-                                         data-code="${codeText.replace(/"/g, '&quot;')}"
-                                         data-cca="${(itemType === 'battery' && cca) ? (cca + 'CCA') : ''}"
-                                         data-rate="${rate}"
-                                         data-unit="${unit}"
+                    
+                    html += `
+                        <div class="p-3 border-bottom item-search-result" 
+                             data-type="item"
+                             data-id="${item.id}" 
+                             data-name="${productName.replace(/"/g, '&quot;')}"
+                             data-display="${displayString.replace(/"/g, '&quot;')}"
+                             data-first-line="${firstLineText.replace(/"/g, '&quot;')}"
+                             data-details="${detailsText.replace(/"/g, '&quot;')}"
+                             data-line1-details="${line1Details.replace(/"/g, '&quot;')}"
+                             data-vehicle="${vehicleText.replace(/"/g, '&quot;')}"
+                             data-code="${codeText.replace(/"/g, '&quot;')}"
+                             data-cca="${(itemType === 'battery' && cca) ? (cca + 'CCA') : ''}"
+                             data-rate="${rate}"
+                             data-unit="${unit}"
                                          data-warehouse-id="${result.warehouse_id || ''}"
-                                         style="cursor: pointer; transition: all 0.2s ease; background: white;">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            ${itemImage ? `<div class="me-3" style="flex-shrink: 0;">
-                                                <img src="${itemImage}" alt="${productName}" class="rounded border" style="width: 60px; height: 60px; object-fit: cover;">
-                                            </div>` : ''}
-                                            <div class="flex-grow-1 me-3">
-                                                ${firstLineHtml}
-                                                ${detailsHtml}
-                                                ${codeInfo ? '<div class="text-primary small fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + highlightedCodeInfo + '</div>' : ''}
-                                            </div>
-                                            <div class="text-end" style="min-width: 100px;">
-                                                <div class="fw-bold text-primary mb-1">Rs ${parseFloat(rate).toFixed(2)}</div>
-                                                <div class="small">
-                                                    <span class="badge bg-${stockColor} bg-opacity-10 text-${stockColor}">
-                                                        ${stockIcon ? '<i class="ti ' + stockIcon + ' me-1"></i>' : ''}${stockDisplay} ${unit}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
+                             style="cursor: pointer; transition: all 0.2s ease; background: white;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                ${itemImage ? `<div class="me-3" style="flex-shrink: 0;">
+                                    <img src="${itemImage}" alt="${productName}" class="rounded border" style="width: 60px; height: 60px; object-fit: cover;">
+                                </div>` : ''}
+                                <div class="flex-grow-1 me-3">
+                                    ${firstLineHtml}
+                                    ${detailsHtml}
+                                    ${codeInfo ? '<div class="text-primary small fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + highlightedCodeInfo + '</div>' : ''}
                                     </div>
-                                `;
+                                <div class="text-end" style="min-width: 100px;">
+                                    <div class="fw-bold text-primary mb-1">Rs ${parseFloat(rate).toFixed(2)}</div>
+                                    <div class="small">
+                                        <span class="badge bg-${stockColor} bg-opacity-10 text-${stockColor}">
+                                            ${stockIcon ? '<i class="ti ' + stockIcon + ' me-1"></i>' : ''}${stockDisplay} ${unit}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
                             }
                         });
                         resultsDiv.html(html);
                     }
                     resultsDiv.show();
-                },
-                error: function(xhr) {
-                    console.error('Search error:', xhr);
+            },
+            error: function(xhr) {
+                console.error('Search error:', xhr);
                     resultsDiv.html(`
                         <div class="p-3 text-center">
                             <i class="ti ti-alert-circle fs-32 text-danger mb-2" style="display: block;"></i>
                             <p class="text-danger mb-0">Error loading results. Please try again.</p>
-                        </div>
-                    `);
+                    </div>
+                `);
                     resultsDiv.show();
                 }
             });
@@ -1706,66 +2019,66 @@ $(document).ready(function() {
             
             // Set input value: Use first line text (the black text from search result)
             $('#item-search').val(itemFirstLine);
-            $('#selected-item-id').val(itemId);
+        $('#selected-item-id').val(itemId);
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
             
             // Show item details below input (matching image format)
-            let line1 = '';
-            let line2 = '';
-            let line3 = '';
-            
-            // Line 1: Volt only (remove company like "AGS")
-            if (itemLine1Details) {
-                // Remove company from line1Details (e.g., "AGS • 12V" -> "12V")
+        let line1 = '';
+        let line2 = '';
+        let line3 = '';
+        
+        // Line 1: Volt only (remove company like "AGS")
+        if (itemLine1Details) {
+            // Remove company from line1Details (e.g., "AGS • 12V" -> "12V")
                 // Split by bullet and take everything after the first part (company)
-                const parts = itemLine1Details.split('•').map(p => p.trim());
-                if (parts.length > 1) {
+            const parts = itemLine1Details.split('•').map(p => p.trim());
+            if (parts.length > 1) {
                     // Remove first part (company) and join the rest
-                    line1 = parts.slice(1).join(' • ').trim();
-                } else {
-                    line1 = itemLine1Details;
-                }
-            } else if (itemDetails) {
-                // Fallback: use details without vehicle, CCA, and company
-                let detailsOnly = itemDetails;
-                if (itemVehicle && detailsOnly.includes(itemVehicle)) {
-                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\\s*' + itemVehicle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
-                }
-                if (itemCca && detailsOnly.includes(itemCca)) {
-                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\s*' + itemCca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
-                }
-                // Remove company from start if present (first part before first bullet)
-                const parts = detailsOnly.split('•').map(p => p.trim());
-                if (parts.length > 1) {
-                    detailsOnly = parts.slice(1).join(' • ').trim();
-                }
-                line1 = detailsOnly.trim();
-            }
-            
-            // Line 2: CCA + Vehicle (e.g., "380CCA • HONDA City" with vehicle in orange)
-            if (itemCca && itemVehicle) {
-                line2 = itemCca + ' • <span class="text-warning fw-semibold">' + itemVehicle + '</span>';
-            } else if (itemCca) {
-                line2 = itemCca;
-            } else if (itemVehicle) {
-                line2 = '<span class="text-warning fw-semibold">' + itemVehicle + '</span>';
-            }
-            
-            // Line 3: Barcode/Code (in orange with icon)
-            if (itemCode) {
-                line3 = '<i class="ti ti-barcode me-1"></i><span class="text-warning fw-semibold">' + itemCode + '</span>';
-            }
-            
-            if (line1 || line2 || line3) {
-                $('#selected-item-details-line1').html(line1 || '&nbsp;');
-                $('#selected-item-details-line2').html(line2 || '&nbsp;');
-                $('#selected-item-details-line3').html(line3 || '&nbsp;');
-                $('#selected-item-details-display').removeClass('d-none');
+                line1 = parts.slice(1).join(' • ').trim();
             } else {
-                $('#selected-item-details-display').addClass('d-none');
+                line1 = itemLine1Details;
             }
-            
+        } else if (itemDetails) {
+            // Fallback: use details without vehicle, CCA, and company
+            let detailsOnly = itemDetails;
+            if (itemVehicle && detailsOnly.includes(itemVehicle)) {
+                detailsOnly = detailsOnly.replace(new RegExp('\\s*•\\s*' + itemVehicle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+            }
+            if (itemCca && detailsOnly.includes(itemCca)) {
+                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\s*' + itemCca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+            }
+                // Remove company from start if present (first part before first bullet)
+            const parts = detailsOnly.split('•').map(p => p.trim());
+            if (parts.length > 1) {
+                detailsOnly = parts.slice(1).join(' • ').trim();
+            }
+            line1 = detailsOnly.trim();
+        }
+        
+        // Line 2: CCA + Vehicle (e.g., "380CCA • HONDA City" with vehicle in orange)
+        if (itemCca && itemVehicle) {
+            line2 = itemCca + ' • <span class="text-warning fw-semibold">' + itemVehicle + '</span>';
+        } else if (itemCca) {
+            line2 = itemCca;
+        } else if (itemVehicle) {
+            line2 = '<span class="text-warning fw-semibold">' + itemVehicle + '</span>';
+        }
+        
+        // Line 3: Barcode/Code (in orange with icon)
+        if (itemCode) {
+            line3 = '<i class="ti ti-barcode me-1"></i><span class="text-warning fw-semibold">' + itemCode + '</span>';
+        }
+        
+        if (line1 || line2 || line3) {
+                $('#selected-item-details-line1').html(line1 || '&nbsp;');
+            $('#selected-item-details-line2').html(line2 || '&nbsp;');
+            $('#selected-item-details-line3').html(line3 || '&nbsp;');
+                $('#selected-item-details-display').removeClass('d-none');
+        } else {
+            $('#selected-item-details-display').addClass('d-none');
+        }
+        
             // Load full item details to get total_price and warehouse
             $.ajax({
                 url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
@@ -1801,8 +2114,19 @@ $(document).ready(function() {
                         const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                         const unit = response.unit || 'Unit';
                         $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                        
+                        // Show supplier selection if stock is 0
+                        if (stockValue === 0) {
+                            $('#supplier-selection-section').show();
+                            $('#item_supplier_id').prop('required', true);
+                        } else {
+                            $('#supplier-selection-section').hide();
+                            $('#item_supplier_id').prop('required', false).val('');
+                        }
                     } else {
                         $('#item-search-stock').html('');
+                        $('#supplier-selection-section').hide();
+                        $('#item_supplier_id').prop('required', false).val('');
                     }
                     
                     // Set warranty if available
@@ -1815,10 +2139,10 @@ $(document).ready(function() {
                     }
                     
                     // Load stock status to show warehouse options and auto-select
-                    loadItemStockStatus(itemId);
-                    
+            loadItemStockStatus(itemId);
+            
                     // Load purchase history
-                    loadCustomerHistory(itemId);
+            loadCustomerHistory(itemId);
                 },
                 error: function() {
                     // Fallback to basic data if API fails
@@ -1966,8 +2290,19 @@ $(document).ready(function() {
                     const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                     const unit = response.unit || 'Unit';
                     $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                    
+                    // Show supplier selection if stock is 0
+                    if (stockValue === 0) {
+                        $('#supplier-selection-section').show();
+                        $('#item_supplier_id').prop('required', true);
+                    } else {
+                        $('#supplier-selection-section').hide();
+                        $('#item_supplier_id').prop('required', false).val('');
+                    }
                 } else {
                     $('#item-search-stock').html('');
+                    $('#supplier-selection-section').hide();
+                    $('#item_supplier_id').prop('required', false).val('');
                 }
                 
                 // Set warranty if available
@@ -1997,11 +2332,11 @@ $(document).ready(function() {
             <div class="text-center py-2">
                 <div class="spinner-border spinner-border-sm text-primary me-2"></div>
                 <span class="text-muted small">Loading purchase history...</span>
-            </div>
-        `);
+                    </div>
+                `);
         $('#hold-rate-link').hide();
         
-        $.ajax({
+            $.ajax({
             url: '{{ route("purchases.items.purchase.history", ":id") }}'.replace(':id', itemId),
             method: 'GET',
             success: function(data) {
@@ -2013,7 +2348,7 @@ $(document).ready(function() {
                         </div>
                     `);
                     $('#hold-rate-link').hide();
-                    return;
+                        return;
                 }
                 
                 // Store last purchase rate for "Hold Rate" button
@@ -2025,12 +2360,12 @@ $(document).ready(function() {
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="fw-bold text-dark">Total Purchases: ${data.total_purchases}</span>
                             <span class="badge bg-primary">${data.total_quantity} ${data.last_purchase ? data.last_purchase.unit : 'Units'}</span>
-                        </div>
+                                    </div>
                         <div class="d-flex justify-content-between small">
                             <span><i class="ti ti-trending-down text-success me-1"></i>Min: Rs ${parseFloat(data.min_rate).toLocaleString()}</span>
                             <span><i class="ti ti-chart-line text-primary me-1"></i>Avg: Rs ${parseFloat(data.avg_rate).toLocaleString()}</span>
                             <span><i class="ti ti-trending-up text-danger me-1"></i>Max: Rs ${parseFloat(data.max_rate).toLocaleString()}</span>
-                        </div>
+                                    </div>
                     </div>
                 `;
                 
@@ -2043,14 +2378,14 @@ $(document).ready(function() {
                             <div>
                                 <span class="fw-500">${purchase.supplier_name}</span>
                                 <span class="text-muted ms-1">(${purchase.quantity} ${purchase.unit})</span>
-                            </div>
-                            <div class="text-end">
+                                </div>
+                                <div class="text-end">
                                 <span class="fw-bold text-primary">Rs ${parseFloat(purchase.rate).toLocaleString()}</span>
                                 <span class="text-muted small d-block">${daysAgo}</span>
                             </div>
                         </div>
                     `;
-                });
+                    });
                 html += '</div>';
                 
                 if (data.history.length > 5) {
@@ -2059,8 +2394,8 @@ $(document).ready(function() {
                 
                 $('#customer-history-content').html(html);
                 $('#hold-rate-link').show();
-            },
-            error: function(xhr) {
+                },
+                error: function(xhr) {
                 console.error('Error loading purchase history:', xhr);
                 $('#customer-history-content').html(`
                     <div class="text-center py-2">
@@ -2131,11 +2466,53 @@ $(document).ready(function() {
         const itemName = cleanItemName(rawItemName, itemId);
         const warrantyValue = $('#warranty-value').val();
         const warrantyUnit = $('#warranty-unit').val();
+        const supplierId = $('#item_supplier_id').val();
+        const stockText = $('#item-search-stock').text().trim();
+        const stockValue = parseFloat(stockText) || 0;
+        const isZeroStock = stockValue === 0;
 
         if (!itemId || quantity <= 0 || rate <= 0) {
             alert('Please select an item and enter valid quantity and rate');
             return;
         }
+        
+        // If stock is 0, require supplier selection
+        if (isZeroStock && !supplierId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Supplier Required',
+                text: 'Stock is 0. Please select a supplier to proceed.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        // If supplier is selected, ask for confirmation
+        if (supplierId) {
+            const supplierName = $('#item_supplier_id option:selected').text();
+            Swal.fire({
+                icon: 'question',
+                title: 'Confirm Supplier Selection',
+                html: `You have selected supplier: <strong>${supplierName}</strong><br><br>This sale will be marked as <strong>PENDING</strong> and stock will <strong>NOT</strong> be updated.`,
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Confirm',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, supplierId, isZeroStock);
+                }
+            });
+            return;
+        }
+        
+        // If no supplier, proceed normally
+        proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, null, false);
+    });
+    
+    // Function to proceed with adding item
+    function proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, supplierId, isZeroStock) {
 
         // Calculate discount amount
         let discountAmount = discount;
@@ -2165,7 +2542,9 @@ $(document).ready(function() {
             tax_amount: taxAmount,
             total: total,
             warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
-            entry_type: currentEntryType || 'purchase'
+            entry_type: currentEntryType || 'purchase',
+            supplier_id: supplierId || null,
+            is_zero_stock: isZeroStock || false
         };
 
         salesItems.push(item);
@@ -2174,11 +2553,18 @@ $(document).ready(function() {
         $('#add-item-modal').modal('hide');
         calculateTotals();
         syncCartToServer();
+        
+        // If supplier is selected, mark sale as pending
+        if (supplierId) {
+            $('#sale-status').val('pending');
+            $('input[name="status"]').val('pending');
+        }
+        
         // Show payment section when items added
         if (salesItems.length > 0) {
             $('#payment-section').show(); $('#payment-amount-row').show();
         }
-    });
+    }
 
     function addItemToTable(item) {
         $('#empty-items-state').hide();
@@ -2246,6 +2632,10 @@ $(document).ready(function() {
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to see history</p>');
         $('#hold-rate-link').hide();
         $('#search-results').hide();
+        $('#supplier-selection-section').hide();
+        $('#item_supplier_id').val('').prop('required', false);
+        $('#item-search-stock').html('');
+        $('#item-search-image-preview').addClass('d-none');
     }
 
     function calculateTotals() {
@@ -2353,8 +2743,8 @@ $(document).ready(function() {
         const file = e.target.files[0];
         if (file) {
             if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
                     $('#payment_photo_preview_img').attr('src', e.target.result);
                     $('#payment_photo_preview').show();
                 };
@@ -2512,6 +2902,14 @@ $(document).ready(function() {
             }
         }
 
+        // Auto-populate reference field from sales number if not already filled
+        const salesNumberText = $('#sales-number').text().trim();
+        const currentReference = $('#reference').val().trim();
+        if (!currentReference && salesNumberText) {
+            // Extract number from sales number (e.g., "SO #00004" -> "SO #00004")
+            $('#reference').val(salesNumberText);
+        }
+        
         // Prepare items data with all required fields
         const itemsData = salesItems.map(function(item) {
             // Calculate tax_amount if not present
@@ -2537,7 +2935,9 @@ $(document).ready(function() {
                 discount: discount,
                 tax_percentage: taxPercentage,
                 tax_amount: taxAmount,
-                total: total
+                total: total,
+                supplier_id: item.supplier_id || null,
+                is_zero_stock: item.is_zero_stock || false
             };
         });
 
@@ -2572,7 +2972,7 @@ $(document).ready(function() {
                     calculateTotals();
                     alert('Sale created successfully! Invoice: ' + (response.invoice_no || response.sale?.invoice_no || ''));
                     window.location.href = '{{ route("all_sales") }}';
-                } else {
+        } else {
                     alert(response.message || 'Sale created but with warnings.');
                     window.location.href = '{{ route("all_sales") }}';
                 }
@@ -2630,13 +3030,56 @@ $(document).ready(function() {
     // Initialize Select2 for customer dropdown
     if ($('#customer_id').length && !$('#customer_id').hasClass('select2-hidden-accessible')) {
         $('#customer_id').select2({
-            placeholder: 'Search and select customer',
+            placeholder: 'SEARCH PARTY NAME / VEHICLE #...',
+            allowClear: true,
+            width: '100%',
+            minimumResultsForSearch: 0, // Always show search box
+            dropdownCssClass: 'select2-dropdown-party-search',
+            matcher: function(params, data) {
+                // If there is no search term, return all data
+                if ($.trim(params.term) === '') {
+                    return data;
+                }
+                
+                // Normalize search term
+                var term = $.trim(params.term).toLowerCase();
+                
+                // Check if search term matches the option text
+                if (data.text && data.text.toLowerCase().indexOf(term) !== -1) {
+                    return data;
+                }
+                
+                // Check if search term matches data-search-text attribute
+                var $option = $(data.element);
+                var searchText = $option.data('search-text') || '';
+                if (searchText && searchText.indexOf(term) !== -1) {
+                    return data;
+                }
+                
+                // No match
+                return null;
+            },
+            language: {
+                noResults: function() {
+                    return "No customer or vehicle found";
+                },
+                searching: function() {
+                    return "Searching...";
+                }
+            }
+        });
+    }
+    
+    // Initialize Select2 for party name search (only party names)
+    if ($('#party_name_search').length && !$('#party_name_search').hasClass('select2-hidden-accessible')) {
+        $('#party_name_search').select2({
+            placeholder: 'SEARCH PARTY NAME...',
             allowClear: true,
             width: '100%',
             minimumResultsForSearch: 0, // Always show search box
             language: {
                 noResults: function() {
-                    return "No customer found";
+                    return "No party name found";
                 },
                 searching: function() {
                     return "Searching...";
@@ -2652,6 +3095,7 @@ $(document).ready(function() {
             allowClear: true,
             width: '100%',
             minimumResultsForSearch: 0, // Always show search box
+            dropdownParent: $('#customer_mobile').parent(),
             language: {
                 noResults: function() {
                     return "No mobile number found";
@@ -2663,47 +3107,73 @@ $(document).ready(function() {
         });
     }
     
-    // E/O Toggle Switch Handler
-    let isEstimate = true; // Default to Estimate (E)
+    // 3-in-One Toggle Switch Handler (S/E/O)
+    // Position 1 (left, 3px) = Sale (S) - Blue (#2563eb)
+    // Position 2 (middle, 28px) = Estimate (E) - Yellow (#ffc107)
+    // Position 3 (right, 53px) = Order (O) - Green (#198754)
+    let toggleState = 0; // 0 = Sale, 1 = Estimate, 2 = Order
+    
+    // Initialize toggle to Sale (S) position on page load
+    function initializeToggleToSale() {
+        const $toggle = $('#estimate-order-toggle');
+        const $slider = $toggle.find('.switch-slider');
+        
+        // Set to Sale (S) position - left side
+        $slider.css('left', '3px');
+        $toggle.css('background', '#2563eb');
+        $('#sale-status').val('pending');
+        
+        // Ensure sales number shows INV #
+        const $salesNumber = $('#sales-number');
+        const currentNumber = $salesNumber.text();
+        if (currentNumber.includes('EST #')) {
+            $salesNumber.text(currentNumber.replace('EST #', 'INV #'));
+        } else if (currentNumber.includes('SO #')) {
+            $salesNumber.text(currentNumber.replace('SO #', 'INV #'));
+        } else if (currentNumber.includes('SALE #')) {
+            $salesNumber.text(currentNumber.replace('SALE #', 'INV #'));
+        }
+        
+        // Update page title and button
+        if ($('#page-title-text').length) {
+            $('#page-title-text').text('Create Sales');
+        }
+        
+        if ($('#submit-sale-btn').length) {
+            $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Sale');
+        }
+        
+        // Show payment section if items are added
+        if (salesItems.length > 0) {
+            $('#payment-section').show();
+        }
+    }
+    
+    // Initialize on page load
+    $(document).ready(function() {
+        initializeToggleToSale();
+    });
     
     $('#estimate-order-toggle').on('click', function() {
-        isEstimate = !isEstimate;
+        toggleState = (toggleState + 1) % 3; // Cycle through 0, 1, 2
         const $toggle = $(this);
         const $slider = $toggle.find('.switch-slider');
-        const $indicatorE = $toggle.find('.switch-indicators span').first();
-        const $indicatorO = $toggle.find('.switch-indicators span').last();
         const $salesNumber = $('#sales-number');
         
-        if (isEstimate) {
-            // Switch to Estimate (E) - left position
+        if (toggleState === 0) {
+            // Position 1: Sale (S) - left position (blue)
             $slider.css('left', '3px');
-            $toggle.css('background', '#e0e0e0');
-            $indicatorE.css('color', '#666');
-            $indicatorO.css('color', '#666');
-            $('#sale-status').val('estimate');
-            
-            // Convert to Quotation
-            const currentNumber = $salesNumber.text();
-            if (currentNumber.includes('INV #')) {
-                $salesNumber.text(currentNumber.replace('INV #', 'QUOT #'));
-            }
-            $('#page-title-text').text('Create Quotation');
-            $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Quotation');
-            
-            // Hide payment section for quotations
-            $('#payment-section').hide();
-        } else {
-            // Switch to Order (O) - right position
-            $slider.css('left', '33px'); // 60px width - 24px slider - 3px margin = 33px
-            $toggle.css('background', '#0d6efd');
-            $indicatorE.css('color', '#fff');
-            $indicatorO.css('color', '#fff');
+            $toggle.css('background', '#2563eb');
             $('#sale-status').val('pending');
             
             // Convert to Sale/Invoice
             const currentNumber = $salesNumber.text();
-            if (currentNumber.includes('QUOT #')) {
-                $salesNumber.text(currentNumber.replace('QUOT #', 'INV #'));
+            if (currentNumber.includes('EST #')) {
+                $salesNumber.text(currentNumber.replace('EST #', 'INV #'));
+            } else if (currentNumber.includes('SO #')) {
+                $salesNumber.text(currentNumber.replace('SO #', 'INV #'));
+            } else if (currentNumber.includes('SALE #')) {
+                $salesNumber.text(currentNumber.replace('SALE #', 'INV #'));
             }
             $('#page-title-text').text('Create Sales');
             $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Sale');
@@ -2712,9 +3182,53 @@ $(document).ready(function() {
             if (salesItems.length > 0) {
                 $('#payment-section').show();
             }
+            
+        } else if (toggleState === 1) {
+            // Position 2: Estimate (E) - middle position (yellow)
+            $slider.css('left', '28px'); // Middle position (80px width / 3 ≈ 28px)
+            $toggle.css('background', '#ffc107');
+            $('#sale-status').val('estimate');
+            
+            // Convert to Estimate
+            const currentNumber = $salesNumber.text();
+            if (currentNumber.includes('INV #')) {
+                $salesNumber.text(currentNumber.replace('INV #', 'EST #'));
+            } else if (currentNumber.includes('SO #')) {
+                $salesNumber.text(currentNumber.replace('SO #', 'EST #'));
+            } else if (currentNumber.includes('SALE #')) {
+                $salesNumber.text(currentNumber.replace('SALE #', 'EST #'));
+            }
+            $('#page-title-text').text('Create Estimate');
+            $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Estimate');
+            
+            // Hide payment section for estimates
+            $('#payment-section').hide();
+            
+        } else if (toggleState === 2) {
+            // Position 3: Order (O) - right position (green)
+            $slider.css('left', '53px'); // Right position (80px width - 24px slider - 3px margin = 53px)
+            $toggle.css('background', '#198754');
+            $('#sale-status').val('pending');
+            
+            // Convert to Sale Order
+            const currentNumber = $salesNumber.text();
+            if (currentNumber.includes('INV #')) {
+                $salesNumber.text(currentNumber.replace('INV #', 'SO #'));
+            } else if (currentNumber.includes('EST #')) {
+                $salesNumber.text(currentNumber.replace('EST #', 'SO #'));
+            } else if (currentNumber.includes('SALE #')) {
+                $salesNumber.text(currentNumber.replace('SALE #', 'SO #'));
+            }
+            $('#page-title-text').text('Create Sale Order');
+            $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Sale Order');
+            
+            // Show payment section if items are added
+            if (salesItems.length > 0) {
+                $('#payment-section').show();
+            }
         }
         
-        console.log('Toggle switched to:', isEstimate ? 'Estimate/Quotation' : 'Order/Sale');
+        console.log('Toggle switched to:', toggleState === 0 ? 'Sale (S)' : toggleState === 1 ? 'Estimate (E)' : 'Order (O)');
     });
     
     // Vehicle Management
@@ -2969,4 +3483,160 @@ $(document).ready(function() {
 });
 </script>
 @endpush
+
+{{-- Customer Edit Modal --}}
+<div class="modal fade" id="editCustomerModal" tabindex="-1" aria-labelledby="editCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="editCustomerModalLabel">Edit Customer</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editCustomerForm" method="POST" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="row g-3 p-3">
+                        <!-- Visiting Document -->
+                        <div class="col-md-6">
+                            <label for="edit_visiting_doc" class="form-label">Visiting Document</label>
+                            <div class="position-relative">
+                                <input type="file" name="visiting_doc" id="edit_visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                            </div>
+                            <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
+                            <div id="edit_visiting_doc_preview" style="display: none; margin-top: 10px;"></div>
+                        </div>
+
+                        <!-- Profile Image -->
+                        <div class="col-md-6">
+                            <label for="edit_profile_img" class="form-label">Profile Image</label>
+                            <div class="position-relative">
+                                <input type="file" name="profile_img" id="edit_profile_img" accept="image/*" class="form-control">
+                            </div>
+                            <small class="form-text text-muted">Click to upload profile image</small>
+                            <div id="edit_profile_img_preview" style="display: none; margin-top: 10px;">
+                                <img id="edit_profile_img_display" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px;">
+                            </div>
+                        </div>
+
+                        <!-- Name & Phone -->
+                        <div class="col-12">
+                            <div id="edit_namePhoneContainer">
+                                <div class="row g-3 mb-3 align-items-end name-phone-row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" name="names[]" id="edit_customer_names" class="form-control" placeholder="Enter name" required>
+                                            <button type="button" class="btn btn-danger remove-row" style="display:none;">
+                                                <i class="ti ti-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">WhatsApp Number</label>
+                                        <input type="text" name="phones[]" id="edit_customer_phones" class="form-control" placeholder="Enter phone number" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" id="edit_add_more_name_phone" class="btn btn-sm btn-primary">
+                                <i class="ti ti-plus me-1"></i> Add More Name & Phone
+                            </button>
+                        </div>
+
+                        <!-- Company -->
+                        <div class="col-md-6">
+                            <label for="edit_customer_company" class="form-label">Company</label>
+                            <input type="text" name="company" id="edit_customer_company" class="form-control">
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            <label for="edit_customer_email" class="form-label">Email</label>
+                            <input type="email" name="email" id="edit_customer_email" class="form-control">
+                        </div>
+
+                        <!-- Address -->
+                        <div class="col-md-6">
+                            <label for="edit_customer_address" class="form-label">Address</label>
+                            <input type="text" name="address" id="edit_customer_address" class="form-control">
+                        </div>
+
+                        <!-- Area -->
+                        <div class="col-md-6">
+                            <label for="edit_customer_area" class="form-label">Area</label>
+                            <input type="text" name="area" id="edit_customer_area" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="spinner-border spinner-border-sm d-none me-2"></span>
+                        Update Customer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Handle customer edit form submission
+    $('#editCustomerForm').on('submit', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const submitBtn = form.find('button[type="submit"]');
+        const spinner = submitBtn.find('.spinner-border');
+        
+        // Show loading
+        submitBtn.prop('disabled', true);
+        spinner.removeClass('d-none');
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-HTTP-Method-Override': 'PUT'
+            },
+            success: function(response) {
+                submitBtn.prop('disabled', false);
+                spinner.addClass('d-none');
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: 'Customer updated successfully!',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    $('#editCustomerModal').modal('hide');
+                    // Reload page to refresh customer data
+                    location.reload();
+                });
+            },
+            error: function(xhr) {
+                submitBtn.prop('disabled', false);
+                spinner.addClass('d-none');
+                
+                let errorMessage = 'Failed to update customer.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorMessage,
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    });
+</script>
+
 @endsection

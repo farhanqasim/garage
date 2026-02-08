@@ -12,6 +12,9 @@
 
          
             <div class="page-btn">
+                <a href="{{ route('home') }}" class="btn btn-secondary me-2">
+                    <i class="ti ti-arrow-left me-1"></i>Back
+                </a>
                 <a href="" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
                         class="ti ti-circle-plus me-1"></i>Add</a>
             </div>

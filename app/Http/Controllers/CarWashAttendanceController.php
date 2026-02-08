@@ -20,14 +20,31 @@ class CarWashAttendanceController extends Controller
     public function employees()
     {
         $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
 
         $query = CarWashWorker::query();
         $this->applyBranchFilter($query, 'branch_id', $user);
         $workers = $query->where('status', true)->orderBy('name', 'asc')->get(['id', 'name', 'branch_id'])
             ->map(fn ($w) => ['id' => 'worker_' . $w->id, 'employeeId' => (string) $w->id, 'name' => $w->name, 'type' => 'worker']);
 
-        $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser'])
-            ->orderBy('name', 'asc')
+        // Filter users by branch: only show users from logged-in user's branch
+        $usersQuery = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser']);
+        
+        if ($branchId) {
+            // Show users where branch_id matches OR user is assigned to this branch
+            $usersQuery->where(function($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhereHas('assignedBranches', function($query) use ($branchId) {
+                      $query->where('branch_id', $branchId);
+                  });
+            });
+        } else {
+            // If no branch, only show users with no branch_id and no assigned branches
+            $usersQuery->whereNull('branch_id')
+                      ->whereDoesntHave('assignedBranches');
+        }
+        
+        $users = $usersQuery->orderBy('name', 'asc')
             ->get(['id', 'name'])
             ->map(fn ($u) => ['id' => 'user_' . $u->id, 'employeeId' => (string) $u->id, 'name' => $u->name, 'type' => 'user']);
 
@@ -476,9 +493,24 @@ class CarWashAttendanceController extends Controller
         $this->applyBranchFilter($workersQuery, 'branch_id', $user);
         $workers = $workersQuery->where('status', true)->orderBy('name', 'asc')->get(['id', 'name']);
 
-        $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser'])
-            ->orderBy('name', 'asc')
-            ->get(['id', 'name']);
+        // Filter users by branch: only show users from logged-in user's branch
+        $usersQuery = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser']);
+        
+        if ($branchId) {
+            // Show users where branch_id matches OR user is assigned to this branch
+            $usersQuery->where(function($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhereHas('assignedBranches', function($query) use ($branchId) {
+                      $query->where('branch_id', $branchId);
+                  });
+            });
+        } else {
+            // If no branch, only show users with no branch_id and no assigned branches
+            $usersQuery->whereNull('branch_id')
+                      ->whereDoesntHave('assignedBranches');
+        }
+        
+        $users = $usersQuery->orderBy('name', 'asc')->get(['id', 'name']);
 
         return view('attendance-history', [
             'completed' => $completed,

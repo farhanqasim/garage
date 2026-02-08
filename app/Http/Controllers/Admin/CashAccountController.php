@@ -9,17 +9,39 @@ use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CashAccountController extends Controller
 {
+    use HasBranchAccess;
+
     /**
      * Display a listing of all cash accounts
      */
     public function index()
     {
-        $cashAccounts = CashAccount::with('user')
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        $user = Auth::user();
+        $query = CashAccount::with('user');
+
+        // If admin, show all cash accounts. If branch user, show only their branch users' accounts
+        if ($user->role !== 'admin') {
+            $branchId = $this->getUserBranchId($user);
+            
+            if ($branchId) {
+                // Filter cash accounts where user belongs to this branch
+                $query->whereHas('user', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId)
+                      ->orWhereHas('assignedBranches', function($subQ) use ($branchId) {
+                          $subQ->where('branch_id', $branchId);
+                      });
+                });
+            } else {
+                // If no branch, show empty result
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        $cashAccounts = $query->orderBy('created_at', 'desc')->paginate(15);
 
         return view('admin.cash-accounts.index', compact('cashAccounts'));
     }
