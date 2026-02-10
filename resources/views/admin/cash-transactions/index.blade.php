@@ -29,7 +29,7 @@
                             <option value="">All Users</option>
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>
-                                    {{ $user->name }} ({{ $user->email }})
+                                    {{ $user->name }} ({{ $user->email }})@if($user->role ?? null) - {{ ucwords(str_replace('_', ' ', $user->role)) }}@endif
                                 </option>
                             @endforeach
                         </select>

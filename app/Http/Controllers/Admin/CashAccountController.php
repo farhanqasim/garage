@@ -76,7 +76,8 @@ class CashAccountController extends Controller
                     $query->whereHas('assignedBranches', function($q) use ($branchId) {
                         $q->where('branch_id', $branchId);
                     })
-                    ->orWhere('branch_id', $branchId);
+                    ->orWhere('branch_id', $branchId)
+                    ->orWhere('role', 'admin');
                 })
                 ->orderBy('name', 'asc')
                 ->get();
@@ -88,7 +89,8 @@ class CashAccountController extends Controller
                         $query->whereHas('assignedBranches', function($q) use ($assignedBranch) {
                             $q->where('branch_id', $assignedBranch->id);
                         })
-                        ->orWhere('branch_id', $assignedBranch->id);
+                        ->orWhere('branch_id', $assignedBranch->id)
+                        ->orWhere('role', 'admin');
                     })
                     ->orderBy('name', 'asc')
                     ->get();

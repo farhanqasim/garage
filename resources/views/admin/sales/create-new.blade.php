@@ -741,6 +741,147 @@
                     </div>
                     </div>
 
+<!-- Delivery Entry Modal -->
+<div class="modal fade" id="delivery-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-2" style="background-color: #f97316; color: white;">
+                <h5 class="modal-title fw-bold">
+                    <i class="ti ti-truck me-2"></i>DELIVERY ENTRY
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- NEW WORKER Section with Profile Upload -->
+                <div class="mb-4 p-3 rounded" style="background: #f0f9ff; border: 2px solid #0ea5e9;">
+                    <h6 class="fw-bold mb-3 text-uppercase" style="color: #0ea5e9; font-size: 14px;">
+                        <i class="ti ti-user-plus me-2"></i>NEW WORKER
+                    </h6>
+                    
+                    <!-- Worker Profile Upload -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2" style="color: #0ea5e9;">
+                            <i class="ti ti-photo me-1"></i>Worker Profile Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff; transition: all 0.3s ease; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#e0f2fe'; this.style.borderColor='#0284c7';" onmouseout="this.style.backgroundColor='#f0f9ff'; this.style.borderColor='#0ea5e9';">
+                            <i class="ti ti-user-circle text-3xl text-primary mb-2 d-block" id="worker-profile-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-primary" id="worker-profile-text-placeholder">Click to Upload Worker Profile</p>
+                            <input type="file" id="worker-profile-photo" accept="image/*" class="d-none" onchange="handleWorkerProfilePhoto(this)">
+                            <div id="worker-profile-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(240, 249, 255, 0.95); border-radius: 8px; padding: 10px;">
+                                <img id="worker-profile-preview-img" src="" alt="Worker Profile" style="max-width: 100%; max-height: 100%; border-radius: 8px; object-fit: cover;">
+                            </div>
+                        </label>
+                        <small class="text-muted d-block mt-2">Upload profile photo of the main worker</small>
+                    </div>
+                    
+                    <!-- Worker Name -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">Worker Name</label>
+                        <input type="text" id="worker-name" class="form-control" placeholder="Enter worker name">
+                    </div>
+                    
+                    <!-- Worker Mobile -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">Worker Mobile Number</label>
+                        <input type="tel" id="worker-mobile" class="form-control" placeholder="03xx-xxxxxxx">
+                    </div>
+                </div>
+                
+                <div id="delivery-items-list" class="mb-3" style="display: none;">
+                    <label class="form-label fw-bold mb-2">
+                        <i class="ti ti-package me-1"></i>Items to Deliver:
+                    </label>
+                    <div class="card border-primary" style="border-radius: 8px; max-height: 200px; overflow-y: auto;">
+                        <div class="card-body p-2">
+                            <ul id="delivery-items-ul" class="mb-0" style="list-style: none; padding: 0;">
+                                <!-- Items will be populated here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Delivery Fare (Rs)</label>
+                    <input type="number" id="delivery-fare" class="form-control" value="0" step="0.01" min="0" placeholder="Enter delivery charges">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Rider Mobile Number</label>
+                    <input type="tel" id="delivery-rider-mobile" class="form-control" placeholder="03xx-xxxxxxx">
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-truck me-1 text-blue-600"></i>Vehicle Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #3b82f6; border-radius: 8px; background-color: #eff6ff; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#dbeafe'; this.style.borderColor='#2563eb';" onmouseout="this.style.backgroundColor='#eff6ff'; this.style.borderColor='#3b82f6';">
+                            <i class="ti ti-box text-2xl text-blue-600 mb-2 d-block" id="vehicle-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-blue-600" id="vehicle-text-placeholder">Vehicle Photo</p>
+                            <input type="file" id="vehicle-photo-capture" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'vehicle')">
+                            <div id="vehicle-photo-capture-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(239, 246, 255, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-user-circle me-1 text-purple-600"></i>Rider Front Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #a855f7; border-radius: 8px; background-color: #faf5ff; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#f3e8ff'; this.style.borderColor='#9333ea';" onmouseout="this.style.backgroundColor='#faf5ff'; this.style.borderColor='#a855f7';">
+                            <i class="ti ti-user-circle text-2xl text-purple-600 mb-2 d-block" id="rider-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-purple-600" id="rider-text-placeholder">Rider Photo</p>
+                            <input type="file" id="vehicle-rider-photo" accept="image/*" capture="user" class="d-none" onchange="handleVehiclePhoto(this, 'rider')">
+                            <div id="vehicle-rider-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(250, 245, 255, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-id me-1 text-green-600"></i>ID Card Front Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #10b981; border-radius: 8px; background-color: #f0fdf4; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#dcfce7'; this.style.borderColor='#059669';" onmouseout="this.style.backgroundColor='#f0fdf4'; this.style.borderColor='#10b981';">
+                            <i class="ti ti-id text-2xl text-green-600 mb-2 d-block" id="id-front-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-green-600" id="id-front-text-placeholder">ID Card Front</p>
+                            <input type="file" id="id-card-front-photo" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'id-front')">
+                            <div id="id-card-front-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(240, 253, 244, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-id me-1 text-orange-600"></i>ID Card Back Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #f97316; border-radius: 8px; background-color: #fff7ed; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#ffedd5'; this.style.borderColor='#ea580c';" onmouseout="this.style.backgroundColor='#fff7ed'; this.style.borderColor='#f97316';">
+                            <i class="ti ti-id text-2xl text-orange-600 mb-2 d-block" id="id-back-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-orange-600" id="id-back-text-placeholder">ID Card Back</p>
+                            <input type="file" id="id-card-back-photo" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'id-back')">
+                            <div id="id-card-back-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(255, 247, 237, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-truck-delivery me-1 text-red-600"></i>Current Vehicle Photo (If Vehicle Changed)
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #ef4444; border-radius: 8px; background-color: #fef2f2; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#fee2e2'; this.style.borderColor='#dc2626';" onmouseout="this.style.backgroundColor='#fef2f2'; this.style.borderColor='#ef4444';">
+                            <i class="ti ti-truck-delivery text-2xl text-red-600 mb-2 d-block" id="current-vehicle-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-red-600" id="current-vehicle-text-placeholder">Current Vehicle Photo</p>
+                            <input type="file" id="current-vehicle-photo" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'current-vehicle')">
+                            <div id="current-vehicle-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(254, 242, 242, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info fw-bold" id="share-delivery-link-btn" style="border-radius: 8px; padding: 10px 20px;">
+                    <i class="ti ti-share me-1"></i>Share Link
+                </button>
+                <button type="button" class="btn btn-primary fw-bold" id="confirm-delivery-btn" style="background-color: #f97316; border-radius: 8px; padding: 10px 30px;">
+                    CONFIRM DELIVERY
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('styles')
 <style>
     .filter-chip {
@@ -3479,6 +3620,295 @@ $(document).ready(function() {
                 value: vehicle.year
             }).appendTo('#salesForm');
         });
+    });
+    
+    // ========== Delivery Entry Functions ==========
+    
+    // Delivery entry - open modal
+    $('#delivery-entry-btn').on('click', function() {
+        $('#delivery-modal').modal('show');
+    });
+    
+    // Handle worker profile photo upload
+    window.handleWorkerProfilePhoto = function(input) {
+        const preview = $('#worker-profile-photo-preview');
+        const icon = $('#worker-profile-icon-placeholder');
+        const text = $('#worker-profile-text-placeholder');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageUrl = e.target.result;
+                $('#worker-profile-preview-img').attr('src', imageUrl);
+                preview.css('display', 'flex');
+                icon.hide();
+                text.hide();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+    
+    // Click handler for worker profile upload label
+    $(document).on('click', 'label[for="worker-profile-photo"], label:has(#worker-profile-photo)', function(e) {
+        e.preventDefault();
+        $('#worker-profile-photo').click();
+    });
+    
+    // Handle vehicle photo uploads
+    window.handleVehiclePhoto = function(input, type) {
+        let previewId, iconId, textId;
+        if (type === 'vehicle') {
+            previewId = 'vehicle-photo-capture-preview';
+            iconId = 'vehicle-icon-placeholder';
+            textId = 'vehicle-text-placeholder';
+        } else if (type === 'rider') {
+            previewId = 'vehicle-rider-photo-preview';
+            iconId = 'rider-icon-placeholder';
+            textId = 'rider-text-placeholder';
+        } else if (type === 'id-front') {
+            previewId = 'id-card-front-photo-preview';
+            iconId = 'id-front-icon-placeholder';
+            textId = 'id-front-text-placeholder';
+        } else if (type === 'id-back') {
+            previewId = 'id-card-back-photo-preview';
+            iconId = 'id-back-icon-placeholder';
+            textId = 'id-back-text-placeholder';
+        } else if (type === 'current-vehicle') {
+            previewId = 'current-vehicle-photo-preview';
+            iconId = 'current-vehicle-icon-placeholder';
+            textId = 'current-vehicle-text-placeholder';
+        }
+        
+        const preview = $('#' + previewId);
+        const icon = $('#' + iconId);
+        const text = $('#' + textId);
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageUrl = e.target.result;
+                preview.html(`
+                    <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <img src="${imageUrl}" class="img-preview" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; padding: 5px; cursor: pointer;" onclick="window.open('${imageUrl}', '_blank')">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeVehiclePhoto('${type}')" style="position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            <i class="ti ti-x" style="font-size: 16px;"></i>
+                        </button>
+                    </div>
+                `);
+                preview.css('display', 'flex');
+                icon.hide();
+                text.hide();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+    
+    // Remove vehicle photo function
+    window.removeVehiclePhoto = function(type) {
+        let inputId, previewId, iconId, textId;
+        if (type === 'vehicle') {
+            inputId = 'vehicle-photo-capture';
+            previewId = 'vehicle-photo-capture-preview';
+            iconId = 'vehicle-icon-placeholder';
+            textId = 'vehicle-text-placeholder';
+        } else if (type === 'rider') {
+            inputId = 'vehicle-rider-photo';
+            previewId = 'vehicle-rider-photo-preview';
+            iconId = 'rider-icon-placeholder';
+            textId = 'rider-text-placeholder';
+        } else if (type === 'id-front') {
+            inputId = 'id-card-front-photo';
+            previewId = 'id-card-front-photo-preview';
+            iconId = 'id-front-icon-placeholder';
+            textId = 'id-front-text-placeholder';
+        } else if (type === 'id-back') {
+            inputId = 'id-card-back-photo';
+            previewId = 'id-card-back-photo-preview';
+            iconId = 'id-back-icon-placeholder';
+            textId = 'id-back-text-placeholder';
+        } else if (type === 'current-vehicle') {
+            inputId = 'current-vehicle-photo';
+            previewId = 'current-vehicle-photo-preview';
+            iconId = 'current-vehicle-icon-placeholder';
+            textId = 'current-vehicle-text-placeholder';
+        }
+        
+        $('#' + inputId).val('');
+        $('#' + previewId).empty().css('display', 'none');
+        $('#' + iconId).show();
+        $('#' + textId).show();
+    };
+    
+    // Confirm delivery entry
+    $('#confirm-delivery-btn').on('click', function() {
+        // Get worker profile photo
+        const workerProfilePhoto = $('#worker-profile-photo')[0].files[0] || null;
+        let workerName = $('#worker-name').val().trim() || '';
+        const workerMobile = $('#worker-mobile').val().trim() || '';
+        
+        // Save worker profile to database if profile photo or name/mobile is provided
+        if (workerProfilePhoto || workerName || workerMobile) {
+            const formData = new FormData();
+            if (workerProfilePhoto) {
+                formData.append('profile_img', workerProfilePhoto);
+            }
+            // Name is required by controller, so provide default if not given
+            if (!workerName) {
+                workerName = 'Delivery Worker ' + new Date().getTime();
+            }
+            formData.append('name', workerName);
+            if (workerMobile) {
+                formData.append('mobile', workerMobile);
+            }
+            const branchId = $('#salesBranchId').val();
+            if (branchId) {
+                formData.append('branch_id', branchId);
+            }
+            
+            // Save worker profile via AJAX
+            $.ajax({
+                url: '/car-wash/workers',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    console.log('Worker profile saved:', response);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Worker Saved!',
+                            text: 'Worker profile has been saved successfully.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error saving worker profile:', xhr);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to save worker profile. Please try again.',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Get vehicle photo details if added
+        const vehiclePhoto = $('#vehicle-photo-capture')[0].files[0] || null;
+        const vehicleRiderPhoto = $('#vehicle-rider-photo')[0].files[0] || null;
+        const idCardFrontPhoto = $('#id-card-front-photo')[0].files[0] || null;
+        const idCardBackPhoto = $('#id-card-back-photo')[0].files[0] || null;
+        const currentVehiclePhoto = $('#current-vehicle-photo')[0].files[0] || null;
+        
+        // Continue with existing delivery confirmation logic
+        const fare = parseFloat($('#delivery-fare').val()) || 0;
+        const riderMobile = $('#delivery-rider-mobile').val() || '';
+        
+        if (fare > 0) {
+            // Add delivery item to sales items
+            const deliveryItem = {
+                id: itemCounter++,
+                item_id: 'DELIVERY_' + Date.now(),
+                name: 'Delivery Service' + (riderMobile ? ' (Rider: ' + riderMobile + ')' : ''),
+                quantity: 1,
+                unit: 'Service',
+                rate: fare,
+                total: fare,
+                entry_type: 'delivery',
+                type: 'delivery',
+                rider_mobile: riderMobile,
+                worker_name: workerName,
+                worker_mobile: workerMobile,
+                worker_profile: workerProfilePhoto,
+                vehicle_photo: vehiclePhoto,
+                vehicle_rider_photo: vehicleRiderPhoto,
+                id_card_front_photo: idCardFrontPhoto,
+                id_card_back_photo: idCardBackPhoto,
+                current_vehicle_photo: currentVehiclePhoto
+            };
+            
+            salesItems.push(deliveryItem);
+            addItemToTable(deliveryItem);
+            calculateTotals();
+            $('#delivery-modal').modal('hide');
+            
+            // Reset form
+            $('#delivery-fare').val('0');
+            $('#delivery-rider-mobile').val('');
+            $('#worker-name').val('');
+            $('#worker-mobile').val('');
+            $('#worker-profile-photo').val('');
+            $('#vehicle-photo-capture').val('');
+            $('#vehicle-rider-photo').val('');
+            $('#id-card-front-photo').val('');
+            $('#id-card-back-photo').val('');
+            $('#current-vehicle-photo').val('');
+            $('#worker-profile-photo-preview').css('display', 'none');
+            $('#worker-profile-icon-placeholder').show();
+            $('#worker-profile-text-placeholder').show();
+            $('#vehicle-photo-capture-preview').empty().css('display', 'none');
+            $('#vehicle-rider-photo-preview').empty().css('display', 'none');
+            $('#id-card-front-photo-preview').empty().css('display', 'none');
+            $('#id-card-back-photo-preview').empty().css('display', 'none');
+            $('#current-vehicle-photo-preview').empty().css('display', 'none');
+            $('#vehicle-icon-placeholder').show();
+            $('#vehicle-text-placeholder').show();
+            $('#rider-icon-placeholder').show();
+            $('#rider-text-placeholder').show();
+            $('#id-front-icon-placeholder').show();
+            $('#id-front-text-placeholder').show();
+            $('#id-back-icon-placeholder').show();
+            $('#id-back-text-placeholder').show();
+            $('#current-vehicle-icon-placeholder').show();
+            $('#current-vehicle-text-placeholder').show();
+        } else {
+            alert('Please enter delivery fare');
+        }
+    });
+    
+    // Reset delivery modal when closed
+    $('#delivery-modal').on('hidden.bs.modal', function() {
+        // Hide items list
+        $('#delivery-items-list').hide();
+        $('#delivery-items-ul').empty();
+        // Reset worker fields
+        $('#worker-name').val('');
+        $('#worker-mobile').val('');
+        $('#worker-profile-photo').val('');
+        $('#worker-profile-photo-preview').css('display', 'none');
+        $('#worker-profile-icon-placeholder').show();
+        $('#worker-profile-text-placeholder').show();
+        // Reset delivery fields
+        $('#delivery-fare').val('0');
+        $('#delivery-rider-mobile').val('');
+        $('#vehicle-photo-capture').val('');
+        $('#vehicle-rider-photo').val('');
+        $('#id-card-front-photo').val('');
+        $('#id-card-back-photo').val('');
+        $('#current-vehicle-photo').val('');
+        $('#vehicle-photo-capture-preview').empty().css('display', 'none');
+        $('#vehicle-rider-photo-preview').empty().css('display', 'none');
+        $('#id-card-front-photo-preview').empty().css('display', 'none');
+        $('#id-card-back-photo-preview').empty().css('display', 'none');
+        $('#current-vehicle-photo-preview').empty().css('display', 'none');
+        $('#vehicle-icon-placeholder').show();
+        $('#vehicle-text-placeholder').show();
+        $('#rider-icon-placeholder').show();
+        $('#rider-text-placeholder').show();
+        $('#id-front-icon-placeholder').show();
+        $('#id-front-text-placeholder').show();
+        $('#id-back-icon-placeholder').show();
+        $('#id-back-text-placeholder').show();
+        $('#current-vehicle-icon-placeholder').show();
+        $('#current-vehicle-text-placeholder').show();
     });
 });
 </script>

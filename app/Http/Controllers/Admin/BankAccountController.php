@@ -65,16 +65,17 @@ class BankAccountController extends Controller
             }
         }
         
-        // Get initial users for selected branch (if branch owner)
+        // Get initial users for selected branch (if branch owner) - include admin users
         $users = collect();
         if ($selectedBranchId) {
             $users = User::where(function($query) use ($selectedBranchId) {
                 $query->where('branch_id', $selectedBranchId)
-                ->orWhereHas('assignedBranches', function($q) use ($selectedBranchId) {
-                    $q->where('branch_id', $selectedBranchId);
-                });
+                    ->orWhereHas('assignedBranches', function($q) use ($selectedBranchId) {
+                        $q->where('branch_id', $selectedBranchId);
+                    })
+                    ->orWhere('role', 'admin');
             })
-            ->select('id', 'name', 'email', 'phone')
+            ->select('id', 'name', 'email', 'phone', 'role')
             ->orderBy('name')
             ->get();
         }
@@ -155,8 +156,9 @@ class BankAccountController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.bank-accounts.index')
-                ->with('success', 'Bank account created successfully!');
+            return redirect()->route('admin.banks.index', ['tab' => 'accounts'])
+                ->with('success', 'Bank account created successfully!')
+                ->with('success_tab', 'accounts');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
@@ -243,8 +245,9 @@ class BankAccountController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.bank-accounts.index')
-                ->with('success', 'Bank account updated successfully!');
+            return redirect()->route('admin.banks.index', ['tab' => 'accounts'])
+                ->with('success', 'Bank account updated successfully!')
+                ->with('success_tab', 'accounts');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
@@ -260,21 +263,23 @@ class BankAccountController extends Controller
     {
         $bankAccount->delete();
 
-        return redirect()->route('admin.bank-accounts.index')
-            ->with('success', 'Bank account deleted successfully!');
+        return redirect()->route('admin.banks.index', ['tab' => 'accounts'])
+            ->with('success', 'Bank account deleted successfully!')
+            ->with('success_tab', 'accounts');
     }
 
     /**
      * Toggle the status of the specified bank account.
      */
-    public function toggleStatus(BankAccount $bankAccount)
+    public function toggleStatus(Request $request, BankAccount $bankAccount)
     {
         $bankAccount->update([
             'status' => !$bankAccount->status,
         ]);
 
-        return redirect()->back()
-            ->with('success', 'Bank account status updated successfully!');
+        return redirect()->route('admin.banks.index', ['tab' => 'accounts'])
+            ->with('success', 'Bank account status updated successfully!')
+            ->with('success_tab', 'accounts');
     }
     
     /**
@@ -302,11 +307,12 @@ class BankAccountController extends Controller
         
         $users = User::where(function($query) use ($branchId) {
             $query->where('branch_id', $branchId)
-            ->orWhereHas('assignedBranches', function($q) use ($branchId) {
-                $q->where('branch_id', $branchId);
-            });
+                ->orWhereHas('assignedBranches', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                })
+                ->orWhere('role', 'admin');
         })
-        ->select('id', 'name', 'email', 'phone')
+        ->select('id', 'name', 'email', 'phone', 'role')
         ->orderBy('name')
         ->get();
         
