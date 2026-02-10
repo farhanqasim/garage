@@ -176,6 +176,9 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/banks', [BankController::class, 'index'])->name('banks.index');
     Route::get('/bank-accounts', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsIndex'])->name('bank-accounts.index');
     Route::get('/bank-accounts/for-transfer', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsForTransfer'])->name('bank-accounts.for-transfer');
+    Route::get('/bank-accounts/{id}/ledger', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountLedger'])->name('bank-accounts.ledger');
+    Route::put('/bank-transactions/{id}', [\App\Http\Controllers\CarWashJobController::class, 'updateBankTransaction'])->name('bank-transactions.update');
+    Route::delete('/bank-transactions/{id}', [\App\Http\Controllers\CarWashJobController::class, 'destroyBankTransaction'])->name('bank-transactions.destroy');
     Route::post('/cash-transfers', [BankController::class, 'storeTransfer'])->name('cash-transfers.store');
 
     Route::get('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'show'])->name('inspections.show');
@@ -205,6 +208,8 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/payments/cash-method', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashMethod'])->name('payments.cash-method');
     Route::get('/payments/branch-users', [\App\Http\Controllers\CarWashPaymentController::class, 'getBranchUsers'])->name('payments.branch-users');
     Route::post('/payments/transfer-to-user', [\App\Http\Controllers\CarWashPaymentController::class, 'transferToUser'])->name('payments.transfer-to-user');
+    Route::delete('/payments/cash-transfer/{id}/delete', [\App\Http\Controllers\CarWashPaymentController::class, 'deleteCashTransfer'])->name('payments.delete-cash-transfer');
+    Route::delete('/payments/bank-transfer/{id}/delete', [\App\Http\Controllers\CarWashPaymentController::class, 'deleteBankTransfer'])->name('payments.delete-bank-transfer');
 });
 
 // ==============================
@@ -213,8 +218,10 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
 Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::resource('banks', BankController::class);
     Route::post('banks/{bank}/toggle-status', [BankController::class, 'toggleStatus'])->name('banks.toggle-status');
+    Route::post('banks/{bank}/toggle-api', [BankController::class, 'toggleApiEnabled'])->name('banks.toggle-api');
     
-    Route::resource('bank-accounts', BankAccountController::class);
+    Route::get('bank-accounts', fn(\Illuminate\Http\Request $r) => redirect()->route('admin.banks.index', array_filter(['tab' => 'accounts', 'account_type' => $r->account_type])))->name('bank-accounts.index');
+    Route::resource('bank-accounts', BankAccountController::class)->except(['index']);
     Route::post('bank-accounts/{bankAccount}/toggle-status', [BankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
     Route::get('bank-accounts/branch/{branchId}/users', [BankAccountController::class, 'getUsersByBranch'])->name('bank-accounts.branch-users');
     

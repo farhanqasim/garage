@@ -1,21 +1,19 @@
 @extends('layouts.app')
 @section('title', __('Create Bank'))
 @section('content')
-    <div class="content">
-        <div class="page-header">
-            <div class="page-title">
-                <h2 class="fw-bold">Create Bank</h2>
-            </div>
-            <div class="page-btn">
-                <a href="{{ route('admin.banks.index') }}" class="btn btn-secondary">
-                    <i class="ti ti-arrow-left me-1"></i>Back
-                </a>
-            </div>
-        </div>
+@include('admin.partials.vyapar-bank-style')
+<div class="content vyapar-bank-page">
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <h2><i class="ti ti-building-bank"></i> Add Bank</h2>
+        <a href="{{ route('admin.banks.index') }}" class="btn btn-primary">
+            <i class="ti ti-arrow-left me-1"></i>Back
+        </a>
+    </div>
 
-        <div class="card">
-            <div class="card-body">
-                <form action="{{ route('admin.banks.store') }}" method="POST">
+    <div class="card vyapar-form-card">
+        <div class="card-header">Bank Details</div>
+        <div class="card-body">
+                <form action="{{ route('admin.banks.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
 
                     <div class="row">
@@ -43,6 +41,23 @@
                                        name="short_name" 
                                        value="{{ old('short_name') }}">
                                 @error('short_name')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="logo" class="form-label">Bank Logo (optional)</label>
+                                <input type="file" 
+                                       class="form-control @error('logo') is-invalid @enderror" 
+                                       id="logo" 
+                                       name="logo" 
+                                       accept="image/*">
+                                <small class="form-text text-muted">Upload bank logo. Shown in bank accounts list.</small>
+                                @error('logo')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -87,12 +102,12 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-check me-1"></i>Create Bank
                         </button>
-                        <a href="{{ route('admin.banks.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.banks.index') }}" class="btn btn-outline-secondary">
                             <i class="ti ti-x me-1"></i>Cancel
                         </a>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
+</div>
 @endsection

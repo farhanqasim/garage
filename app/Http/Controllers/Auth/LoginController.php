@@ -53,8 +53,10 @@ class LoginController extends Controller
     {
         // Get all active branches for the dropdown
         $branches = Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get();
+        // Get users with email for username dropdown (login)
+        $users = User::whereNotNull('email')->where('email', '!=', '')->orderBy('name', 'asc')->get(['id', 'name', 'email']);
         
-        return view('auth.login', compact('branches'));
+        return view('auth.login', compact('branches', 'users'));
     }
     
     /**
@@ -510,7 +512,6 @@ class LoginController extends Controller
 
         return response()->json([
             'has_pattern' => !empty($user->pattern_lock),
-            'pattern' => $user->pattern_lock, // Return pattern for verification
             'message' => $user->pattern_lock ? 'Pattern is set' : 'Pattern not set'
         ]);
     }
@@ -541,10 +542,7 @@ class LoginController extends Controller
      */
     public function savePattern(Request $request)
     {
-        // Ensure JSON response even on errors
-        if (!$request->wantsJson() && !$request->expectsJson()) {
-        $request->headers->set('Accept', 'application/json');
-        }
+        $isAjax = $request->ajax() || $request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest';
 
         try {
             // Manual validation to avoid HTML error pages
@@ -554,39 +552,35 @@ class LoginController extends Controller
             if ($pattern !== null && $pattern !== '') {
                 // Check if pattern matches format (comma-separated numbers 0-8)
                 if (!preg_match('/^[0-8](,[0-8])*$/', $pattern)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Invalid pattern format. Pattern must be comma-separated numbers (0-8).'
-                    ], 422)->header('Content-Type', 'application/json');
+                    return $isAjax
+                        ? response()->json(['success' => false, 'message' => 'Invalid pattern format.'])->header('Content-Type', 'application/json')
+                        : redirect()->back()->withErrors(['pattern' => 'Invalid pattern format.']);
                 }
                 
                 // Validate pattern has at least 3 dots
                 $patternArray = explode(',', $pattern);
                 if (count($patternArray) < 3) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Pattern must have at least 3 dots'
-                    ], 422)->header('Content-Type', 'application/json');
+                    return $isAjax
+                        ? response()->json(['success' => false, 'message' => 'Pattern must have at least 3 dots'])->header('Content-Type', 'application/json')
+                        : redirect()->back()->withErrors(['pattern' => 'Pattern must have at least 3 dots']);
                 }
                 
                 // Validate each dot is between 0-8
                 foreach ($patternArray as $dot) {
                     $dotNum = intval(trim($dot));
                     if ($dotNum < 0 || $dotNum > 8) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Invalid pattern. Dots must be between 0-8.'
-                        ], 422)->header('Content-Type', 'application/json');
+                        return $isAjax
+                            ? response()->json(['success' => false, 'message' => 'Invalid pattern.'])->header('Content-Type', 'application/json')
+                            : redirect()->back()->withErrors(['pattern' => 'Invalid pattern.']);
                     }
                 }
             }
 
             $user = Auth::user();
             if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not authenticated'
-                ], 401)->header('Content-Type', 'application/json');
+                return $isAjax
+                    ? response()->json(['success' => false, 'message' => 'User not authenticated'], 401)->header('Content-Type', 'application/json')
+                    : redirect()->route('login')->withErrors(['pattern' => 'Please login again.']);
             }
             
             // If pattern is empty string, clear it
@@ -594,33 +588,32 @@ class LoginController extends Controller
                 $user->pattern_lock = null;
                 $message = 'Pattern cleared successfully';
             } else {
-                $user->pattern_lock = $pattern;
-                $message = 'Pattern saved successfully';
+                try {
+                    $user->pattern_lock = encrypt($pattern);
+                } catch (\Exception $e) {
+                    Log::warning('Pattern encrypt failed, storing plain: ' . $e->getMessage());
+                    $user->pattern_lock = $pattern; // Fallback if APP_KEY missing
+                }
+                $message = 'Pattern saved successfully! You can now use it to login.';
             }
 
             $user->save();
 
-            return response()->json([
-                'success' => true,
-                'message' => $message
-            ])->header('Content-Type', 'application/json');
+            return $isAjax
+                ? response()->json(['success' => true, 'message' => $message])->header('Content-Type', 'application/json')
+                : redirect()->back()->with('success', $message);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage(),
-                'errors' => $e->errors()
-            ], 422)->header('Content-Type', 'application/json');
+            return $isAjax
+                ? response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422)->header('Content-Type', 'application/json')
+                : redirect()->back()->withErrors($e->errors());
             
         } catch (\Exception $e) {
-            \Log::error('Pattern save error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while saving pattern: ' . $e->getMessage()
-            ], 500)->header('Content-Type', 'application/json');
+            Log::error('Pattern save error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $errMsg = 'An error occurred while saving pattern.';
+            return $isAjax
+                ? response()->json(['success' => false, 'message' => $errMsg], 500)->header('Content-Type', 'application/json')
+                : redirect()->back()->withErrors(['pattern' => $errMsg]);
         }
     }
 
@@ -629,59 +622,49 @@ class LoginController extends Controller
      */
     public function saveFingerprint(Request $request)
     {
-        // Ensure JSON response even on errors
-        if (!$request->wantsJson() && !$request->expectsJson()) {
-            $request->headers->set('Accept', 'application/json');
-        }
-        
+        $isAjax = $request->ajax() || $request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest';
+
         try {
-        $request->validate([
-            'fingerprint_data' => 'nullable|string'
-        ]);
-
-        $user = Auth::user();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not authenticated'
-                ], 401)->header('Content-Type', 'application/json');
-        }
-
-        $fingerprintData = $request->input('fingerprint_data');
-        
-        // If fingerprint_data is empty string, clear it
-        if (empty($fingerprintData)) {
-            $user->fingerprint_data = null;
-            $message = 'Fingerprint cleared successfully';
-        } else {
-            // Encrypt fingerprint data before storing
-            $user->fingerprint_data = encrypt($fingerprintData);
-            $message = 'Fingerprint saved successfully';
-        }
-
-        $user->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => $message
-            ])->header('Content-Type', 'application/json');
-            
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422)->header('Content-Type', 'application/json');
-            
-        } catch (\Exception $e) {
-            \Log::error('Fingerprint save error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            $request->validate([
+                'fingerprint_data' => 'nullable|string'
             ]);
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while saving fingerprint: ' . $e->getMessage()
-            ], 500)->header('Content-Type', 'application/json');
+
+            $user = Auth::user();
+            if (!$user) {
+                return $isAjax
+                    ? response()->json(['success' => false, 'message' => 'User not authenticated'], 401)->header('Content-Type', 'application/json')
+                    : redirect()->route('login')->withErrors(['fingerprint' => 'Please login again.']);
+            }
+
+            $fingerprintData = $request->input('fingerprint_data');
+
+            // If fingerprint_data is empty string, clear it
+            if (empty($fingerprintData)) {
+                $user->fingerprint_data = null;
+                $message = 'Fingerprint cleared successfully';
+            } else {
+                // Encrypt fingerprint data before storing
+                $user->fingerprint_data = encrypt($fingerprintData);
+                $message = 'Fingerprint saved successfully! You can now use it to login.';
+            }
+
+            $user->save();
+
+            return $isAjax
+                ? response()->json(['success' => true, 'message' => $message])->header('Content-Type', 'application/json')
+                : redirect()->back()->with('success', $message);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $isAjax
+                ? response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422)->header('Content-Type', 'application/json')
+                : redirect()->back()->withErrors($e->errors());
+
+        } catch (\Exception $e) {
+            Log::error('Fingerprint save error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $errMsg = 'An error occurred while saving fingerprint.';
+            return $isAjax
+                ? response()->json(['success' => false, 'message' => $errMsg], 500)->header('Content-Type', 'application/json')
+                : redirect()->back()->withErrors(['fingerprint' => $errMsg]);
         }
     }
 
@@ -704,8 +687,20 @@ class LoginController extends Controller
                 ->withErrors(['email' => 'These credentials do not match our records.']);
         }
 
-        // Check if pattern matches
-        if (empty($user->pattern_lock) || $user->pattern_lock !== $request->pattern) {
+        // Decrypt stored pattern and verify
+        if (empty($user->pattern_lock)) {
+            return redirect()->back()
+                ->withInput($request->only('email'))
+                ->withErrors(['pattern' => 'Pattern not set for this user.']);
+        }
+        $storedPattern = null;
+        try {
+            $storedPattern = decrypt($user->pattern_lock);
+        } catch (\Exception $e) {
+            // Backward compatibility: encrypted value or legacy plain text
+            $storedPattern = $user->pattern_lock;
+        }
+        if ($storedPattern !== $request->pattern) {
             return redirect()->back()
                 ->withInput($request->only('email'))
                 ->withErrors(['pattern' => 'Invalid pattern.']);

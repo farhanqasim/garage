@@ -387,6 +387,7 @@ class ItemController extends Controller
 
     public function items_store(Request $request)
     {
+        // return $request->all(); 
         // Validate fields first (before transaction)
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code',
@@ -442,9 +443,9 @@ class ItemController extends Controller
             'gorup' => 'nullable|string', // Keep both for backward compatibility
             'made_in' => 'nullable|string',
             'pro_dis' => 'nullable|string',
+            'short_disc' => 'nullable|string',
             'part_number_id' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
-            'pro_dis' => 'nullable|string',
             'auto_deactive' => 'sometimes|boolean',
             'is_dead' => 'sometimes|boolean',
         ]);
@@ -485,6 +486,9 @@ class ItemController extends Controller
             if ($request->has('technology') && !isset($data['technology'])) {
                 $data['technology'] = $request->input('technology');
             }
+            // Ensure short_disc and pro_dis (descriptions) are always passed from request
+            $data['short_disc'] = $request->input('short_disc', $data['short_disc'] ?? null);
+            $data['pro_dis'] = $request->input('pro_dis', $data['pro_dis'] ?? null);
 
             /* ============================
             ✅ Barcode Generation
@@ -726,7 +730,7 @@ class ItemController extends Controller
            
             'unit_item'
         ])->findOrFail($id);
-       
+        // return $item;
         // All the collections you already had
         $platos     = Platos::where('status', 'active')->get();
         $amphors    = Amphor::where('status', 'active')->get();
@@ -948,6 +952,10 @@ class ItemController extends Controller
             DB::beginTransaction();
 
             $data = $validated;
+            
+            // Ensure short_disc and pro_dis are always passed from request
+            $data['short_disc'] = $request->input('short_disc');
+            $data['pro_dis'] = $request->input('pro_dis');
             
             // Ensure unit value is included if present in request (even if validation didn't catch it)
             if ($request->has('unit') && (!isset($data['unit']) || $data['unit'] === null)) {

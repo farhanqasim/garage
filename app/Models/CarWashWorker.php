@@ -12,6 +12,7 @@ class CarWashWorker extends Model
     protected $fillable = [
         'branch_id',
         'name',
+        'profile_img',
         'mobile',
         'additional_mobiles',
         'father_name',

@@ -7,7 +7,7 @@
                 <h2 class="fw-bold">Bank Account Details</h2>
             </div>
             <div class="page-btn">
-                <a href="{{ route('admin.bank-accounts.index') }}" class="btn btn-secondary">
+                <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}" class="btn btn-secondary">
                     <i class="ti ti-arrow-left me-1"></i>Back to Bank Accounts
                 </a>
             </div>
@@ -95,14 +95,14 @@
                             <div class="col-md-4">
                                 <div class="text-center p-3 bg-light rounded">
                                     <h6 class="text-muted mb-2">Opening Balance</h6>
-                                    <h4 class="mb-0">{{ number_format($bankAccount->opening_balance ?? 0, 2) }} PKR</h4>
+                                    <h4 class="mb-0">{{ number_format($bankAccount->opening_balance ?? 0, 0) }} PKR</h4>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="text-center p-3 bg-light rounded">
                                     <h6 class="text-muted mb-2">Current Balance</h6>
                                     <h4 class="mb-0 text-{{ $bankAccount->current_balance >= 0 ? 'success' : 'danger' }}">
-                                        {{ number_format($bankAccount->current_balance ?? 0, 2) }} PKR
+                                        {{ number_format($bankAccount->current_balance ?? 0, 0) }} PKR
                                     </h4>
                                 </div>
                             </div>

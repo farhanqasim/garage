@@ -39,9 +39,17 @@ class BankController extends Controller
             ]);
         }
         
-        // Otherwise return HTML view
-        $banks = Bank::orderBy('name', 'asc')->paginate(10);
-        return view('admin.banks.index', compact('banks'));
+        // Otherwise return HTML view - combined Banks + Bank Accounts (Vyapar style)
+        $banks = Bank::orderBy('name', 'asc')->paginate(10, ['*'], 'banks_page');
+        $bankAccountsQuery = BankAccount::with('bank');
+        if ($request->has('account_type') && $request->account_type) {
+            $bankAccountsQuery->where('account_type', $request->account_type);
+        }
+        $bankAccounts = $bankAccountsQuery->orderBy('bank_id', 'asc')
+            ->orderBy('is_primary', 'desc')
+            ->orderBy('account_title', 'asc')
+            ->paginate(10, ['*'], 'accounts_page');
+        return view('admin.banks.index', compact('banks', 'bankAccounts'));
     }
 
     /**
@@ -62,17 +70,26 @@ class BankController extends Controller
             'short_name' => 'nullable|string|max:255',
             'api_enabled' => 'nullable|boolean',
             'status' => 'nullable|boolean',
+            'logo' => 'nullable|file|image|max:2048',
         ]);
 
-        Bank::create([
+        $bank = Bank::create([
             'name' => $validated['name'],
             'short_name' => $validated['short_name'] ?? null,
             'api_enabled' => $validated['api_enabled'] ?? false,
             'status' => $validated['status'] ?? true,
         ]);
 
-        return redirect()->route('admin.banks.index')
-            ->with('success', 'Bank created successfully!');
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $ext = $file->getClientOriginalExtension() ?: 'png';
+            $filename = strtolower(preg_replace('/[^a-z0-9]/i', '', $bank->short_name ?? (string) $bank->id)) . '_' . time() . '.' . $ext;
+            $dir = 'assets/img/banks';
+            $file->move(public_path($dir), $filename);
+            $bank->update(['logo' => $filename]);
+        }
+
+        return redirect()->route('admin.banks.index')->with('success', 'Bank created successfully!')->with('success_tab', 'banks');
     }
 
     /**
@@ -93,6 +110,7 @@ class BankController extends Controller
             'short_name' => 'nullable|string|max:255',
             'api_enabled' => 'nullable|boolean',
             'status' => 'nullable|boolean',
+            'logo' => 'nullable|file|image|max:2048',
         ]);
 
         $bank->update([
@@ -102,8 +120,18 @@ class BankController extends Controller
             'status' => $validated['status'] ?? true,
         ]);
 
+        if ($request->hasFile('logo')) {
+            $file = $request->file('logo');
+            $ext = $file->getClientOriginalExtension() ?: 'png';
+            $filename = strtolower(preg_replace('/[^a-z0-9]/i', '', $bank->short_name ?? (string) $bank->id)) . '_' . time() . '.' . $ext;
+            $dir = 'assets/img/banks';
+            $file->move(public_path($dir), $filename);
+            $bank->update(['logo' => $filename]);
+        }
+
         return redirect()->route('admin.banks.index')
-            ->with('success', 'Bank updated successfully!');
+            ->with('success', 'Bank updated successfully!')
+            ->with('success_tab', 'banks');
     }
 
     /**
@@ -114,7 +142,8 @@ class BankController extends Controller
         $bank->delete();
 
         return redirect()->route('admin.banks.index')
-            ->with('success', 'Bank deleted successfully!');
+            ->with('success', 'Bank deleted successfully!')
+            ->with('success_tab', 'banks');
     }
 
     /**
@@ -126,8 +155,23 @@ class BankController extends Controller
             'status' => !$bank->status,
         ]);
 
-        return redirect()->back()
-            ->with('success', 'Bank status updated successfully!');
+        return redirect()->route('admin.banks.index')
+            ->with('success', 'Bank status updated successfully!')
+            ->with('success_tab', 'banks');
+    }
+
+    /**
+     * Toggle API enabled status.
+     */
+    public function toggleApiEnabled(Bank $bank)
+    {
+        $bank->update([
+            'api_enabled' => !$bank->api_enabled,
+        ]);
+
+        return redirect()->route('admin.banks.index')
+            ->with('success', 'API enabled status updated successfully!')
+            ->with('success_tab', 'banks');
     }
 
     /**
@@ -152,9 +196,17 @@ class BankController extends Controller
         $bankAccount = BankAccount::findOrFail($validated['bank_account_id']);
         $amount = (float) $validated['amount'];
 
+        // Prevent transfer to own account
+        if ($bankAccount->user_id == $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot transfer to your own account. Please select a different bank account.',
+            ], 400);
+        }
+
         return DB::transaction(function () use ($user, $bankAccount, $amount, $validated) {
             try {
-                // Get sender's bank account (logged-in user's bank account)
+                // Get sender's account (try bank type first, then cash type)
                 $senderBankAccount = BankAccount::where('user_id', $user->id)
                     ->where('account_type', 'bank')
                     ->where(function ($q) {
@@ -163,7 +215,16 @@ class BankController extends Controller
                     ->first();
                 
                 if (!$senderBankAccount) {
-                    throw new \Exception("You don't have a bank account. Please create a bank account first.");
+                    $senderBankAccount = BankAccount::where('user_id', $user->id)
+                        ->where('account_type', 'cash')
+                        ->where(function ($q) {
+                            $q->where('status', true)->orWhereNull('status');
+                        })
+                        ->first();
+                }
+                
+                if (!$senderBankAccount) {
+                    throw new \Exception("You don't have a bank or cash account linked. Please add a bank account in Admin first.");
                 }
                 
                 // Check sender's bank account balance

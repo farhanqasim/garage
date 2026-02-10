@@ -402,6 +402,8 @@
             <form method="POST" action="{{ route('all.items.store') }}" enctype="multipart/form-data" id="mainItemForm">
                 @csrf
                 <input type="hidden" name="user_id" value="{{ auth()->check() ? auth()->user()->id : '' }}">
+                <input type="hidden" name="short_disc" id="short_disc_submit" value="{{ old('short_disc') }}">
+                <input type="hidden" name="pro_dis" id="pro_dis_submit" value="{{ old('pro_dis') }}">
                 <div class="container" x-data="productForm()">
                     <!-- 4 Clickable Type Boxes -->
                     <div class="row mb-5 g-3">
@@ -1690,13 +1692,12 @@
                         </div> -->
                         <div class="col-md-12 mt-3">
                             <label for="content" class="form-label fw-bold">Short Description</label>
-                            <input name="short_disc" class="form-control" value="{{ old('short_disc') }}" />
+                            <input id="short_disc_visible" class="form-control" value="{{ old('short_disc') }}" placeholder="Enter short description" />
                         </div>
                         <!-- Description -->
                         <div class="col-md-12 mt-3">
                             <label for="content" class="form-label fw-bold">Long Description</label>
-                            <textarea id="summernote" name="pro_dis"
-                                class="form-control">{{ old('pro_dis') }}</textarea>
+                            <textarea id="summernote" class="form-control" placeholder="Write something awesome...">{{ old('pro_dis') }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -7025,6 +7026,22 @@
         // This ensures they are sent even if fields are hidden by Alpine.js
         // =========================
         $('#mainItemForm').on('submit', function(e) {
+            var $form = $(this);
+
+            // ========== SHORT DESCRIPTION & LONG DESCRIPTION ==========
+            var shortDiscVal = ($('#short_disc_visible').val() || '').trim();
+            var proDisVal = '';
+            var $summernote = $('#summernote');
+            if ($summernote.length && $summernote.data('summernote')) {
+                try {
+                    proDisVal = $summernote.summernote('code') || '';
+                } catch (err) { console.warn('Summernote sync:', err); }
+            } else {
+                proDisVal = $summernote.val() || '';
+            }
+            $('#short_disc_submit').val(shortDiscVal);
+            $('#pro_dis_submit').val(proDisVal);
+
             // Extract only unit_id from composite value (unit_id_base_unit_id format)
             // Save only the unit_id (e.g., "87" instead of "87_main")
             const unitSelectVal = $('#unit_parts').val();

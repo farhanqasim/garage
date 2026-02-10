@@ -1,27 +1,25 @@
 @extends('layouts.app')
 @section('title', __('Edit Bank Account'))
 @section('content')
-    <div class="content">
-        <div class="page-header">
-            <div class="page-title">
-                <h2 class="fw-bold">Edit Bank Account</h2>
-            </div>
-            <div class="page-btn">
-                <a href="{{ route('admin.bank-accounts.index') }}" class="btn btn-secondary">
-                    <i class="ti ti-arrow-left me-1"></i>Back
-                </a>
-            </div>
+@include('admin.partials.vyapar-bank-style')
+<div class="content vyapar-bank-page">
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <h2><i class="ti ti-wallet"></i> Edit Bank Account</h2>
+        <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}" class="btn btn-primary">
+            <i class="ti ti-arrow-left me-1"></i>Back
+        </a>
+    </div>
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+    @endif
 
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        <div class="card">
-            <div class="card-body">
+    <div class="card vyapar-form-card">
+        <div class="card-header">Bank Account Details</div>
+        <div class="card-body">
                 <form action="{{ route('admin.bank-accounts.update', $bankAccount->id) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
@@ -231,12 +229,12 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-check me-1"></i>Update Bank Account
                         </button>
-                        <a href="{{ route('admin.bank-accounts.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}" class="btn btn-outline-secondary">
                             <i class="ti ti-x me-1"></i>Cancel
                         </a>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
+</div>
 @endsection

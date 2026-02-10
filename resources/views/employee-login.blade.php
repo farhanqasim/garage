@@ -80,18 +80,6 @@
                                             @enderror
                                         </div>
 
-                                        <!-- Remember Me -->
-                                        <div class="d-flex justify-content-between">
-                                            <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="remember">Remember Me</label>
-                                        </div>
-                                        @if (Route::has('password.request'))
-                                            <div class="text-center mb-3">
-                                                <a href="{{ route('password.request') }}" class="text-primary">Forgot Your Password?</a>
-                                            </div>
-                                        @endif
-                                        </div>
                                         <!-- Submit -->
                                         <div class="form-login mb-3">
                                             <button type="submit" class="btn btn-login w-100">Sign In</button>
@@ -266,6 +254,18 @@
                                         }
                                     });
                                     
+                                    // When branch is selected, auto-focus password field
+                                    branchSelect.addEventListener('change', function() {
+                                        if (branchSelect.value) {
+                                            setTimeout(function() {
+                                                const passwordInput = document.querySelector('input[name="password"]');
+                                                if (passwordInput) {
+                                                    passwordInput.focus();
+                                                }
+                                            }, 100);
+                                        }
+                                    });
+
                                     // Form validation - prevent login if user role and no branch selected
                                     if (loginForm) {
                                         loginForm.addEventListener('submit', function(e) {

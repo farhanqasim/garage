@@ -91,10 +91,10 @@ class CarWashTransactionHistoryController extends Controller
             }
         }
 
-        // Get Cash Transactions (bank transfers from cash)
-        if (!$transactionType || $transactionType === 'all' || $transactionType === 'bank_transfer') {
+        // Get Cash Transactions (bank transfers, cash transfers, and shop expenses)
+        if (!$transactionType || $transactionType === 'all' || $transactionType === 'bank_transfer' || $transactionType === 'shop_expense') {
             $cashTransactionsQuery = CashTransaction::with(['user', 'relatedUser'])
-                ->whereIn('type', ['bank_transfer', 'cash_transfer'])
+                ->whereIn('type', ['bank_transfer', 'cash_transfer', 'shop_expense'])
                 ->orderBy('created_at', 'desc');
 
             if ($from && $to) {
@@ -126,6 +126,24 @@ class CarWashTransactionHistoryController extends Controller
                         'amount' => (float) $transaction->amount,
                         'direction' => $transaction->direction, // 'credit' or 'debit'
                         'note' => $transaction->note,
+                    ];
+                } elseif ($transaction->type === 'shop_expense') {
+                    // Get shop expense details if available
+                    $shopExpense = null;
+                    if ($transaction->reference_id && $transaction->reference_table === 'car_wash_shop_expenses') {
+                        $shopExpense = \App\Models\CarWashShopExpense::find($transaction->reference_id);
+                    }
+                    $transactions[] = [
+                        'id' => 'shop_exp_' . $transaction->id,
+                        'type' => 'shop_expense',
+                        'date' => $transaction->created_at->format('Y-m-d H:i:s'),
+                        'from_user' => $transaction->user ? $transaction->user->name : 'Unknown',
+                        'to_user' => 'Shop Expense',
+                        'amount' => (float) $transaction->amount,
+                        'direction' => $transaction->direction, // 'debit'
+                        'note' => $transaction->note,
+                        'category' => $shopExpense ? $shopExpense->category : null,
+                        'expense_date' => $shopExpense && $shopExpense->expense_date ? $shopExpense->expense_date->format('Y-m-d') : null,
                     ];
                 }
             }
