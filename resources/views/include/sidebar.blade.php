@@ -189,14 +189,7 @@
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Bank Management</h6>
                     <ul>
-                        <li><a href="{{ route('admin.banks.index') }}">
-                                <i class="ti ti-building-bank fs-16 me-2"></i>
-                                <span>Banks</span></a>
-                        </li>
-                        <li><a href="{{ route('admin.bank-accounts.index') }}">
-                                <i class="ti ti-credit-card fs-16 me-2"></i>
-                                <span>Bank Accounts</span></a>
-                        </li>
+                        <li><a href="{{ route('admin.banks.index') }}"><i class="ti ti-building-bank fs-16 me-2"></i><span>Banks</span></a></li>
                         <li><a href="{{ route('admin.cash-accounts.index') }}">
                                 <i class="ti ti-wallet fs-16 me-2"></i>
                                 <span>Cash Accounts (Wallets)</span></a>

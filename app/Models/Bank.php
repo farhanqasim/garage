@@ -14,6 +14,7 @@ class Bank extends Model
         'short_name',
         'api_enabled',
         'status',
+        'logo',
     ];
 
     protected $casts = [

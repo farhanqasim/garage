@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\CarWashShopExpense;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Traits\HasBranchAccess;
+use App\Services\CashAccountService;
 
 class CarWashShopExpenseController extends Controller
 {
@@ -111,19 +112,42 @@ class CarWashShopExpenseController extends Controller
 
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
+        $amount = (float) $request->amount;
 
+        // Create shop expense
         $expense = CarWashShopExpense::create([
             'branch_id' => $branchId,
             'user_id' => $user->id,
             'expense_date' => $request->expense_date,
             'category' => $request->category,
-            'amount' => $request->amount,
+            'amount' => $amount,
             'notes' => $request->notes,
         ]);
 
+        // Deduct amount from user's cash account and create transaction
+        try {
+            $cashAccountService = new CashAccountService();
+            $cashAccountService->debit(
+                $user->id,
+                $amount,
+                'shop_expense',
+                $expense->id,
+                'car_wash_shop_expenses',
+                $branchId,
+                $request->notes ? "Shop expense: {$request->category} - {$request->notes}" : "Shop expense: {$request->category}"
+            );
+        } catch (\Exception $e) {
+            // If cash account debit fails, delete the expense and return error
+            $expense->delete();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to deduct from cash account: ' . $e->getMessage(),
+            ], 400);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Shop expense added.',
+            'message' => 'Shop expense added and deducted from cash account.',
             'expense' => [
                 'id' => $expense->id,
                 'expense_date' => $expense->expense_date->format('Y-m-d'),

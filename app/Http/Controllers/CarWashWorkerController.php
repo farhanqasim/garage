@@ -146,12 +146,14 @@ class CarWashWorkerController extends Controller
             'id_card_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'father_card_front' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'father_card_back' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'profile_img' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
         // Handle image uploads using saveSingleFile helper
+        $profileImg = $request->hasFile('profile_img') ? saveSingleFile($request->file('profile_img'), 'workers/profiles') : null;
         $idCardFront = $request->hasFile('id_card_front') ? saveSingleFile($request->file('id_card_front'), 'workers/id_cards') : null;
         $idCardBack = $request->hasFile('id_card_back') ? saveSingleFile($request->file('id_card_back'), 'workers/id_cards') : null;
         $fatherCardFront = $request->hasFile('father_card_front') ? saveSingleFile($request->file('father_card_front'), 'workers/father_cards') : null;
@@ -186,6 +188,7 @@ class CarWashWorkerController extends Controller
         $worker = CarWashWorker::create([
             'branch_id' => $branchId,
             'name' => strtoupper($request->name),
+            'profile_img' => $profileImg,
             'mobile' => $request->mobile ? trim($request->mobile) : null,
             'additional_mobiles' => $additionalMobiles,
             'father_name' => $request->father_name && trim($request->father_name) !== '' ? strtoupper(trim($request->father_name)) : null,

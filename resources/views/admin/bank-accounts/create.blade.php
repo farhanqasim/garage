@@ -1,27 +1,25 @@
 @extends('layouts.app')
 @section('title', __('Create Bank Account'))
 @section('content')
-    <div class="content">
-        <div class="page-header">
-            <div class="page-title">
-                <h2 class="fw-bold">Create Bank Account</h2>
-            </div>
-            <div class="page-btn">
-                <a href="{{ route('admin.bank-accounts.index') }}" class="btn btn-secondary">
-                    <i class="ti ti-arrow-left me-1"></i>Back
-                </a>
-            </div>
+@include('admin.partials.vyapar-bank-style')
+<div class="content vyapar-bank-page">
+    <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <h2><i class="ti ti-wallet"></i> Add Bank Account</h2>
+        <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}" class="btn btn-primary">
+            <i class="ti ti-arrow-left me-1"></i>Back
+        </a>
+    </div>
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+    @endif
 
-        @if(session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
-        <div class="card">
-            <div class="card-body">
+    <div class="card vyapar-form-card">
+        <div class="card-header">Bank Account Details</div>
+        <div class="card-body">
                 <form action="{{ route('admin.bank-accounts.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
 
@@ -70,7 +68,7 @@
                                     <option value="">Select User</option>
                                     @foreach($users as $user)
                                         <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
-                                            {{ $user->name }} @if($user->email)({{ $user->email }})@endif
+                                            {{ $user->name }} @if($user->email)({{ $user->email }})@endif @if($user->role ?? null) - {{ ucwords(str_replace('_', ' ', $user->role)) }}@endif
                                         </option>
                                     @endforeach
                                 </select>
@@ -270,16 +268,17 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-check me-1"></i>Create Bank Account
                         </button>
-                        <a href="{{ route('admin.bank-accounts.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}" class="btn btn-outline-secondary">
                             <i class="ti ti-x me-1"></i>Cancel
                         </a>
                     </div>
                 </form>
-            </div>
         </div>
     </div>
+</div>
 
-    <script>
+@push('scripts')
+<script>
         document.addEventListener('DOMContentLoaded', function() {
             const branchSelect = document.getElementById('branch_id');
             const userSelect = document.getElementById('user_id');
@@ -306,7 +305,8 @@
                                 data.users.forEach(function(user) {
                                     const option = document.createElement('option');
                                     option.value = user.id;
-                                    option.textContent = user.name + (user.email ? ' (' + user.email + ')' : '');
+                                    const roleLabel = user.role ? ' - ' + user.role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+                                    option.textContent = user.name + (user.email ? ' (' + user.email + ')' : '') + roleLabel;
                                     userSelect.appendChild(option);
                                 });
                             }
@@ -324,5 +324,6 @@
                 });
             }
         });
-    </script>
+</script>
+@endpush
 @endsection
