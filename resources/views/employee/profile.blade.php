@@ -33,7 +33,7 @@
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
         
         // Routes
         const ROUTES = {
@@ -85,8 +85,12 @@
             const [passwordVerified, setPasswordVerified] = useState(false);
             const [patternDots, setPatternDots] = useState([]);
             const [isDrawing, setIsDrawing] = useState(false);
+            const [firstPattern, setFirstPattern] = useState(null);
+            const [confirmedPattern, setConfirmedPattern] = useState(null);
             const [patternError, setPatternError] = useState('');
             const [patternSuccess, setPatternSuccess] = useState('');
+            const [patternInstruction, setPatternInstruction] = useState('Draw your pattern (minimum 3 dots)');
+            const patternDotsRef = useRef([]);
             const [fingerprintProgress, setFingerprintProgress] = useState(0);
             const [fingerprintStatus, setFingerprintStatus] = useState('Hold to Scan Finger');
             const [fingerprintSuccess, setFingerprintSuccess] = useState('');
@@ -172,43 +176,89 @@
                 }
             };
             
-            // Pattern Lock Functions
+            // Pattern Lock Functions (use ref for touch to avoid stale state)
             const handlePatternDotClick = (index) => {
                 if (!isDrawing) {
                     setIsDrawing(true);
+                    patternDotsRef.current = [index];
                     setPatternDots([index]);
                 }
             };
             
             const handlePatternDotEnter = (index) => {
-                if (isDrawing && !patternDots.includes(index)) {
-                    setPatternDots([...patternDots, index]);
+                if (isDrawing && !patternDotsRef.current.includes(index)) {
+                    patternDotsRef.current = [...patternDotsRef.current, index];
+                    setPatternDots(patternDotsRef.current);
                 }
             };
             
             const handlePatternMouseUp = () => {
+                if (!isDrawing) return;
                 setIsDrawing(false);
-            };
-            
-            const handleSavePattern = async () => {
-                if (patternDots.length < 3) {
+                const dots = patternDotsRef.current;
+                if (dots.length < 3) {
                     setPatternError('Pattern must have at least 3 dots');
                     return;
                 }
-                
-                const pattern = patternDots.join(',');
+                const currentPattern = dots.join(',');
+                if (!firstPattern) {
+                    setFirstPattern(currentPattern);
+                    setPatternError('');
+                    setPatternInstruction('Draw your pattern again to confirm');
+                    patternDotsRef.current = [];
+                    setPatternDots([]);
+                } else {
+                    if (currentPattern === firstPattern) {
+                        setConfirmedPattern(firstPattern);
+                        setPatternError('');
+                        setPatternInstruction('Pattern confirmed! Click Save Pattern to save.');
+                        patternDotsRef.current = [];
+                        setPatternDots([]);
+                    } else {
+                        setPatternError('Patterns do not match. Please draw again from the beginning.');
+                        setFirstPattern(null);
+                        setConfirmedPattern(null);
+                        patternDotsRef.current = [];
+                        setPatternDots([]);
+                        setPatternInstruction('Draw your pattern (minimum 3 dots)');
+                        setTimeout(() => setPatternError(''), 3000);
+                    }
+                }
+            };
+            
+            const handleSavePattern = async () => {
+                const pattern = confirmedPattern || (patternDots.length >= 3 ? patternDots.join(',') : null);
+                if (!pattern || pattern.split(',').length < 3) {
+                    setPatternError('Please draw your pattern twice to confirm, then click Save Pattern.');
+                    return;
+                }
                 try {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
                     const response = await fetch(ROUTES.savePattern, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
                         },
-                        body: JSON.stringify({ pattern })
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ pattern, _token: csrfToken })
                     });
                     
-                    const data = await response.json();
+                    const text = await response.text();
+                    let data = {};
+                    try {
+                        data = (text && text.trim()) ? JSON.parse(text) : {};
+                    } catch (e) {
+                        if (!response.ok) {
+                            throw new Error('Server error: ' + response.status);
+                        }
+                        throw new Error('Invalid response. Please refresh and try again.');
+                    }
+                    if (response.status === 302 || response.status === 301) {
+                        throw new Error('Session expired. Please login again.');
+                    }
                     if (data.success) {
                         setPatternSuccess('Pattern saved successfully!');
                         setTimeout(() => window.location.reload(), 1500);
@@ -421,18 +471,37 @@
                                     React.createElement('span', { className: 'px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold' }, 'Not Set')
                             ),
                             React.createElement('div', { className: 'text-center' },
-                                React.createElement('p', { className: 'text-sm text-slate-600 mb-4' }, 'Draw your pattern (minimum 3 dots)'),
+                                React.createElement('p', { className: 'text-sm text-slate-600 mb-4' }, patternInstruction),
                                 React.createElement('div', {
                                     className: 'inline-grid grid-cols-3 gap-4 p-6 bg-slate-50 rounded-2xl',
-                                    onMouseUp: handlePatternMouseUp
+                                    onMouseUp: handlePatternMouseUp,
+                                    onTouchStart: (e) => {
+                                        const touch = e.touches[0];
+                                        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                                        if (el && el.getAttribute('data-dot-index') !== null) {
+                                            const i = parseInt(el.getAttribute('data-dot-index'));
+                                            handlePatternDotClick(i);
+                                        }
+                                    },
+                                    onTouchMove: (e) => {
+                                        if (!isDrawing) return;
+                                        const touch = e.touches[0];
+                                        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                                        if (el && el.getAttribute('data-dot-index') !== null) {
+                                            const i = parseInt(el.getAttribute('data-dot-index'));
+                                            handlePatternDotEnter(i);
+                                        }
+                                    },
+                                    onTouchEnd: (e) => { e.preventDefault(); handlePatternMouseUp(); }
                                 },
                                     Array.from({ length: 9 }, (_, i) =>
                                         React.createElement('button', {
                                             key: i,
                                             type: 'button',
+                                            'data-dot-index': i,
                                             onMouseDown: () => handlePatternDotClick(i),
                                             onMouseEnter: () => handlePatternDotEnter(i),
-                                            className: `w-12 h-12 rounded-full border-2 transition-all ${
+                                            className: `w-12 h-12 rounded-full border-2 transition-all touch-none ${
                                                 patternDots.includes(i) 
                                                     ? 'bg-blue-600 border-blue-600 scale-110' 
                                                     : 'bg-white border-slate-300'
@@ -442,10 +511,9 @@
                                 ),
                                 patternError && React.createElement('p', { className: 'text-red-600 text-sm mt-2' }, patternError),
                                 patternSuccess && React.createElement('p', { className: 'text-green-600 text-sm mt-2' }, patternSuccess),
-                                React.createElement('button', {
+                                confirmedPattern && React.createElement('button', {
                                     onClick: handleSavePattern,
-                                    disabled: patternDots.length < 3,
-                                    className: 'mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold disabled:opacity-50 disabled:cursor-not-allowed'
+                                    className: 'mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold'
                                 }, 'Save Pattern')
                             )
                         ),

@@ -16,7 +16,7 @@
             <a href="{{ route('car.wash.worker-cash-accounts') }}" class="btn btn-outline-success">
                 <i class="ti ti-wallet me-1"></i> Worker Cash Accounts
             </a>
-            <a href="{{ route('admin.bank-accounts.index') }}" class="btn btn-outline-secondary">
+            <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}" class="btn btn-outline-secondary">
                 <i class="ti ti-credit-card me-1"></i> Bank Accounts
             </a>
             <a href="{{ route('car-wash.payments.index') }}" class="btn btn-outline-info">
@@ -35,7 +35,7 @@
                     @if($workers->isEmpty())
                         <div class="alert alert-info">
                             <i class="ti ti-info-circle me-2"></i>
-                            No workers have a linked bank account yet. Link a worker to a bank account from <a href="{{ route('car.wash.staff') }}">Staff</a> (Pay Commission → Bank → add/link worker bank) or add the account from <a href="{{ route('admin.bank-accounts.index') }}">Bank Accounts</a> and assign it to the worker.
+                            No workers have a linked bank account yet. Link a worker to a bank account from <a href="{{ route('car.wash.staff') }}">Staff</a> (Pay Commission → Bank → add/link worker bank) or add the account from <a href="{{ route('admin.banks.index', ['tab' => 'accounts']) }}">Bank Accounts</a> and assign it to the worker.
                         </div>
                     @else
                         <div class="table-responsive">

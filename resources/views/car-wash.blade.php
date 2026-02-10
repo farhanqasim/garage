@@ -1367,7 +1367,12 @@
             bankAccounts: {
                 index: '{{ route("car-wash.bank-accounts.index") }}',
                 forTransfer: '{{ route("car-wash.bank-accounts.for-transfer") }}',
+                ledger: (id) => `{{ url('/car-wash/bank-accounts') }}/${id}/ledger`,
                 create: '{{ route("admin.bank-accounts.create") }}',
+            },
+            bankTransactions: {
+                update: (id) => `{{ url('/car-wash/bank-transactions') }}/${id}`,
+                destroy: (id) => `{{ url('/car-wash/bank-transactions') }}/${id}`,
             },
             cashTransfers: {
                 store: '{{ route("car-wash.cash-transfers.store") }}',
@@ -1391,6 +1396,15 @@
         // User role (for filtering admin cash)
         const userRole = '{{ Auth::user()->role ?? "" }}';
         const isAdmin = userRole === 'admin';
+        @php
+            $userRolesForDisplay = [
+                'role' => auth()->user()->role ?? '-',
+                'branch_id' => auth()->user()->branch_id ?? null,
+                'name' => auth()->user()->name ?? '-',
+                'email' => auth()->user()->email ?? '-',
+            ];
+        @endphp
+        const userRolesDisplay = @json($userRolesForDisplay);
         
         // Simplified App Component (UI structure without Firebase)
         const App = () => {
@@ -1414,6 +1428,13 @@
             
             // Fetch today's bank balance from daily report (same as Daily Report page totBankBalance)
             const loadReportBankBalance = () => {
+                // First check localStorage for bank balance from daily report page
+                const storedBankBalance = localStorage.getItem('reportBankBalance');
+                if (storedBankBalance) {
+                    setStats(prev => ({ ...prev, reportBankBalance: parseFloat(storedBankBalance) || 0 }));
+                }
+                
+                // Also fetch from API as fallback
                 if (!API_ROUTES.jobs || !API_ROUTES.jobs.dailyReportData) return;
                 const today = new Date().toISOString().slice(0, 10);
                 const params = new URLSearchParams({ date_from: today, date_to: today, payment: 'bank', customer: '', worker: '' });
@@ -1421,7 +1442,10 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success && data.totals && (data.totals.cashOnHand != null || data.totals.cashOnHand === 0)) {
-                            setStats(prev => ({ ...prev, reportBankBalance: parseFloat(data.totals.cashOnHand) || 0 }));
+                            const bankBalance = parseFloat(data.totals.cashOnHand) || 0;
+                            setStats(prev => ({ ...prev, reportBankBalance: bankBalance }));
+                            // Store in localStorage for consistency
+                            localStorage.setItem('reportBankBalance', bankBalance.toString());
                         }
                     })
                     .catch(err => console.error('Error loading report bank balance:', err));
@@ -1454,6 +1478,27 @@
                 // Load report cash on hand and bank balance (same as Daily Report totCashOnHand / totBankBalance) for header
                 loadReportCashOnHand();
                 loadReportBankBalance();
+                
+                // Listen for localStorage changes from daily report page
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'reportBankBalance' && e.newValue) {
+                        setStats(prev => ({ ...prev, reportBankBalance: parseFloat(e.newValue) || 0 }));
+                    }
+                });
+                
+                // Also check localStorage periodically (for same-tab updates)
+                setInterval(function() {
+                    const storedBankBalance = localStorage.getItem('reportBankBalance');
+                    if (storedBankBalance) {
+                        const balance = parseFloat(storedBankBalance);
+                        setStats(prev => {
+                            if (prev.reportBankBalance !== balance) {
+                                return { ...prev, reportBankBalance: balance };
+                            }
+                            return prev;
+                        });
+                    }
+                }, 1000); // Check every second
                 // Fetch user's cash account balance first
                 let userCashBalance = 0;
                 if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
@@ -1704,6 +1749,15 @@
             const [bankTransferNote, setBankTransferNote] = useState('');
             const [showBankAccountDropdown, setShowBankAccountDropdown] = useState(false);
             const [bankTransferLoading, setBankTransferLoading] = useState(false);
+            const [showBankBalanceHistoryModal, setShowBankBalanceHistoryModal] = useState(false);
+            const bankBalanceHoldTimerRef = React.useRef(null);
+            const [showAccountLedgerModal, setShowAccountLedgerModal] = useState(false);
+            const [accountLedgerData, setAccountLedgerData] = useState(null);
+            const [accountLedgerLoading, setAccountLedgerLoading] = useState(false);
+            const [accountLedgerAccountId, setAccountLedgerAccountId] = useState(null);
+            const [accountLedgerFrom, setAccountLedgerFrom] = useState(() => new Date().toISOString().slice(0, 10));
+            const [accountLedgerTo, setAccountLedgerTo] = useState(() => new Date().toISOString().slice(0, 10));
+            const [editingLedgerRow, setEditingLedgerRow] = useState(null);
             const [branchUsers, setBranchUsers] = useState([]);
             const [selectedUserId, setSelectedUserId] = useState(null);
             const [transferNote, setTransferNote] = useState('');
@@ -1825,9 +1879,22 @@
                 }
             }, [showCashTransferModal, transferTab]);
 
-            // Load cash balance when Bank Transfer modal opens
+            // When Bank Transfer modal opens: fetch bank accounts, refresh report bank balance, load cash balance, auto-fill amount
             useEffect(() => {
-                if (showBankTransferModal && API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                if (!showBankTransferModal) return;
+                // Refresh bank balance from daily report API (so fallback shows correct value when no linked accounts)
+                if (typeof loadReportBankBalance === 'function') {
+                    loadReportBankBalance();
+                }
+                // Fetch user's bank accounts so attached accounts show in the balance card
+                if (API_ROUTES.bankAccounts?.index && typeof fetchBankAccounts === 'function') {
+                    fetchBankAccounts();
+                }
+                // Auto-fill amount with bank balance
+                const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                const bal = branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
+                setBankTransferAmount(bal > 0 ? String(bal) : '');
+                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
                     fetch(API_ROUTES.payments.cashAccountBalance, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                     })
@@ -1835,7 +1902,6 @@
                         .then(data => {
                             if (data.balance != null) {
                                 const cashBal = parseFloat(data.balance) || 0;
-                                // Update stats with fresh cash balance
                                 setStats(prev => ({
                                     ...prev,
                                     cashOnHand: cashBal,
@@ -3232,6 +3298,39 @@
                     <header className="bg-slate-950 text-white p-3 sm:p-4 md:p-6 rounded-b-2xl sm:rounded-b-[30px] md:rounded-b-[45px] shadow-2xl relative z-50" role="banner">
                         <div className="flex justify-between items-center mb-4 sm:mb-6 md:mb-8 flex-wrap gap-2 sm:gap-3 md:gap-4">
                             <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
+                                @if(in_array(Auth::user()->role ?? '', ['admin', 'branch_owner']))
+                                <button
+                                    type="button"
+                                    className="p-1.5 sm:p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                                    title="Back to home (triple-click to view roles)"
+                                    aria-label="Back to home"
+                                    onClick={(e) => {
+                                        const now = Date.now();
+                                        if (!window._backArrowClicks) window._backArrowClicks = { count: 0, firstTime: 0 };
+                                        const c = window._backArrowClicks;
+                                        c.count++;
+                                        if (c.count === 1) c.firstTime = now;
+                                        if (c.count >= 3 && (now - c.firstTime) < 500) {
+                                            c.count = 0;
+                                            const r = typeof userRolesDisplay !== 'undefined' ? userRolesDisplay : {};
+                                            alert('Roles & Info:\nRole: ' + (r.role || '-') + '\nBranch ID: ' + (r.branch_id ?? '-') + '\nName: ' + (r.name || '-') + '\nEmail: ' + (r.email || '-'));
+                                            return;
+                                        }
+                                        if (c.count === 1) {
+                                            setTimeout(() => {
+                                                if (window._backArrowClicks && window._backArrowClicks.count === 1) {
+                                                    window.location.href = '{{ route("home") }}';
+                                                }
+                                                window._backArrowClicks = { count: 0, firstTime: 0 };
+                                            }, 400);
+                                        }
+                                    }}
+                                >
+                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    </svg>
+                                </button>
+                                @endif
                                 <img
                                     src={eliteCarWashLogoUrl}
                                     alt="Elite Car Wash"
@@ -6292,6 +6391,8 @@
                                 {showBankTransferModal && (
                                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => {
                                         setShowBankTransferModal(false);
+                                        setShowAccountLedgerModal(false);
+                                        setEditingLedgerRow(null);
                                         setSelectedBankAccountId(null);
                                         setBankTransferAmount('');
                                         setBankTransferNote('');
@@ -6308,6 +6409,7 @@
                                                     type="button"
                                                     onClick={() => {
                                                         setShowBankTransferModal(false);
+                                                        setShowAccountLedgerModal(false);
                                                         setSelectedBankAccountId(null);
                                                         setBankTransferAmount('');
                                                         setBankTransferNote('');
@@ -6321,21 +6423,276 @@
                                                 </button>
                                             </div>
                                             <div className="p-4 sm:p-5 overflow-y-auto flex-1">
-                                                {/* Bank Account Balance - Logged in user's bank accounts total */}
+                                                {/* Bank Account Balance - Same logic as header, with attached accounts list */}
                                                 <div className="mb-5 bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border-2 border-purple-200">
                                                     <div className="text-xs sm:text-sm font-bold text-purple-700 uppercase mb-1">Bank Account Balance</div>
-                                                    <div className="text-2xl sm:text-3xl font-black text-purple-600 font-mono">
+                                                    <div
+                                                        className="text-2xl sm:text-3xl font-black text-purple-600 font-mono mb-2 cursor-pointer select-none active:bg-purple-100/50 rounded px-1 -mx-1"
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onDoubleClick={() => setShowBankBalanceHistoryModal(true)}
+                                                        onMouseDown={() => {
+                                                            bankBalanceHoldTimerRef.current = setTimeout(() => setShowBankBalanceHistoryModal(true), 600);
+                                                        }}
+                                                        onMouseUp={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onMouseLeave={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onTouchStart={() => {
+                                                            bankBalanceHoldTimerRef.current = setTimeout(() => setShowBankBalanceHistoryModal(true), 600);
+                                                        }}
+                                                        onTouchEnd={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onTouchCancel={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onContextMenu={(e) => e.preventDefault()}
+                                                    >
                                                         Rs.{(() => {
-                                                            // Show total of logged-in user's bank accounts (all accounts, not just displayed one)
-                                                            if (!bankAccounts || bankAccounts.length === 0) return 0;
-                                                            const userBankBalance = bankAccounts.reduce((sum, acc) => {
-                                                                const balance = parseFloat(acc.balance);
-                                                                return sum + (isNaN(balance) ? 0 : balance);
-                                                            }, 0);
-                                                            return userBankBalance > 0 ? Math.round(userBankBalance) : 0;
+                                                            const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                            return branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
                                                         })()}
                                                     </div>
+                                                    <div className="text-[9px] text-purple-500 mb-1">Double-tap or hold to view history</div>
+                                                    <div className="text-[10px] sm:text-xs text-purple-600/90 space-y-1 border-t border-purple-200/60 pt-2 mt-2">
+                                                        <div className="font-semibold text-purple-700">Attached accounts:</div>
+                                                        {(bankAccounts || []).length > 0 ? (
+                                                            (bankAccounts || []).map((acc) => (
+                                                                <div
+                                                                    key={acc.id}
+                                                                    className="flex justify-between items-center gap-2 cursor-pointer select-none rounded px-1 -mx-1 hover:bg-purple-100/50 active:bg-purple-200/50 py-0.5"
+                                                                    onDoubleClick={() => {
+                                                                        const today = new Date().toISOString().slice(0, 10);
+                                                                        setShowAccountLedgerModal(true);
+                                                                        setAccountLedgerAccountId(acc.id);
+                                                                        setAccountLedgerFrom(today);
+                                                                        setAccountLedgerTo(today);
+                                                                        setAccountLedgerData(null);
+                                                                        setAccountLedgerLoading(true);
+                                                                        const baseUrl = API_ROUTES.bankAccounts.ledger ? (typeof API_ROUTES.bankAccounts.ledger === 'function' ? API_ROUTES.bankAccounts.ledger(acc.id) : API_ROUTES.bankAccounts.ledger + '/' + acc.id) : null;
+                                                                        if (baseUrl) {
+                                                                            const url = baseUrl + '?date_from=' + encodeURIComponent(today) + '&date_to=' + encodeURIComponent(today);
+                                                                            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                                                                .then(r => r.json())
+                                                                                .then(data => {
+                                                                                    if (data.success) {
+                                                                                        setAccountLedgerData(data);
+                                                                                    } else {
+                                                                                        setAccountLedgerData({ error: data.message || 'Failed to load ledger' });
+                                                                                    }
+                                                                                })
+                                                                                .catch(err => setAccountLedgerData({ error: 'Failed to load ledger' }))
+                                                                                .finally(() => setAccountLedgerLoading(false));
+                                                                        } else {
+                                                                            setAccountLedgerLoading(false);
+                                                                            setAccountLedgerData({ error: 'API not configured' });
+                                                                        }
+                                                                    }}
+                                                                    title="Double-click to view ledger"
+                                                                >
+                                                                    <span className="truncate">{(acc.bankName || 'Bank')}{(acc.accountTitle ? ' - ' + acc.accountTitle : '')}{(acc.accountNumber ? ' (' + acc.accountNumber + ')' : '')}</span>
+                                                                    <span className="font-mono font-bold whitespace-nowrap">Rs.{Math.round(parseFloat(acc.balance) || 0)}</span>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="text-purple-500 italic">No bank accounts linked</div>
+                                                        )}
+                                                        {(bankAccounts || []).length > 0 && (
+                                                            <div className="text-[9px] text-purple-500 mt-1">Double-click account to view ledger</div>
+                                                        )}
+                                                    </div>
                                                 </div>
+                                                
+                                                {/* Bank Balance History Modal - on double-tap or hold */}
+                                                {showBankBalanceHistoryModal && (
+                                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setShowBankBalanceHistoryModal(false)}>
+                                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+                                                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 px-4 py-3 flex justify-between items-center">
+                                                                <h3 className="text-white font-bold text-sm uppercase">Balance History</h3>
+                                                                <button type="button" onClick={() => setShowBankBalanceHistoryModal(false)} className="text-white/90 hover:text-white p-1">
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                </button>
+                                                            </div>
+                                                            <div className="p-4 max-h-[60vh] overflow-y-auto">
+                                                                {(() => {
+                                                                    const accounts = bankAccounts || [];
+                                                                    const branchBankBalance = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                                    const total = branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
+                                                                    return (
+                                                                        <>
+                                                                        <div className="text-lg font-black text-purple-700 font-mono mb-1">Total: Rs.{total}</div>
+                                                                        </>
+                                                                    );
+                                                                })()}
+                                                                {(bankAccounts || []).length > 0 ? (
+                                                                    <div className="space-y-2">
+                                                                        {(bankAccounts || []).map((acc) => (
+                                                                            <div key={acc.id} className="flex justify-between items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <div className="font-semibold text-slate-800 text-sm truncate">{(acc.bankName || 'Bank')}</div>
+                                                                                    <div className="text-xs text-slate-500 truncate">{(acc.accountTitle || '')}{(acc.accountNumber ? ' (' + acc.accountNumber + ')' : '')}</div>
+                                                                                </div>
+                                                                                <span className="font-mono font-bold text-purple-600 whitespace-nowrap">Rs.{Math.round(parseFloat(acc.balance) || 0)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-slate-500 text-sm py-4 text-center">
+                                                                        Balance from daily report. No individual accounts linked.
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Account Ledger Modal - on double-click attached account */}
+                                                {showAccountLedgerModal && (
+                                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowAccountLedgerModal(false)}>
+                                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                                                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 px-4 py-3 flex justify-between items-center flex-shrink-0">
+                                                                <h3 className="text-white font-bold text-sm uppercase">Account Ledger</h3>
+                                                                <button type="button" onClick={() => setShowAccountLedgerModal(false)} className="text-white/90 hover:text-white p-1">
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                </button>
+                                                            </div>
+                                                            <div className="p-4 overflow-y-auto flex-1">
+                                                                {accountLedgerLoading ? (
+                                                                    <div className="py-8 text-center text-slate-500">Loading ledger...</div>
+                                                                ) : accountLedgerData && accountLedgerData.error ? (
+                                                                    <div className="py-8 text-center text-red-600">{accountLedgerData.error}</div>
+                                                                ) : accountLedgerData && accountLedgerData.account ? (
+                                                                    <>
+                                                                        <div className="mb-3 text-sm font-bold text-purple-700 truncate">{accountLedgerData.account.label}</div>
+                                                                        <div className="flex flex-wrap gap-2 mb-3">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <label className="text-xs font-semibold text-slate-600">From</label>
+                                                                                <input
+                                                                                    type="date"
+                                                                                    value={accountLedgerFrom}
+                                                                                    onChange={(e) => setAccountLedgerFrom(e.target.value)}
+                                                                                    className="text-xs px-2 py-1.5 border border-slate-300 rounded-lg"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <label className="text-xs font-semibold text-slate-600">To</label>
+                                                                                <input
+                                                                                    type="date"
+                                                                                    value={accountLedgerTo}
+                                                                                    onChange={(e) => setAccountLedgerTo(e.target.value)}
+                                                                                    className="text-xs px-2 py-1.5 border border-slate-300 rounded-lg"
+                                                                                />
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (!accountLedgerAccountId) return;
+                                                                                    setAccountLedgerLoading(true);
+                                                                                    const baseUrl = API_ROUTES.bankAccounts.ledger ? (typeof API_ROUTES.bankAccounts.ledger === 'function' ? API_ROUTES.bankAccounts.ledger(accountLedgerAccountId) : API_ROUTES.bankAccounts.ledger + '/' + accountLedgerAccountId) : null;
+                                                                                    if (baseUrl) {
+                                                                                        const url = baseUrl + '?date_from=' + encodeURIComponent(accountLedgerFrom) + '&date_to=' + encodeURIComponent(accountLedgerTo);
+                                                                                        fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                                                                            .then(r => r.json())
+                                                                                            .then(data => {
+                                                                                                if (data.success) setAccountLedgerData(data);
+                                                                                            })
+                                                                                            .finally(() => setAccountLedgerLoading(false));
+                                                                                    } else setAccountLedgerLoading(false);
+                                                                                }}
+                                                                                className="text-xs px-3 py-1.5 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700"
+                                                                            >
+                                                                                Apply
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="w-full text-xs sm:text-sm">
+                                                                                <thead>
+                                                                                    <tr className="border-b-2 border-purple-200">
+                                                                                        <th className="text-left py-2 px-1 font-bold text-slate-700">Date</th>
+                                                                                        <th className="text-left py-2 px-1 font-bold text-slate-700">Debit From</th>
+                                                                                        <th className="text-left py-2 px-1 font-bold text-slate-700">Credit To</th>
+                                                                                        <th className="text-right py-2 px-1 font-bold text-slate-700">Debit</th>
+                                                                                        <th className="text-right py-2 px-1 font-bold text-slate-700">Credit</th>
+                                                                                        <th className="text-right py-2 px-1 font-bold text-slate-700">Total</th>
+                                                                                        <th className="text-center py-2 px-1 font-bold text-slate-700 w-20">Actions</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                    {(accountLedgerData.ledger || []).map((row, i) => (
+                                                                                        <tr key={row.id || i} className="border-b border-slate-100 hover:bg-purple-50/50">
+                                                                                            <td className="py-1.5 px-1 text-slate-600">
+                                                                                                {row.description === 'Opening Balance' ? 'Opening' : (
+                                                                                                    <span><span className="block">{row.date}</span>{row.time ? <span className="block text-[10px] text-slate-500">{row.time}</span> : null}</span>
+                                                                                                )}
+                                                                                            </td>
+                                                                                            <td className="py-1.5 px-1 text-slate-700 text-xs min-w-[120px] max-w-[180px] break-words">{row.fromAccount || '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-slate-700 text-xs min-w-[120px] max-w-[180px] break-words">{row.toAccount || '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-right font-mono">{row.debit ? 'Rs.' + row.debit : '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-right font-mono text-green-700">{row.credit ? 'Rs.' + row.credit : '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-right font-mono font-bold text-purple-700">Rs.{row.total}</td>
+                                                                                            <td className="py-1.5 px-1 text-center">
+                                                                                                {row.id ? (
+                                                                                                    <div className="flex items-center justify-center gap-0.5">
+                                                                                                        <button type="button" onClick={() => setEditingLedgerRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Edit">
+                                                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                                                                        </button>
+                                                                                                        <button type="button" onClick={() => { if (confirm('Delete this transaction?')) { setAccountLedgerLoading(true); fetch(API_ROUTES.bankTransactions.destroy(row.id), { method: 'DELETE', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' } }).then(() => { const baseUrl = API_ROUTES.bankAccounts.ledger(accountLedgerAccountId); const url = baseUrl + '?date_from=' + encodeURIComponent(accountLedgerFrom) + '&date_to=' + encodeURIComponent(accountLedgerTo); return fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }); }).then(r => r.json()).then(d => { if (d.success) setAccountLedgerData(d); }).finally(() => setAccountLedgerLoading(false)); } }} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Delete">
+                                                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                ) : '-'}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Edit Ledger Transaction Modal */}
+                                                {editingLedgerRow && editingLedgerRow.id && (
+                                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4" onClick={() => setEditingLedgerRow(null)}>
+                                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-sm p-4" onClick={e => e.stopPropagation()}>
+                                                            <h4 className="font-bold text-purple-700 mb-3">Edit Transaction</h4>
+                                                            <form onSubmit={(e) => {
+                                                                e.preventDefault();
+                                                                const fd = new FormData(e.target);
+                                                                const data = { transaction_date: fd.get('ledger_edit_date'), type: fd.get('ledger_edit_type'), amount: fd.get('ledger_edit_amount'), description: fd.get('ledger_edit_desc') || '' };
+                                                                setAccountLedgerLoading(true);
+                                                                fetch(API_ROUTES.bankTransactions.update(editingLedgerRow.id), {
+                                                                    method: 'PUT',
+                                                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' },
+                                                                    body: JSON.stringify(data)
+                                                                }).then(r => r.json()).then(d => {
+                                                                    if (d.success) {
+                                                                        setEditingLedgerRow(null);
+                                                                        const baseUrl = API_ROUTES.bankAccounts.ledger(accountLedgerAccountId);
+                                                                        const url = baseUrl + '?date_from=' + encodeURIComponent(accountLedgerFrom) + '&date_to=' + encodeURIComponent(accountLedgerTo);
+                                                                        return fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                                                                    }
+                                                                }).then(r => r && r.json()).then(d => { if (d && d.success) setAccountLedgerData(d); }).finally(() => setAccountLedgerLoading(false));
+                                                            }}>
+                                                                <div className="space-y-2 mb-3">
+                                                                    <label className="block text-xs font-semibold">Date</label>
+                                                                    <input type="date" name="ledger_edit_date" defaultValue={editingLedgerRow.date} required className="w-full px-3 py-2 border rounded-lg text-sm" />
+                                                                    <label className="block text-xs font-semibold">Type</label>
+                                                                    <select name="ledger_edit_type" defaultValue={editingLedgerRow.type || 'debit'} required className="w-full px-3 py-2 border rounded-lg text-sm">
+                                                                        <option value="debit">Debit</option>
+                                                                        <option value="credit">Credit</option>
+                                                                    </select>
+                                                                    <label className="block text-xs font-semibold">Amount (Rs.)</label>
+                                                                    <input type="number" name="ledger_edit_amount" defaultValue={editingLedgerRow.amount} min="0.01" step="0.01" required className="w-full px-3 py-2 border rounded-lg text-sm" />
+                                                                    <label className="block text-xs font-semibold">Description (optional)</label>
+                                                                    <input type="text" name="ledger_edit_desc" defaultValue={editingLedgerRow.description || ''} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <button type="submit" className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-semibold text-sm">Save</button>
+                                                                    <button type="button" onClick={() => setEditingLedgerRow(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 
                                                 {/* Transfer Amount */}
                                                 <div className="mb-5">
@@ -6347,50 +6704,17 @@
                                                             // Allow any input - no restrictions while typing
                                                             setBankTransferAmount(e.target.value);
                                                         }}
-                                                        onBlur={async (e) => {
-                                                            // Validate only when user leaves the field
+                                                        onBlur={(e) => {
+                                                            // Basic validation only - don't overwrite with cash balance (bank transfer uses bank balance)
                                                             const val = parseFloat(e.target.value);
-                                                            if (isNaN(val) || val < 0) {
-                                                                // Don't reset to 0, just clear invalid input
-                                                                if (isNaN(val)) {
-                                                                    setBankTransferAmount('');
-                                                                } else if (val < 0) {
-                                                                    setBankTransferAmount('0');
-                                                                }
+                                                            if (isNaN(val)) {
+                                                                setBankTransferAmount('');
                                                                 return;
                                                             }
-                                                            
-                                                            // Load fresh cash balance from API for validation
-                                                            let cashBal = 0;
-                                                            try {
-                                                                const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
-                                                                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-                                                                });
-                                                                if (cashRes.ok) {
-                                                                    const cashData = await cashRes.json();
-                                                                    if (cashData.balance != null) {
-                                                                        cashBal = parseFloat(cashData.balance) || 0;
-                                                                        // Update stats
-                                                                        setStats(prev => ({
-                                                                            ...prev,
-                                                                            cashOnHand: cashBal,
-                                                                            reportCashOnHand: cashBal
-                                                                        }));
-                                                                    }
-                                                                }
-                                                            } catch (e) {
-                                                                console.error('Error loading cash balance:', e);
-                                                                // Use stats as fallback
-                                                                cashBal = stats && typeof stats.cashOnHand !== 'undefined' && stats.cashOnHand > 0 
-                                                                    ? stats.cashOnHand 
-                                                                    : (stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 0);
+                                                            if (val < 0) {
+                                                                setBankTransferAmount('0');
                                                             }
-                                                            
-                                                            // Only validate if cash balance is available and amount exceeds it
-                                                            if (cashBal > 0 && val > cashBal) {
-                                                                setBankTransferAmount(String(Math.round(cashBal)));
-                                                                alert(`Amount cannot exceed available cash balance (Rs.${Math.round(cashBal)})`);
-                                                            }
+                                                            // Don't cap to cash balance on blur - user may have typed valid bank transfer amount
                                                         }}
                                                         placeholder="Enter amount"
                                                         className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none font-mono"
@@ -6480,35 +6804,11 @@
                                                             return;
                                                         }
                                                         
-                                                        // Load fresh cash balance from API before transfer
-                                                        let currentCashBalance = 0;
-                                                        try {
-                                                            const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
-                                                                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-                                                            });
-                                                            if (cashRes.ok) {
-                                                                const cashData = await cashRes.json();
-                                                                if (cashData.balance != null) {
-                                                                    currentCashBalance = parseFloat(cashData.balance) || 0;
-                                                                    // Update stats
-                                                                    setStats(prev => ({
-                                                                        ...prev,
-                                                                        cashOnHand: currentCashBalance,
-                                                                        reportCashOnHand: currentCashBalance
-                                                                    }));
-                                                                }
-                                                            }
-                                                        } catch (e) {
-                                                            console.error('Error loading cash balance:', e);
-                                                            // Use stats as fallback
-                                                            currentCashBalance = stats && typeof stats.cashOnHand !== 'undefined' && stats.cashOnHand > 0 
-                                                                ? stats.cashOnHand 
-                                                                : (stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 0);
-                                                        }
-                                                        
-                                                        // Validate against fresh cash balance
-                                                        if (currentCashBalance > 0 && amount > currentCashBalance) {
-                                                            alert(`Amount cannot exceed available cash balance (Rs.${Math.round(currentCashBalance)})`);
+                                                        // Validate against bank balance (bank-to-bank transfer, not cash)
+                                                        const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                        const maxBankBalance = branchBankBalance > 0 ? branchBankBalance : (stats && typeof stats.reportBankBalance !== 'undefined' ? stats.reportBankBalance : bankBalanceTotal || 0);
+                                                        if (amount > maxBankBalance) {
+                                                            alert(`Amount cannot exceed available bank balance (Rs.${Math.round(maxBankBalance)})`);
                                                             return;
                                                         }
                                                         
@@ -6518,30 +6818,37 @@
                                                                 method: 'POST',
                                                                 headers: {
                                                                     'Content-Type': 'application/json',
-                                                                    'X-CSRF-TOKEN': csrfToken,
+                                                                    'X-CSRF-TOKEN': csrfToken || '',
                                                                     'Accept': 'application/json'
                                                                 },
                                                                 body: JSON.stringify({
-                                                                    bank_account_id: selectedBankAccountId,
+                                                                    bank_account_id: parseInt(selectedBankAccountId, 10) || selectedBankAccountId,
                                                                     amount: amount,
                                                                     notes: bankTransferNote || null
                                                                 })
                                                             });
-                                                            const data = await res.json();
+                                                            let data;
+                                                            try {
+                                                                data = await res.json();
+                                                            } catch (parseErr) {
+                                                                console.error('Transfer response parse error:', parseErr);
+                                                                alert('Invalid server response. Please try again.');
+                                                                return;
+                                                            }
                                                             if (data.success) {
                                                                 const selectedAccount = transferBankAccounts.find(acc => acc.id == selectedBankAccountId);
                                                                 const accountName = selectedAccount ? (selectedAccount.bankName || 'Bank Account') : 'Bank Account';
                                                                 alert(`Rs.${Math.round(amount)} transferred to ${accountName} successfully!`);
                                                                 setShowBankTransferModal(false);
+                                                                setShowAccountLedgerModal(false);
                                                                 setSelectedBankAccountId(null);
                                                                 setBankTransferAmount('');
                                                                 setBankTransferNote('');
                                                                 setShowBankAccountDropdown(false);
-                                                                // Refresh balances
-                                                                refreshCashBalance();
-                                                                fetchBankAccounts();
+                                                                if (typeof refreshCashBalance === 'function') refreshCashBalance();
+                                                                if (typeof fetchBankAccounts === 'function') fetchBankAccounts();
                                                             } else {
-                                                                const errorMsg = data.message || data.error || 'Failed to transfer to bank';
+                                                                const errorMsg = data.message || data.error || (data.errors && typeof data.errors === 'object' ? Object.values(data.errors).flat().join(', ') : '') || 'Failed to transfer to bank';
                                                                 console.error('Transfer error:', data);
                                                                 alert('Error: ' + errorMsg);
                                                             }
@@ -9139,7 +9446,8 @@
                                                                 const basePrice = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
                                                                 let total = basePrice * q;
                                                                 selectedAdditionalPrices.forEach(selectedIndex => {
-                                                                    const ap = selectedService.additionalPrices && selectedService.additionalPrices[selectedIndex];
+                                                                    const additionalPricesArray = selectedService.additionalPrices || selectedService.additional_prices || [];
+                                                                    const ap = additionalPricesArray[selectedIndex];
                                                                     if (ap && ap.amount) total += parseFloat(ap.amount || 0) || 0;
                                                                 });
                                                                 setFormData(prev => ({ ...prev, price: Math.round(total) }));
@@ -9158,13 +9466,14 @@
                                                 </div>
                                                 
                                                 {/* Additional Prices (Selectable) */}
-                                                {selectedService.additionalPrices && selectedService.additionalPrices.length > 0 && (
+                                                {((selectedService.additionalPrices && Array.isArray(selectedService.additionalPrices) && selectedService.additionalPrices.length > 0) || 
+                                                  (selectedService.additional_prices && Array.isArray(selectedService.additional_prices) && selectedService.additional_prices.length > 0)) && (
                                                     <div className="space-y-2 sm:space-y-2.5 md:space-y-3 mb-3 sm:mb-3.5 md:mb-4">
                                                         <p className="text-[9px] sm:text-[10px] font-black text-slate-700 uppercase mb-2 sm:mb-2.5 md:mb-3 tracking-wider flex items-center gap-1.5 sm:gap-2">
                                                             <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-600 rounded-full flex-shrink-0"></span>
                                                             Additional Services (Optional)
                                                         </p>
-                                                        {selectedService.additionalPrices.map((additionalPrice, index) => {
+                                                        {(selectedService.additionalPrices || selectedService.additional_prices || []).map((additionalPrice, index) => {
                                                             const isSelected = selectedAdditionalPrices.has(index);
                                                             return (
                                                                 <label 
@@ -9220,7 +9529,8 @@
                                                                             const isPerFoot = selectedService.is_per_foot === true || selectedService.isPerFoot === true;
                                                                             let total = isPerFoot ? basePrice * serviceQuantity : basePrice;
                                                                             newSelected.forEach(selectedIndex => {
-                                                                                const ap = selectedService.additionalPrices[selectedIndex];
+                                                                                const additionalPricesArray = selectedService.additionalPrices || selectedService.additional_prices || [];
+                                                                                const ap = additionalPricesArray[selectedIndex];
                                                                                 if (ap && ap.amount) {
                                                                                     total += parseFloat(ap.amount || 0) || 0;
                                                                                 }

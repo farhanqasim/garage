@@ -1169,8 +1169,8 @@
                                                             <div class="input-group inputswidth">
                                                                 <select id="vehicle_model_select" class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                                     <option value="">Select</option>
-                                                                    @foreach ($carModels as $item)
-                                                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @foreach ($carModels as $carModel)
+                                                                    <option value="{{ $carModel->id }}">{{ $carModel->name }}</option>
                                                                     @endforeach
                                                                 </select>
                                                                 <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
@@ -1190,8 +1190,8 @@
                                                             <div class="input-group inputswidth">
                                                                 <select id="vehicle_country_select" class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                                     <option value="">Select</option>
-                                                                    @foreach ($carCountries as $item)
-                                                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @foreach ($carCountries as $carCountry)
+                                                                    <option value="{{ $carCountry->id }}">{{ $carCountry->name }}</option>
                                                                     @endforeach
                                                                 </select>
                                                                 <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
@@ -1222,8 +1222,8 @@
                                                             <div class="input-group inputswidth">
                                                                 <select id="vehicle_engine_select" class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
                                                                     <option value="">Select</option>
-                                                                    @foreach ($engineccs as $item)
-                                                                    <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @foreach ($engineccs as $engineCc)
+                                                                    <option value="{{ $engineCc->id }}">{{ $engineCc->name }}</option>
                                                                     @endforeach
                                                                 </select>
                                                                 <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
@@ -1360,14 +1360,13 @@
 
                                 <div class="col-md-12 mt-3">
                                     <label for="content" class="form-label fw-bold">Short Description</label>
-                                    <input  name="short_disc"
-                                        class="form-control" value="{{ $item->short_disc ?? old('short_disc') }}" />
+                                    <input name="short_disc" class="form-control"
+                                        value="{{ old('short_disc', $item->short_disc ?? '') }}" />
                                 </div>
                                 <!-- Description -->
                                 <div class="col-md-12 mt-3">
                                     <label for="content" class="form-label fw-bold">Product Description</label>
-                                    <textarea id="summernote" name="pro_dis"
-                                        class="form-control">{{ $item->pro_dis ?? old('pro_dis') }}</textarea>
+                                    <textarea id="summernote" name="pro_dis" class="form-control">{!! old('pro_dis', $item->pro_dis ?? '') !!}</textarea>
                                 </div>
                             </div>
                         </div>
@@ -4385,7 +4384,24 @@ function md5(string) {
     // This ensures they are sent even if fields are hidden by Alpine.js
     // =========================
     $('#mainItemForm').on('submit', function(e) {
-        console.log('=== FORM SUBMIT HANDLER TRIGGERED ===');
+        var $form = $(this);
+        
+        // ========== SHORT DESCRIPTION & LONG DESCRIPTION ==========
+        var shortDiscVal = ($form.find('input[name="short_disc"]').val() || '').trim();
+        var proDisVal = '';
+        var $summernote = $('#summernote');
+        if ($summernote.length && $summernote.data('summernote')) {
+            try {
+                proDisVal = $summernote.summernote('code') || '';
+                $summernote.val(proDisVal);
+            } catch (err) { console.warn('Summernote sync:', err); }
+        } else {
+            proDisVal = $summernote.val() || '';
+        }
+        $form.find('input[name="short_disc"]').remove();
+        $form.find('textarea[name="pro_dis"]').remove();
+        $form.append($('<input type="hidden" name="short_disc">').val(shortDiscVal));
+        $form.append($('<input type="hidden" name="pro_dis">').val(proDisVal));
         
         // Get unit value from Select2 dropdown
         let unitSelectVal = $('#unit_parts').val();

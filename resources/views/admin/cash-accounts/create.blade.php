@@ -36,7 +36,7 @@
                                     <option value="">Select User</option>
                                     @foreach($users as $user)
                                         <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
-                                            {{ $user->name }} @if($user->email)({{ $user->email }})@endif
+                                            {{ $user->name }} @if($user->email)({{ $user->email }})@endif @if($user->role ?? null) - {{ ucwords(str_replace('_', ' ', $user->role)) }}@endif
                                         </option>
                                     @endforeach
                                 </select>

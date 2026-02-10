@@ -13,6 +13,62 @@
   <meta name="robots" content="index, follow">
    <meta name="csrf-token" content="{{ csrf_token() }}">
 
+  <!-- Auto session refresh + retry on 401 -->
+  <script>
+  (function() {
+    var _fetch = window.fetch;
+    var RETRY_KEY = 'fetchRetryRequest';
+    window.fetch = function(url, opts) {
+      opts = opts || {};
+      return _fetch.apply(this, arguments).then(function(res) {
+        if (res.status === 401) {
+          var clone = res.clone();
+          return clone.text().then(function(t) {
+            var isSessionErr = !t || t.toLowerCase().indexOf('session') >= 0 || t.toLowerCase().indexOf('unauth') >= 0 || t.toLowerCase().indexOf('expir') >= 0;
+            if (isSessionErr && !sessionStorage.getItem(RETRY_KEY)) {
+              var u = typeof url === 'string' ? url : (url && url.url);
+              var headers = {};
+              if (opts.headers) {
+                if (opts.headers instanceof Headers) { opts.headers.forEach(function(v,k){ headers[k]=v; }); }
+                else if (typeof opts.headers === 'object') { headers = Object.assign({}, opts.headers); }
+              }
+              var canRetry = u && (opts.method === 'POST' || opts.method === 'PUT' || opts.method === 'PATCH') && (typeof opts.body === 'string' || opts.body == null);
+              if (canRetry) {
+                try {
+                  sessionStorage.setItem(RETRY_KEY, JSON.stringify({ url: u, method: opts.method || 'POST', headers: headers, body: opts.body || null }));
+                } catch (e) {}
+              }
+              if (typeof toastr !== 'undefined') toastr.info('Session refreshed. Retrying...');
+              else alert('Session refreshed. Retrying...');
+              location.reload();
+            }
+            return res;
+          }).catch(function() { return res; });
+        }
+        return res;
+      });
+    };
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        var s = sessionStorage.getItem(RETRY_KEY);
+        if (s) {
+          sessionStorage.removeItem(RETRY_KEY);
+          var d = JSON.parse(s);
+          var token = document.querySelector('meta[name="csrf-token"]');
+          if (token && d.headers) d.headers['X-CSRF-TOKEN'] = token.getAttribute('content');
+          if (d.headers && !d.headers['Accept']) d.headers['Accept'] = 'application/json';
+          if (d.headers && !d.headers['X-Requested-With']) d.headers['X-Requested-With'] = 'XMLHttpRequest';
+          if (d.headers && !d.headers['Content-Type'] && d.body) d.headers['Content-Type'] = 'application/json';
+          _fetch(d.url, { method: d.method || 'POST', headers: d.headers || {}, body: d.body }).then(function(r) {
+            if (r.ok && typeof toastr !== 'undefined') toastr.success('Done.');
+            else if (!r.ok && typeof toastr !== 'undefined') toastr.error('Please try again.');
+          }).catch(function() { if (typeof toastr !== 'undefined') toastr.error('Please try again.'); });
+        }
+      } catch (e) {}
+    });
+  })();
+  </script>
+
   <title>@yield('title') | {{env('APP_NAME')}}</title>
    <link rel="icon" href="{{ setting_value('favicon', asset('assets/img/favicon.png')) }}" type="image/x-icon"/>
   <!-- Global error handler to suppress null element addEventListener errors -->
@@ -827,7 +883,7 @@ function confirmDelete(formId, customMessage = null) {
           // 1. We have a referer (came from another page)
           // 2. OR this is not a create/edit page (other pages can show messages normally)
           $referer = request()->header('referer');
-          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit');
+          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit') || request()->is('all/items/create') || request()->is('item/edit/*');
           $showSuccess = false;
           
           if (!$isCreateEditPage) {

@@ -1,5 +1,11 @@
 @extends('assets.headassets')
 @section('title', 'Login')
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}">
+@endpush
+@push('scripts')
+<script src="{{ asset('assets/plugins/select2/js/select2.min.js') }}"></script>
+@endpush
 @section('authentication')
     <div class="main-wrapper">
         <div class="account-content">
@@ -39,12 +45,19 @@
                                         <div class="tab-content" id="loginMethodTabContent">
                                             <!-- PIN Tab -->
                                             <div class="tab-pane fade show active" id="pin-pane" role="tabpanel" aria-labelledby="pin-tab">
-                                                <!-- Email -->
+                                                <!-- Username (dropdown) -->
                                         <div class="mb-3">
-                                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                                            <label class="form-label">Username <span class="text-danger">*</span></label>
                                             <div class="input-group">
-                                                <input type="email" name="email" id="emailInput" class="form-control border-end-0 @error('email') is-invalid @enderror" value="{{ old('email') }}" required autofocus>
-                                                <span class="input-group-text border-start-0"><i class="ti ti-mail"></i></span>
+                                                <select name="email" id="emailInput" class="form-control border-end-0 @error('email') is-invalid @enderror" required autofocus>
+                                                    <option value="">-- Select User --</option>
+                                                    @isset($users)
+                                                        @foreach($users as $u)
+                                                            <option value="{{ $u->email }}" {{ old('email') == $u->email ? 'selected' : '' }}>{{ $u->name }} ({{ $u->email }})</option>
+                                                        @endforeach
+                                                    @endisset
+                                                </select>
+                                                <span class="input-group-text border-start-0"><i class="ti ti-user"></i></span>
                                             </div>
                                             <small class="text-muted" id="branchAutoDetectMsg" style="display: none;">
                                                 <i class="ti ti-loader spinner-border spinner-border-sm"></i> Detecting your branch...
@@ -59,7 +72,7 @@
                                         <div class="mb-3" id="branchSelectionDiv" style="display: none;">
                                             <label class="form-label">Branch 
                                                 <span class="text-danger" id="branchRequiredStar" style="display: none;">*</span>
-                                                <small class="text-muted" id="branchOptionalText">(Auto-detected from your email)</small>
+                                                <small class="text-muted" id="branchOptionalText">(Auto-detected from your account)</small>
                                             </label>
                                             <div class="input-group">
                                                 <select name="branch_id" class="form-control border-end-0 @error('branch_id') is-invalid @enderror" id="branchSelect">
@@ -78,7 +91,7 @@
                                             <!-- Hidden input to ensure branch_id is submitted even when select is disabled -->
                                             <input type="hidden" name="branch_id_hidden" id="branchIdHidden" value="">
                                             <small class="text-muted" id="branchInfoMsg">
-                                                Enter your email above to auto-detect your branch
+                                                Select your username above to auto-detect your branch
                                             </small>
                                             @error('branch_id')
                                                 <span class="text-danger small d-block mt-1">{{ $message }}</span>
@@ -98,18 +111,6 @@
                                             @enderror
                                         </div>
 
-                                        <!-- Remember Me -->
-                                        <div class="d-flex justify-content-between">
-                                            <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="remember">Remember Me</label>
-                                        </div>
-                                        @if (Route::has('password.request'))
-                                            <div class="text-center mb-3">
-                                                <a href="{{ route('password.request') }}" class="text-primary">Forgot Your Password?</a>
-                                            </div>
-                                        @endif
-                                        </div>
                                                 <!-- Submit -->
                                                 <div class="form-login mb-3">
                                                     <button type="submit" class="btn btn-login w-100">Sign In</button>
@@ -131,6 +132,9 @@
                                                         </div>
                                                     </div>
                                                     <p class="text-danger small mt-3" id="patternError" style="display: none;"></p>
+                                                    @error('pattern')
+                                                        <p class="text-danger small mt-2">{{ $message }}</p>
+                                                    @enderror
                                                     <input type="hidden" name="pattern" id="patternInput" value="">
                                                 </div>
                                             </div>
@@ -192,6 +196,13 @@
                         <!-- JavaScript for Login Methods -->
                         <script>
                             document.addEventListener('DOMContentLoaded', function() {
+                                // If pattern error on redirect back, switch to pattern tab
+                                @if($errors->has('pattern'))
+                                    var patternTab = document.getElementById('pattern-tab');
+                                    if (patternTab) {
+                                        patternTab.click();
+                                    }
+                                @endif
                                 // Pattern Lock Logic
                                 let patternDots = [];
                                 let isDrawing = false;
@@ -282,20 +293,9 @@
                                         }, 2000);
                                         return;
                                     }
-
-                                    if (patternDots.join(',') === userPattern) {
-                                        patternInput.value = patternDots.join(',');
-                                        // Submit pattern login form
-                                        submitPatternLogin();
-                                    } else {
-                                        patternError.textContent = 'Wrong Pattern';
-                                        patternError.style.display = 'block';
-                                        setTimeout(function() {
-                                            patternDots = [];
-                                            updatePatternDisplay();
-                                            patternError.style.display = 'none';
-                                        }, 1000);
-                                    }
+                                    // Submit to server - verification happens securely on backend (encrypted storage)
+                                    patternInput.value = patternDots.join(',');
+                                    submitPatternLogin();
                                 }
 
                                 function submitPatternLogin() {
@@ -487,8 +487,8 @@
                                     })
                                     .then(response => response.json())
                                     .then(data => {
-                                        if (data.has_pattern && data.pattern) {
-                                            userPattern = data.pattern; // Store user's pattern from database
+                                        if (data.has_pattern) {
+                                            userPattern = true; // User has pattern set (never send actual pattern to client)
                                             if (patternPane) {
                                                 let patternMsg = patternPane.querySelector('.pattern-status-msg');
                                                 if (!patternMsg) {
@@ -541,9 +541,20 @@
                                 }
 
                                 if (emailInput && branchSelect && branchSelectionDiv) {
-                                    // Auto-detect branch when email is entered (on input change)
-                                    emailInput.addEventListener('input', function() {
-                                        const email = this.value.trim();
+                                    function focusAndOpenBranchDropdown() {
+                                        setTimeout(function() {
+                                            if (branchSelect && !branchSelect.disabled && !branchSelect.hasAttribute('readonly')) {
+                                                branchSelect.focus();
+                                                if (typeof branchSelect.showPicker === 'function') {
+                                                    branchSelect.showPicker();
+                                                } else {
+                                                    branchSelect.click();
+                                                }
+                                            }
+                                        }, 150);
+                                    }
+                                    function handleEmailOrUserChange() {
+                                        const email = (emailInput.tagName === 'SELECT' ? emailInput.value : emailInput.value.trim());
                                         
                                         // Check pattern and fingerprint status
                                         checkPatternFingerprintStatus(email);
@@ -555,17 +566,13 @@
                                             return;
                                         }
                                         
-                                        // Show loading message immediately
+                                        // Show branch section immediately below username
                                         branchAutoDetectMsg.style.display = 'block';
                                         branchInfoMsg.style.display = 'none';
                                         branchSelectionDiv.style.display = 'block';
                                         branchSelect.disabled = true; // Disable while loading
                                         
-                                        // Clear previous timer
-                                        clearTimeout(debounceTimer);
-                                        
-                                        // Fast debounce - 800ms (less than 1 second)
-                                        debounceTimer = setTimeout(function() {
+                                        function doBranchFetch() {
                                             // Make AJAX request to get user's branch
                                             fetch('{{ route("get.user.branch") }}', {
                                                 method: 'POST',
@@ -598,6 +605,8 @@
                                                         // Auto-select if branch_id provided
                                                         if (data.branch_id) {
                                                             branchSelect.value = data.branch_id;
+                                                        } else {
+                                                            focusAndOpenBranchDropdown();
                                                         }
                                                     } else if (data.branch_id && data.branch_required) {
                                                         // Normal user - branch is REQUIRED and AUTO-SELECTED
@@ -659,6 +668,7 @@
                                                         branchInfoMsg.style.display = 'block';
                                                         branchInfoMsg.classList.remove('text-success', 'text-info');
                                                         branchInfoMsg.classList.add('text-danger');
+                                                        focusAndOpenBranchDropdown();
                                                     }
                                                 } else {
                                                     // Error or user not found
@@ -677,17 +687,45 @@
                                                 branchInfoMsg.style.display = 'block';
                                                 branchInfoMsg.classList.add('text-danger');
                                             });
-                                        }, 800); // 800ms debounce (less than 1 second for faster response)
-                                    });
+                                        }
+                                        
+                                        if (emailInput.tagName === 'SELECT') {
+                                            doBranchFetch();
+                                        } else {
+                                            clearTimeout(debounceTimer);
+                                            debounceTimer = setTimeout(doBranchFetch, 800);
+                                        }
+                                    }
+                                    // Auto-detect branch when email/user is selected (on change for select, input for text)
+                                    if (emailInput.tagName === 'SELECT') {
+                                        emailInput.addEventListener('change', handleEmailOrUserChange);
+                                    } else {
+                                        emailInput.addEventListener('input', function() {
+                                            clearTimeout(debounceTimer);
+                                            debounceTimer = setTimeout(handleEmailOrUserChange, 800);
+                                        });
+                                    }
+                                    // Also trigger on blur (when user leaves email field) - for text input only
+                                    if (emailInput.tagName !== 'SELECT') {
+                                        emailInput.addEventListener('blur', function() {
+                                            if (this.value.trim() && this.value.includes('@')) {
+                                                this.dispatchEvent(new Event('input'));
+                                            }
+                                        });
+                                    }
                                     
-                                    // Also trigger on blur (when user leaves email field)
-                                    emailInput.addEventListener('blur', function() {
-                                        if (this.value.trim() && this.value.includes('@')) {
-                                            // Trigger the same logic
-                                            this.dispatchEvent(new Event('input'));
+                                    // When branch is selected, auto-focus password field
+                                    branchSelect.addEventListener('change', function() {
+                                        if (branchSelect.value) {
+                                            setTimeout(function() {
+                                                const passwordInput = document.querySelector('input[name="password"]');
+                                                if (passwordInput) {
+                                                    passwordInput.focus();
+                                                }
+                                            }, 100);
                                         }
                                     });
-                                    
+
                                     // Form validation - prevent login if user role and no branch selected
                                     if (loginForm) {
                                         loginForm.addEventListener('submit', function(e) {
@@ -720,9 +758,23 @@
                                     // If email is pre-filled (from old() helper), auto-detect on page load
                                     @if(old('email'))
                                         setTimeout(function() {
-                                            emailInput.dispatchEvent(new Event('input'));
+                                            emailInput.dispatchEvent(new Event(emailInput.tagName === 'SELECT' ? 'change' : 'input'));
                                         }, 500);
                                     @endif
+                                }
+                                
+                                // Searchable username dropdown (Select2)
+                                if (typeof $ !== 'undefined' && $.fn.select2 && document.getElementById('emailInput')) {
+                                    $('#emailInput').select2({
+                                        placeholder: '-- Select User --',
+                                        allowClear: false,
+                                        width: '100%'
+                                    });
+                                    // Ensure branch section shows when user selects from dropdown (Select2 uses select2:select)
+                                    $('#emailInput').on('select2:select', function() {
+                                        var sel = document.getElementById('emailInput');
+                                        if (sel) sel.dispatchEvent(new Event('change'));
+                                    });
                                 }
 
                             });
