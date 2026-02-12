@@ -102,6 +102,11 @@
         const branchName = @json($branchName ?? 'No Branch');
         const userName = @json($userName ?? 'Guest');
         
+        // Permissions for car wash menu (admin sees all)
+        const isAdmin = @json(auth()->user()->role === 'admin');
+        const userPermissions = @json(collect(optional(auth()->user())->getAllPermissions() ?? [])->pluck('name')->toArray());
+        const hasPermission = (perm) => isAdmin || userPermissions.includes(perm);
+        
         // Icon Components using Tabler Icons
         const createIcon = (iconClass, props) => {
             const iconSize = props.size || 20;
@@ -229,106 +234,27 @@
                 return date.toLocaleDateString('en-GB', { weekday: 'long' });
             };
 
-            // Main Dashboard
-            const navItems = [
-                { name: 'Home', icon: LayoutDashboard, route: ROUTES.carWashHome },
-                { name: 'Services', icon: Package, route: ROUTES.services },
-                { name: 'Staff', icon: Users, route: ROUTES.staff },
-                { name: 'Settings', icon: Settings, route: '#' },
+            // Main Dashboard - filter by permissions
+            const allNavItems = [
+                { name: 'Home', icon: LayoutDashboard, route: ROUTES.carWashHome, perm: 'view_car_wash_jobs' },
+                { name: 'Services', icon: Package, route: ROUTES.services, perm: 'view_car_wash_services' },
+                { name: 'Staff', icon: Users, route: ROUTES.staff, perm: 'view_car_wash_workers' },
+                { name: 'Settings', icon: Settings, route: '#', perm: 'view_setting' },
             ];
+            const navItems = allNavItems.filter(item => hasPermission(item.perm));
 
-            const quickActions = [
-                { 
-                    label: "Elite Wash", 
-                    icon: Car, 
-                    gradient: "from-cyan-500 via-blue-500 to-cyan-600", 
-                    shadow: "shadow-cyan-200/50", 
-                    hoverShadow: "hover:shadow-cyan-300/60",
-                    iconBg: "bg-cyan-400/20",
-                    desc: "Premium Cleaning", 
-                    route: ROUTES.carWash 
-                },
-                { 
-                    label: "Sale", 
-                    icon: Handshake, 
-                    gradient: "from-orange-500 via-amber-500 to-orange-600", 
-                    shadow: "shadow-orange-200/50", 
-                    hoverShadow: "hover:shadow-orange-300/60",
-                    iconBg: "bg-orange-400/20",
-                    desc: "Battery Sale", 
-                    route: ROUTES.sale 
-                },
-                { 
-                    label: "Reports", 
-                    icon: BarChart3, 
-                    gradient: "from-indigo-600 via-purple-600 to-indigo-700", 
-                    shadow: "shadow-indigo-200/50", 
-                    hoverShadow: "hover:shadow-indigo-300/60",
-                    iconBg: "bg-indigo-400/20",
-                    desc: "Accounts", 
-                    route: ROUTES.dailyReport 
-                },
-                { 
-                    label: "Attendance", 
-                    icon: ClockCheck, 
-                    gradient: "from-emerald-500 via-teal-500 to-emerald-600", 
-                    shadow: "shadow-emerald-200/50", 
-                    hoverShadow: "hover:shadow-emerald-300/60",
-                    iconBg: "bg-emerald-400/20",
-                    desc: "Mark Attendance", 
-                    route: ROUTES.attendance 
-                },
-                { 
-                    label: "Services", 
-                    icon: Package, 
-                    gradient: "from-violet-500 via-purple-500 to-violet-600", 
-                    shadow: "shadow-violet-200/50", 
-                    hoverShadow: "hover:shadow-violet-300/60",
-                    iconBg: "bg-violet-400/20",
-                    desc: "Manage Services", 
-                    route: ROUTES.services 
-                },
-                { 
-                    label: "Staff", 
-                    icon: Users, 
-                    gradient: "from-pink-500 via-rose-500 to-pink-600", 
-                    shadow: "shadow-pink-200/50", 
-                    hoverShadow: "hover:shadow-pink-300/60",
-                    iconBg: "bg-pink-400/20",
-                    desc: "Manage Workers", 
-                    route: ROUTES.staff 
-                },
-                { 
-                    label: "Completed", 
-                    icon: Checkbox, 
-                    gradient: "from-green-500 via-emerald-500 to-green-600", 
-                    shadow: "shadow-green-200/50", 
-                    hoverShadow: "hover:shadow-green-300/60",
-                    iconBg: "bg-green-400/20",
-                    desc: "Completed Jobs", 
-                    route: ROUTES.completedJobs 
-                },
-                { 
-                    label: "Expenses", 
-                    icon: Receipt, 
-                    gradient: "from-red-500 via-rose-500 to-red-600", 
-                    shadow: "shadow-red-200/50", 
-                    hoverShadow: "hover:shadow-red-300/60",
-                    iconBg: "bg-red-400/20",
-                    desc: "Shop Expenses", 
-                    route: ROUTES.shopExpenses 
-                },
-                { 
-                    label: "History", 
-                    icon: History, 
-                    gradient: "from-slate-600 via-gray-600 to-slate-700", 
-                    shadow: "shadow-slate-200/50", 
-                    hoverShadow: "hover:shadow-slate-300/60",
-                    iconBg: "bg-slate-400/20",
-                    desc: "Attendance History", 
-                    route: ROUTES.attendanceHistory 
-                },
+            const allQuickActions = [
+                { label: "Elite Wash", icon: Car, gradient: "from-cyan-500 via-blue-500 to-cyan-600", shadow: "shadow-cyan-200/50", hoverShadow: "hover:shadow-cyan-300/60", iconBg: "bg-cyan-400/20", desc: "Premium Cleaning", route: ROUTES.carWash, perm: 'view_car_wash_jobs' },
+                { label: "Sale", icon: Handshake, gradient: "from-orange-500 via-amber-500 to-orange-600", shadow: "shadow-orange-200/50", hoverShadow: "hover:shadow-orange-300/60", iconBg: "bg-orange-400/20", desc: "Battery Sale", route: ROUTES.sale, perm: 'view_sales' },
+                { label: "Reports", icon: BarChart3, gradient: "from-indigo-600 via-purple-600 to-indigo-700", shadow: "shadow-indigo-200/50", hoverShadow: "hover:shadow-indigo-300/60", iconBg: "bg-indigo-400/20", desc: "Accounts", route: ROUTES.dailyReport, perm: 'view_car_wash_jobs' },
+                { label: "Attendance", icon: ClockCheck, gradient: "from-emerald-500 via-teal-500 to-emerald-600", shadow: "shadow-emerald-200/50", hoverShadow: "hover:shadow-emerald-300/60", iconBg: "bg-emerald-400/20", desc: "Mark Attendance", route: ROUTES.attendance, perm: 'view_car_wash_attendance' },
+                { label: "Services", icon: Package, gradient: "from-violet-500 via-purple-500 to-violet-600", shadow: "shadow-violet-200/50", hoverShadow: "hover:shadow-violet-300/60", iconBg: "bg-violet-400/20", desc: "Manage Services", route: ROUTES.services, perm: 'view_car_wash_services' },
+                { label: "Staff", icon: Users, gradient: "from-pink-500 via-rose-500 to-pink-600", shadow: "shadow-pink-200/50", hoverShadow: "hover:shadow-pink-300/60", iconBg: "bg-pink-400/20", desc: "Manage Workers", route: ROUTES.staff, perm: 'view_car_wash_workers' },
+                { label: "Completed", icon: Checkbox, gradient: "from-green-500 via-emerald-500 to-green-600", shadow: "shadow-green-200/50", hoverShadow: "hover:shadow-green-300/60", iconBg: "bg-green-400/20", desc: "Completed Jobs", route: ROUTES.completedJobs, perm: 'view_car_wash_jobs' },
+                { label: "Expenses", icon: Receipt, gradient: "from-red-500 via-rose-500 to-red-600", shadow: "shadow-red-200/50", hoverShadow: "hover:shadow-red-300/60", iconBg: "bg-red-400/20", desc: "Shop Expenses", route: ROUTES.shopExpenses, perm: 'view_car_wash_expenses' },
+                { label: "History", icon: History, gradient: "from-slate-600 via-gray-600 to-slate-700", shadow: "shadow-slate-200/50", hoverShadow: "hover:shadow-slate-300/60", iconBg: "bg-slate-400/20", desc: "Attendance History", route: ROUTES.attendanceHistory, perm: 'view_car_wash_attendance' },
             ];
+            const quickActions = allQuickActions.filter(a => hasPermission(a.perm));
 
             return (
                 React.createElement('div', { className: 'min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900' },

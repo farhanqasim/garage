@@ -873,59 +873,41 @@ function confirmDelete(formId, customMessage = null) {
   };
   </script>
 
-  <!-- ✅ Laravel Flash Message Integration -->
+  <!-- ✅ Laravel Flash Message Integration - run after DOM ready so toastr + saveSound element exist -->
   <script>
-  // Only show session messages if they exist and page was redirected from form submission
-  // Check if we came from a POST request (form submission)
+  $(document).ready(function() {
   @if (session('success'))
       @php
-          // Only show success message if:
-          // 1. We have a referer (came from another page)
-          // 2. OR this is not a create/edit page (other pages can show messages normally)
           $referer = request()->header('referer');
           $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit') || request()->is('all/items/create') || request()->is('item/edit/*');
-          $showSuccess = false;
-          
-          if (!$isCreateEditPage) {
-              // Not on create/edit page, show message normally
-              $showSuccess = true;
-          } else if ($referer) {
-              // On create/edit page, only show if we have a referer (redirected from form)
-              // Check if referer is different from current URL (means we were redirected)
+          $showSuccess = !$isCreateEditPage;
+          if ($isCreateEditPage) {
               $currentUrl = request()->url();
-              if ($referer !== $currentUrl) {
-                  $showSuccess = true;
-              }
+              $showSuccess = ($referer && $referer !== $currentUrl) || true;
           }
+          $successMessage = session('success');
+          $isDeleteMessage = stripos($successMessage, 'delete') !== false || stripos($successMessage, 'deleted') !== false || stripos($successMessage, 'restored') !== false;
       @endphp
       @if ($showSuccess)
-          toastr.success("{{ session('success') }}");
-          // 🔊 Play save sound only for save/create/update operations, not for delete operations
-          @php
-              $successMessage = session('success');
-              $isDeleteMessage = stripos($successMessage, 'delete') !== false || 
-                                  stripos($successMessage, 'deleted') !== false ||
-                                  stripos($successMessage, 'restored') !== false;
-          @endphp
+          if (typeof toastr !== 'undefined') toastr.success({{ json_encode(session('success')) }});
           @if (!$isDeleteMessage)
-              <script>
-                  playSaveSound();
-              </script>
+          if (typeof playSaveSound === 'function') setTimeout(function() { playSaveSound(); }, 150);
           @endif
       @endif
   @endif
 
   @if (session('error'))
-      toastr.error("{{ session('error') }}");
+      if (typeof toastr !== 'undefined') toastr.error({{ json_encode(session('error')) }});
   @endif
 
   @if (session('warning'))
-      toastr.warning("{{ session('warning') }}");
+      if (typeof toastr !== 'undefined') toastr.warning({{ json_encode(session('warning')) }});
   @endif
 
   @if (session('info'))
-      toastr.info("{{ session('info') }}");
+      if (typeof toastr !== 'undefined') toastr.info({{ json_encode(session('info')) }});
   @endif
+  });
 
 
 
@@ -962,6 +944,11 @@ function confirmDelete(formId, customMessage = null) {
                 url.includes('/destroy') ||
                 url.includes('/destory') ||
                 url.includes('/force-delete')) {
+                return;
+            }
+            
+            // Skip item create/update - those pages show their own toast + save sound (avoids duplicate toasts)
+            if (url.indexOf('/all/items/store') !== -1 || url.indexOf('/item/update/') !== -1) {
                 return;
             }
             

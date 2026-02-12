@@ -402,11 +402,13 @@
             <form method="POST" action="{{ route('all.items.store') }}" enctype="multipart/form-data" id="mainItemForm">
                 @csrf
                 <input type="hidden" name="user_id" value="{{ auth()->check() ? auth()->user()->id : '' }}">
+                <input type="hidden" name="action" id="mainFormAction" value="save_new">
                 <input type="hidden" name="short_disc" id="short_disc_submit" value="{{ old('short_disc') }}">
                 <input type="hidden" name="pro_dis" id="pro_dis_submit" value="{{ old('pro_dis') }}">
                 <div class="container" x-data="productForm()">
-                    <!-- 4 Clickable Type Boxes -->
+                    <!-- Type Boxes - @@can permission ke hisaab se -->
                     <div class="row mb-5 g-3">
+                        @canany(['view_items', 'view_parts'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
                                 @click="selectType('parts')">
@@ -414,6 +416,8 @@
                                 Parts
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_filters'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
                                 @click="selectType('filters')">
@@ -421,6 +425,8 @@
                                 Filters
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_break_pad'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
                                 @click="selectType('breakpad')">
@@ -428,6 +434,8 @@
                                 Break Pad
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_oil'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
                                 @click="selectType('oil')">
@@ -435,6 +443,8 @@
                                 Oil
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_battery'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
                                 @click="selectType('battery')">
@@ -442,6 +452,8 @@
                                 Battery
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_scrap'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
                                 @click="selectType('scrap')">
@@ -449,6 +461,8 @@
                                 Scrap
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_services'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
                                 @click="selectType('services')">
@@ -456,6 +470,7 @@
                                 Services
                             </div>
                         </div>
+                        @endcanany
                     </div>
                     <input type="hidden" name="type" x-model="selectedType">
                     <!-- Hidden inputs to ensure quality_id and technology are submitted even when fields are hidden -->
@@ -1706,10 +1721,10 @@
         <!-- Submit Buttons -->
         <div class="page-btn d-flex justify-content-end mt-4">
             <a href="{{ route('all.items') }}" class="btn btn-secondary me-2">Cancel</a>
-            {{-- <button type="submit" name="action" value="save" class="btn btn-primary">
-                            Save
-                        </button> --}}
-            <button type="submit" name="action" value="save_new" class="btn btn-success">
+            <button type="submit" name="action" value="save" class="btn btn-primary me-2">
+                Save
+            </button>
+            <button type="submit" name="action" value="save_new" class="btn btn-success d-none">
                 Save & New
             </button>
         </div>
@@ -7021,71 +7036,93 @@
             });
         }
 
+        // Set action (save vs save_new) when submit button is clicked (for AJAX FormData)
+        $('#mainItemForm').on('click', 'button[type=submit][name=action]', function() {
+            $('#mainFormAction').val($(this).val());
+            // Unlock save audio on user click (volume 0) so play() works after AJAX success
+            var s = document.getElementById('saveSound');
+            if (s && typeof s.play === 'function') {
+                var v = s.volume;
+                s.volume = 0;
+                s.currentTime = 0;
+                s.play().then(function() { s.pause(); s.currentTime = 0; s.volume = v; }).catch(function(){ s.volume = v; });
+            }
+        });
+
         // =========================
-        // ENSURE quality_id AND technology ARE SUBMITTED ON FORM SUBMIT
-        // This ensures they are sent even if fields are hidden by Alpine.js
+        // SUBMIT VIA AJAX - show success toast + save audio (same as other pages)
         // =========================
-        $('#mainItemForm').on('submit', function(e) {
+        $('#mainItemForm').off('submit').on('submit', function(e) {
+            e.preventDefault();
             var $form = $(this);
 
-            // ========== SHORT DESCRIPTION & LONG DESCRIPTION ==========
+            // ========== SYNC hidden fields before submit ==========
             var shortDiscVal = ($('#short_disc_visible').val() || '').trim();
             var proDisVal = '';
             var $summernote = $('#summernote');
             if ($summernote.length && $summernote.data('summernote')) {
-                try {
-                    proDisVal = $summernote.summernote('code') || '';
-                } catch (err) { console.warn('Summernote sync:', err); }
+                try { proDisVal = $summernote.summernote('code') || ''; } catch (err) { console.warn('Summernote sync:', err); }
             } else {
                 proDisVal = $summernote.val() || '';
             }
             $('#short_disc_submit').val(shortDiscVal);
             $('#pro_dis_submit').val(proDisVal);
 
-            // Extract only unit_id from composite value (unit_id_base_unit_id format)
-            // Save only the unit_id (e.g., "87" instead of "87_main")
-            const unitSelectVal = $('#unit_parts').val();
+            var unitSelectVal = $('#unit_parts').val();
             if (unitSelectVal && unitSelectVal !== '') {
-                let unitId = unitSelectVal;
-                
-                // If value contains underscore, extract only the unit_id part
-                if (unitSelectVal.includes('_')) {
-                    unitId = unitSelectVal.split('_')[0];
-                    console.log('Extracted unit_id from composite value:', unitId, '(from:', unitSelectVal + ')');
-                }
-                
-                // Remove existing unit hidden input to avoid duplicates
-                $(this).find('input[type="hidden"][name="unit"]').remove();
-                // Add hidden input with only the unit_id
-                $(this).append('<input type="hidden" name="unit" value="' + unitId + '">');
-                console.log('Unit ID being submitted:', unitId);
+                var unitId = unitSelectVal.includes('_') ? unitSelectVal.split('_')[0] : unitSelectVal;
+                $form.find('input[type="hidden"][name="unit"]').remove();
+                $form.append('<input type="hidden" name="unit" value="' + unitId + '">');
             } else {
-                // If no unit selected, remove any existing unit hidden input
-                $(this).find('input[type="hidden"][name="unit"]').remove();
-                console.log('No unit selected - unit field will be null');
+                $form.find('input[type="hidden"][name="unit"]').remove();
             }
-            
-            // Get quality_id from any visible quality field
-            const qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
-            
-            // Remove any existing hidden quality_id inputs to avoid duplicates
-            $(this).find('input[type="hidden"][name="quality_id"]').remove();
-            
-            // Add hidden input if quality_id has a value
-            if (qualityVal) {
-                $(this).append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
-            }
-            
-            // Get technology from any visible technology field
-            const techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
-            
-            // Remove any existing hidden technology inputs to avoid duplicates
-            $(this).find('input[type="hidden"][name="technology"]').remove();
-            
-            // Add hidden input if technology has a value
-            if (techVal) {
-                $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
-            }
+
+            var qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
+            $form.find('input[type="hidden"][name="quality_id"]').remove();
+            if (qualityVal) $form.append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
+
+            var techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
+            $form.find('input[type="hidden"][name="technology"]').remove();
+            if (techVal) $form.append('<input type="hidden" name="technology" value="' + techVal + '">');
+
+            var formData = new FormData($form[0]);
+            formData.set('action', $('#mainFormAction').val() || 'save_new');
+
+            var $focused = $form.find('button[type=submit][name=action]:focus');
+            if ($focused.length) formData.set('action', $focused.val());
+
+            var $submitBtns = $form.find('button[type=submit][name=action]');
+            $submitBtns.each(function() { $(this).data('orig-html', $(this).html()); });
+            $submitBtns.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Saving...');
+
+            $.ajax({
+                url: $form.attr('action'),
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                success: function(data) {
+                    if (data.success && data.message) {
+                        if (typeof toastr !== 'undefined') toastr.success(data.message, '', { timeOut: 3500 });
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                    }
+                    // Delay redirect/reload so toast is visible and save audio can play (then navigate)
+                    var go = function() {
+                        if (data.redirect) window.location.href = data.redirect;
+                        else window.location.reload();
+                    };
+                    setTimeout(go, 450);
+                },
+                error: function(xhr) {
+                    $form.find('button[type=submit][name=action]').prop('disabled', false).each(function() { $(this).html($(this).data('orig-html') || 'Save'); });
+                    var res = xhr.responseJSON;
+                    var msg = (res && res.errors && typeof res.errors === 'object') ? (Object.values(res.errors).flat().join(' ') || (res.message || 'Validation failed')) : (res && res.message) ? res.message : 'Failed to save item. Please try again.';
+                    if (typeof toastr !== 'undefined') toastr.error(msg);
+                }
+            });
         });
     });
 </script>

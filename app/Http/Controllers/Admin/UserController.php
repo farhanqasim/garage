@@ -6,15 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Branch;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
     public function all_users(){
-      $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser'])
-                     ->with(['assignedBranches'])
+      $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser', 'employee'])
+                     ->with(['assignedBranches', 'roles'])
                      ->paginate(10);
       $branches = Branch::all();
-        return view('admin.users.index', compact('users', 'branches'));
+      $spatieRoles = Role::where('name', '!=', 'Super Admin')->orderBy('name')->get();
+        return view('admin.users.index', compact('users', 'branches', 'spatieRoles'));
     }
 
 
@@ -53,6 +55,7 @@ class UserController extends Controller
             'phone_name' => 'nullable|array',
             'phone_name.*' => 'nullable|string|max:100',
             'role' => 'required|string',
+            'spatie_role' => 'nullable|string|exists:roles,name',
             'branch_id' => 'nullable|exists:branches,id',
             'profile_img' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'user_id_card_front' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -177,6 +180,13 @@ class UserController extends Controller
         }
 
         $user->save();
+
+        // Assign Spatie role (for permissions) - if spatie_role provided
+        if ($request->filled('spatie_role')) {
+            $user->syncRoles([$request->spatie_role]);
+        } else {
+            $user->syncRoles([]); // Remove all Spatie roles if none selected
+        }
 
         // Keep branch_user in sync: if branch selected, ensure user is attached to that branch for login
         if ($user->branch_id) {

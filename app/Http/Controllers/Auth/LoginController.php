@@ -228,8 +228,8 @@ class LoginController extends Controller
                         'selected_branch_code' => $branch->branch_code
                     ]);
                     
-                    // User role redirects to employee home
-                    return redirect()->route('employee.home');
+                    // User role redirects to home
+                    return redirect()->route('home');
                 }
             }
             
@@ -263,8 +263,8 @@ class LoginController extends Controller
             return redirect()->route('home');
         }
         
-        // For employee role or any other role, redirect to employee home
-        return redirect()->route('employee.home');
+        // For employee role or any other role, redirect to home
+        return redirect()->route('home');
     }
     
     /**
@@ -721,12 +721,8 @@ class LoginController extends Controller
             }
         }
 
-        // Redirect based on role
-        if ($user->role === 'admin') {
-            return redirect()->route('home');
-        } else {
-            return redirect()->route('employee.home');
-        }
+        // Redirect based on role - all roles go to home
+        return redirect()->route('home');
     }
 
     /**
@@ -784,11 +780,7 @@ class LoginController extends Controller
             }
         }
 
-        // Redirect based on role
-        if ($user->role === 'admin') {
-            return redirect()->route('home');
-        } else {
-            return redirect()->route('employee.home');
-        }
+        // Redirect based on role - all roles go to home
+        return redirect()->route('home');
     }
 }

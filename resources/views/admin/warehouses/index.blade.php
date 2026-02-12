@@ -10,9 +10,11 @@
             <h6>Manage branch warehouses</h6>
         </div>
         <div class="page-btn">
+            @can('add_warehouse')
             <a href="{{ route('warehouses.create') }}" class="btn btn-primary">
                 <i class="ti ti-plus me-1"></i> Add New Warehouse
             </a>
+            @endcan
         </div>
     </div>
 
@@ -59,12 +61,14 @@
                             </td>
                             <td>
                                 <div class="d-flex gap-2">
+                                    @can('view_warehouse')
                                     <a href="{{ route('warehouses.show', $warehouse->id) }}" class="btn btn-sm btn-primary" title="View">
                                         <i class="ti ti-eye"></i> View
                                     </a>
                                     <a href="{{ route('warehouses.low-stock', $warehouse->id) }}" class="btn btn-sm btn-warning" title="Low Stock">
                                         <i class="ti ti-alert-triangle"></i> Low Stock
                                     </a>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

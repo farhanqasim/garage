@@ -26,8 +26,10 @@
                 </li>
             </ul>
             <div class="page-btn">
+                @can('add_user')
                 <a href="" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
                         class="ti ti-circle-plus me-1"></i>Add</a>
+                @endcan
             </div>
         </div>
         <!-- /product list -->
@@ -86,12 +88,15 @@
                                 <td>
                                   @if ($user->role)
                                     @php
-                                        $mainRoleBadges = ['user' => 'bg-info', 'manager' => 'bg-primary', 'salesman' => 'bg-success', 'purchaser' => 'bg-warning'];
-                                        $mainRoleLabels = ['user' => 'User', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser'];
+                                        $mainRoleBadges = ['user' => 'bg-info', 'employee' => 'bg-secondary', 'manager' => 'bg-primary', 'salesman' => 'bg-success', 'purchaser' => 'bg-warning'];
+                                        $mainRoleLabels = ['user' => 'User', 'employee' => 'Employee', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser'];
                                         $mainRoleClass = $mainRoleBadges[$user->role] ?? 'bg-secondary';
                                         $mainRoleLabel = $mainRoleLabels[$user->role] ?? ucfirst($user->role);
                                     @endphp
                                     <span class="badge {{ $mainRoleClass }}">{{ $mainRoleLabel }}</span>
+                                    @if ($user->roles->isNotEmpty())
+                                        <br><small class="text-muted" title="Permission role">{{ $user->roles->first()->name }}</small>
+                                    @endif
                                   @else
                                     <span class="badge bg-info">No role Have</span>
                                   @endif
@@ -292,6 +297,17 @@
                                     </select>
                                 </div>
 
+                                <div class="col-12">
+                                    <label for="spatie_role_{{ $item->id }}" class="form-label">Permission Role</label>
+                                    <select name="spatie_role" id="spatie_role_{{ $item->id }}" class="form-select">
+                                        <option value="">None (no permissions)</option>
+                                        @foreach($spatieRoles ?? [] as $r)
+                                            <option value="{{ $r->name }}" {{ $item->hasRole($r->name) ? 'selected' : '' }}>{{ $r->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Assigns permissions from Roles. Create roles in Admin → Roles.</small>
+                                </div>
+
                                 <div class="col-12 border-top pt-3 mt-2">
                                     <label class="form-label fw-bold">User ID Card</label>
                                     <div class="row g-2">
@@ -449,10 +465,22 @@
                             <select name="role" id="roleSelect" class="form-select" required>
                                 <option value="">Select Role</option>
                                 <option value="user">User</option>
+                                <option value="employee">Employee</option>
                                 <option value="manager">Manager</option>
                                 <option value="salesman">Sales man</option>
                                 <option value="purchaser">Purchaser</option>
                             </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="spatie_role_add" class="form-label">Permission Role</label>
+                            <select name="spatie_role" id="spatie_role_add" class="form-select">
+                                <option value="">None (no permissions)</option>
+                                @foreach($spatieRoles ?? [] as $r)
+                                    <option value="{{ $r->name }}">{{ $r->name }}</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Assigns permissions. Create roles in Admin → Roles.</small>
                         </div>
 
                         <div class="col-md-6">
@@ -504,6 +532,15 @@
         if (urlParams.get('add') === '1') {
             const addModal = new bootstrap.Modal(document.getElementById('add-category'));
             addModal.show();
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        // Auto-open edit modal if ?edit=ID and modal exists (user on current page)
+        var editId = urlParams.get('edit');
+        if (editId) {
+            var editModal = document.getElementById('edit-category' + editId);
+            if (editModal) {
+                new bootstrap.Modal(editModal).show();
+            }
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 

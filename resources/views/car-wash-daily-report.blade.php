@@ -26,9 +26,9 @@
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto p-6">
+        <main class="max-w-7xl mx-auto p-6 min-h-[605px]" style="min-height: 605px;">
             <!-- Date, Filters & Actions -->
-            <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6 mb-6">
+            <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-6 mb-6 min-h-[227px]" style="min-height: 227px;">
                 <div class="flex flex-wrap items-end gap-4">
                     <div class="flex-1">
                         <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Select Range</label>
@@ -50,6 +50,12 @@
                         <div class="flex-1">
                             <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center" style="font-family: 'Segoe UI Emoji';">Worker</label>
                             <select id="filterWorker" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center">User</label>
+                            <select id="filterUser" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
                                 <option value="">All</option>
                             </select>
                         </div>
@@ -83,8 +89,8 @@
                 </div>
             </div>
 
-            <!-- Summary (like image: total vehicles, total debit, total credit, cash on hand, bank balance, total workers, total commission) -->
-            <div id="totalsSection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6 hidden">
+            <!-- Summary (like image: total vehicles, total debit, total credit, cash on hand, bank balance, total workers, total commission) - visible from start to avoid layout shift on refresh -->
+            <div id="totalsSection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
                 <div class="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
                     <p class="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Vehicles</p>
                     <p id="totVehicles" class="text-base sm:text-lg font-black text-slate-900">0</p>
@@ -112,8 +118,8 @@
             </div>
 
             <!-- Ledger Table: Date & Time | Vehicle | Debit | Credit | Total | Worker | Commission -->
-            <div id="tableSection" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 overflow-hidden hidden">
-                <div class="overflow-x-auto">
+            <div id="tableSection" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 overflow-hidden hidden min-h-[120px]" style="min-height: 120px;">
+                <div class="overflow-x-auto min-h-[100px]">
                     <table class="w-full min-w-[1200px] sm:min-w-[1400px]">
                         <thead class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
                             <tr>
@@ -363,6 +369,7 @@
             }
             const filterCustomer = document.getElementById('filterCustomer');
             const filterWorker = document.getElementById('filterWorker');
+            const filterUser = document.getElementById('filterUser');
             const btnPng = document.getElementById('btnDownloadPng');
             const btnPdf = document.getElementById('btnDownloadPdf');
             const btnSendWhatsApp = document.getElementById('btnSendWhatsApp');
@@ -484,9 +491,9 @@
 
             function showLoading() {
                 loadingState.classList.remove('hidden');
-                totalsSection.classList.add('hidden');
                 tableSection.classList.add('hidden');
                 emptyState.classList.add('hidden');
+                // Keep totalsSection visible so layout stays fixed on refresh
             }
 
             function renderReport(data) {
@@ -495,6 +502,7 @@
                 // Populate filters (customers & workers) - keep current selection if still in list
                 const custVal = filterCustomer.value;
                 const workVal = filterWorker.value;
+                const userVal = filterUser.value;
                 filterCustomer.innerHTML = '<option value="">All</option>';
                 (data.customers || []).forEach(function(c) {
                     const o = document.createElement('option');
@@ -511,6 +519,20 @@
                     if (w.value === workVal) o.selected = true;
                     filterWorker.appendChild(o);
                 });
+                // User filter: keep all Barki Express users (loaded once via loadBranchUsers); only preserve selection
+                if (filterUser.options.length <= 1) {
+                    filterUser.innerHTML = '<option value="">All</option>';
+                    (data.users || []).forEach(function(u) {
+                        const o = document.createElement('option');
+                        o.value = u.value;
+                        o.textContent = u.label;
+                        if (u.value === userVal) o.selected = true;
+                        filterUser.appendChild(o);
+                    });
+                } else {
+                    var opt = filterUser.querySelector('option[value="' + userVal + '"]');
+                    filterUser.value = (opt ? userVal : '');
+                }
 
                 const rows = data.rows || [];
                 const hasJobs = rows.some(function(r) { return !r.isOpening; });
@@ -523,7 +545,6 @@
                     lastReportTotals = {};
                     emptyState.classList.remove('hidden');
                     tableSection.classList.add('hidden');
-                    totalsSection.classList.add('hidden');
                     document.getElementById('totCashOnHand').textContent = 'Rs.0';
                     document.getElementById('totBankBalance').textContent = '-';
                     document.getElementById('totCommission').textContent = 'Rs.0';
@@ -535,7 +556,6 @@
 
                 emptyState.classList.add('hidden');
                 tableSection.classList.remove('hidden');
-                totalsSection.classList.remove('hidden');
                 btnPng.disabled = false;
                 btnPdf.disabled = false;
                 btnSendWhatsApp.disabled = false;
@@ -963,7 +983,8 @@
                 return base + (q ? '?' + q : '');
             }
 
-            function loadReport() {
+            var loadReportTimeout = null;
+            function doLoadReport() {
                 const dateFrom = reportDateFrom.value;
                 const dateTo = reportDateTo.value;
                 if (!dateFrom || !dateTo) return;
@@ -974,7 +995,8 @@
                     date_from: dateFrom,
                     date_to: dateTo,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || ''
+                    worker: filterWorker.value || '',
+                    user: filterUser.value || ''
                 };
                 
                 Promise.all([
@@ -1050,12 +1072,15 @@
                                 totalCashTransfer: (cashTotals.totalCashTransfer || 0) + (bankTotals.totalCashTransfer || 0)
                             };
                             
-                            // Merge customers and workers (unique)
+                            // Merge customers, workers and users (unique)
                             const allCustomers = [...(cashData.customers || []), ...(bankData.customers || [])];
                             const uniqueCustomers = Array.from(new Map(allCustomers.map(c => [c.value, c])).values());
                             
                             const allWorkers = [...(cashData.workers || []), ...(bankData.workers || [])];
                             const uniqueWorkers = Array.from(new Map(allWorkers.map(w => [w.value, w])).values());
+                            
+                            const allUsers = [...(cashData.users || []), ...(bankData.users || [])];
+                            const uniqueUsers = Array.from(new Map(allUsers.map(u => [u.value, u])).values());
                             
                             renderReport({
                                 success: true,
@@ -1064,27 +1089,33 @@
                                 cashTotals: cashTotals,
                                 bankTotals: bankTotals,
                                 customers: uniqueCustomers,
-                                workers: uniqueWorkers
+                                workers: uniqueWorkers,
+                                users: uniqueUsers
                             });
                             // Reload cash account balance after report is rendered
                             loadCashAccountBalance();
                         } else {
                             lastReportRows = [];
                             lastReportTotals = {};
-                            renderReport({ rows: [], totals: {}, customers: [], workers: [] });
+                            renderReport({ rows: [], totals: {}, customers: [], workers: [], users: [] });
                             loadCashAccountBalance();
                         }
                     })
                     .catch(function() {
                         lastReportRows = [];
                         lastReportTotals = {};
-                        renderReport({ rows: [], totals: {}, customers: [], workers: [] });
+                        renderReport({ rows: [], totals: {}, customers: [], workers: [], users: [] });
                         loadCashAccountBalance();
                     });
+            }
+            function loadReport() {
+                if (loadReportTimeout) clearTimeout(loadReportTimeout);
+                loadReportTimeout = setTimeout(doLoadReport, 280);
             }
 
             filterCustomer.addEventListener('change', loadReport);
             filterWorker.addEventListener('change', loadReport);
+            filterUser.addEventListener('change', loadReport);
 
             btnPng.addEventListener('click', function() {
                 if (btnPng.disabled) return;
@@ -1255,7 +1286,8 @@
                     date_from: dateFrom,
                     date_to: dateTo,
                     customer: filterCustomer.value || '',
-                    worker: filterWorker.value || ''
+                    worker: filterWorker.value || '',
+                    user: filterUser.value || ''
                 });
                 window.location.href = url;
             });
@@ -1270,9 +1302,10 @@
                 const pdfUrl = buildUrl(routes.pdf, {
                     date_from: dateFrom,
                     date_to: dateTo,
-                    customer: filterCustomer.value || '',
-                    worker: filterWorker.value || '',
-                    inline: '1' // Add inline parameter to open PDF in browser instead of download
+                            customer: filterCustomer.value || '',
+                            worker: filterWorker.value || '',
+                            user: filterUser.value || '',
+                            inline: '1' // Add inline parameter to open PDF in browser instead of download
                 });
                 
                 // Format dates for message
@@ -1313,8 +1346,8 @@
                 window.open(whatsappUrl, '_blank');
             });
 
-            reportDateFrom.addEventListener('change', loadReport);
-            reportDateTo.addEventListener('change', loadReport);
+            reportDateFrom.addEventListener('change', loadReport);  // debounced
+            reportDateTo.addEventListener('change', loadReport);    // debounced
 
 
             // Load cash balance
@@ -1337,25 +1370,32 @@
                     });
             }
 
-            // Load branch users
+            // Load branch users (for transfer modal and for User filter = Barki Express all users)
             function loadBranchUsers() {
                 return fetch(routes.branchUsers)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         transferToUser.innerHTML = '<option value="">Select User</option>';
+                        filterUser.innerHTML = '<option value="">All</option>';
                         if (data.success && data.users) {
                             data.users.forEach(function(user) {
-                                var option = document.createElement('option');
-                                option.value = user.id;
                                 var roleLabel = user.role ? ' - ' + (user.role + '').replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }) : '';
-                                option.textContent = user.name + (user.email ? ' (' + user.email + ')' : '') + roleLabel;
-                                transferToUser.appendChild(option);
+                                var label = user.name + (user.email ? ' (' + user.email + ')' : '') + roleLabel;
+                                var optionTransfer = document.createElement('option');
+                                optionTransfer.value = user.id;
+                                optionTransfer.textContent = label;
+                                transferToUser.appendChild(optionTransfer);
+                                var optionFilter = document.createElement('option');
+                                optionFilter.value = user.id;
+                                optionFilter.textContent = label;
+                                filterUser.appendChild(optionFilter);
                             });
                         }
                         return data;
                     })
                     .catch(function() {
                         transferToUser.innerHTML = '<option value="">Select User</option>';
+                        filterUser.innerHTML = '<option value="">All</option>';
                         return { success: false };
                     });
             }
@@ -1705,7 +1745,7 @@
                         loadCashAccountBalance(); // Update the card balance
                         // Reload report if it's loaded
                         if (reportDateFrom.value && reportDateTo.value) {
-                            loadReport();
+                            doLoadReport();
                         }
                     } else {
                         alert('Failed to delete cash transfer: ' + (data.message || 'Unknown error'));
@@ -1753,7 +1793,7 @@
                         alert('Bank payment updated successfully!');
                         // Reload report if it's loaded
                         if (reportDateFrom.value && reportDateTo.value) {
-                            loadReport();
+                            doLoadReport();
                         }
                     } else {
                         alert('Error: ' + (data.message || 'Failed to update bank payment'));
@@ -1791,7 +1831,7 @@
                         alert('Bank payment deleted successfully!');
                         // Reload report if it's loaded
                         if (reportDateFrom.value && reportDateTo.value) {
-                            loadReport();
+                            doLoadReport();
                         }
                     } else {
                         alert('Error: ' + (data.message || 'Failed to delete bank payment'));
@@ -1829,7 +1869,7 @@
                         alert('Bank transfer deleted successfully!');
                         // Reload report if it's loaded
                         if (reportDateFrom.value && reportDateTo.value) {
-                            loadReport();
+                            doLoadReport();
                         }
                     } else {
                         alert('Error: ' + (data.message || 'Failed to delete bank transfer'));
@@ -1919,7 +1959,7 @@
                             loadCashAccountBalance(); // Update the card balance
                             // Reload report if it's loaded
                             if (reportDateFrom.value && reportDateTo.value) {
-                                loadReport();
+                                doLoadReport();
                             }
                         } else {
                             alert('Error: ' + (data.message || 'Failed to transfer cash'));
@@ -2115,7 +2155,7 @@
                             loadCashAccountBalance(); // Update the card balance after bank transfer
                             // Reload report if it's loaded
                             if (reportDateFrom.value && reportDateTo.value) {
-                                loadReport();
+                                doLoadReport();
                             }
                         } else {
                             alert('Error: ' + (data.message || 'Failed to transfer to bank'));
@@ -2345,15 +2385,12 @@
                 }
             });
 
-            // Load bank balance and cash account balance on page load
+            // Load on page load: branch users (User filter = all Barki Express users), bank balance, then report
+            loadBranchUsers();
             loadBankBalance();
-            loadCashAccountBalance();
-            
             if (reportDateFrom.value && reportDateTo.value) {
-                loadReport();
+                doLoadReport();
             } else {
-                // Load balances even if no report date
-                loadBankBalance();
                 loadCashAccountBalance();
             }
         })();

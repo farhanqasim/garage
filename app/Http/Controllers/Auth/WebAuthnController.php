@@ -362,15 +362,8 @@ class WebAuthnController extends Controller
             }
         }
 
-        // Role-based redirect
-        $redirectUrl = '/home'; // Default to admin dashboard
-        if ($user->role === 'user') {
-            $redirectUrl = '/employee/home'; // User role goes to employee home
-        } elseif ($user->role === 'admin') {
-            $redirectUrl = '/home'; // Admin goes to admin dashboard
-        } else {
-            $redirectUrl = '/employee/home'; // Employee or other roles go to employee home
-        }
+        // All roles redirect to home
+        $redirectUrl = '/home';
 
         return response()->json([
             'success' => true,
