@@ -132,6 +132,23 @@
             const [workers, setWorkers] = useState(initialWorkers);
             const [selectedWorkerForEdit, setSelectedWorkerForEdit] = useState(null);
             const [showAddModal, setShowAddModal] = useState(false);
+
+            // Open worker edit from URL (e.g. from attendance double-click: ?openWorker=123)
+            useEffect(() => {
+                const params = new URLSearchParams(window.location.search);
+                const openWorkerId = params.get('openWorker');
+                if (openWorkerId && workers.length > 0) {
+                    const worker = workers.find(w => String(w.id) === String(openWorkerId));
+                    if (worker) {
+                        setSelectedWorkerForEdit(worker);
+                        setShowAddModal(true);
+                    }
+                    // Remove param from URL so refresh doesn't re-open
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('openWorker');
+                    window.history.replaceState({}, '', url.toString());
+                }
+            }, []);
             // Pay Commission modal
             const [workerToPay, setWorkerToPay] = useState(null);
             const [payAmount, setPayAmount] = useState('');

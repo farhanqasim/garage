@@ -27,12 +27,9 @@ class RedirectIfAuthenticated
                 if ($user->role === 'admin') {
                     // Admin redirects to admin dashboard
                     return redirect()->route('home');
-                } elseif ($user->role === 'user') {
-                    // User redirects to employee home
-                    return redirect()->route('employee.home');
                 } else {
-                    // Employee or other roles redirect to employee home
-                    return redirect()->route('employee.home');
+                    // User, employee or other roles redirect to home
+                    return redirect()->route('home');
                 }
             }
         }

@@ -68,15 +68,7 @@
                                         </p>
                                     </div>
                                 </div>
-                                <div class="d-flex align-items-center gap-3">
-                                    <!-- Switch: Create Purchase (Bill) / Create Purchase Order -->
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="small fw-semibold text-muted" id="docTypeLabelLeft">Create Purchase</span>
-                                        <div class="form-check form-switch mb-0">
-                                            <input class="form-check-input" type="checkbox" id="purchaseOrderSwitch" value="1" style="cursor: pointer;" aria-label="Toggle Purchase Order">
-                                            <label class="form-check-label small fw-semibold text-muted" for="purchaseOrderSwitch" id="docTypeLabelRight">Purchase Order</label>
-                                        </div>
-                                    </div>
+                                <div class="d-flex align-items-center gap-3 ms-auto flex-wrap">
                                     <div class="text-end">
                                         <div class="mb-1">
                                             @php
@@ -88,6 +80,16 @@
                                         <div style="font-size: 13px; color: #6c757d;">
                                             <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
                                         </div>
+                                    </div>
+                                    <!-- Toggle: Bill (off) / PO (on) - press = PO, press again = Bill -->
+                                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                        <span class="small text-muted fw-semibold" id="purchaseDocLabelBill">Bill</span>
+                                        <label class="mb-0 position-relative d-inline-block flex-shrink-0" style="width: 44px; height: 24px; flex-shrink: 0;">
+                                            <input type="checkbox" class="form-check-input position-absolute top-0 start-0" id="purchaseOrderSwitch" value="1" style="width: 44px; height: 24px; cursor: pointer; opacity: 0; z-index: 2; margin: 0;" aria-label="Purchase Order On/Off">
+                                            <span class="position-absolute top-0 start-0 rounded-pill bg-secondary" id="purchaseOrderTrack" style="width: 44px; height: 24px; transition: background 0.2s;"></span>
+                                            <span class="position-absolute rounded-circle bg-white border shadow-sm" id="purchaseOrderThumb" style="width: 20px; height: 20px; top: 2px; left: 2px; transition: left 0.2s;"></span>
+                                        </label>
+                                        <span class="small text-muted fw-semibold" id="purchaseDocLabelPO">PO</span>
                                     </div>
                                 </div>
                             </div>
@@ -102,7 +104,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">SUPPLIER NAME</label>
                                 <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="" selected>Select vendor</option>
+                                    <option value="">Select vendor</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" 
                                                 data-name="{{ $supplier->names[0] ?? '' }}" 
@@ -118,9 +120,19 @@
                                     <div class="text-danger small">{{ $message }}</div>
                                 @enderror
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-6 mb-3 position-relative">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NUMBER</label>
-                                <input type="text" id="supplier_mobile" name="supplier_mobile" class="form-control" placeholder="03xx..." style="border-radius: 6px;">
+                                <input type="hidden" id="supplier_mobile" name="supplier_mobile" value="">
+                                <div id="supplier_mobile_select2_trigger" class="supplier-mobile-select2-trigger position-relative" role="combobox" aria-haspopup="listbox" aria-expanded="false" title="Select vendor">
+                                    <span id="supplier_mobile_display" class="supplier-mobile-selection-rendered placeholder" role="textbox" aria-readonly="true" title="Select vendor">SELECT VENDOR</span>
+                                    <span class="supplier-mobile-select2-arrow" aria-hidden="true"><i class="ti ti-chevron-down"></i></span>
+                                </div>
+                                <div id="supplier_mobile_dropdown" class="supplier-mobile-select2-dropdown" style="display: none;">
+                                    <div class="select2-search select2-search--dropdown">
+                                        <input type="text" id="supplier_mobile_search" class="select2-search__field" placeholder="Search by number or name..." autocomplete="off" role="searchbox">
+                                    </div>
+                                    <div id="supplier_mobile_results" class="select2-results select2-results__options" style="max-height: 200px; overflow-y: auto;"></div>
+                                </div>
                             </div>
                         </div>
                         
@@ -157,7 +169,6 @@
                                         <table class="table table-bordered">
                                             <thead id="purchaseItemsThead">
                                                 <tr>
-                                                    <th>Item</th>
                                                     <th>Qty</th>
                                                     <th>Unit</th>
                                                     <th>Rate</th>
@@ -306,13 +317,15 @@
 
                         <!-- Add Item, Scrap In, Claim Receive & Return -->
                         <div class="text-center mb-4 d-flex flex-wrap justify-content-center align-items-center gap-3">
-                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn">
+                            <button type="button" class="btn btn-action-purchase btn-lg" id="add-new-item-btn">
                                 <i class="ti ti-plus me-2"></i>PURCHASE ITEM
                             </button>
-                            <a href="#" class="btn btn-outline-secondary btn-lg" id="claim-receive-btn">
+                            @hasanyrole('Super Admin|Admin|Manager')
+                            <a href="#" class="btn btn-action-claim btn-lg" id="claim-receive-btn">
                                 <i class="ti ti-truck-delivery me-2"></i>CLAIM RETURN
                             </a>
-                            <a href="#" class="btn btn-outline-secondary btn-lg" id="return-btn">
+                            @endhasanyrole
+                            <a href="#" class="btn btn-action-return btn-lg" id="return-btn">
                                 <i class="ti ti-arrow-back-up me-2"></i>RETURN
                             </a>
                         </div>
@@ -330,6 +343,41 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CLAIM RETURN Access List Modal (double-click on CLAIM RETURN button) -->
+<div class="modal fade" id="claimReturnAccessModal" tabindex="-1" aria-labelledby="claimReturnAccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-bottom" style="background: #f8f9fa;">
+                <h5 class="modal-title" id="claimReturnAccessModalLabel">
+                    <i class="ti ti-truck-delivery me-2"></i>CLAIM RETURN - Access List
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <p class="px-4 pt-3 mb-0 small text-muted">Manage which users can use CLAIM RETURN. Off = access revoked.</p>
+                <div class="table-responsive px-4" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th>User</th>
+                                <th>Roles</th>
+                                <th class="text-center" style="width: 140px;">Access (On/Off)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="claimReturnAccessListBody">
+                            <tr id="claimReturnAccessLoading">
+                                <td colspan="3" class="text-center py-4 text-muted">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -718,6 +766,47 @@
 
 @push('styles')
 <style>
+    /* Stylish Action Buttons */
+    .btn-action-purchase, .btn-action-claim, .btn-action-return {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .btn-action-purchase {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+        color: #fff;
+    }
+    .btn-action-purchase:hover {
+        background: linear-gradient(135deg, #0b5ed7 0%, #084298 100%);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+    }
+    .btn-action-claim {
+        background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+        color: #fff;
+    }
+    .btn-action-claim:hover {
+        background: linear-gradient(135deg, #157347 0%, #0f5132 100%);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(25, 135, 84, 0.4);
+    }
+    .btn-action-return {
+        background: linear-gradient(135deg, #fd7e14 0%, #dc6502 100%);
+        color: #fff;
+    }
+    .btn-action-return:hover {
+        background: linear-gradient(135deg, #e8590c 0%, #bf5200 100%);
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(253, 126, 20, 0.4);
+    }
+
     .filter-chip {
         background: #fff;
         border: 1px solid #ddd;
@@ -869,6 +958,113 @@
         background: rgba(255, 255, 255, 0.7);
         border-radius: 8px;
         padding: 10px;
+    }
+
+    /* Mobile vendor trigger – same look as Select2 (select2-supplier_id-container) */
+    .supplier-mobile-select2-trigger {
+        box-sizing: border-box;
+        cursor: pointer;
+        display: block;
+        min-height: 38px;
+        user-select: none;
+        background-color: #fff;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        width: 100%;
+        padding: 0;
+        margin-top: 2px;
+    }
+    .supplier-mobile-select2-trigger .supplier-mobile-selection-rendered {
+        display: block;
+        padding-left: 8px;
+        padding-right: 28px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 36px;
+        color: #444;
+        font-size: 15px;
+        font-weight: bold;
+        text-transform: uppercase !important;
+    }
+    .supplier-mobile-select2-trigger .supplier-mobile-selection-rendered.placeholder {
+        color: #999;
+    }
+    .supplier-mobile-select2-trigger .supplier-mobile-select2-arrow {
+        height: 36px;
+        position: absolute;
+        top: 1px;
+        right: 1px;
+        width: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        color: #888;
+    }
+    .supplier-mobile-select2-trigger .supplier-mobile-select2-arrow i {
+        font-size: 18px;
+    }
+
+    /* Mobile vendor dropdown – same look as Select2 dropdown + search */
+    .supplier-mobile-select2-dropdown {
+        background-color: #fff;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        box-sizing: border-box;
+        position: absolute;
+        width: 100%;
+        margin-top: 2px;
+        z-index: 1051;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .supplier-mobile-select2-dropdown .select2-search--dropdown {
+        display: block;
+        padding: 4px;
+        border-bottom: 1px solid #eee;
+    }
+    .supplier-mobile-select2-dropdown .select2-search__field {
+        padding: 6px 8px;
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .supplier-mobile-select2-dropdown .select2-search__field:focus {
+        outline: none;
+        border-color: #5897fb;
+    }
+    .supplier-mobile-select2-dropdown .select2-results__options {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .supplier-mobile-select2-dropdown .supplier-mobile-pick,
+    .supplier-mobile-select2-dropdown .list-group-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        user-select: none;
+        font-size: 14px;
+        font-weight: bold;
+        text-transform: uppercase;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        background: #fff;
+        width: 100%;
+        text-align: left;
+    }
+    .supplier-mobile-select2-dropdown .supplier-mobile-pick:hover,
+    .supplier-mobile-select2-dropdown .list-group-item.list-group-item-action:hover {
+        background-color: #5897fb;
+        color: #fff;
+    }
+    .supplier-mobile-select2-dropdown .list-group-item-secondary,
+    .supplier-mobile-select2-dropdown .list-group-item-danger {
+        font-weight: normal;
+        text-transform: none;
+        color: #999;
     }
 </style>
 @endpush
@@ -1398,49 +1594,109 @@ $(document).ready(function() {
         }
     });
     
-    // Auto-select supplier name when phone number is entered
+    // Mobile field: Select2-style trigger + dropdown with search (like supplier_id)
     let supplierPhoneTimeout = null;
-    $('#supplier_mobile').on('input', function() {
-        const phone = $(this).val().trim();
-        
-        // Clear previous timeout
+    var supplierMobileDropdownOpen = false;
+
+    function openSupplierMobileDropdown() {
+        supplierMobileDropdownOpen = true;
+        $('#supplier_mobile_dropdown').show();
+        $('#supplier_mobile_search').val('').focus();
+        $('#supplier_mobile_results').empty().append('<div class="list-group-item list-group-item-secondary small">Type to search by number or name</div>');
+        $('#supplier_mobile_select2_trigger').attr('aria-expanded', 'true');
+    }
+    function closeSupplierMobileDropdown() {
+        supplierMobileDropdownOpen = false;
+        $('#supplier_mobile_dropdown').hide();
+        $('#supplier_mobile_select2_trigger').attr('aria-expanded', 'false');
+    }
+    function setSupplierMobileDisplay(phone, label) {
+        $('#supplier_mobile').val(phone || '');
+        var $disp = $('#supplier_mobile_display');
+        if (phone && label) {
+            $disp.text(label).removeClass('placeholder').attr('title', label);
+        } else {
+            $disp.text('SELECT VENDOR').addClass('placeholder').attr('title', 'Select vendor');
+        }
+    }
+
+    $('#supplier_mobile_select2_trigger').on('click', function(e) {
+        e.preventDefault();
+        $(this).attr('aria-expanded', supplierMobileDropdownOpen ? 'false' : 'true');
+        if (supplierMobileDropdownOpen) {
+            closeSupplierMobileDropdown();
+        } else {
+            openSupplierMobileDropdown();
+        }
+    });
+    $('#supplier_mobile_search').on('input', function() {
+        const q = $(this).val().trim();
+        const $results = $('#supplier_mobile_results');
         clearTimeout(supplierPhoneTimeout);
-        
-        // Only search if phone has at least 3 characters
-        if (phone.length < 3) {
+        if (q.length < 2) {
+            $results.empty().append('<div class="list-group-item list-group-item-secondary small">Type at least 2 characters</div>');
             return;
         }
-        
-        // Debounce search
         supplierPhoneTimeout = setTimeout(function() {
             $.ajax({
                 url: '{{ route("purchases.suppliers.search.phone") }}',
                 method: 'GET',
-                data: { phone: phone },
+                data: { phone: q },
                 success: function(suppliers) {
-                    if (suppliers.length > 0) {
-                        // Auto-select first matching supplier
-                        const supplier = suppliers[0];
-                        $('#supplier_id').val(supplier.id);
-                        
-                        // Update address and area if available
-                        if (supplier.address) {
-                            $('#supplier_address').val(supplier.address);
-                        }
-                        if (supplier.area) {
-                            $('#supplier_area').val(supplier.area);
-                        }
-                        
-                        // Trigger change event to ensure all handlers fire
-                        $('#supplier_id').trigger('change');
+                    $results.empty();
+                    if (suppliers.length === 0) {
+                        $results.append('<div class="list-group-item list-group-item-secondary small">No vendor found</div>');
+                    } else {
+                        suppliers.forEach(function(s) {
+                            var label = (s.name || '') + (s.company ? ' - ' + s.company : '') + (s.phone ? ' · ' + s.phone : '');
+                            $results.append('<a href="javascript:void(0)" class="list-group-item list-group-item-action supplier-mobile-pick" data-id="' + s.id + '" data-phone="' + (s.phone || '') + '" data-address="' + (s.address || '') + '" data-area="' + (s.area || '') + '" data-label="' + (label || s.phone || '').replace(/"/g, '&quot;') + '">' + (label || s.phone || 'Vendor #' + s.id) + '</a>');
+                        });
                     }
                 },
-                error: function(xhr) {
-                    console.error('Error searching suppliers:', xhr);
+                error: function() {
+                    $results.empty().append('<div class="list-group-item list-group-item-danger small">Search failed</div>');
                 }
             });
-        }, 500); // Wait 500ms after user stops typing
+        }, 300);
     });
+    $(document).on('click', '.supplier-mobile-pick', function(e) {
+        e.preventDefault();
+        var id = $(this).data('id');
+        var phone = $(this).data('phone');
+        var address = $(this).data('address');
+        var area = $(this).data('area');
+        var label = $(this).data('label') || (phone + '');
+        $('#supplier_id').val(id);
+        $('#supplier_mobile').val(phone);
+        setSupplierMobileDisplay(phone, label);
+        if (address) $('#supplier_address').val(address);
+        if (area) $('#supplier_area').val(area);
+        closeSupplierMobileDropdown();
+        $('#supplier_id').trigger('change');
+    });
+    $(document).on('click', function(e) {
+        if (supplierMobileDropdownOpen && !$(e.target).closest('#supplier_mobile_select2_trigger, #supplier_mobile_dropdown').length) {
+            closeSupplierMobileDropdown();
+        }
+    });
+
+    // When supplier is selected from supplier_id dropdown, sync mobile display
+    $('#supplier_id').on('change', function() {
+        var opt = $(this).find('option:selected');
+        if (opt.length && opt.val()) {
+            var phone = opt.data('phone') || '';
+            var name = opt.data('name') || '';
+            var company = opt.data('company') || '';
+            var label = (name + (company ? ' - ' + company : '') + (phone ? ' · ' + phone : '')).trim() || phone;
+            setSupplierMobileDisplay(phone, label);
+        } else {
+            setSupplierMobileDisplay('', null);
+        }
+    });
+    // Initial sync on load (e.g. when restored from cart)
+    if ($('#supplier_id').val()) {
+        $('#supplier_id').trigger('change');
+    }
 
     // Branch selection for purchase
     function selectPurchaseBranch(branchId, branchName, branchCode) {
@@ -1540,6 +1796,16 @@ $(document).ready(function() {
     
     // Load warehouse info on page load if branch is already selected
     $(document).ready(function() {
+        // Searchable supplier dropdown (Select2)
+        if ($.fn.select2 && $('#supplier_id').length) {
+            $('#supplier_id').select2({
+                placeholder: 'Select vendor',
+                allowClear: true,
+                width: '100%',
+                minimumResultsForSearch: 0
+            });
+        }
+
         const branchId = $('#purchaseBranchId').val();
         if (branchId) {
             loadBranchWarehouseInfo(branchId);
@@ -1549,7 +1815,7 @@ $(document).ready(function() {
         updateDateTime();
         setInterval(updateDateTime, 1000);
         
-        // Purchase / Purchase Order switch: sync hidden input, doc number label, and backgrounds (Bill and PO have separate series)
+        // Purchase / Purchase Order: sync hidden input, doc number label, backgrounds, and small on/off toggle
         function updateDocTypeFromSwitch() {
             const isPO = $('#purchaseOrderSwitch').is(':checked');
             const billNum = $('#purchase-number').data('bill-number') || '00001';
@@ -1557,6 +1823,16 @@ $(document).ready(function() {
             $('#isPurchaseOrderHidden').val(isPO ? '1' : '0');
             $('#purchase-number').text(isPO ? ('PO #' + poNum) : ('Bill #' + billNum));
             $('.page-title h4').text(isPO ? 'Create Purchase Order' : 'Create Purchase');
+            // Small on/off toggle thumb and track
+            const $thumb = $('#purchaseOrderThumb');
+            const $track = $('#purchaseOrderTrack');
+            if ($thumb.length) $thumb.css('left', isPO ? '22px' : '2px');
+            if ($track.length) $track.css('background', isPO ? 'linear-gradient(135deg, #f59e0b, #d97706)' : '#6c757d');
+            // Toggle labels: highlight active (Bill vs PO)
+            const $lblBill = $('#purchaseDocLabelBill');
+            const $lblPO = $('#purchaseDocLabelPO');
+            if ($lblBill.length) $lblBill.removeClass('text-primary fw-bold').addClass(isPO ? 'text-muted fw-semibold' : 'text-primary fw-bold');
+            if ($lblPO.length) $lblPO.removeClass('text-primary fw-bold').addClass(isPO ? 'text-primary fw-bold' : 'text-muted fw-semibold');
             // Panel (Barki Express box)
             const $panel = $('#purchaseDocTypePanel');
             if ($panel.length) {
@@ -1602,24 +1878,110 @@ $(document).ready(function() {
     });
 
     // Handle "Scrap In" button - same modal as Add Item (like Smart Invoice Scrap In)
-    // Handle "Claim Return" button - same modal as Add Item (like Smart Invoice Claim)
+    // Handle "Claim Return" button - double-click (2 quick clicks) opens Access List; single-click opens CLAIM RETURN item modal
+    var claimReceiveClickCount = 0;
+    var claimReceiveClickTimer = null;
     $('#claim-receive-btn').on('click', function(e) {
         e.preventDefault();
-        const branchId = $('#purchaseBranchId').val();
-        
-        if (!branchId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Branch Required',
-                text: 'Please select a branch first before adding claim items.',
-                confirmButtonText: 'OK'
-            });
-            return;
+        claimReceiveClickCount++;
+        if (claimReceiveClickCount === 1) {
+            claimReceiveClickTimer = setTimeout(function() {
+                claimReceiveClickCount = 0;
+                claimReceiveClickTimer = null;
+                var branchId = $('#purchaseBranchId').val();
+                if (!branchId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Branch Required',
+                        text: 'Please select a branch first before adding claim items.',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+                var hasAccess = {{ (auth()->user()->claim_return_enabled ?? false) ? 'true' : 'false' }};
+                if (!hasAccess) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Access Denied',
+                        text: 'You do not have CLAIM RETURN access. Contact admin.',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+                currentEntryType = 'claim';
+                $('#add-item-modal-title').html('<i class="ti ti-truck-delivery me-2"></i>CLAIM RETURN');
+                $('#add-item-modal').modal('show');
+            }, 350);
+        } else if (claimReceiveClickCount >= 2) {
+            clearTimeout(claimReceiveClickTimer);
+            claimReceiveClickCount = 0;
+            claimReceiveClickTimer = null;
+            openClaimReturnAccessModal();
         }
-        
-        currentEntryType = 'claim';
-        $('#add-item-modal-title').html('<i class="ti ti-truck-delivery me-2"></i>CLAIM RETURN');
-        $('#add-item-modal').modal('show');
+    });
+
+    function openClaimReturnAccessModal() {
+        $('#claimReturnAccessModal').modal('show');
+        $('#claimReturnAccessLoading').show();
+        $('#claimReturnAccessListBody').find('tr:not(#claimReturnAccessLoading)').remove();
+        $.get('{{ route("purchases.claim.return.access.list") }}')
+            .done(function(data) {
+                $('#claimReturnAccessLoading').hide();
+                if (data && data.length) {
+                    data.forEach(function(u) {
+                        var rolesText = (u.roles && u.roles.length) ? u.roles.join(', ') : '-';
+                        var isOn = u.has_access;
+                        var onClass = isOn ? 'btn-success' : 'btn-outline-secondary';
+                        var offClass = !isOn ? 'btn-danger' : 'btn-outline-secondary';
+                        var row = '<tr data-user-id="' + u.id + '">' +
+                            '<td><strong>' + (u.name || 'N/A') + '</strong>' +
+                                (u.email ? '<br><small class="text-muted">' + u.email + '</small>' : '') + '</td>' +
+                            '<td><span class="badge bg-secondary">' + rolesText + '</span></td>' +
+                            '<td class="text-center">' +
+                                '<div class="btn-group btn-group-sm" role="group">' +
+                                    '<button type="button" class="btn btn-on ' + onClass + '" data-enable="1">On</button>' +
+                                    '<button type="button" class="btn btn-off ' + offClass + '" data-enable="0">Off</button>' +
+                                '</div></td></tr>';
+                        $('#claimReturnAccessListBody').append(row);
+                    });
+                } else {
+                    $('#claimReturnAccessListBody').append('<tr><td colspan="3" class="text-muted text-center py-3">No users found.</td></tr>');
+                }
+            })
+            .fail(function() {
+                $('#claimReturnAccessLoading').hide();
+                $('#claimReturnAccessListBody').append('<tr><td colspan="3" class="text-danger text-center py-3">Failed to load.</td></tr>');
+            });
+    }
+
+    $('#claimReturnAccessListBody').on('click', '.btn-on, .btn-off', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $btn = $(this);
+        var $row = $btn.closest('tr');
+        var userId = $row.data('user-id');
+        if (!userId) return;
+        var enable = parseInt($btn.attr('data-enable')) === 1;
+        $.ajax({
+            url: '{{ route("purchases.claim.return.access.toggle") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                user_id: parseInt(userId),
+                enabled: enable ? 1 : 0
+            },
+            dataType: 'json'
+        }).done(function(res) {
+            if (res.success) {
+                $row.find('.btn-on').removeClass('btn-success btn-outline-secondary').addClass(res.enabled ? 'btn-success' : 'btn-outline-secondary');
+                $row.find('.btn-off').removeClass('btn-danger btn-outline-secondary').addClass(!res.enabled ? 'btn-danger' : 'btn-outline-secondary');
+                if (parseInt(userId) === {{ auth()->check() ? auth()->id() : 0 }}) {
+                    location.reload();
+                }
+            }
+        }).fail(function() {
+            if (typeof toastr !== 'undefined') toastr.error('Failed to update.');
+        });
     });
 
     // Handle "Return" button - same modal as Add Item (like Smart Invoice Return)
@@ -2777,13 +3139,6 @@ $(document).ready(function() {
         $('#empty-items-state').hide();
         $('#items-list').show();
         
-        // Clean item name before display (avoid Lorem Ipsum or dummy text)
-        const displayName = cleanItemName(item.name, item.item_id);
-        let typeBadge = '';
-        if (item.entry_type === 'scrap') typeBadge = ' <span class="badge bg-warning text-dark ms-1" style="font-size: 9px;">SCRAP</span>';
-        else if (item.entry_type === 'claim') typeBadge = ' <span class="badge bg-info text-white ms-1" style="font-size: 9px;">CLAIM</span>';
-        else if (item.entry_type === 'return') typeBadge = ' <span class="badge bg-danger text-white ms-1" style="font-size: 9px;">RETURN</span>';
-        
         // SCRAP: show total as minus (e.g. Rs -200.00) with red styling
         const totalVal = parseFloat(item.total);
         const totalDisplay = 'Rs ' + totalVal.toFixed(2);
@@ -2791,7 +3146,6 @@ $(document).ready(function() {
         
         const row = `
             <tr data-item-id="${item.item_id}" data-row-id="${item.id}" data-entry-type="${item.entry_type || 'purchase'}">
-                <td>${displayName}${typeBadge}</td>
                 <td>${item.quantity}</td>
                 <td>${item.unit}</td>
                 <td>Rs ${parseFloat(item.rate).toFixed(2)}</td>

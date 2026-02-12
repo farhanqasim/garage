@@ -47,11 +47,42 @@ use GuzzleHttp\Client;
 
 class ItemController extends Controller
 {
+    /** Map item type to add permission name */
+    protected function getAddPermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
+        return $map[$type ?? ''] ?? 'add_items';
+    }
+
+    /** Map item type to update permission name */
+    protected function getUpdatePermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'update_parts', 'filters' => 'update_filters', 'breakpad' => 'update_break_pad', 'oil' => 'update_oil', 'battery' => 'update_battery', 'scrap' => 'update_scrap', 'services' => 'update_services'];
+        return $map[$type ?? ''] ?? 'update_items';
+    }
+
+    /** Map item type to view permission name */
+    protected function getViewPermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'view_parts', 'filters' => 'view_filters', 'breakpad' => 'view_break_pad', 'oil' => 'view_oil', 'battery' => 'view_battery', 'scrap' => 'view_scrap', 'services' => 'view_services'];
+        return $map[$type ?? ''] ?? 'view_items';
+    }
+
+    /** Map item type to delete permission name */
+    protected function getDeletePermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'delete_parts', 'filters' => 'delete_filters', 'breakpad' => 'delete_break_pad', 'oil' => 'delete_oil', 'battery' => 'delete_battery', 'scrap' => 'delete_scrap', 'services' => 'delete_services'];
+        return $map[$type ?? ''] ?? 'delete_items';
+    }
 
 
 
     public function all_items(Request $request)
     {
+        $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
+        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to view items.');
+        }
         $items = Item::with([
             'item_user', 
             'product_item', 
@@ -128,11 +159,13 @@ class ItemController extends Controller
 
     public function items_create()
     {
-        // Ensure user is authenticated
+        $addPerms = ['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'];
         if (!auth()->check()) {
             return redirect('/')->with('error', 'Please login to continue.');
         }
-        
+        if (!collect($addPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to create items.');
+        }
         $platos      = Platos::where('status', 'active')->get();
         $amphors     = Amphor::where('status', 'active')->get();
         $lineitems   = LineItem::where('status', 'active')->get();
@@ -253,6 +286,11 @@ class ItemController extends Controller
 
         $made_ins      = MadeIn::where('status', 'active')->get();
         $levels      = Level::where('status', 'active')->get();
+
+        // Permission-based allowed item types (jo permission active ho)
+        $typePermMap = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
+        $allowedItemTypes = collect($typePermMap)->filter(fn ($perm) => auth()->user()->can($perm) || auth()->user()->can('add_items'))->keys()->values()->all();
+
         return view('admin.item.create', compact(
             'platos',
             'amphors',
@@ -288,7 +326,8 @@ class ItemController extends Controller
             'warrenties',
             'groups',
             'made_ins',
-            'levels'
+            'levels',
+            'allowedItemTypes'
         ));
     }
 
@@ -387,6 +426,10 @@ class ItemController extends Controller
 
     public function items_store(Request $request)
     {
+        $type = $request->input('type');
+        $perm = $this->getAddPermissionForType($type);
+        $this->authorize($perm);
+
         // return $request->all(); 
         // Validate fields first (before transaction)
         $validated = $request->validate([
@@ -730,6 +773,7 @@ class ItemController extends Controller
            
             'unit_item'
         ])->findOrFail($id);
+        $this->authorize($this->getUpdatePermissionForType($item->type));
         // return $item;
         // All the collections you already had
         $platos     = Platos::where('status', 'active')->get();
@@ -858,8 +902,10 @@ class ItemController extends Controller
 
     public function item_update(Request $request, $id)
     {
-        // return $request->all();
         $item = Item::findOrFail($id);
+        $type = $request->input('type', $item->type);
+        $this->authorize($this->getUpdatePermissionForType($type));
+        // return $request->all();
         // Validate ONLY fields that exist in $fillable
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code,' . $item->id,
@@ -939,11 +985,13 @@ class ItemController extends Controller
                 
                 $exists = $query->exists();
                 if ($exists) {
+                    $msg = 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    }
                     return redirect()->back()
                         ->withInput()
-                        ->withErrors([
-                            'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.'
-                        ]);
+                        ->withErrors(['duplicate' => $msg]);
                 }
             }
         }
@@ -1037,6 +1085,10 @@ class ItemController extends Controller
             DB::commit();
 
             Log::info('Item updated successfully', ['item_id' => $item->id]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Item updated successfully!']);
+            }
             return redirect()->back()->with('success', 'Item updated successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1048,6 +1100,9 @@ class ItemController extends Controller
                 'data' => $request->except(['image', 'images'])
             ]);
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Failed to update item: ' . $e->getMessage()], 500);
+            }
             return redirect()->back()
                 ->with('error', 'Failed to update item: ' . $e->getMessage())
                 ->withInput();
@@ -1087,6 +1142,7 @@ class ItemController extends Controller
         if (!$item) {
             abort(404, 'Item not found');
         }
+        $this->authorize($this->getViewPermissionForType($item->type));
         return view('admin.item.show', compact('item'));
     }
 
@@ -1428,20 +1484,27 @@ class ItemController extends Controller
     public function itembulkDelete(Request $request)
     {
         $ids = $request->ids ?? [];
-        if (count($ids) > 0) {
-            Item::whereIn('id', $ids)->delete();
-            return back()->with('success', 'Selected items deleted successfully.');
+        if (count($ids) === 0) {
+            return back()->with('error', 'No items selected.');
         }
-        return back()->with('error', 'No items selected.');
+        $deleted = 0;
+        foreach ($ids as $id) {
+            $item = Item::find($id);
+            if ($item && auth()->user()->can($this->getDeletePermissionForType($item->type))) {
+                $item->delete();
+                $deleted++;
+            }
+        }
+        return back()->with('success', $deleted > 0 ? "{$deleted} item(s) deleted successfully." : 'No items could be deleted (permission denied).');
     }
 
 
 
     public function item_delete($id)
     {
-        // return $id;
-        $items = Item::findOrFail($id);
-        $items->delete();
+        $item = Item::findOrFail($id);
+        $this->authorize($this->getDeletePermissionForType($item->type));
+        $item->delete();
         return redirect()->back()->with('success', 'Item deleted successfully.');
     }
 
@@ -1484,6 +1547,7 @@ class ItemController extends Controller
     public function duplicate($id)
     {
         $original = Item::findOrFail($id);
+        $this->authorize($this->getAddPermissionForType($original->type));
         $item = $original->replicate();
 
         // Give a unique barcode and mark as copy

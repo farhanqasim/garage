@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Branch;
 use App\Models\CarWashAttendance;
 use App\Models\CarWashWorker;
 use App\Models\User;
@@ -14,18 +15,74 @@ class CarWashAttendanceController extends Controller
     use HasBranchAccess;
 
     /**
+     * List branches for attendance branch dropdown (branch-wise check).
+     * Admin: all active branches. Others: only branches they have access to.
+     */
+    public function branches()
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'branches' => []]);
+        }
+
+        if ($user->role === 'admin') {
+            $branches = Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get(['id', 'branch_name'])->map(fn ($b) => ['id' => $b->id, 'name' => $b->branch_name]);
+        } else {
+            $branchId = $this->getUserBranchId($user);
+            if (!$branchId) {
+                $branches = collect();
+            } else {
+                $branch = Branch::where('id', $branchId)->where('status', 'active')->first(['id', 'branch_name']);
+                $branches = $branch ? collect([['id' => (int) $branch->id, 'name' => $branch->branch_name]]) : collect();
+            }
+        }
+
+        return response()->json(['success' => true, 'branches' => $branches->values()->all()]);
+    }
+
+    /**
      * List employees for attendance dropdown: same as admin "All Employees" table.
      * Car Wash Workers + All Users (role user/manager/salesman/purchaser) so MUHAMMAD QASIM, WASEEM SALEEM etc. show in search.
+     * Optional query param: branch_id — filter employees by branch (user must have access to that branch).
      */
-    public function employees()
+    public function employees(Request $request)
     {
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
+        // Optional branch filter from dropdown (only use if user has access)
+        $requestBranchId = $request->has('branch_id') && $request->branch_id !== '' && $request->branch_id !== 'all' ? (int) $request->branch_id : null;
+        if ($requestBranchId !== null) {
+            $branch = Branch::where('id', $requestBranchId)->where('status', 'active')->first();
+            if (!$branch) {
+                return response()->json(['success' => false, 'message' => 'Invalid branch.', 'employees' => []]);
+            }
+            if ($user->role === 'admin') {
+                $branchId = $requestBranchId;
+            } else {
+                $userBranchId = $this->getUserBranchId($user);
+                if ((int) $userBranchId !== $requestBranchId && !$user->assignedBranches()->where('branch_id', $requestBranchId)->exists()) {
+                    return response()->json(['success' => false, 'message' => 'Access denied to this branch.', 'employees' => []]);
+                }
+                $branchId = $requestBranchId;
+            }
+        }
+
         $query = CarWashWorker::query();
-        $this->applyBranchFilter($query, 'branch_id', $user);
-        $workers = $query->where('status', true)->orderBy('name', 'asc')->get(['id', 'name', 'branch_id'])
-            ->map(fn ($w) => ['id' => 'worker_' . $w->id, 'employeeId' => (string) $w->id, 'name' => $w->name, 'type' => 'worker']);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        } else {
+            $this->applyBranchFilter($query, 'branch_id', $user);
+        }
+        $workers = $query->where('status', true)->orderBy('name', 'asc')->get(['id', 'name', 'branch_id', 'profile_img'])
+            ->map(fn ($w) => [
+                'id' => 'worker_' . $w->id,
+                'employeeId' => (string) $w->id,
+                'name' => $w->name,
+                'type' => 'worker',
+                'role' => 'Worker',
+                'profile_img' => $w->profile_img ? asset($w->profile_img) : null,
+            ]);
 
         // Filter users by branch: only show users from logged-in user's branch
         $usersQuery = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser']);
@@ -38,18 +95,112 @@ class CarWashAttendanceController extends Controller
                       $query->where('branch_id', $branchId);
                   });
             });
-        } else {
-            // If no branch, only show users with no branch_id and no assigned branches
+        } elseif ($user->role !== 'admin') {
+            // Non-admin with no branch: only users with no branch_id and no assigned branches
             $usersQuery->whereNull('branch_id')
                       ->whereDoesntHave('assignedBranches');
         }
+        // Admin with no branch (e.g. "All Branches"): no filter — show all users
         
         $users = $usersQuery->orderBy('name', 'asc')
-            ->get(['id', 'name'])
-            ->map(fn ($u) => ['id' => 'user_' . $u->id, 'employeeId' => (string) $u->id, 'name' => $u->name, 'type' => 'user']);
+            ->get(['id', 'name', 'role', 'profile_img'])
+            ->map(fn ($u) => [
+                'id' => 'user_' . $u->id,
+                'employeeId' => (string) $u->id,
+                'name' => $u->name,
+                'type' => 'user',
+                'role' => ucfirst($u->role ?? 'User'),
+                'profile_img' => $u->profile_img ? asset($u->profile_img) : null,
+            ]);
 
-        $employees = $workers->concat($users)->sortBy('name')->values()->unique('id')->values()->all();
+        $employees = $workers->concat($users)->sortBy('name')->values()->unique('id')->values();
+
+        // Optional date range for last IN/OUT (only show times within this range)
+        $dateFrom = $request->filled('date_from') ? $request->date_from : null;
+        $dateTo = $request->filled('date_to') ? $request->date_to : null;
+
+        // Add last IN/OUT date+time for each employee
+        $employeeIds = $employees->pluck('id')->all();
+        $lastInOut = $this->getLastInOutByEmployeeIds($employeeIds, $branchId, $dateFrom, $dateTo);
+
+        $employees = $employees->map(function ($emp) use ($lastInOut) {
+            $key = $emp['id'];
+            $emp['last_in'] = $lastInOut[$key]['last_in'] ?? null;
+            $emp['last_out'] = $lastInOut[$key]['last_out'] ?? null;
+            return $emp;
+        })->all();
+
         return response()->json(['success' => true, 'employees' => $employees]);
+    }
+
+    /**
+     * Get last IN and last OUT timestamp per employee (worker_X or user_X).
+     * Optional $dateFrom and $dateTo (Y-m-d): only consider attendances within this date range.
+     */
+    private function getLastInOutByEmployeeIds(array $employeeIds, $branchId, $dateFrom = null, $dateTo = null)
+    {
+        $result = [];
+        foreach ($employeeIds as $id) {
+            $result[$id] = ['last_in' => null, 'last_out' => null];
+        }
+
+        $parts = [];
+        foreach ($employeeIds as $id) {
+            if (preg_match('/^worker_(\d+)$/', $id, $m)) {
+                $parts[] = ['type' => 'worker', 'id' => (int) $m[1]];
+            } elseif (preg_match('/^user_(\d+)$/', $id, $m)) {
+                $parts[] = ['type' => 'user', 'id' => (int) $m[1]];
+            }
+        }
+
+        foreach ($parts as $p) {
+            $key = ($p['type'] === 'worker') ? 'worker_' . $p['id'] : 'user_' . $p['id'];
+            $query = CarWashAttendance::query()
+                ->where('attendance_type', 'in')
+                ->orderBy('captured_at', 'desc');
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+            if ($dateFrom) {
+                $query->whereDate('captured_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate('captured_at', '<=', $dateTo);
+            }
+            if ($p['type'] === 'worker') {
+                $query->where('worker_id', $p['id']);
+            } else {
+                $query->where('attended_user_id', $p['id']);
+            }
+            $lastIn = $query->first();
+            if ($lastIn && isset($result[$key])) {
+                $result[$key]['last_in'] = $lastIn->captured_at->toIso8601String();
+            }
+
+            $queryOut = CarWashAttendance::query()
+                ->where('attendance_type', 'out')
+                ->orderBy('captured_at', 'desc');
+            if ($branchId) {
+                $queryOut->where('branch_id', $branchId);
+            }
+            if ($dateFrom) {
+                $queryOut->whereDate('captured_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $queryOut->whereDate('captured_at', '<=', $dateTo);
+            }
+            if ($p['type'] === 'worker') {
+                $queryOut->where('worker_id', $p['id']);
+            } else {
+                $queryOut->where('attended_user_id', $p['id']);
+            }
+            $lastOut = $queryOut->first();
+            if ($lastOut && isset($result[$key])) {
+                $result[$key]['last_out'] = $lastOut->captured_at->toIso8601String();
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -176,6 +327,8 @@ class CarWashAttendanceController extends Controller
         $request->validate([
             'employeeId' => 'required',
             'type' => 'required|in:worker,user',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
         ]);
 
         $user = Auth::user();
@@ -196,8 +349,16 @@ class CarWashAttendanceController extends Controller
             $query->where('branch_id', $branchId);
         }
 
+        // Optional date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('captured_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('captured_at', '<=', $request->date_to);
+        }
+
         $attendances = $query->orderBy('captured_at', 'desc')
-            ->limit(100)
+            ->limit(500)
             ->get()
             ->map(function ($att) {
                 return [

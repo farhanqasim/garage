@@ -77,6 +77,7 @@
 
         <div id="sidebar-menu" class="sidebar-menu">
             <ul>
+                {{-- Dashboard - visible to all authenticated users --}}
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Main</h6>
                     <ul>
@@ -87,41 +88,44 @@
                         </li>
                     </ul>
                 </li>
+
+                {{-- Inventory (view_items/add_items + item type permissions) --}}
+                @canany(['view_items', 'add_items', 'view_category', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Inventory</h6>
                     <ul>
+                        @canany(['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'])
                         <li><a href="{{ route('all.items') }}"><i data-feather="box"></i><span>Items</span></a></li>
+                        @endcanany
+                        @canany(['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'])
                         <li><a href="{{ route('all.items.create') }}"><i
                                     class="ti ti-table-plus fs-16 me-2"></i><span>Create Item</span></a></li>
+                        @endcanany
+                        @can('view_category')
                         <li><a href="{{ route('all.category') }}"><i
                                     class="ti ti-list-details fs-16 me-2"></i><span>Category</span></a></li>
                         <li><a href="{{ route('all.sub.category') }}"><i
                                     class="ti ti-carousel-vertical fs-16 me-2"></i><span>Sub Category</span></a></li>
+                        @endcan
                     </ul>
                 </li>
-                    <li class="submenu-open">
+                @endcanany
+
+                {{-- Items Parts & Role Permissions --}}
+                @canany(['view_car_wash_services', 'view_role'])
+                <li class="submenu-open">
                     <h6 class="submenu-hdr">Items Parts</h6>
                     <ul>
+                        @can('view_car_wash_services')
                         <li class="submenu">
                             <a href="javascript:void(0);"><i class="ti ti-layout-grid fs-16 me-2"></i><span>Item
                                     Parts</span><span class="menu-arrow"></span></a>
                             <ul>
-                                <li><a href="">Parts</a></li>
-                                <li><a href="">Battery</a></li>
-                                <li><a href="">Oil</a></li>
-                                <li><a href="">Scrap</a></li>
                                 <li><a href="{{ route('car.wash.services') }}">Services</a></li>
-                                {{-- <li><a href="{{ route('all.vehical') }}">Vehicals</a></li>
-                                <li><a href="{{ route('all.brands') }}">Brands</a></li>
-                                <li><a href="{{ route('all.platos') }}">Platos</a></li>
-                                <li><a href="{{ route('all.amphors') }}">Amphors</a></li>
-                                <li><a href="{{ route('all.lineitems') }}">Line Item</a></li>
-                                <li><a href="{{ route('all.companies') }}">Company</a></li>
-                                <li><a href="{{ route('all.packings') }}">Packing</a></li>
-                                <li><a href="{{ route('all.scales') }}">Scale</a></li>
-                                <li><a href="{{ route('all.units') }}">Units</a></li> --}}
                             </ul>
                         </li>
+                        @endcan
+                        @can('view_role')
                         <li class="submenu">
                             <a href="javascript:void(0);"><i class="ti ti-device-laptop fs-16 me-2"></i><span>Role &
                                     Permissions</span><span class="menu-arrow"></span></a>
@@ -129,11 +133,17 @@
                                 <li><a href="{{ route('roles.index') }}">Group Permissions</a></li>
                             </ul>
                         </li>
+                        @endcan
                     </ul>
                 </li>
+                @endcanany
+
+                {{-- Sales --}}
+                @canany(['view_sales', 'add_sales'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Sales</h6>
                     <ul>
+                        @can('view_sales')
                         <li class="submenu">
                             <a href="javascript:void(0);"><i
                                     class="ti ti-layout-grid fs-16 me-2"></i><span>Sales</span><span
@@ -143,53 +153,85 @@
                                 <li><a href="">POS Orders</a></li>
                             </ul>
                         </li>
-                        <li><a href=""><i
-                                    class="ti ti-file-invoice fs-16 me-2"></i><span>Invoices</span></a></li>
-                        <li><a href=""><i class="ti ti-receipt-refund fs-16 me-2"></i><span>Sales
-                                    Return</span></a></li>
+                        @endcan
+                        <li><a href=""><i class="ti ti-file-invoice fs-16 me-2"></i><span>Invoices</span></a></li>
+                        <li><a href=""><i class="ti ti-receipt-refund fs-16 me-2"></i><span>Sales Return</span></a></li>
                     </ul>
                 </li>
+                @endcanany
+
+                {{-- Peoples (Customers & Suppliers) --}}
+                @canany(['view_customer', 'view_supplier'])
                 <li class="submenu-open">
-				  <h6 class="submenu-hdr">Peoples</h6>
-					<ul>
-					 <li><a href="{{ route('customers.index') }}"><i class="ti ti-users-group fs-16 me-2"></i><span>Customers</span></a></li>
-					 <li><a href="{{ route('suppliers.index') }}"><i class="ti ti-user-dollar fs-16 me-2"></i><span>Suppliers</span></a></li>
-					</ul>
-				</li>
+                    <h6 class="submenu-hdr">Peoples</h6>
+                    <ul>
+                        @can('view_customer')
+                        <li><a href="{{ route('customers.index') }}"><i class="ti ti-users-group fs-16 me-2"></i><span>Customers</span></a></li>
+                        @endcan
+                        @can('view_supplier')
+                        <li><a href="{{ route('suppliers.index') }}"><i class="ti ti-user-dollar fs-16 me-2"></i><span>Suppliers</span></a></li>
+                        @endcan
+                    </ul>
+                </li>
+                @endcanany
+
+                {{-- Branches --}}
+                @canany(['view_branch', 'view_user', 'add_user'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Branches</h6>
                     <ul>
+                        @can('view_branch')
                         <li><a href="{{ route('all.branches') }}">
                                 <i class="ti ti-stack-3 fs-16 me-2"></i>
                                 <span>Branches</span></a>
                         </li>
+                        @endcan
+                        @can('view_user')
                         <li><a href="{{ route('all.users') }}">
                                 <i class="ti ti-users fs-16 me-2"></i>
                                 <span>Employees</span></a>
                         </li>
+                        @endcan
+                        @can('add_user')
                         <li><a href="{{ route('all.users') }}?add=1">
                                 <i class="ti ti-user-plus fs-16 me-2"></i>
                                 <span>Add New Employee</span></a>
                         </li>
+                        @endcan
                     </ul>
                 </li>
+                @endcanany
+
+                {{-- Warehouses --}}
+                @canany(['view_warehouse', 'add_warehouse'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Warehouses</h6>
                     <ul>
+                        @can('view_warehouse')
                         <li><a href="{{ route('warehouses.index') }}">
                                 <i class="ti ti-archive fs-16 me-2"></i>
                                 <span>All Warehouses</span></a>
                         </li>
+                        @endcan
+                        @can('add_warehouse')
                         <li><a href="{{ route('warehouses.create') }}">
                                 <i class="ti ti-plus fs-16 me-2"></i>
                                 <span>Add New Warehouse</span></a>
                         </li>
+                        @endcan
                     </ul>
                 </li>
+                @endcanany
+
+                {{-- Bank Management --}}
+                @canany(['view_banks', 'view_cash_accounts', 'view_bank_transactions', 'view_bank_accounts'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Bank Management</h6>
                     <ul>
+                        @can('view_banks')
                         <li><a href="{{ route('admin.banks.index') }}"><i class="ti ti-building-bank fs-16 me-2"></i><span>Banks</span></a></li>
+                        @endcan
+                        @can('view_cash_accounts')
                         <li><a href="{{ route('admin.cash-accounts.index') }}">
                                 <i class="ti ti-wallet fs-16 me-2"></i>
                                 <span>Cash Accounts (Wallets)</span></a>
@@ -198,6 +240,7 @@
                                 <i class="ti ti-file-text fs-16 me-2"></i>
                                 <span>Cash Transactions History</span></a>
                         </li>
+                        @endcan
                         <li><a href="{{ route('admin.payments.index') }}">
                                 <i class="ti ti-wallet fs-16 me-2"></i>
                                 <span>Payments</span></a>
@@ -206,10 +249,12 @@
                                 <i class="ti ti-credit-card-pay fs-16 me-2"></i>
                                 <span>Payment Methods</span></a>
                         </li>
+                        @can('view_bank_transactions')
                         <li><a href="{{ route('admin.bank-transactions.index') }}">
                                 <i class="ti ti-exchange fs-16 me-2"></i>
                                 <span>Bank Transactions</span></a>
                         </li>
+                        @endcan
                         <li><a href="{{ route('car.wash.worker-bank-accounts') }}">
                                 <i class="ti ti-credit-card fs-16 me-2"></i>
                                 <span>Worker Bank Accounts</span></a>
@@ -220,28 +265,21 @@
                         </li>
                     </ul>
                 </li>
-                {{-- <li class="submenu-open">
-                    <h6 class="submenu-hdr">System Users</h6>
-                    <ul>
-                        <li>
-                            <a href="{{ route('all.users') }}"><i
-                                    class="ti ti-stack-pop fs-16 me-2"></i><span>Users</span></a>
-                        </li>
-                        <li>
-                            <a href="{{ route('all.employees') }}"><i
-                                    class="ti ti-stack-pop fs-16 me-2"></i><span>Employees</span></a>
-                        </li>
-                    </ul>
-                </li> --}}
+                @endcanany
 
+                {{-- Purchases --}}
+                @canany(['view_purchases', 'add_purchases'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Purchases</h6>
                     <ul>
+                        @can('view_purchases')
                         <li><a href="{{ route('all_purchases') }}"><i class="ti ti-shopping-bag fs-16 me-2"></i><span>Purchases</span></a></li>
+                        @endcan
                         <li><a href=""><i class="ti ti-file-unknown fs-16 me-2"></i><span>Purchase Order</span></a></li>
                         <li><a href=""><i class="ti ti-file-upload fs-16 me-2"></i><span>Purchase Return</span></a></li>
                     </ul>
                 </li>
+                @endcanany
                 {{-- <li class="submenu-open"> --}}
                     {{-- <h6 class="submenu-hdr">Peoples</h6>
                     <ul>

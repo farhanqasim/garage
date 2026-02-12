@@ -15,9 +15,11 @@
             <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Collapse" id="collapse-header"><i class="ti ti-chevron-up"></i></a></li>
         </ul>
         <div class="page-btn">
+            @can('add_customer')
             <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
                 <i class="ti ti-circle-plus me-1"></i>Add
             </a>
+            @endcan
         </div>
     </div>
     <div class="card">
@@ -66,14 +68,19 @@
                             <td>{{ $item->phones[0] ?? 'N/A' }}</td>
                             <td>
                                 <div class="edit-delete-action">
+                                    @can('update_customer')
                                     <a class="me-2 p-2" href="#" data-bs-toggle="modal" data-bs-target="#editCustomerModal{{ $item->id }}">
                                         <i data-feather="edit" class="feather-edit"></i>
                                     </a>
+                                    @endcan
+                                    @can('view_customer')
                                     <a class="me-2 p-2 text-success" href="javascript:void(0)" 
                                        onclick="showCustomerLedger({{ $item->id }})" 
                                        title="Ledger Report">
                                         <i data-feather="file-text" class="feather-file-text"></i>
                                     </a>
+                                    @endcan
+                                    @can('delete_customer')
                                     <a href="javascript:void(0)"
                                         onclick="confirmDelete('delete-form-{{ $item->id }}')"
                                         class="p-2 text-danger">
@@ -87,6 +94,7 @@
                                         @csrf
                                         @method('DELETE')
                                     </form>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -106,6 +114,7 @@
 </div>
 
 {{-- Add Modal (Static) --}}
+@can('add_customer')
 <div class="modal fade" id="addCustomerModal">
     <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
@@ -117,8 +126,10 @@
         </div>
     </div>
 </div>
+@endcan
 
 @forelse ($customers as $item)
+@can('update_customer')
 <div class="modal fade" id="editCustomerModal{{ $item->id }}">
     <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
@@ -130,6 +141,7 @@
         </div>
     </div>
 </div>
+@endcan
 @empty
 @endforelse
 

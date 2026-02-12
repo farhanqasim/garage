@@ -36,9 +36,11 @@
 
         </ul>
         <div class="page-btn">
+            @canany(['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'])
             <a href="{{ route('all.items.create') }}" class="btn btn-primary me-2">
                 <i class="ti ti-circle-plus me-1"></i>Add Items
             </a>
+            @endcanany
         </div>
     </div>
     <!-- /Product List -->
@@ -50,13 +52,13 @@
                     <label for="typeFilterDropdown" class="form-label fw-bold mb-2">Filter by Type:</label>
                     <select id="typeFilterDropdown" class="form-control form-select">
                         <option value="all">All Items</option>
-                        <option value="parts">Parts</option>
-                        <option value="filters">Filters</option>
-                        <option value="breakpad">Break Pad</option>
-                        <option value="oil">Oil</option>
-                        <option value="battery">Battery</option>
-                        <option value="scrap">Scrap</option>
-                        <option value="services">Services</option>
+                        @canany(['view_items', 'view_parts'])<option value="parts">Parts</option>@endcanany
+                        @canany(['view_items', 'view_filters'])<option value="filters">Filters</option>@endcanany
+                        @canany(['view_items', 'view_break_pad'])<option value="breakpad">Break Pad</option>@endcanany
+                        @canany(['view_items', 'view_oil'])<option value="oil">Oil</option>@endcanany
+                        @canany(['view_items', 'view_battery'])<option value="battery">Battery</option>@endcanany
+                        @canany(['view_items', 'view_scrap'])<option value="scrap">Scrap</option>@endcanany
+                        @canany(['view_items', 'view_services'])<option value="services">Services</option>@endcanany
                     </select>
                 </div>
             </div>
@@ -75,7 +77,9 @@
                         <thead class="thead-primary">
                             <tr>
                                 <th>
+                                    @canany(['delete_items', 'delete_parts', 'delete_filters', 'delete_break_pad', 'delete_oil', 'delete_battery', 'delete_scrap', 'delete_services'])
                                     <input type="checkbox" id="selectAll" class="form-check" style="width: 20px; height:20px">
+                                    @endcanany
                                 </th>
                                 <th>Product Image</th>
                                 <th>Actions</th>
@@ -92,9 +96,22 @@
                         </thead>
                         <tbody id="itemsTableBody">
                             @forelse ($items as $item)
+                            @php
+                                $t = $item->type ?? '';
+                                $permMap = ['parts'=>'view_parts','filters'=>'view_filters','breakpad'=>'view_break_pad','oil'=>'view_oil','battery'=>'view_battery','scrap'=>'view_scrap','services'=>'view_services'];
+                                $viewPerm = $permMap[$t] ?? 'view_items';
+                                $permMapU = ['parts'=>'update_parts','filters'=>'update_filters','breakpad'=>'update_break_pad','oil'=>'update_oil','battery'=>'update_battery','scrap'=>'update_scrap','services'=>'update_services'];
+                                $updatePerm = $permMapU[$t] ?? 'update_items';
+                                $permMapD = ['parts'=>'delete_parts','filters'=>'delete_filters','breakpad'=>'delete_break_pad','oil'=>'delete_oil','battery'=>'delete_battery','scrap'=>'delete_scrap','services'=>'delete_services'];
+                                $deletePerm = $permMapD[$t] ?? 'delete_items';
+                                $permMapA = ['parts'=>'add_parts','filters'=>'add_filters','breakpad'=>'add_break_pad','oil'=>'add_oil','battery'=>'add_battery','scrap'=>'add_scrap','services'=>'add_services'];
+                                $addPerm = $permMapA[$t] ?? 'add_items';
+                            @endphp
                             <tr data-type="{{ $item->type }}">
                                 <td>
+                                    @can($deletePerm)
                                     <input type="checkbox" name="ids[]" value="{{ $item->id }}" style="width: 20px; height:20px"   class="item-checkbox form-check">
+                                    @endcan
                                 </td>
                                 <td>
                                     <img src="{{ asset($item->image ?? 'assets/img/media/default.png') }}"
@@ -110,16 +127,21 @@
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu">
+                                            @can($viewPerm)
                                             <li>
                                                 <a class="dropdown-item mt-3" href="{{ route('item.show',$item->id) }}">
                                                     <i data-feather="eye" class="me-1"></i> View
                                                 </a>
                                             </li>
+                                            @endcan
+                                            @can($updatePerm)
                                             <li>
                                                 <a class="dropdown-item mt-2" href="{{ route('item.edit',$item->id) }}">
                                                     <i data-feather="edit" class="me-1"></i> Edit
                                                 </a>
                                             </li>
+                                            @endcan
+                                            @can($deletePerm)
                                             <li>
                                                 <a href="javascript:void(0)"
                                                     onclick="confirmDelete('delete-form-{{ $item->id }}')"
@@ -127,12 +149,15 @@
                                                     <i data-feather="trash-2" class="feather-trash-2"></i>  Delete
                                                 </a>
                                             </li>
+                                            @endcan
                                             <hr>
+                                    @can($addPerm)
                                     <li>
                                         <a class="dropdown-item text-primary" href="{{ route('item.duplicate', $item->id) }}">
                                             <i data-feather="copy" class="me-1"></i> Duplicate
                                         </a>
                                     </li>
+                                    @endcan
                                     @if($item->vehical_item)
                                     <hr>
                                     <li>
@@ -207,9 +232,11 @@
             </div>
         </div>
         <div class="card-footer">
+            @can('delete_items')
             <button type="button" id="bulkDeleteBtn" class="btn btn-danger" style="display: none;">
                 <i class="ti ti-trash me-1"></i> Delete Selected
             </button>
+            @endcan
             <button type="button" id="shareWhatsAppBtn" class="btn btn-success" style="display: none;">
                 <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
             </button>

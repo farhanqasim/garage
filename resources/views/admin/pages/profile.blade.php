@@ -25,12 +25,12 @@
                 <div class="row">
                     <div class="col-12 col-md-8 col-lg-12">
                         <div class="card">
-                            <form action="{{ route('user.profile.update', auth()->user()->id) }}" method="POST" enctype="multipart/form-data">
+                            <form action="{{ route('user.profile.update', $user->id) }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 @method('PUT')
 
                                 <div class="card-header">
-                                    <h4>Update Profile</h4>
+                                    <h4>Update Profile @if($user->id !== auth()->id())<span class="text-muted">({{ $user->name }})</span>@endif</h4>
                                 </div>
 
                                 <div class="card-body">
@@ -38,11 +38,11 @@
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <label class="form-label">Name</label>
-                                            <input type="text" class="form-control" name="name" value="{{ auth()->user()->name }}" required>
+                                            <input type="text" class="form-control" name="name" value="{{ old('name', $user->name) }}" required>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Phone</label>
-                                            <input type="text" class="form-control" name="phone" value="{{ auth()->user()->phone }}" required>
+                                            <input type="text" class="form-control" name="phone" value="{{ old('phone', $user->phone) }}" required>
                                         </div>
                                     </div>
 
@@ -50,7 +50,7 @@
                                     <div class="row mb-3">
                                         <div class="col-md-12">
                                             <label class="form-label">Email</label>
-                                            <input type="email" class="form-control" name="email" value="{{ auth()->user()->email }}" required>
+                                            <input type="email" class="form-control" name="email" value="{{ old('email', $user->email) }}" required>
                                         </div>
                                     </div>
 
@@ -59,18 +59,39 @@
                                         <div class="col-md-12">
                                             <label class="form-label">Profile Image</label>
                                             <input type="file" class="form-control" name="profile_img">
-                                            @if(auth()->user()->profile_img)
-                                                <img src="{{ asset(auth()->user()->profile_img) }}" alt="Profile Image" class="mt-2" width="100">
+                                            @if($user->profile_img)
+                                                <img src="{{ asset($user->profile_img) }}" alt="Profile Image" class="mt-2" width="100">
                                             @endif
                                         </div>
                                     </div>
 
                                     <hr>
 
-                                    <!-- Change Password Section -->
-                                    <h5>Change Password</h5>
+                                    <!-- Salary (for employees: monthly / per day / percentage) -->
+                                    <h5 class="mb-3">Salary</h5>
+                                    <p class="text-muted small mb-3">Fill the option that applies: monthly salary, per day, or commission percentage.</p>
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Monthly (Rs)</label>
+                                            <input type="number" class="form-control" name="salary_per_month" value="{{ old('salary_per_month', $user->salary_per_month) }}" min="0" step="0.01" placeholder="0">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Per Day (Rs)</label>
+                                            <input type="number" class="form-control" name="salary_per_day" value="{{ old('salary_per_day', $user->salary_per_day) }}" min="0" step="0.01" placeholder="0">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Percentage (%)</label>
+                                            <input type="number" class="form-control" name="salary_percentage" value="{{ old('salary_percentage', $user->salary_percentage) }}" min="0" max="100" step="0.01" placeholder="0">
+                                        </div>
+                                    </div>
 
-                                    <!-- Old Password -->
+                                    <hr>
+
+                                    <!-- Change Password Section -->
+                                    <h5>Change Password @if($user->id !== auth()->id())<small class="text-muted">(leave blank to keep current)</small>@endif</h5>
+
+                                    @if($user->id === auth()->id())
+                                    <!-- Old Password (only when editing own profile) -->
                                     <div class="row mb-3">
                                         <div class="col-md-12">
                                             <label class="form-label">Old Password</label>
@@ -84,6 +105,10 @@
 
                                     <!-- New Password & Confirm Password (Initially Hidden) -->
                                     <div id="new-password-fields" style="display: none;">
+                                    @else
+                                    <!-- When admin edits another user: only new password fields -->
+                                    <div id="new-password-fields">
+                                    @endif
                                         <div class="row mb-3">
                                             <div class="col-md-6">
                                                 <label class="form-label">New Password</label>
@@ -107,7 +132,8 @@
                             </form>
                         </div>
 
-                        <!-- Pattern & Fingerprint Setup Card -->
+                        @if($user->id === auth()->id())
+                        <!-- Pattern & Fingerprint Setup Card (only for own profile) -->
                         <div class="card mt-4">
                             <div class="card-header">
                                 <h4>Login Security Settings</h4>
@@ -119,7 +145,7 @@
                                 <div class="mb-4">
                                     <h5 class="mb-3">
                                         <i class="ti ti-grid-3x3 me-2"></i>Pattern Lock
-                                        @if(auth()->user()->pattern_lock)
+                                        @if($user->pattern_lock)
                                             <span class="badge bg-success ms-2">Set</span>
                                         @else
                                             <span class="badge bg-warning ms-2">Not Set</span>
@@ -220,13 +246,15 @@
                                 </div>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
         </section>
     </div>
 <script>
-        document.getElementById('verify_password').addEventListener('click', function () {
+        var verifyBtn = document.getElementById('verify_password');
+        if (verifyBtn) verifyBtn.addEventListener('click', function () {
             let oldPassword = document.getElementById('old_password').value;
 
             fetch("{{ route('user.password.verify') }}", {
@@ -247,7 +275,8 @@
             });
         });
 
-        // Pattern Lock Setup - Double confirm flow (draw twice, both must match)
+        // Pattern Lock Setup - only when own profile (card is present)
+        if (document.getElementById('savePatternBtn')) {
         let patternDotsSetup = [];
         let isDrawingSetup = false;
         let firstPattern = null;      // First draw (to confirm)
@@ -604,6 +633,7 @@
                 fingerprintSetupStatus.textContent = error.message || 'An error occurred while saving fingerprint';
                 fingerprintSetupStatus.style.color = '#dc3545';
             });
+        }
         }
     </script>
 @endsection
