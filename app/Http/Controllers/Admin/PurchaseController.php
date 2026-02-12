@@ -21,6 +21,7 @@ use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\BankAccount;
 use App\Models\PurchasePayment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,42 @@ class PurchaseController extends Controller
         $branches = \App\Models\Branch::where('status', 'active')->get();
         $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
         return view('admin.purchases.create', compact('suppliers', 'branches', 'units'));
+    }
+
+    /**
+     * Get users list with CLAIM RETURN access (claim_return_enabled).
+     */
+    public function getClaimReturnAccessList(Request $request)
+    {
+        $users = User::with('roles')->orderBy('name')->get(['id', 'name', 'email', 'claim_return_enabled']);
+        $list = $users->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email ?? '',
+                'roles' => $user->roles->pluck('name')->toArray(),
+                'has_access' => (bool) ($user->claim_return_enabled ?? false),
+            ];
+        });
+        return response()->json($list);
+    }
+
+    /**
+     * Toggle CLAIM RETURN access for a user. Only Super Admin, Admin, Manager can toggle.
+     */
+    public function toggleClaimReturnAccess(Request $request)
+    {
+        if (!auth()->user()->hasAnyRole(['Super Admin', 'Admin', 'Manager'])) {
+            return response()->json(['success' => false], 403);
+        }
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'enabled' => 'required|in:0,1,true,false',
+        ]);
+        $user = User::findOrFail($request->user_id);
+        $user->claim_return_enabled = filter_var($request->enabled, FILTER_VALIDATE_BOOLEAN);
+        $user->save();
+        return response()->json(['success' => true, 'enabled' => (bool) $user->claim_return_enabled]);
     }
 
     /**

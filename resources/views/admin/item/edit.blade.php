@@ -4379,22 +4379,30 @@ function md5(string) {
         }
     });
 
+    // Unlock save audio on Update button click (same as item create - so audio can play after AJAX success)
+    $('#mainItemForm').on('click', 'button[type=submit]', function() {
+        var s = document.getElementById('saveSound');
+        if (s && typeof s.play === 'function') {
+            var v = s.volume;
+            s.volume = 0;
+            s.currentTime = 0;
+            s.play().then(function() { s.pause(); s.currentTime = 0; s.volume = v; }).catch(function(){ s.volume = v; });
+        }
+    });
+
     // =========================
-    // ENSURE unit, quality_id AND technology ARE SUBMITTED ON FORM SUBMIT
-    // This ensures they are sent even if fields are hidden by Alpine.js
+    // SUBMIT VIA AJAX - show success toast + save audio (same as item create)
     // =========================
-    $('#mainItemForm').on('submit', function(e) {
+    $('#mainItemForm').off('submit').on('submit', function(e) {
+        e.preventDefault();
         var $form = $(this);
-        
-        // ========== SHORT DESCRIPTION & LONG DESCRIPTION ==========
+
+        // ========== SYNC hidden fields (same as before) ==========
         var shortDiscVal = ($form.find('input[name="short_disc"]').val() || '').trim();
         var proDisVal = '';
         var $summernote = $('#summernote');
         if ($summernote.length && $summernote.data('summernote')) {
-            try {
-                proDisVal = $summernote.summernote('code') || '';
-                $summernote.val(proDisVal);
-            } catch (err) { console.warn('Summernote sync:', err); }
+            try { proDisVal = $summernote.summernote('code') || ''; $summernote.val(proDisVal); } catch (err) { console.warn('Summernote sync:', err); }
         } else {
             proDisVal = $summernote.val() || '';
         }
@@ -4402,75 +4410,51 @@ function md5(string) {
         $form.find('textarea[name="pro_dis"]').remove();
         $form.append($('<input type="hidden" name="short_disc">').val(shortDiscVal));
         $form.append($('<input type="hidden" name="pro_dis">').val(proDisVal));
-        
-        // Get unit value from Select2 dropdown
-        let unitSelectVal = $('#unit_parts').val();
-        
-        // If Select2 is initialized, get value from Select2
-        if ($('#unit_parts').hasClass('select2-hidden-accessible')) {
-            unitSelectVal = $('#unit_parts').val();
-        }
-        
-        console.log('Unit value from dropdown:', unitSelectVal);
-        console.log('Unit value type:', typeof unitSelectVal);
-        
-        // Remove existing unit hidden input to avoid duplicates
-        $(this).find('input[type="hidden"][name="unit"]').remove();
-        
-        // Extract only unit_id from composite value (unit_id_base_unit_id format)
-        // Save only the unit_id (e.g., "87" instead of "87_main")
+
+        var unitSelectVal = $('#unit_parts').val();
+        $form.find('input[type="hidden"][name="unit"]').remove();
         if (unitSelectVal && unitSelectVal !== '' && unitSelectVal !== null) {
-            let unitId = unitSelectVal;
-            
-            // If value contains underscore, extract only the unit_id part
-            if (unitSelectVal.includes('_')) {
-                unitId = unitSelectVal.split('_')[0];
-                console.log('Extracted unit_id from composite value:', unitId, '(from:', unitSelectVal + ')');
+            var unitId = unitSelectVal.includes('_') ? unitSelectVal.split('_')[0] : unitSelectVal;
+            $form.append($('<input type="hidden" name="unit">').val(unitId));
+        }
+
+        var qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
+        $form.find('input[type="hidden"][name="quality_id"]').remove();
+        if (qualityVal) $form.append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
+
+        var techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
+        $form.find('input[type="hidden"][name="technology"]').remove();
+        if (techVal) $form.append('<input type="hidden" name="technology" value="' + techVal + '">');
+
+        var formData = new FormData($form[0]);
+        var $submitBtn = $form.find('button[type=submit]');
+        var origHtml = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Updating...');
+
+        $.ajax({
+            url: $form.attr('action'),
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            success: function(data) {
+                if (data.success && data.message) {
+                    if (typeof toastr !== 'undefined') toastr.success(data.message, '', { timeOut: 3500 });
+                    if (typeof playSaveSound === 'function') playSaveSound();
+                }
+                setTimeout(function() { window.location.reload(); }, 450);
+            },
+            error: function(xhr) {
+                $form.find('button[type=submit]').prop('disabled', false).html(origHtml);
+                var res = xhr.responseJSON;
+                var msg = (res && res.message) ? res.message : 'Failed to update item. Please try again.';
+                if (res && res.errors && typeof res.errors === 'object') {
+                    msg = Object.values(res.errors).flat().join(' ') || msg;
+                }
+                if (typeof toastr !== 'undefined') toastr.error(msg);
             }
-            
-            // Add hidden input with only the unit_id
-            const unitInput = $('<input>').attr({
-                type: 'hidden',
-                name: 'unit',
-                value: unitId
-            });
-            $(this).append(unitInput);
-            console.log('✓ Unit ID added to form:', unitId);
-        } else {
-            console.log('⚠ No unit selected - unit field will be null');
-        }
-        
-        // Get quality_id from any visible quality field
-        const qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
-        
-        // Remove any existing hidden quality_id inputs to avoid duplicates
-        $(this).find('input[type="hidden"][name="quality_id"]').remove();
-        
-        // Add hidden input if quality_id has a value
-        if (qualityVal) {
-            $(this).append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
-        }
-        
-        // Get technology from any visible technology field
-        const techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
-        
-        // Remove any existing hidden technology inputs to avoid duplicates
-        $(this).find('input[type="hidden"][name="technology"]').remove();
-        
-        // Add hidden input if technology has a value
-        if (techVal) {
-            $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
-        }
-        
-        // Log all form data for debugging
-        const formData = new FormData(this);
-        console.log('Form data being submitted:');
-        for (let [key, value] of formData.entries()) {
-            if (key === 'unit') {
-                console.log('  - ' + key + ':', value);
-            }
-        }
-        console.log('=== END FORM SUBMIT HANDLER ===');
+        });
     });
 </script>
 <script>

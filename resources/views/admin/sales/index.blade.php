@@ -31,8 +31,10 @@
             </li>
         </ul>
         <div class="page-btn">
+            @can('add_sales')
             <a href="{{ route('create.sale') }}" class="btn btn-primary" ><i
                     class="ti ti-circle-plus me-1"></i>Add Sales</a>
+            @endcan
         </div>
     </div>
 
@@ -220,14 +222,19 @@
                                     <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
                                 </a>
                                 <ul class="dropdown-menu">
+                                    @can('view_sales')
                                     <li>
                                         <a href="{{ route('sales.show', $sale->id) }}" class="dropdown-item"><i data-feather="eye"
                                                 class="info-img"></i>Sale Detail</a>
                                     </li>
+                                    @endcan
+                                    @can('update_sales')
                                     <li>
                                         <a href="{{ route('sales.edit', $sale->id) }}" class="dropdown-item"><i data-feather="edit"
                                                 class="info-img"></i>Edit Sale</a>
                                     </li>
+                                    @endcan
+                                    @can('view_sales')
                                     <li>
                                         <a href="{{ route('sales.payments', $sale->id) }}" class="dropdown-item"><i data-feather="dollar-sign"
                                                 class="info-img"></i>Show Payments</a>
@@ -240,12 +247,15 @@
                                         <a href="{{ route('sales.download.pdf', $sale->id) }}" class="dropdown-item" target="_blank"><i data-feather="download"
                                                 class="info-img"></i>Download pdf</a>
                                     </li>
+                                    @endcan
+                                    @can('delete_sales')
                                     <li>
                                         <a href="javascript:void(0);" class="dropdown-item mb-0 delete-sale" 
                                             data-sale-id="{{ $sale->id }}" data-bs-toggle="modal"
                                             data-bs-target="#delete"><i data-feather="trash-2"
                                                 class="info-img"></i>Delete Sale</a>
                                     </li>
+                                    @endcan
                                 </ul>
                             </td>
                         </tr>

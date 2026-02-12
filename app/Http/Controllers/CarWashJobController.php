@@ -1080,6 +1080,7 @@ class CarWashJobController extends Controller
         
         $customerFilter = $request->get('customer'); // vehicle_no
         $workerFilter = $request->get('worker');     // worker_name
+        $userFilter = $request->get('user');         // user_id (user who entered the job)
         $paymentFilter = $request->get('payment');   // 'cash' | 'bank' (default: cash for tab; if empty treat as all for old links)
 
         $user = Auth::user();
@@ -1105,17 +1106,24 @@ class CarWashJobController extends Controller
         if ($workerFilter !== null && $workerFilter !== '') {
             $query->where('worker_name', $workerFilter);
         }
+        if ($userFilter !== null && $userFilter !== '') {
+            $query->where('user_id', (int) $userFilter);
+        }
 
         $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
 
-        // Filter options for the date (same payment filter, no customer/worker filter)
-        $allJobsForFilters = CarWashJob::where($baseQuery)->get();
+        // Filter options for the date (same payment filter, no customer/worker/user filter)
+        $allJobsForFilters = CarWashJob::where($baseQuery)->with('user')->get();
         $customers = $allJobsForFilters->groupBy('vehicle_no')->keys()->filter()->map(function ($v) use ($allJobsForFilters) {
             $j = $allJobsForFilters->where('vehicle_no', $v)->first();
             return ['value' => $v, 'label' => $v . ($j && $j->customer_name ? ' (' . $j->customer_name . ')' : '')];
         })->values();
         $workers = $allJobsForFilters->pluck('worker_name')->unique()->filter()->map(function ($w) {
             return ['value' => $w, 'label' => $w];
+        })->values();
+        $users = $allJobsForFilters->pluck('user_id')->unique()->filter()->map(function ($uid) {
+            $u = \App\Models\User::find($uid);
+            return ['value' => (string) $uid, 'label' => $u ? $u->name : 'User #' . $uid];
         })->values();
 
         // Image jaisa: Credit ek row, Debit (expense) alag row. Debit row par credit/worker/commission empty; Credit row par debit empty.
@@ -1604,6 +1612,7 @@ class CarWashJobController extends Controller
             'rows' => $rows,
             'customers' => $customers,
             'workers' => $workers,
+            'users' => $users,
             'totals' => [
                 'totalVehicles' => count($vehicleSet),
                 'totalDebit' => round($totalDebit, 2),
@@ -1641,6 +1650,7 @@ class CarWashJobController extends Controller
         
         $customerFilter = $request->get('customer');
         $workerFilter = $request->get('worker');
+        $userFilter = $request->get('user');
         $paymentFilter = $request->get('payment');
 
         $user = Auth::user();
@@ -1667,6 +1677,9 @@ class CarWashJobController extends Controller
         }
         if ($workerFilter !== null && $workerFilter !== '') {
             $query->where('worker_name', $workerFilter);
+        }
+        if ($userFilter !== null && $userFilter !== '') {
+            $query->where('user_id', (int) $userFilter);
         }
         $jobs = $query->orderBy('end_time', 'asc')->orderBy('created_at', 'asc')->get();
 

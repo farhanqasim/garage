@@ -305,6 +305,17 @@
                             </select>
                         </div>
 
+                        <div class="col-md-12">
+                            <label for="spatie_role" class="form-label">Permission Role</label>
+                            <select name="spatie_role" id="spatie_role" class="form-select">
+                                <option value="">None (no permissions)</option>
+                                @foreach($spatieRoles ?? [] as $r)
+                                    <option value="{{ $r->name }}">{{ $r->name }}</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Assigns permissions. Create roles in Admin → Roles.</small>
+                        </div>
+
                         <div class="col-md-4">
                             <label for="profile_img" class="form-label">Profile Image</label>
                             <input type="file" name="profile_img" class="form-control">

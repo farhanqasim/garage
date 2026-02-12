@@ -207,15 +207,17 @@
             </div>
           </li> --}}
 
+          @can('view_pos')
           <li class="nav-item pos-nav">
             <a href="{{ route('point_of_sale') }}" class="btn btn-dark btn-md d-inline-flex align-items-center">
               <i class="ti ti-device-laptop me-1"></i>POS
             </a>
           </li>
+          @endcan
 
-          <!-- Branch Switcher (Admin Only) -->
+          <!-- Branch Switcher (Admin or view_branch) -->
           @auth
-            @if(auth()->user()->role === 'admin')
+            @if(auth()->user()->role === 'admin' || auth()->user()->can('view_branch'))
               @php
                 $allBranches = \App\Models\Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get();
                 $currentBranchId = session('selected_branch_id');
@@ -376,9 +378,11 @@
           </li>
           <!-- /Notifications -->
 
+          @can('view_setting')
           <li class="nav-item nav-item-box">
             <a href="{{ route('admin.setting') }}"><i class="ti ti-settings"></i></a>
           </li>
+          @endcan
           <li class="nav-item dropdown has-arrow main-drop profile-nav">
             <a href="javascript:void(0);" class="nav-link userset" data-bs-toggle="dropdown">
               <span class="user-info p-0">
@@ -399,7 +403,9 @@
               </div>
               <a class="dropdown-item" href="{{route('user.profile',auth()->user()->id)}}"><i class="ti ti-user-circle me-2"></i>MyProfile</a>
               {{-- <a class="dropdown-item" href="sales-report.html"><i class="ti ti-file-text me-2"></i>Reports</a> --}}
+              @can('view_setting')
               <a class="dropdown-item" href="{{ route('admin.setting') }}"><i class="ti ti-settings-2 me-2"></i>Settings</a>
+              @endcan
               <hr class="my-2">
               <a class="dropdown-item logout pb-0" href="{{ route('logout') }}" onclick="event.preventDefault();
                 document.getElementById('logout-form').submit();">
@@ -417,7 +423,9 @@
           <a href="javascript:void(0);" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"><i class="fa fa-ellipsis-v"></i></a>
           <div class="dropdown-menu dropdown-menu-right">
             <a class="dropdown-item" href="{{route('user.profile',auth()->user()->id)}}">My Profile</a>
+            @can('view_setting')
             <a class="dropdown-item" href="{{ route('admin.setting') }}">Settings</a>
+            @endcan
             <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault();
                 document.getElementById('logout-form').submit();">Logout</a>
                     <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
@@ -430,7 +438,7 @@
     </div>
 
     @auth
-      @if(auth()->user()->role === 'admin')
+      @if(auth()->user()->role === 'admin' || auth()->user()->can('view_branch'))
         <script>
           function switchBranch(branchId, branchName) {
             console.log('=== Branch Switch Started ===');
