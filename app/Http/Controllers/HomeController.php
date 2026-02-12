@@ -37,16 +37,33 @@ class HomeController extends Controller
         return view('home');
     }
 
+    /**
+     * In-app WhatsApp (replica) – login saved in browser once.
+     */
+    public function messenger()
+    {
+        return view('messenger');
+    }
+
     public function userprofile($id){
       $user = User::find($id);
       $currentUser = auth()->user();
-      
-      // Check if current user is accessing their own profile
-      if ($currentUser->id != $id) {
-          abort(403, 'Unauthorized access');
+
+      if (!$user) {
+          abort(404, 'User not found');
       }
-      
-      return view('admin.pages.profile', compact('user'));
+
+      // Allow: own profile, or admin, or same-branch access (for staff management)
+      $isOwn = (int) $currentUser->id === (int) $id;
+      $isAdmin = $currentUser->role === 'admin';
+      $sameBranch = $user->branch_id && $user->branch_id == $this->getUserBranchId($currentUser);
+      $assignedToMyBranch = $user->assignedBranches()->where('branch_id', $this->getUserBranchId($currentUser))->exists();
+
+      if ($isOwn || $isAdmin || $sameBranch || $assignedToMyBranch) {
+          return view('admin.pages.profile', compact('user'));
+      }
+
+      abort(403, 'Unauthorized access');
      }
 
 
@@ -57,8 +74,23 @@ public function userprofileupdate(Request $request, $id)
         'name' => 'required|string|max:255',
         'email' => 'required|email|unique:users,email,' . $id,
         'profile_img' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        'salary_per_month' => 'nullable|numeric|min:0',
+        'salary_per_day' => 'nullable|numeric|min:0',
+        'salary_percentage' => 'nullable|numeric|min:0|max:100',
     ]);
     $user = User::findOrFail($id);
+    $currentUser = auth()->user();
+
+    // Same access rules as userprofile: own, admin, or same-branch
+    $isOwn = (int) $currentUser->id === (int) $id;
+    $isAdmin = $currentUser->role === 'admin';
+    $sameBranch = $user->branch_id && $user->branch_id == $this->getUserBranchId($currentUser);
+    $assignedToMyBranch = $user->assignedBranches()->where('branch_id', $this->getUserBranchId($currentUser))->exists();
+
+    if (!$isOwn && !$isAdmin && !$sameBranch && !$assignedToMyBranch) {
+        abort(403, 'Unauthorized access');
+    }
+
     // Profile Image Handling
     if ($request->hasFile('profile_img')) {
         $user->profile_img = saveSingleFile($request->file('profile_img'), 'profile');
@@ -66,6 +98,9 @@ public function userprofileupdate(Request $request, $id)
     $user->name = $request->input('name');
     $user->email = $request->input('email');
     $user->phone = $request->input('phone');
+    $user->salary_per_month = $request->filled('salary_per_month') ? $request->input('salary_per_month') : null;
+    $user->salary_per_day = $request->filled('salary_per_day') ? $request->input('salary_per_day') : null;
+    $user->salary_percentage = $request->filled('salary_percentage') ? $request->input('salary_percentage') : null;
     // Password Update Logic
     if ($request->filled('new_password')) {
         $request->validate([
@@ -85,12 +120,22 @@ public function employeeProfile($id)
 {
     $user = User::find($id);
     $currentUser = auth()->user();
-    
-    // Check if current user is accessing their own profile
-    if ($currentUser->id != $id) {
+
+    if (!$user) {
+        abort(404, 'User not found');
+    }
+
+    // Allow: own profile, or admin, or same-branch access
+    $isOwn = (int) $currentUser->id === (int) $id;
+    $isAdmin = $currentUser->role === 'admin';
+    $branchId = $this->getUserBranchId($currentUser);
+    $sameBranch = $user->branch_id && $user->branch_id == $branchId;
+    $assignedToMyBranch = $branchId && $user->assignedBranches()->where('branch_id', $branchId)->exists();
+
+    if (!$isOwn && !$isAdmin && !$sameBranch && !$assignedToMyBranch) {
         abort(403, 'Unauthorized access');
     }
-    
+
     // Get branch info
     $branchInfo = $this->getBranchInfoForDisplay($currentUser);
     $branchName = $branchInfo['name'];

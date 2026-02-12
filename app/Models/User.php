@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -38,6 +43,7 @@ class User extends Authenticatable
         'salary_percentage',
         'pattern_lock',
         'fingerprint_data',
+        'claim_return_enabled',
     ];
 
     /**
@@ -60,6 +66,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'credit_limit' => 'decimal:2',
         'attachments' => 'array',
+        'claim_return_enabled' => 'boolean',
         'salary_per_day' => 'decimal:2',
         'salary_per_month' => 'decimal:2',
         'salary_percentage' => 'decimal:2',
@@ -132,6 +139,53 @@ public function user_items()
     public function bankTransfers()
     {
         return $this->hasMany(BankTransfer::class);
+    }
+
+
+    public static function getpermissionGroups()
+    {
+        $permission_groups = DB::table('permissions')
+            ->orderBy('id','asc')
+            ->select('group_name as name')
+            ->groupBy('group_name')
+            ->get();
+        return $permission_groups;
+    }
+    public static function getpermissionsByGroupName($group_name)
+    {
+        $permissions = DB::table('permissions')
+            ->select('name', 'id')
+            ->where('group_name', $group_name)
+            ->get();
+        return $permissions;
+    }
+    public static function roleHasPermissions($role, $permissions)
+    {
+        $hasPermission = true;
+        foreach ($permissions as $permission) {
+            if (!$role->hasPermissionTo($permission->name)) {
+                $hasPermission = false;
+                return $hasPermission;
+            }
+        }
+        return $hasPermission;
+    }
+    public function hasPermissionThroughRole($permission) : bool
+    {
+        if(auth()->check()){
+
+            $roles = auth()->user()->getRoleNames();
+            if (!empty($roles)) {
+
+                $role = Role::where('name',$roles[0])->first();
+                if ($role->hasPermissionTo($permission)) {
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+        return false;
     }
 
 }

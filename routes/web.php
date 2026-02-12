@@ -99,7 +99,7 @@ Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendan
 Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
 Route::get('/attendance/history-page', [\App\Http\Controllers\CarWashAttendanceController::class, 'historyPage'])->name('attendance.history.page')->middleware('auth');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
-Route::get('/employee/home', [HomeController::class, 'carWashHome'])->name('employee.home')->middleware('auth');
+Route::get('/employee/home', [HomeController::class, 'carWashHome'])->name('employee.home')->middleware(['auth', 'can:view_car_wash_jobs']);
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
 Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
 Route::get('/car-wash/services/rate-list', [\App\Http\Controllers\CarWashServiceController::class, 'rateList'])->name('car.wash.services.rate-list')->middleware('auth');
@@ -141,6 +141,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::post('/services/{id}/toggle-status', [\App\Http\Controllers\CarWashServiceController::class, 'toggleStatus'])->name('services.toggle-status');
     
     // Attendance Routes
+    Route::get('/attendance/branches', [\App\Http\Controllers\CarWashAttendanceController::class, 'branches'])->name('attendance.branches');
     Route::get('/attendance/employees', [\App\Http\Controllers\CarWashAttendanceController::class, 'employees'])->name('attendance.employees');
     Route::post('/attendance', [\App\Http\Controllers\CarWashAttendanceController::class, 'store'])->name('attendance.store');
     Route::get('/attendance/history', [\App\Http\Controllers\CarWashAttendanceController::class, 'history'])->name('attendance.history');
@@ -469,7 +470,15 @@ Route::put('/update/car/manufacturer/{id}', [ItemController::class, 'update_car_
 Route::delete('/destory/car/manufacturer/{id}', [ItemController::class, 'destory_car_manufacturer'])->name('destory.car.manufacturer');
 
 // Roles
-Route::resource('admin/roles', RoleController::class);
+Route::resource('admin/roles', RoleController::class)->names([
+    'index' => 'roles.index',
+    'create' => 'roles.create',
+    'store' => 'roles.store',
+    'show' => 'roles.show',
+    'edit' => 'roles.edit',
+    'update' => 'roles.update',
+    'destroy' => 'roles.destroy',
+]);
 Route::get('admin/users/edit/{id}', [RoleController::class,'edit_access_role'])->name('edit_access_role');
 Route::post('admin/users/update/{id}', [RoleController::class,'update_access_role'])->name('update_access_role');
 Route::get('admin/delete/customer/{id}', [RoleController::class,'admin_delete_customer'])->name('admin_delete_customer');
@@ -624,6 +633,8 @@ Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemP
 // purchases
 Route::get('all/purchases',[PurchaseController::class,'all_purchases'])->name('all_purchases');
 Route::get('purchases/create',[PurchaseController::class,'create'])->name('purchases.create')->middleware('auth');
+Route::get('purchases/claim-return-access-list',[PurchaseController::class,'getClaimReturnAccessList'])->name('purchases.claim.return.access.list')->middleware('auth');
+Route::post('purchases/claim-return-access-toggle',[PurchaseController::class,'toggleClaimReturnAccess'])->name('purchases.claim.return.access.toggle')->middleware('auth');
 Route::post('purchases',[PurchaseController::class,'store'])->name('purchases.store');
 Route::get('purchases/items/search',[PurchaseController::class,'searchItems'])->name('purchases.items.search');
 // Specific routes must come before parameterized routes

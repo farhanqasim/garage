@@ -59,12 +59,54 @@
             width: 100%;
             min-height: 100vh;
         }
+        @media print {
+            body, #root { background: #fff; margin: 0; padding: 0; }
+            body * { visibility: hidden; }
+            .attendance-detail-print,
+            .attendance-detail-print * { visibility: visible; }
+            .attendance-detail-print {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                margin: 0 !important;
+                padding: 12mm !important;
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            .no-print { display: none !important; }
+            .attendance-detail-print table { font-size: 10pt; }
+            .attendance-detail-print th,
+            .attendance-detail-print td { padding: 6pt 8pt; }
+            .print-only { display: block !important; }
+            body.print-preview-open .attendance-detail-print,
+            body.print-preview-open .attendance-detail-print * { visibility: hidden !important; }
+            .print-preview-content,
+            .print-preview-content * { visibility: visible !important; }
+            .print-preview-content {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                margin: 0 !important;
+                padding: 12mm !important;
+                box-shadow: none !important;
+                background: #fff !important;
+            }
+        }
+        .print-only { display: none; }
+        @page { size: A4; margin: 12mm; }
     </style>
 </head>
 <body>
     <div id="root"></div>
     
     <script type="text/babel" data-presets="react">
+        // Default branch = branch user is logged in to (session or user's branch)
+        const DEFAULT_BRANCH_ID = {{ json_encode(session('selected_branch_id') ?? auth()->user()->branch_id ?? 'all') }};
+        
         // Wait for React to load
         if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
             document.getElementById('root').innerHTML = '<div style="padding: 2rem; text-align: center;"><h3>Loading React...</h3></div>';
@@ -179,10 +221,16 @@
 
         const API_BASE = '{{ url("/car-wash") }}';
         const API_ROUTES = {
+            branches: API_BASE + '/attendance/branches',
             employees: API_BASE + '/attendance/employees',
             store: API_BASE + '/attendance',
             history: API_BASE + '/attendance/history',
             completed: API_BASE + '/attendance/completed'
+        };
+        const ROUTES = {
+            staff: '{{ route("car.wash.staff") }}',
+            userProfile: '{{ url("user/profile") }}',
+            employeeProfile: '{{ url("employee/profile") }}'
         };
 
         // Allowed locations for attendance - Multiple locations supported
@@ -237,6 +285,19 @@
             const [attendanceMode, setAttendanceMode] = useState(null);
             const [logs, setLogs] = useState([]);
             const [employees, setEmployees] = useState([]);
+            const [branches, setBranches] = useState([]);
+            const [selectedBranchId, setSelectedBranchId] = useState(DEFAULT_BRANCH_ID && String(DEFAULT_BRANCH_ID) !== '' ? String(DEFAULT_BRANCH_ID) : 'all');
+            const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+            const [detailEmployee, setDetailEmployee] = useState(null);
+            const [detailDateFrom, setDetailDateFrom] = useState(() => {
+                const d = new Date();
+                d.setDate(1);
+                return d.toISOString().slice(0, 10);
+            });
+            const [detailDateTo, setDetailDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+            const [detailLogs, setDetailLogs] = useState([]);
+            const [loadingDetailLogs, setLoadingDetailLogs] = useState(false);
+            const [showPrintPreview, setShowPrintPreview] = useState(false);
             const [loadingEmployees, setLoadingEmployees] = useState(false);
             const [location, setLocation] = useState(null);
             const [address, setAddress] = useState("");
@@ -260,9 +321,31 @@
                 }
             }, []);
 
-            // Fetch employees from API
+            // Fetch branches for dropdown
             useEffect(() => {
-                fetch(API_ROUTES.employees, {
+                fetch(API_ROUTES.branches, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && Array.isArray(data.branches)) {
+                        setBranches(data.branches);
+                    }
+                })
+                .catch(err => console.error('Error fetching branches:', err));
+            }, []);
+
+            // Fetch employees from API (when branch or date range changes)
+            useEffect(() => {
+                setLoadingEmployees(true);
+                const params = new URLSearchParams();
+                if (selectedBranchId && selectedBranchId !== 'all') params.set('branch_id', selectedBranchId);
+                if (selectedDate) {
+                    params.set('date_from', selectedDate);
+                    params.set('date_to', selectedDate);
+                }
+                const url = params.toString() ? API_ROUTES.employees + '?' + params.toString() : API_ROUTES.employees;
+                fetch(url, {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -272,6 +355,8 @@
                 .then(data => {
                     if (data.success && Array.isArray(data.employees)) {
                         setEmployees(data.employees);
+                    } else {
+                        setEmployees([]);
                     }
                     setLoadingEmployees(false);
                 })
@@ -279,7 +364,7 @@
                     console.error('Error fetching employees:', err);
                     setLoadingEmployees(false);
                 });
-            }, []);
+            }, [selectedBranchId, selectedDate]);
 
 
             // Load attendance history when employee is selected
@@ -363,6 +448,45 @@
                     .catch(err => console.error('Error fetching history:', err));
                 }
             }, [selectedEmployee]);
+
+            useEffect(function() {
+                if (showPrintPreview) document.body.classList.add('print-preview-open');
+                else document.body.classList.remove('print-preview-open');
+                return function() { document.body.classList.remove('print-preview-open'); };
+            }, [showPrintPreview]);
+
+            // Load IN/OUT detail when detail view is open (with date range)
+            useEffect(() => {
+                if (!detailEmployee || !detailEmployee.id) {
+                    setDetailLogs([]);
+                    return;
+                }
+                setLoadingDetailLogs(true);
+                const [type, id] = detailEmployee.id.split('_');
+                const params = new URLSearchParams({ employeeId: id, type: type });
+                if (detailDateFrom) params.set('date_from', detailDateFrom);
+                if (detailDateTo) params.set('date_to', detailDateTo);
+                fetch(API_ROUTES.history + '?' + params.toString(), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && Array.isArray(data.attendances)) {
+                        setDetailLogs(data.attendances.map(att => ({
+                            id: att.id,
+                            type: att.type,
+                            time: att.time,
+                            location: att.location,
+                            address: att.address,
+                            photo: att.photo
+                        })));
+                    } else {
+                        setDetailLogs([]);
+                    }
+                    setLoadingDetailLogs(false);
+                })
+                .catch(() => { setDetailLogs([]); setLoadingDetailLogs(false); });
+            }, [detailEmployee, detailDateFrom, detailDateTo]);
 
             useEffect(() => {
                 let stream = null;
@@ -603,6 +727,17 @@
                     console.log('API Response:', data);
 
                     if (data.success) {
+                        // Update employee's last_in / last_out in list so time shows without page refresh
+                        const capturedAt = data.attendance && data.attendance.capturedAt ? data.attendance.capturedAt : new Date().toISOString();
+                        const attType = (data.attendance && data.attendance.attendanceType) || attendanceMode;
+                        setEmployees(prev => prev.map(emp => {
+                            if (emp.id !== selectedEmployee.id) return emp;
+                            const updated = { ...emp };
+                            if (attType === 'in') updated.last_in = capturedAt;
+                            else updated.last_out = capturedAt;
+                            return updated;
+                        }));
+
                         // Reload history from backend to get latest data
                         const [empType, empId] = selectedEmployee.id.split('_');
                         fetch(`${API_ROUTES.history}?employeeId=${empId}&type=${empType}`, {
@@ -658,6 +793,63 @@
                 // Default rate if not available
                 const rate = 500; // You can fetch this from employee data if needed
                 return (totalHours * rate).toLocaleString(undefined, { minimumFractionDigits: 2 });
+            };
+
+            const getTotalWorkTimeFormatted = (logList) => {
+                if (!logList || logList.length === 0) return { hours: 0, minutes: 0, formatted: '0h 0m' };
+                const sorted = [...logList].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+                let totalMs = 0;
+                for (let i = 0; i < sorted.length; i++) {
+                    if (sorted[i].type === 'in') {
+                        const nextOut = sorted.slice(i + 1).find(l => l.type === 'out');
+                        if (nextOut && sorted[i].time && nextOut.time) {
+                            totalMs += new Date(nextOut.time) - new Date(sorted[i].time);
+                        }
+                    }
+                }
+                const totalMins = Math.round(totalMs / (1000 * 60));
+                const h = Math.floor(totalMins / 60);
+                const m = totalMins % 60;
+                return { hours: h, minutes: m, formatted: h + 'h ' + m + 'm' };
+            };
+
+            const openPrintPreview = () => {
+                if (!detailEmployee) return;
+                const totalWork = getTotalWorkTimeFormatted(detailLogs);
+                const sorted = [...detailLogs].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+                const dateRangeText = detailDateFrom && detailDateTo ? (detailDateFrom === detailDateTo ? 'Date: ' + detailDateFrom : 'Date range: ' + detailDateFrom + ' – ' + detailDateTo) : '';
+                let rows = '';
+                if (sorted.length === 0) {
+                    rows = '<tr><td colspan="4" style="padding:12pt;text-align:center;color:#64748b">No IN/OUT records for this date range.</td></tr>';
+                } else {
+                    sorted.forEach(function(log, idx) {
+                        var durationStr = '-';
+                        if (log.type === 'in') {
+                            var nextOut = sorted.slice(idx + 1).find(function(l) { return l.type === 'out'; });
+                            if (nextOut && log.time && nextOut.time) {
+                                var mins = Math.round((new Date(nextOut.time) - new Date(log.time)) / (1000 * 60));
+                                durationStr = Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+                            }
+                        }
+                        var timeStr = log.time ? new Date(log.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+                        var typeLabel = log.type === 'in' ? 'IN' : 'OUT';
+                        var addr = (log.address || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                        rows += '<tr><td style="padding:6pt 8pt;color:#1e293b">' + timeStr + '</td><td style="padding:6pt 8pt">' + typeLabel + '</td><td style="padding:6pt 8pt;font-weight:600">' + durationStr + '</td><td style="padding:6pt 8pt;color:#64748b;max-width:180px;overflow:hidden;text-overflow:ellipsis">' + addr + '</td></tr>';
+                    });
+                }
+                const empName = (detailEmployee.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>IN/OUT Detail - ' + empName + '</title><style>@page{size:A4;margin:12mm}body{font-family:system-ui,sans-serif;margin:0;padding:12mm;max-width:210mm;box-sizing:border-box}table{width:100%;border-collapse:collapse;font-size:10pt}th,td{padding:6pt 8pt;text-align:left}th{background:#f8fafc;border-bottom:2px solid #e2e8f0;font-weight:800;color:#475569}.toolbar{margin-bottom:16px;display:flex;gap:8px}</style></head><body>' +
+                    '<div class="toolbar"><button onclick="window.print()" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Print</button><button onclick="window.close()" style="padding:8px 16px;background:#64748b;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Close</button></div>' +
+                    '<h2 style="font-size:1.25rem;font-weight:800;color:#1e293b;margin:0 0 8px 0">' + empName + ' – IN/OUT Detail</h2>' +
+                    (dateRangeText ? '<p style="font-size:0.875rem;color:#64748b;margin:0 0 12px 0">' + dateRangeText + '</p>' : '') +
+                    '<p style="margin:0 0 12px 0;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-weight:700;color:#166534">Total work time: ' + totalWork.formatted + '</p>' +
+                    '<table><thead><tr><th>Date &amp; Time</th><th>Type</th><th>Duration</th><th>Address</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+                    '</body></html>';
+                const w = window.open('', '_blank', 'width=210mm,height=297mm,scrollbars=yes,resizable=yes');
+                if (w) {
+                    w.document.write(html);
+                    w.document.close();
+                }
             };
 
             return React.createElement('div', { 
@@ -796,6 +988,79 @@
                             )
                         ),
 
+                        branches.length > 0 ? React.createElement('div', { 
+                            style: { 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.75rem', 
+                                padding: '0.5rem 0',
+                                flexWrap: 'wrap'
+                            } 
+                        },
+                            React.createElement('label', { 
+                                style: { 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: 700, 
+                                    color: '#64748b', 
+                                    textTransform: 'uppercase', 
+                                    letterSpacing: '0.05em'
+                                } 
+                            }, 'Branch'),
+                            React.createElement('select', {
+                                value: selectedBranchId,
+                                onChange: (e) => setSelectedBranchId(e.target.value),
+                                style: {
+                                    flex: '1',
+                                    minWidth: '140px',
+                                    maxWidth: '280px',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '0.75rem',
+                                    border: '1px solid #e2e8f0',
+                                    backgroundColor: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    color: '#1e293b',
+                                    cursor: 'pointer'
+                                }
+                            },
+                                branches.length > 1 ? React.createElement('option', { value: 'all' }, 'All Branches') : null,
+                                branches.map(b => React.createElement('option', { key: b.id, value: String(b.id) }, b.name))
+                            )
+                        ) : null,
+
+                        React.createElement('div', { 
+                            style: { 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.75rem', 
+                                padding: '0.5rem 0',
+                                flexWrap: 'wrap'
+                            } 
+                        },
+                            React.createElement('label', { 
+                                style: { 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: 700, 
+                                    color: '#64748b', 
+                                    textTransform: 'uppercase', 
+                                    letterSpacing: '0.05em'
+                                } 
+                            }, 'Date'),
+                            React.createElement('input', {
+                                type: 'date',
+                                value: selectedDate,
+                                onChange: (e) => setSelectedDate(e.target.value),
+                                style: {
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '0.75rem',
+                                    border: '1px solid #e2e8f0',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    color: '#1e293b'
+                                }
+                            })
+                        ),
+
                         React.createElement('div', { 
                             style: { 
                                 display: 'flex', 
@@ -834,7 +1099,19 @@
                             } 
                         }, 'No employees found') : employees.map((emp) =>
                             React.createElement('div', { 
-                                key: emp.id, 
+                                key: emp.id,
+                                title: 'Double-click to open for edit',
+                                onDoubleClick: function() {
+                                    const parts = (emp.id || '').split('_');
+                                    const type = parts[0];
+                                    const id = parts[1];
+                                    if (!id) return;
+                                    if (type === 'worker') {
+                                        window.location.href = ROUTES.staff + '?openWorker=' + encodeURIComponent(id);
+                                    } else if (type === 'user') {
+                                        window.location.href = ROUTES.userProfile + '/' + encodeURIComponent(id);
+                                    }
+                                },
                                 style: { 
                                     backgroundColor: 'white', 
                                     padding: '1.25rem', 
@@ -843,67 +1120,375 @@
                                     border: '1px solid #f1f5f9', 
                                     display: 'flex', 
                                     justifyContent: 'space-between', 
-                                    alignItems: 'center'
+                                    alignItems: 'center',
+                                    cursor: 'pointer'
                                 } 
                             },
                                 React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
-                                    React.createElement('div', { 
-                                        style: { 
-                                            width: '2.5rem', 
-                                            height: '2.5rem', 
-                                            borderRadius: '50%', 
-                                            backgroundColor: '#f1f5f9', 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            justifyContent: 'center', 
-                                            fontWeight: 900, 
-                                            color: '#94a3b8'
-                                        } 
-                                    }, emp.name.charAt(0)),
-                                    React.createElement('span', { 
-                                        style: { 
-                                            fontSize: '1.125rem', 
-                                            fontWeight: 700, 
-                                            color: '#1e293b', 
-                                            letterSpacing: '-0.025em'
-                                        } 
-                                    }, emp.name)
+                                    emp.profile_img
+                                        ? React.createElement('img', {
+                                            src: emp.profile_img,
+                                            alt: emp.name,
+                                            style: {
+                                                width: '2.5rem',
+                                                height: '2.5rem',
+                                                borderRadius: '50%',
+                                                objectFit: 'cover',
+                                                border: '2px solid #f1f5f9',
+                                                flexShrink: 0
+                                            }
+                                        })
+                                        : React.createElement('div', { 
+                                            style: { 
+                                                width: '2.5rem', 
+                                                height: '2.5rem', 
+                                                borderRadius: '50%', 
+                                                backgroundColor: '#f1f5f9', 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'center', 
+                                                fontWeight: 900, 
+                                                color: '#94a3b8',
+                                                flexShrink: 0
+                                            } 
+                                        }, emp.name.charAt(0)),
+                                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.125rem' } },
+                                        React.createElement('span', { 
+                                            style: { 
+                                                fontSize: '1.125rem', 
+                                                fontWeight: 700, 
+                                                color: '#1e293b', 
+                                                letterSpacing: '-0.025em'
+                                            } 
+                                        }, emp.name),
+                                        emp.role ? React.createElement('span', { 
+                                            style: { 
+                                                fontSize: '0.6875rem', 
+                                                fontWeight: 600, 
+                                                color: '#64748b', 
+                                                textTransform: 'uppercase', 
+                                                letterSpacing: '0.05em'
+                                            } 
+                                        }, emp.role) : null
+                                    )
                                 ),
-                                React.createElement('div', { style: { display: 'flex', gap: '0.5rem' } },
-                                    React.createElement('button', {
-                                        onClick: () => { setSelectedEmployee(emp); setAttendanceMode('in'); setView('camera'); },
+                                React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' } },
+                                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' } },
+                                        React.createElement('button', {
+                                            onClick: () => { setSelectedEmployee(emp); setAttendanceMode('in'); setView('camera'); },
+                                            style: {
+                                                backgroundColor: '#059669',
+                                                color: 'white',
+                                                padding: '0.625rem 1.25rem',
+                                                borderRadius: '1rem',
+                                                fontWeight: 900,
+                                                fontSize: '0.75rem',
+                                                boxShadow: '0 10px 15px -3px rgba(5, 150, 105, 0.2)',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            },
+                                            onMouseOver: (e) => e.target.style.backgroundColor = '#047857',
+                                            onMouseOut: (e) => e.target.style.backgroundColor = '#059669'
+                                        }, 'IN'),
+                                        React.createElement('button', {
+                                            onClick: () => { setSelectedEmployee(emp); setAttendanceMode('out'); setView('camera'); },
+                                            style: {
+                                                backgroundColor: '#ea580c',
+                                                color: 'white',
+                                                padding: '0.625rem 1.25rem',
+                                                borderRadius: '1rem',
+                                                fontWeight: 900,
+                                                fontSize: '0.75rem',
+                                                boxShadow: '0 10px 15px -3px rgba(234, 88, 12, 0.2)',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s'
+                                            },
+                                            onMouseOver: (e) => e.target.style.backgroundColor = '#c2410c',
+                                            onMouseOut: (e) => e.target.style.backgroundColor = '#ea580c'
+                                        }, 'OUT')
+                                    ),
+                                    (emp.last_in || emp.last_out) ? React.createElement('div', { 
+                                        style: { 
+                                            fontSize: '0.6875rem', 
+                                            fontWeight: 600, 
+                                            textAlign: 'right',
+                                            lineHeight: 1.4,
+                                            width: '100%',
+                                            alignSelf: 'stretch'
+                                        } 
+                                    },
+                                        emp.last_in ? React.createElement('div', { style: { color: '#059669', width: '100%' } }, 'IN: ', new Date(emp.last_in).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) : null,
+                                        emp.last_out ? React.createElement('div', { style: { color: '#ea580c', width: '100%' } }, 'OUT: ', new Date(emp.last_out).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })) : null
+                                    ) : null,
+                                    React.createElement('div', { style: { marginTop: '0.25rem', textAlign: 'right' } },
+                                        React.createElement('span', {
+                                            onClick: function(e) { e.stopPropagation(); e.preventDefault(); setDetailEmployee(emp); setView('detail'); setDetailDateFrom(selectedDate); setDetailDateTo(selectedDate); },
+                                            style: { fontSize: '0.6875rem', color: '#2563eb', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 },
+                                            role: 'button'
+                                        }, 'View IN/OUT')
+                                    )
+                                )
+                            )
+                        )
+                    ),
+
+                    view === 'detail' && detailEmployee && React.createElement('div', {
+                        className: 'attendance-detail-print',
+                        style: {
+                            width: '100%',
+                            maxWidth: '900px',
+                            margin: '0 auto',
+                            backgroundColor: 'white',
+                            padding: '1.5rem',
+                            borderRadius: '1.875rem',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                            border: '1px solid #f1f5f9'
+                        }
+                    },
+                        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' } },
+                            React.createElement('div', { className: 'no-print', style: { display: 'flex', gap: '0.5rem', alignItems: 'center' } },
+                                React.createElement('button', {
+                                    onClick: () => { setView('home'); setDetailEmployee(null); },
+                                    style: {
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        border: '1px solid #e2e8f0',
+                                        backgroundColor: '#f8fafc',
+                                        fontWeight: 700,
+                                        fontSize: '0.875rem',
+                                        color: '#475569',
+                                        cursor: 'pointer'
+                                    }
+                                }, '\u2190 Back'),
+                                React.createElement('button', {
+                                    onClick: () => setShowPrintPreview(true),
+                                    style: {
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '0.75rem',
+                                        border: '1px solid #2563eb',
+                                        backgroundColor: '#2563eb',
+                                        color: 'white',
+                                        fontWeight: 700,
+                                        fontSize: '0.875rem',
+                                        cursor: 'pointer'
+                                    }
+                                }, 'Print A4')
+                            ),
+                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } },
+                                detailEmployee.profile_img
+                                    ? React.createElement('img', {
+                                        src: detailEmployee.profile_img,
+                                        alt: detailEmployee.name,
                                         style: {
-                                            backgroundColor: '#059669',
-                                            color: 'white',
-                                            padding: '0.625rem 1.25rem',
-                                            borderRadius: '1rem',
-                                            fontWeight: 900,
-                                            fontSize: '0.75rem',
-                                            boxShadow: '0 10px 15px -3px rgba(5, 150, 105, 0.2)',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        },
-                                        onMouseOver: (e) => e.target.style.backgroundColor = '#047857',
-                                        onMouseOut: (e) => e.target.style.backgroundColor = '#059669'
-                                    }, 'IN'),
-                                    React.createElement('button', {
-                                        onClick: () => { setSelectedEmployee(emp); setAttendanceMode('out'); setView('camera'); },
+                                            width: '3rem',
+                                            height: '3rem',
+                                            borderRadius: '50%',
+                                            objectFit: 'cover',
+                                            border: '2px solid #e2e8f0',
+                                            flexShrink: 0
+                                        }
+                                    })
+                                    : React.createElement('div', {
                                         style: {
-                                            backgroundColor: '#ea580c',
-                                            color: 'white',
-                                            padding: '0.625rem 1.25rem',
-                                            borderRadius: '1rem',
-                                            fontWeight: 900,
-                                            fontSize: '0.75rem',
-                                            boxShadow: '0 10px 15px -3px rgba(234, 88, 12, 0.2)',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        },
-                                        onMouseOver: (e) => e.target.style.backgroundColor = '#c2410c',
-                                        onMouseOut: (e) => e.target.style.backgroundColor = '#ea580c'
-                                    }, 'OUT')
+                                            width: '3rem',
+                                            height: '3rem',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#e2e8f0',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontWeight: 800,
+                                            fontSize: '1.25rem',
+                                            color: '#64748b',
+                                            flexShrink: 0
+                                        }
+                                    }, detailEmployee.name ? detailEmployee.name.charAt(0) : '?'),
+                                React.createElement('h2', { style: { fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', margin: 0 } }, detailEmployee.name + ' – IN/OUT Detail')
+                            )
+                        ),
+                        React.createElement('div', { className: 'no-print', style: { display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' } },
+                            React.createElement('label', { style: { fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' } }, 'Date range'),
+                            React.createElement('input', {
+                                type: 'date',
+                                value: detailDateFrom,
+                                onChange: (e) => setDetailDateFrom(e.target.value),
+                                style: { padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontWeight: 600 }
+                            }),
+                            React.createElement('span', { style: { color: '#94a3b8', fontWeight: 700 } }, '–'),
+                            React.createElement('input', {
+                                type: 'date',
+                                value: detailDateTo,
+                                onChange: (e) => setDetailDateTo(e.target.value),
+                                style: { padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontWeight: 600 }
+                            })
+                        ),
+                        React.createElement('div', { className: 'print-only', style: { display: 'none', marginBottom: '0.5rem', fontSize: '0.875rem', color: '#64748b' } }, detailDateFrom && detailDateTo ? (detailDateFrom === detailDateTo ? 'Date: ' + detailDateFrom : 'Date range: ' + detailDateFrom + ' – ' + detailDateTo) : ''),
+                        loadingDetailLogs ? React.createElement('div', { style: { textAlign: 'center', padding: '2rem', color: '#64748b' } }, 'Loading...') :
+                        detailLogs.length === 0 ? React.createElement('div', { style: { textAlign: 'center', padding: '2rem', color: '#64748b' } }, 'No IN/OUT records for this date range.') :
+                        React.createElement(React.Fragment, null,
+                            (function() {
+                                const totalWork = getTotalWorkTimeFormatted(detailLogs);
+                                return React.createElement('div', {
+                                    style: {
+                                        marginBottom: '1rem',
+                                        padding: '0.75rem 1rem',
+                                        backgroundColor: (totalWork.hours > 0 || totalWork.minutes > 0) ? '#f0fdf4' : '#f8fafc',
+                                        border: '1px solid ' + ((totalWork.hours > 0 || totalWork.minutes > 0) ? '#bbf7d0' : '#e2e8f0'),
+                                        borderRadius: '0.75rem',
+                                        fontWeight: 700,
+                                        fontSize: '0.9375rem',
+                                        color: (totalWork.hours > 0 || totalWork.minutes > 0) ? '#166534' : '#475569'
+                                    }
+                                }, 'Total work time: ', totalWork.formatted);
+                            })(),
+                        React.createElement('div', { style: { overflowX: 'auto' } },
+                            React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' } },
+                                React.createElement('thead', null,
+                                    React.createElement('tr', { style: { borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' } },
+                                        React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Date & Time'),
+                                        React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Type'),
+                                        React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Duration'),
+                                        React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Address')
+                                    )
+                                ),
+                                React.createElement('tbody', null,
+                                    (function() {
+                                        const sorted = [...detailLogs].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+                                        return sorted.map(function(log, idx) {
+                                            var durationStr = '-';
+                                            if (log.type === 'in') {
+                                                const nextOut = sorted.slice(idx + 1).find(function(l) { return l.type === 'out'; });
+                                                if (nextOut && log.time && nextOut.time) {
+                                                    var mins = Math.round((new Date(nextOut.time) - new Date(log.time)) / (1000 * 60));
+                                                    var h = Math.floor(mins / 60);
+                                                    var m = mins % 60;
+                                                    durationStr = h + 'h ' + m + 'm';
+                                                }
+                                            }
+                                            return React.createElement('tr', { key: log.id, style: { borderBottom: '1px solid #f1f5f9' } },
+                                                React.createElement('td', { style: { padding: '0.75rem', color: '#1e293b' } }, log.time ? new Date(log.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-'),
+                                                React.createElement('td', { style: { padding: '0.75rem' } },
+                                                    React.createElement('span', {
+                                                        style: {
+                                                            padding: '0.25rem 0.5rem',
+                                                            borderRadius: '0.5rem',
+                                                            fontWeight: 700,
+                                                            fontSize: '0.75rem',
+                                                            backgroundColor: log.type === 'in' ? '#d1fae5' : '#ffedd5',
+                                                            color: log.type === 'in' ? '#059669' : '#ea580c'
+                                                        }
+                                                    }, log.type === 'in' ? 'IN' : 'OUT')
+                                                ),
+                                                React.createElement('td', { style: { padding: '0.75rem', fontWeight: 600, color: log.type === 'in' ? '#166534' : '#94a3b8' } }, durationStr),
+                                                React.createElement('td', { style: { padding: '0.75rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                                                    (function() {
+                                                        var mapsUrl = null;
+                                                        if (log.location && log.location.lat != null && log.location.lng != null) {
+                                                            mapsUrl = 'https://www.google.com/maps?q=' + encodeURIComponent(log.location.lat) + ',' + encodeURIComponent(log.location.lng);
+                                                        } else if (log.address) {
+                                                            mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(log.address);
+                                                        }
+                                                        if (mapsUrl) {
+                                                            return React.createElement('a', {
+                                                                href: mapsUrl,
+                                                                target: '_blank',
+                                                                rel: 'noopener noreferrer',
+                                                                style: { color: '#2563eb', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }
+                                                            }, log.address || 'View on map');
+                                                        }
+                                                        return log.address || '-';
+                                                    })()
+                                                )
+                                            );
+                                        });
+                                    })()
+                                )
+                            )
+                        )
+                        )
+                    ),
+
+                    showPrintPreview && detailEmployee && React.createElement('div', {
+                        style: {
+                            position: 'fixed',
+                            left: 0,
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            zIndex: 9999,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            padding: '1.5rem',
+                            overflow: 'auto'
+                        }
+                    },
+                        React.createElement('div', { className: 'no-print', style: { display: 'flex', gap: '0.5rem', marginBottom: '1rem' } },
+                            React.createElement('button', {
+                                onClick: () => window.print(),
+                                style: { padding: '0.5rem 1.25rem', borderRadius: '0.75rem', backgroundColor: '#2563eb', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }
+                            }, 'Print'),
+                            React.createElement('button', {
+                                onClick: () => setShowPrintPreview(false),
+                                style: { padding: '0.5rem 1.25rem', borderRadius: '0.75rem', backgroundColor: '#64748b', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }
+                            }, 'Close')
+                        ),
+                        React.createElement('div', {
+                            className: 'print-preview-content',
+                            style: {
+                                backgroundColor: 'white',
+                                padding: '1.5rem',
+                                borderRadius: '1.875rem',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                                border: '1px solid #f1f5f9',
+                                maxWidth: '210mm',
+                                width: '100%'
+                            }
+                        },
+                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } },
+                                detailEmployee.profile_img ? React.createElement('img', { src: detailEmployee.profile_img, alt: detailEmployee.name, style: { width: '3rem', height: '3rem', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' } }) : React.createElement('div', { style: { width: '3rem', height: '3rem', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.25rem', color: '#64748b' } }, detailEmployee.name ? detailEmployee.name.charAt(0) : '?'),
+                                React.createElement('h2', { style: { fontSize: '1.25rem', fontWeight: 800, color: '#1e293b', margin: 0 } }, detailEmployee.name + ' – IN/OUT Detail')
+                            ),
+                            React.createElement('div', { style: { marginBottom: '1rem', fontSize: '0.875rem', color: '#64748b' } }, detailDateFrom && detailDateTo ? (detailDateFrom === detailDateTo ? 'Date: ' + detailDateFrom : 'Date range: ' + detailDateFrom + ' – ' + detailDateTo) : ''),
+                            (function() {
+                                const totalWork = getTotalWorkTimeFormatted(detailLogs);
+                                return React.createElement('div', { style: { marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: (totalWork.hours > 0 || totalWork.minutes > 0) ? '#f0fdf4' : '#f8fafc', border: '1px solid ' + ((totalWork.hours > 0 || totalWork.minutes > 0) ? '#bbf7d0' : '#e2e8f0'), borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.9375rem', color: (totalWork.hours > 0 || totalWork.minutes > 0) ? '#166534' : '#475569' } }, 'Total work time: ', totalWork.formatted);
+                            })(),
+                            detailLogs.length === 0 ? React.createElement('div', { style: { textAlign: 'center', padding: '2rem', color: '#64748b' } }, 'No IN/OUT records for this date range.') :
+                            React.createElement('div', { style: { overflowX: 'auto' } },
+                                React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' } },
+                                    React.createElement('thead', null,
+                                        React.createElement('tr', { style: { borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' } },
+                                            React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Date & Time'),
+                                            React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Type'),
+                                            React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Duration'),
+                                            React.createElement('th', { style: { textAlign: 'left', padding: '0.75rem', fontWeight: 800, color: '#475569' } }, 'Address')
+                                        )
+                                    ),
+                                    React.createElement('tbody', null,
+                                        (function() {
+                                            const sorted = [...detailLogs].sort((a, b) => new Date(a.time || 0) - new Date(b.time || 0));
+                                            return sorted.map(function(log, idx) {
+                                                var durationStr = '-';
+                                                if (log.type === 'in') {
+                                                    const nextOut = sorted.slice(idx + 1).find(function(l) { return l.type === 'out'; });
+                                                    if (nextOut && log.time && nextOut.time) {
+                                                        var mins = Math.round((new Date(nextOut.time) - new Date(log.time)) / (1000 * 60));
+                                                        durationStr = Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm';
+                                                    }
+                                                }
+                                                return React.createElement('tr', { key: log.id, style: { borderBottom: '1px solid #f1f5f9' } },
+                                                    React.createElement('td', { style: { padding: '0.75rem', color: '#1e293b' } }, log.time ? new Date(log.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-'),
+                                                    React.createElement('td', { style: { padding: '0.75rem' } }, React.createElement('span', { style: { padding: '0.25rem 0.5rem', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.75rem', backgroundColor: log.type === 'in' ? '#d1fae5' : '#ffedd5', color: log.type === 'in' ? '#059669' : '#ea580c' } }, log.type === 'in' ? 'IN' : 'OUT')),
+                                                    React.createElement('td', { style: { padding: '0.75rem', fontWeight: 600, color: log.type === 'in' ? '#166534' : '#94a3b8' } }, durationStr),
+                                                    React.createElement('td', { style: { padding: '0.75rem', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, log.address || '-')
+                                                );
+                                            });
+                                        })()
+                                    )
                                 )
                             )
                         )
@@ -1238,7 +1823,19 @@
                         },
                             employees.map(emp =>
                                 React.createElement('div', { 
-                                    key: emp.id, 
+                                    key: emp.id,
+                                    title: 'Double-click to open for edit',
+                                    onDoubleClick: function() {
+                                        const parts = (emp.id || '').split('_');
+                                        const type = parts[0];
+                                        const id = parts[1];
+                                        if (!id) return;
+                                        if (type === 'worker') {
+                                            window.location.href = ROUTES.staff + '?openWorker=' + encodeURIComponent(id);
+                                        } else if (type === 'user') {
+                                            window.location.href = ROUTES.userProfile + '/' + encodeURIComponent(id);
+                                        }
+                                    },
                                     style: { 
                                         backgroundColor: 'white', 
                                         padding: '1.25rem', 
@@ -1247,7 +1844,8 @@
                                         justifyContent: 'space-between', 
                                         alignItems: 'center', 
                                         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', 
-                                        border: '1px solid #f1f5f9'
+                                        border: '1px solid #f1f5f9',
+                                        cursor: 'pointer'
                                     } 
                                 },
                                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
@@ -1260,7 +1858,7 @@
                                                 boxShadow: '0 10px 15px -3px rgba(79, 70, 229, 0.2)'
                                             } 
                                         },
-                                            React.createElement(DollarSign, { size: 20 })
+                                            React.createElement('span', { style: { fontSize: '1rem', fontWeight: 700, letterSpacing: '0.05em' } }, 'RS')
                                         ),
                                         React.createElement('div', null,
                                             React.createElement('p', { 

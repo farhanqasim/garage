@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -17,10 +18,11 @@ public function all_employees()
 
     if ($authUser->role === 'admin') {
         $branches = Branch::all();
+        $spatieRoles = Role::where('name', '!=', 'Super Admin')->orderBy('name')->get();
         $users = User::where('role', 'employee')
-                     ->with('branch')
+                     ->with('branch', 'roles')
                      ->paginate(10);
-        return view('admin.employee.index', compact('users','branches'));
+        return view('admin.employee.index', compact('users','branches', 'spatieRoles'));
     }
     elseif ($authUser->role === 'user') {
         // show employees under the same branch as logged-in user
@@ -49,6 +51,7 @@ public function post_employees(Request $request)
         'phone_name' => 'nullable|array',
         'phone_name.*' => 'nullable|string|max:100',
         'role'       => 'required|in:user,employee,customer,manager,salesman,purchaser',
+        'spatie_role' => 'nullable|string|exists:roles,name',
         'password'   => 'required|min:6',
         'profile_img'=> 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         'branch_id'  => 'nullable|exists:branches,id'
@@ -76,6 +79,11 @@ public function post_employees(Request $request)
     }
     $user->password = Hash::make($request->password);
     $user->save();
+
+    // Assign Spatie role (for permissions) if provided
+    if ($request->filled('spatie_role')) {
+        $user->assignRole($request->spatie_role);
+    }
 
     // Attach user to selected branch in branch_user so they can select this branch at login
     if ($user->branch_id) {

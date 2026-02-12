@@ -15,8 +15,10 @@
                 <a href="{{ route('home') }}" class="btn btn-secondary me-2">
                     <i class="ti ti-arrow-left me-1"></i>Back
                 </a>
+                @can('add_branch')
                 <a href="" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
                         class="ti ti-circle-plus me-1"></i>Add</a>
+                @endcan
             </div>
         </div>
         <!-- Success/Error Messages -->
@@ -108,13 +110,18 @@
                                     </td>
                                     <td class="action-table-data">
                                         <div class="edit-delete-action">
+                                            @can('view_branch')
                                             <a class="me-2 p-2 text-primary" href="{{ route('branch.users', $item->id) }}" title="View Branch Users">
                                                 <i data-feather="users" class="feather-users"></i>
                                             </a>
+                                            @endcan
+                                            @can('update_branch')
                                             <a class="me-2 p-2" href="#" data-bs-toggle="modal"
                                                 data-bs-target="#edit-category{{ $item->id }}" title="Edit Branch">
                                                 <i data-feather="edit" class="feather-edit"></i>
                                             </a>
+                                            @endcan
+                                            @can('delete_branch')
                                             <a href="javascript:void(0)"
                                                 onclick="confirmDelete('delete-form-{{ $item->id }}')"
                                                 class="p-2 text-danger" title="Delete">
@@ -128,6 +135,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                             </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
