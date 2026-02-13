@@ -682,7 +682,7 @@ class CarWashJobController extends Controller
             ], 400);
         }
 
-        // Get all users from same branch (including admin accounts)
+        // Get all users from same branch (including admin accounts) — show all users' bank accounts including own
         $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
             $query->where('branch_id', $branchId)
             ->orWhereHas('assignedBranches', function($q) use ($branchId) {
@@ -695,17 +695,16 @@ class CarWashJobController extends Controller
         $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id');
         $allUserIds = $branchUserIds->merge($adminUserIds)->unique();
 
-        $query = BankAccount::with('bank')
-            ->where('account_type', 'bank')
+        $query = BankAccount::with(['bank', 'user:id,name'])
+            ->whereIn('account_type', ['bank', 'cash'])
             ->where(function ($q) {
                 $q->where('status', true)->orWhereNull('status');
             })
-            ->whereIn('user_id', $allUserIds)
-            ->where('user_id', '!=', $user->id); // Exclude own accounts - transfer to other branch members
+            ->whereIn('user_id', $allUserIds);
 
         $accounts = $query->orderBy('account_title')
             ->get()
-            ->map(function ($a) {
+            ->map(function ($a) use ($user) {
                 $bankName = $a->bank ? $a->bank->name : 'N/A';
                 $title = $a->account_title ?? '';
                 $num = $a->account_number ?? '';
@@ -713,6 +712,9 @@ class CarWashJobController extends Controller
                 if ($label === '' || (!$title && !$num)) {
                     $label = $bankName . ' — Account #' . $a->id;
                 }
+                $ownerName = $a->user ? $a->user->name : '';
+                $isOwn = ($a->user_id == $user->id);
+                $bankLogo = $a->bank && !empty($a->bank->logo) ? $a->bank->logo : null;
                 return [
                     'id' => $a->id,
                     'bank_id' => $a->bank_id,
@@ -721,6 +723,9 @@ class CarWashJobController extends Controller
                     'accountNumber' => $num,
                     'displayLabel' => $label,
                     'balance' => (float) $a->current_balance,
+                    'userName' => $ownerName,
+                    'isOwn' => $isOwn,
+                    'bankLogo' => $bankLogo,
                 ];
             });
 
