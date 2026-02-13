@@ -23,14 +23,11 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 $user = Auth::guard($guard)->user();
                 
-                // Role-based redirect
+                // Role-based redirect: admin → main dashboard, user → employee home
                 if ($user->role === 'admin') {
-                    // Admin redirects to admin dashboard
-                    return redirect()->route('home');
-                } else {
-                    // User, employee or other roles redirect to home
                     return redirect()->route('home');
                 }
+                return redirect()->route('employee.home');
             }
         }
 

@@ -1,5 +1,20 @@
+@php
+  $themeDefaults = [
+    'theme' => 'light',
+    'sidebar' => 'light',
+    'color' => 'primary',
+    'layout' => 'default',
+    'topbar' => 'white',
+    'width' => 'fluid',
+    'rtl' => false,
+    'sidebar_bg' => null,
+    'topbar_bg' => null,
+  ];
+  $themeSettings = auth()->check() ? array_merge($themeDefaults, auth()->user()->theme_settings ?? []) : $themeDefaults;
+  $isRtl = !empty($themeSettings['rtl']);
+@endphp
 <!DOCTYPE html>
-<html lang="en" data-layout-mode="light_mode">
+<html lang="{{ $isRtl ? 'ar' : 'en' }}" dir="{{ $isRtl ? 'rtl' : 'ltr' }}" data-layout-mode="light_mode" data-theme="{{ $themeSettings['theme'] ?? 'light' }}" data-sidebar="{{ $themeSettings['sidebar'] ?? 'light' }}" data-color="{{ $themeSettings['color'] ?? 'primary' }}" data-layout="{{ $themeSettings['layout'] ?? 'default' }}" data-topbar="{{ $themeSettings['topbar'] ?? 'white' }}" data-width="{{ $themeSettings['width'] ?? 'fluid' }}" data-rtl="{{ $isRtl ? '1' : '0' }}">
 <head>
   <!-- Meta Tags -->
   <meta charset="utf-8">
@@ -81,6 +96,17 @@
       }
     }, true);
   </script>
+  @auth
+  <script>
+    window.THEME_FROM_SERVER = @json($themeSettings);
+    window.THEME_SETTINGS_INDEX_URL = @json(route('theme.settings.index'));
+    window.THEME_SETTINGS_SAVE_URL = @json(route('theme.settings.update'));
+    window.THEME_SETTINGS_CSRF = @json(csrf_token());
+    @can('view_setting')
+    window.THEME_CUSTOMIZER_ALLOWED = true;
+    @endcan
+  </script>
+  @endauth
   <script src="{{asset('assets/js/theme-script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
   <!-- Apple Touch Icon -->
   <link rel="apple-touch-icon" sizes="180x180" href="{{asset('assets/img/apple-touch-icon.png')}}">
@@ -430,7 +456,7 @@ label{
 
   @stack('styles')
 </head>
-<body>
+<body @if(!empty($themeSettings['sidebar_bg'])) data-sidebarbg="{{ $themeSettings['sidebar_bg'] }}" @endif @if(!empty($themeSettings['topbar_bg'])) data-topbarbg="{{ $themeSettings['topbar_bg'] }}" @endif>
   {{-- <div id="global-loader">
     <div class="whirly-loader"> </div>
   </div> --}}

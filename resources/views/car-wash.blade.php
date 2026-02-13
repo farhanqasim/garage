@@ -1307,6 +1307,7 @@
         // Home route URL (Employee Dashboard)
         const homeRoute = '{{ route("employee.home") }}';
         const eliteCarWashLogoUrl = '{{ asset("assets/img/elite-car-wash-logo.png") }}';
+        const bankLogoBaseUrl = '{{ asset("assets/img/banks") }}';
         
         // Get user and branch info from Blade (passed from controller)
         const branchName = @json(isset($branchName) ? $branchName : 'No Branch');
@@ -1750,6 +1751,8 @@
             const [showBankAccountDropdown, setShowBankAccountDropdown] = useState(false);
             const [bankTransferLoading, setBankTransferLoading] = useState(false);
             const [showBankBalanceHistoryModal, setShowBankBalanceHistoryModal] = useState(false);
+            const [branchBalanceHistoryAccounts, setBranchBalanceHistoryAccounts] = useState([]);
+            const [branchBalanceHistoryLoading, setBranchBalanceHistoryLoading] = useState(false);
             const bankBalanceHoldTimerRef = React.useRef(null);
             const [showAccountLedgerModal, setShowAccountLedgerModal] = useState(false);
             const [accountLedgerData, setAccountLedgerData] = useState(null);
@@ -1890,10 +1893,9 @@
                 if (API_ROUTES.bankAccounts?.index && typeof fetchBankAccounts === 'function') {
                     fetchBankAccounts();
                 }
-                // Auto-fill amount with bank balance
-                const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
-                const bal = branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
-                setBankTransferAmount(bal > 0 ? String(bal) : '');
+                // Auto-fill amount with login user ka bank balance; zero ho to 0
+                const userBankBal = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                setBankTransferAmount(String(Math.round(userBankBal)));
                 if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
                     fetch(API_ROUTES.payments.cashAccountBalance, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
@@ -1946,6 +1948,23 @@
                     .catch(err => console.error('Error loading bank accounts:', err));
             }, []);
             useEffect(() => { fetchBankAccounts(); }, [fetchBankAccounts]);
+
+            // Balance History modal: load usi branch ke saare users ke bank accounts (total + har account balance)
+            useEffect(() => {
+                if (!showBankBalanceHistoryModal || !API_ROUTES.bankAccounts?.forTransfer) return;
+                setBranchBalanceHistoryLoading(true);
+                fetch(API_ROUTES.bankAccounts.forTransfer, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && Array.isArray(data.bankAccounts)) {
+                            setBranchBalanceHistoryAccounts(data.bankAccounts);
+                        } else {
+                            setBranchBalanceHistoryAccounts([]);
+                        }
+                    })
+                    .catch(() => setBranchBalanceHistoryAccounts([]))
+                    .finally(() => setBranchBalanceHistoryLoading(false));
+            }, [showBankBalanceHistoryModal]);
 
             // Shop Expenses: load list when modal opens; listen for legacy button
             useEffect(() => {
@@ -3681,9 +3700,6 @@
                             <button
                                 type="button"
                                 onClick={async () => {
-                                    // Calculate bank balance first (from stats or current bankBalanceTotal)
-                                    const currentBankBal = stats && typeof stats.reportBankBalance !== 'undefined' ? stats.reportBankBalance : (typeof bankBalanceTotal === 'number' ? bankBalanceTotal : 0);
-                                    
                                     // Load cash balance first for validation
                                     let cashBalanceForValidation = 0;
                                     try {
@@ -3723,20 +3739,17 @@
                                                 // Auto-fill transfer amount with logged-in user's balance
                                                 setBankTransferAmount(String(Math.round(total)));
                                             } else {
-                                                // If no bank accounts, use current bank balance
                                                 setBankAccounts([]);
-                                                setBankTransferAmount(String(Math.round(currentBankBal)));
+                                                setBankTransferAmount('0');
                                             }
                                         } else {
-                                            // If API fails, use current bank balance
                                             setBankAccounts([]);
-                                            setBankTransferAmount(String(Math.round(currentBankBal)));
+                                            setBankTransferAmount('0');
                                         }
                                     } catch (e) {
                                         console.error('Error loading bank accounts:', e);
-                                        // If error, use current bank balance
                                         setBankAccounts([]);
-                                        setBankTransferAmount(String(Math.round(currentBankBal)));
+                                        setBankTransferAmount('0');
                                     }
                                     
                                     // Load other users' bank accounts from same branch (for dropdown)
@@ -3771,9 +3784,9 @@
                                 <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Bank</p>
                                 <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Bank account balance">
                                     Rs.{(() => {
-                                        // Show total of logged-in user's branch bank accounts
-                                        const branchBankBalance = bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
-                                        return branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
+                                        // Login user ke bank accounts ka total; zero ho to 0 hi dikhao
+                                        const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                        return Math.round(userBankBalance);
                                     })()}
                                 </p>
                             </button>
@@ -6444,8 +6457,8 @@
                                                         onContextMenu={(e) => e.preventDefault()}
                                                     >
                                                         Rs.{(() => {
-                                                            const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
-                                                            return branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
+                                                            const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                            return Math.round(userBankBalance);
                                                         })()}
                                                     </div>
                                                     <div className="text-[9px] text-purple-500 mb-1">Double-tap or hold to view history</div>
@@ -6509,32 +6522,35 @@
                                                                 </button>
                                                             </div>
                                                             <div className="p-4 max-h-[60vh] overflow-y-auto">
-                                                                {(() => {
-                                                                    const accounts = bankAccounts || [];
-                                                                    const branchBankBalance = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
-                                                                    const total = branchBankBalance > 0 ? Math.round(branchBankBalance) : (stats && typeof stats.reportBankBalance !== 'undefined' ? Math.round(stats.reportBankBalance) : (typeof bankBalanceTotal === 'number' ? Math.round(bankBalanceTotal) : 0));
-                                                                    return (
-                                                                        <>
-                                                                        <div className="text-lg font-black text-purple-700 font-mono mb-1">Total: Rs.{total}</div>
-                                                                        </>
-                                                                    );
-                                                                })()}
-                                                                {(bankAccounts || []).length > 0 ? (
-                                                                    <div className="space-y-2">
-                                                                        {(bankAccounts || []).map((acc) => (
-                                                                            <div key={acc.id} className="flex justify-between items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
-                                                                                <div className="flex-1 min-w-0">
-                                                                                    <div className="font-semibold text-slate-800 text-sm truncate">{(acc.bankName || 'Bank')}</div>
-                                                                                    <div className="text-xs text-slate-500 truncate">{(acc.accountTitle || '')}{(acc.accountNumber ? ' (' + acc.accountNumber + ')' : '')}</div>
-                                                                                </div>
-                                                                                <span className="font-mono font-bold text-purple-600 whitespace-nowrap">Rs.{Math.round(parseFloat(acc.balance) || 0)}</span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
+                                                                {branchBalanceHistoryLoading ? (
+                                                                    <div className="text-slate-500 text-sm py-4 text-center">Loading...</div>
                                                                 ) : (
-                                                                    <div className="text-slate-500 text-sm py-4 text-center">
-                                                                        Balance from daily report. No individual accounts linked.
-                                                                    </div>
+                                                                    <>
+                                                                        {(() => {
+                                                                            const accounts = branchBalanceHistoryAccounts || [];
+                                                                            const total = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                                            return (
+                                                                                <div className="text-lg font-black text-purple-700 font-mono mb-3">Total: Rs.{Math.round(total)}</div>
+                                                                            );
+                                                                        })()}
+                                                                        {(branchBalanceHistoryAccounts || []).length > 0 ? (
+                                                                            <div className="space-y-2">
+                                                                                {(branchBalanceHistoryAccounts || []).map((acc) => (
+                                                                                    <div key={acc.id} className="flex justify-between items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <div className="font-semibold text-slate-800 text-sm truncate">{(acc.bankName || 'Bank')}</div>
+                                                                                            <div className="text-xs text-slate-500 truncate">{(acc.userName ? acc.userName + (acc.accountNumber ? ' (' + acc.accountNumber + ')' : '') : (acc.accountTitle || '') + (acc.accountNumber ? ' (' + acc.accountNumber + ')' : ''))}</div>
+                                                                                        </div>
+                                                                                        <span className="font-mono font-bold text-purple-600 whitespace-nowrap">Rs.{Math.round(parseFloat(acc.balance) || 0)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="text-slate-500 text-sm py-4 text-center">
+                                                                                No bank accounts in this branch.
+                                                                            </div>
+                                                                        )}
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -6731,21 +6747,34 @@
                                                         onClick={() => setShowBankAccountDropdown(!showBankAccountDropdown)}
                                                         className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-purple-500 focus:outline-none text-left bg-white flex items-center justify-between"
                                                     >
-                                                        <span className="text-sm leading-relaxed">
+                                                        <span className="text-sm leading-relaxed flex items-center gap-3 flex-1 min-w-0">
                                                             {selectedBankAccountId ? (() => {
                                                                 const selected = transferBankAccounts.find(acc => acc.id == selectedBankAccountId);
                                                                 return (
                                                                     <>
-                                                                        <span className="block font-bold text-slate-800">{selected?.bankName || 'Bank Account'}</span>
-                                                                        <span className="block text-slate-700">{selected?.accountTitle || ''}</span>
-                                                                        <span className="block text-slate-600">{selected?.accountNumber || ''}</span>
+                                                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
+                                                                            {selected?.bankLogo ? (
+                                                                                <img src={bankLogoBaseUrl + '/' + selected.bankLogo} alt={selected?.bankName || ''} className="w-full h-full object-contain" />
+                                                                            ) : (
+                                                                                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <span className="block font-bold text-slate-800">{selected?.bankName || 'Bank Account'}{selected?.userName ? ' — ' + selected.userName : ''}</span>
+                                                                            <span className="block text-slate-700">{selected?.accountTitle || ''}</span>
+                                                                            <span className="block text-slate-600">{selected?.accountNumber || ''}</span>
+                                                                        </div>
                                                                     </>
                                                                 );
                                                             })() : (
                                                                 <>
-                                                                    <span className="block font-bold text-slate-800">Select Bank Account</span>
-                                                                    <span className="block text-slate-700"></span>
-                                                                    <span className="block text-slate-600"></span>
+                                                                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                                                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="block font-bold text-slate-800">Select Bank Account</span>
+                                                                        <span className="block text-slate-700 text-xs text-slate-500">All users' accounts</span>
+                                                                    </div>
                                                                 </>
                                                             )}
                                                         </span>
@@ -6766,11 +6795,20 @@
                                                                             setSelectedBankAccountId(account.id);
                                                                             setShowBankAccountDropdown(false);
                                                                         }}
-                                                                        className="w-full px-4 py-3 text-left border-b border-slate-100 hover:bg-purple-50 focus:bg-purple-50 focus:outline-none"
+                                                                        className="w-full px-4 py-3 text-left border-b border-slate-100 hover:bg-purple-50 focus:bg-purple-50 focus:outline-none flex items-center gap-3"
                                                                     >
-                                                                        <span className="block font-bold text-slate-800 text-sm">{account.bankName || 'Bank Account'}</span>
-                                                                        <span className="block text-slate-700 text-sm">{account.accountTitle || ''}</span>
-                                                                        <span className="block text-slate-600 text-sm">{account.accountNumber || ''}</span>
+                                                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
+                                                                            {account.bankLogo ? (
+                                                                                <img src={bankLogoBaseUrl + '/' + account.bankLogo} alt={account.bankName || ''} className="w-full h-full object-contain" />
+                                                                            ) : (
+                                                                                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <span className="block font-bold text-slate-800 text-sm">{account.bankName || 'Bank Account'}{account.userName ? ' — ' + account.userName + (account.isOwn ? ' (You)' : '') : ''}</span>
+                                                                            <span className="block text-slate-700 text-sm">{account.accountTitle || ''}</span>
+                                                                            <span className="block text-slate-600 text-sm">{account.accountNumber || ''}</span>
+                                                                        </div>
                                                                     </button>
                                                                 ))
                                                             )}
