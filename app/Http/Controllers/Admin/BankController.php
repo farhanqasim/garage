@@ -41,7 +41,7 @@ class BankController extends Controller
         
         // Otherwise return HTML view - combined Banks + Bank Accounts (Vyapar style)
         $banks = Bank::orderBy('name', 'asc')->paginate(10, ['*'], 'banks_page');
-        $bankAccountsQuery = BankAccount::with('bank');
+        $bankAccountsQuery = BankAccount::with('bank')->where('user_id', Auth::id());
         if ($request->has('account_type') && $request->account_type) {
             $bankAccountsQuery->where('account_type', $request->account_type);
         }

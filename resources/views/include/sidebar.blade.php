@@ -1,17 +1,21 @@
 <div class="sidebar" id="sidebar">
-    <!-- Logo -->
+    <!-- Logo (theme / settings se – header jaisa) -->
+    @php
+        $sidebarLogoUrl = setting_value('logo', asset('assets/img/logo.svg'));
+        $sidebarLogoText = setting_value('logo_text', config('app.name', 'SOFT'));
+    @endphp
     <div class="sidebar-logo active">
         <a href="{{ route('home') }}" class="logo logo-normal d-flex align-items-center">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Img">
-            <h3>{{ setting_value('logo_text', 'SOFT') }}</h3>
+            <img style="width: 60px;" src="{{ $sidebarLogoUrl }}" alt="{{ $sidebarLogoText }}">
+            <h3>{{ $sidebarLogoText }}</h3>
         </a>
         <a href="{{ route('home') }}" class="logo logo-white">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Img">
-
+            <img style="width: 60px;" src="{{ $sidebarLogoUrl }}" alt="{{ $sidebarLogoText }}">
+            <h3>{{ $sidebarLogoText }}</h3>
         </a>
         <a href="{{ route('home') }}" class="logo-small">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/logo.svg')) }}" alt="Img">
-
+            <img style="width: 60px;" src="{{ $sidebarLogoUrl }}" alt="{{ $sidebarLogoText }}">
+            <h3>{{ $sidebarLogoText }}</h3>
         </a>
         <a id="toggle_btn" href="javascript:void(0);">
             <i data-feather="chevrons-left" class="feather-16"></i>
