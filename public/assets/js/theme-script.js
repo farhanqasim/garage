@@ -1,3 +1,16 @@
+// Sync theme from database (server) to localStorage so rest of script uses DB values
+if (typeof window.THEME_FROM_SERVER !== 'undefined' && window.THEME_FROM_SERVER && Object.keys(window.THEME_FROM_SERVER).length) {
+    var s = window.THEME_FROM_SERVER;
+    if (s.theme) localStorage.setItem('theme', s.theme);
+    if (s.sidebar) localStorage.setItem('sidebarTheme', s.sidebar);
+    if (s.color) localStorage.setItem('color', s.color);
+    if (s.layout) localStorage.setItem('layout', s.layout);
+    if (s.topbar) localStorage.setItem('topbar', s.topbar);
+    if (s.width) localStorage.setItem('width', s.width);
+    if (s.sidebar_bg) localStorage.setItem('sidebarBg', s.sidebar_bg); else localStorage.removeItem('sidebarBg');
+    if (s.topbar_bg) localStorage.setItem('topbarbg', s.topbar_bg); else localStorage.removeItem('topbarbg');
+    if (s.rtl) { localStorage.setItem('rtl', '1'); document.documentElement.setAttribute('dir', 'rtl'); document.documentElement.setAttribute('lang', 'ar'); } else { localStorage.removeItem('rtl'); document.documentElement.setAttribute('dir', 'ltr'); document.documentElement.setAttribute('lang', 'en'); }
+}
 // Apply the saved theme settings from local storage
 document.querySelector("html").setAttribute("data-theme", localStorage.getItem('theme') || 'light');
 document.querySelector("html").setAttribute('data-sidebar', localStorage.getItem('sidebarTheme') || 'light');
@@ -96,12 +109,15 @@ let themesettings = `
                                 </div>
                             </div>
                             <div class="col-4">
-                                <a href="layout-rtl.html" class="theme-layout mb-3">
-                                    <span class="d-block mb-2 layout-img">
-                                        <img src="/assets/img/theme/rtl.svg" alt="img">
-                                    </span>                                    
-                                    <span class="layout-type d-block">RTL</span>
-                                </a>
+                                <div class="theme-layout mb-3 d-flex align-items-center gap-2">
+                                    <input type="checkbox" name="rtl" id="rtlLayout" value="1" class="form-check-input">
+                                    <label for="rtlLayout" class="mb-0 cursor-pointer">
+                                        <span class="d-block mb-2 layout-img">
+                                            <img src="/assets/img/theme/rtl.svg" alt="img">
+                                        </span>
+                                        <span class="layout-type d-block">RTL Layout</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -440,11 +456,14 @@ let themesettings = `
     </div>
         <div class="p-3 pt-0">
             <div class="row gx-3">
-                <div class="col-6">
-                    <a href="#" id="resetbutton" class="btn btn-light close-theme w-100"><i class="ti ti-restore me-1"></i>Reset</a>
+                <div class="col-4">
+                    <button type="button" id="resetbutton" class="btn btn-light w-100"><i class="ti ti-restore me-1"></i>Reset</button>
                 </div>
-                <div class="col-6">
-                    <a href="#" class="btn btn-primary w-100" data-bs-dismiss="offcanvas"><i class="ti ti-shopping-cart-plus me-1"></i>Buy Product</a>
+                <div class="col-4">
+                    <button type="button" id="theme-update-btn" class="btn btn-outline-primary w-100"><i class="ti ti-refresh me-1"></i>Update</button>
+                </div>
+                <div class="col-4">
+                    <button type="button" id="theme-save-btn" class="btn btn-primary w-100" data-bs-dismiss="offcanvas"><i class="ti ti-device-floppy me-1"></i>Save</button>
                 </div>
             </div>
         </div>    
@@ -453,7 +472,10 @@ let themesettings = `
 
     document.addEventListener("DOMContentLoaded", function() {
 
-        document.body.insertAdjacentHTML('beforeend', themesettings);
+        // Theme customizer toggle + panel: only inject and run panel logic when user has permission (same as sidebar)
+        if (window.THEME_CUSTOMIZER_ALLOWED) {
+            document.body.insertAdjacentHTML('beforeend', themesettings);
+        }
 
 		const darkModeToggle = document.getElementById('dark-mode-toggle');
 		const lightModeToggle = document.getElementById('light-mode-toggle');
@@ -487,6 +509,7 @@ let themesettings = `
             lightModeToggle.addEventListener('click', disableDarkMode);
         }
 
+        if (!window.THEME_CUSTOMIZER_ALLOWED) return;
 
         const themeRadios = document.querySelectorAll('input[name="theme"]');
         const sidebarRadios = document.querySelectorAll('input[name="sidebar"]');
@@ -500,7 +523,19 @@ let themesettings = `
         const sidebarBgContainer = document.getElementById('sidebarbgContainer');
         const sidebarElement = document.querySelector('.sidebar'); // Adjust this selector to match your sidebar element
     
-        function setThemeAndSidebarTheme(theme, sidebarTheme, color, layout, topbar, width) {
+        function setRtl(enabled, skipSave) {
+            if (skipSave === undefined) skipSave = false;
+            document.documentElement.setAttribute('dir', enabled ? 'rtl' : 'ltr');
+            document.documentElement.setAttribute('lang', enabled ? 'ar' : 'en');
+            if (enabled) localStorage.setItem('rtl', '1'); else localStorage.removeItem('rtl');
+            if (!skipSave && typeof window.THEME_SETTINGS_SAVE_URL === 'string' && window.THEME_SETTINGS_SAVE_URL) {
+                var csrf = (typeof window.THEME_SETTINGS_CSRF !== 'undefined') ? window.THEME_SETTINGS_CSRF : (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                fetch(window.THEME_SETTINGS_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf || '', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ rtl: enabled }) }).catch(function() {});
+            }
+        }
+
+        function setThemeAndSidebarTheme(theme, sidebarTheme, color, layout, topbar, width, skipSave) {
+            if (skipSave === undefined) skipSave = false;
             // Check if the sidebar element exists
             if (!sidebarElement) {
                 console.error('Sidebar element not found');
@@ -556,7 +591,15 @@ let themesettings = `
             localStorage.setItem('layout', layout);
             localStorage.setItem('topbar', topbar);
             localStorage.setItem('width', width);
-            //localStorage.removeItem('primaryRGB');
+            // Save to database (Theme Customizer) unless skipSave
+            if (!skipSave && typeof window.THEME_SETTINGS_SAVE_URL === 'string' && window.THEME_SETTINGS_SAVE_URL) {
+                var csrf = (typeof window.THEME_SETTINGS_CSRF !== 'undefined') ? window.THEME_SETTINGS_CSRF : (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                fetch(window.THEME_SETTINGS_SAVE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf || '', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ theme: theme, sidebar: sidebarTheme, color: color, layout: layout, topbar: topbar, width: width })
+                }).catch(function() {});
+            }
     
             // Show/hide sidebar background options based on layout selection
             if (layout === 'box' && sidebarBgContainer) {
@@ -564,6 +607,41 @@ let themesettings = `
             } else if (sidebarBgContainer) {
                 sidebarBgContainer.classList.remove('show');
             }
+        }
+
+        /** Apply theme settings from object (e.g. from fetch) – syncs localStorage, DOM, and panel radios. Does not POST to server. */
+        function applyThemeSettingsFromObject(s) {
+            if (!s || typeof s !== 'object') return;
+            var theme = s.theme || 'light';
+            var sidebarTheme = s.sidebar || 'light';
+            var color = s.color || 'primary';
+            var layout = s.layout || 'default';
+            var topbar = s.topbar || 'white';
+            var width = s.width || 'fluid';
+            if (theme) localStorage.setItem('theme', theme);
+            if (sidebarTheme) localStorage.setItem('sidebarTheme', sidebarTheme);
+            if (color) localStorage.setItem('color', color);
+            if (layout) localStorage.setItem('layout', layout);
+            if (topbar) localStorage.setItem('topbar', topbar);
+            if (width) localStorage.setItem('width', width);
+            if (s.sidebar_bg) localStorage.setItem('sidebarBg', s.sidebar_bg); else localStorage.removeItem('sidebarBg');
+            if (s.topbar_bg) localStorage.setItem('topbarbg', s.topbar_bg); else localStorage.removeItem('topbarbg');
+            if (s.rtl) localStorage.setItem('rtl', '1'); else localStorage.removeItem('rtl');
+            setThemeAndSidebarTheme(theme, sidebarTheme, color, layout, topbar, width, true);
+            setRtl(!!s.rtl, true);
+            if (s.sidebar_bg) document.body.setAttribute('data-sidebarbg', s.sidebar_bg); else document.body.removeAttribute('data-sidebarbg');
+            if (s.topbar_bg) document.body.setAttribute('data-topbarbg', s.topbar_bg); else document.body.removeAttribute('data-topbarbg');
+            var el;
+            if (el = document.getElementById(theme + 'Theme')) el.checked = true;
+            if (el = document.getElementById(sidebarTheme + 'Sidebar')) el.checked = true;
+            if (el = document.getElementById(color + 'Color')) el.checked = true;
+            if (el = document.getElementById(layout + 'Layout')) el.checked = true;
+            if (el = document.getElementById(topbar + 'Topbar')) el.checked = true;
+            if (el = document.getElementById(width + 'Width')) el.checked = true;
+            if (s.sidebar_bg && (el = document.getElementById(s.sidebar_bg))) el.checked = true;
+            if (s.topbar_bg && (el = document.getElementById(s.topbar_bg))) el.checked = true;
+            var rtlCb = document.getElementById('rtlLayout');
+            if (rtlCb) rtlCb.checked = !!s.rtl;
         }
     
         function handleSidebarBgChange() {
@@ -575,6 +653,10 @@ let themesettings = `
             } else {
                 document.body.removeAttribute('data-sidebarbg');
                 localStorage.removeItem('sidebarBg');
+            }
+            if (typeof window.THEME_SETTINGS_SAVE_URL === 'string' && window.THEME_SETTINGS_SAVE_URL) {
+                var csrf = (typeof window.THEME_SETTINGS_CSRF !== 'undefined') ? window.THEME_SETTINGS_CSRF : (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                fetch(window.THEME_SETTINGS_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf || '', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ sidebar_bg: sidebarBg || null }) }).catch(function() {});
             }
         }
 
@@ -588,6 +670,38 @@ let themesettings = `
                 document.body.removeAttribute('data-topbarbg');
                 localStorage.removeItem('topbarbg');
             }
+            if (typeof window.THEME_SETTINGS_SAVE_URL === 'string' && window.THEME_SETTINGS_SAVE_URL) {
+                var csrf = (typeof window.THEME_SETTINGS_CSRF !== 'undefined') ? window.THEME_SETTINGS_CSRF : (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                fetch(window.THEME_SETTINGS_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf || '', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ topbar_bg: topbarbg || null }) }).catch(function() {});
+            }
+        }
+
+        /** Collect current theme from panel and POST to server (Update / Save buttons). */
+        function saveThemeSettingsToServer() {
+            if (typeof window.THEME_SETTINGS_SAVE_URL !== 'string' || !window.THEME_SETTINGS_SAVE_URL) return;
+            var themeEl = document.querySelector('input[name="theme"]:checked');
+            var layoutEl = document.querySelector('input[name="LayoutTheme"]:checked');
+            var widthEl = document.querySelector('input[name="width"]:checked');
+            var colorEl = document.querySelector('input[name="color"]:checked');
+            var sidebarEl = document.querySelector('input[name="sidebar"]:checked');
+            var topbarEl = document.querySelector('input[name="topbar"]:checked');
+            var sidebarbgEl = document.querySelector('input[name="sidebarbg"]:checked');
+            var topbarbgEl = document.querySelector('input[name="topbarbg"]:checked');
+            var rtlEl = document.getElementById('rtlLayout');
+            var theme = themeEl ? themeEl.value : localStorage.getItem('theme') || 'light';
+            var layout = layoutEl ? layoutEl.value : localStorage.getItem('layout') || 'default';
+            var width = widthEl ? widthEl.value : localStorage.getItem('width') || 'fluid';
+            var color = colorEl ? colorEl.value : (localStorage.getItem('primaryRGB') ? 'all' : (localStorage.getItem('color') || 'primary'));
+            var sidebar = sidebarEl ? sidebarEl.value : (localStorage.getItem('sidebarRGB') ? 'all' : (localStorage.getItem('sidebarTheme') || 'light'));
+            var topbar = topbarEl ? topbarEl.value : (localStorage.getItem('topbarRGB') ? 'all' : (localStorage.getItem('topbar') || 'white'));
+            var payload = { theme: theme, sidebar: sidebar, color: color, layout: layout, topbar: topbar, width: width };
+            payload.rtl = rtlEl ? !!rtlEl.checked : (localStorage.getItem('rtl') === '1');
+            payload.sidebar_bg = sidebarbgEl ? sidebarbgEl.value : null;
+            payload.topbar_bg = topbarbgEl ? topbarbgEl.value : null;
+            var csrf = (typeof window.THEME_SETTINGS_CSRF !== 'undefined') ? window.THEME_SETTINGS_CSRF : (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+            fetch(window.THEME_SETTINGS_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf || '', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify(payload) })
+                .then(function(r) { if (r.ok && typeof toastr !== 'undefined') toastr.success('Theme saved.'); })
+                .catch(function() { if (typeof toastr !== 'undefined') toastr.error('Failed to save theme.'); });
         }
     
         function handleInputChange() {
@@ -625,30 +739,35 @@ let themesettings = `
         }
     
         function resetThemeAndSidebarThemeAndColorAndBg() {
-            setThemeAndSidebarTheme('light', 'light', 'primary', 'default', 'white', 'white', 'default', 'fluid', 'enable');
+            setThemeAndSidebarTheme('light', 'light', 'primary', 'default', 'white', 'fluid');
+            setRtl(false);
             document.body.removeAttribute('data-sidebarbg');
             document.body.removeAttribute('data-topbarbg');
-    
+            if (rtlCheckbox) rtlCheckbox.checked = false;
+
             document.getElementById('lightTheme').checked = true;
             document.getElementById('lightSidebar').checked = true;
             document.getElementById('primaryColor').checked = true;
             document.getElementById('defaultLayout').checked = true;
             document.getElementById('whiteTopbar').checked = true;
             document.getElementById('fluidWidth').checked = true;
-    
-            const checkedSidebarBg = document.querySelector('input[name="sidebarbg"]:checked');
-            if (checkedSidebarBg) {
-                checkedSidebarBg.checked = false;
-            }
-    
+
+            // Sidebar Background: sab unchecked (null)
+            document.querySelectorAll('input[name="sidebarbg"]').forEach(function(r) { r.checked = false; });
+            document.body.removeAttribute('data-sidebarbg');
             localStorage.removeItem('sidebarBg');
 
-            const checkedTopbarBg = document.querySelector('input[name="topbarbg"]:checked');
-            if (checkedTopbarBg) {
-                checkedTopbarBg.checked = false;
-            }
-    
+            // Topbar Background: sab unchecked (null)
+            document.querySelectorAll('input[name="topbarbg"]').forEach(function(r) { r.checked = false; });
+            document.body.removeAttribute('data-topbarbg');
             localStorage.removeItem('topbarbg');
+            // Usi user ki saari theme settings DB mein default/null save (reset: true)
+            if (typeof window.THEME_SETTINGS_SAVE_URL === 'string' && window.THEME_SETTINGS_SAVE_URL) {
+                var csrf = (typeof window.THEME_SETTINGS_CSRF !== 'undefined') ? window.THEME_SETTINGS_CSRF : (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+                fetch(window.THEME_SETTINGS_SAVE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf || '', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ reset: true }) })
+                    .then(function(r) { if (r.ok && typeof toastr !== 'undefined') toastr.success('Theme reset and saved.'); })
+                    .catch(function() { if (typeof toastr !== 'undefined') toastr.error('Failed to save reset.'); });
+            }
         }
     
         // Adding event listeners
@@ -661,6 +780,16 @@ let themesettings = `
         sidebarBgRadios.forEach(radio => radio.addEventListener('change', handleSidebarBgChange));
         topbarbgRadios.forEach(radio => radio.addEventListener('change', handleTopbarBgChange));
         resetButton.addEventListener('click', resetThemeAndSidebarThemeAndColorAndBg);
+
+        var themeUpdateBtn = document.getElementById('theme-update-btn');
+        var themeSaveBtn = document.getElementById('theme-save-btn');
+        if (themeUpdateBtn) themeUpdateBtn.addEventListener('click', saveThemeSettingsToServer);
+        if (themeSaveBtn) themeSaveBtn.addEventListener('click', saveThemeSettingsToServer);
+
+        var rtlCheckbox = document.getElementById('rtlLayout');
+        if (rtlCheckbox) {
+            rtlCheckbox.addEventListener('change', function() { setRtl(!!this.checked); });
+        }
     
         // Initial setup from localStorage
         const savedTheme = localStorage.getItem('theme') || 'light';
@@ -710,6 +839,11 @@ let themesettings = `
 
     
         setThemeAndSidebarTheme(savedTheme, savedSidebarTheme, savedColor, savedLayout, savedTopbar, savedWidth);
+
+        var savedRtl = localStorage.getItem('rtl') === '1';
+        if (rtlCheckbox) { rtlCheckbox.checked = savedRtl; }
+        document.documentElement.setAttribute('dir', savedRtl ? 'rtl' : 'ltr');
+        document.documentElement.setAttribute('lang', savedRtl ? 'ar' : 'en');
     
         if (savedSidebarBg) {
             document.body.setAttribute('data-sidebarbg', savedSidebarBg);
@@ -752,6 +886,17 @@ let themesettings = `
         // Initially hide sidebar background options based on layout
         if (savedLayout !== 'box' && sidebarBgContainer) {
             sidebarBgContainer.classList.remove('show');
+        }
+
+        // When theme customizer panel opens, fetch saved settings from DB and apply (so panel shows current saved state)
+        var themeSettingEl = document.getElementById('theme-setting');
+        if (themeSettingEl && typeof window.THEME_SETTINGS_INDEX_URL === 'string' && window.THEME_SETTINGS_INDEX_URL) {
+            themeSettingEl.addEventListener('shown.bs.offcanvas', function() {
+                fetch(window.THEME_SETTINGS_INDEX_URL, { method: 'GET', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(function(data) { if (data) applyThemeSettingsFromObject(data); })
+                    .catch(function() {});
+            });
         }
 });
     

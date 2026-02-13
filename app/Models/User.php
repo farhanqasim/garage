@@ -44,6 +44,7 @@ class User extends Authenticatable
         'pattern_lock',
         'fingerprint_data',
         'claim_return_enabled',
+        'theme_settings',
     ];
 
     /**
@@ -70,6 +71,7 @@ class User extends Authenticatable
         'salary_per_day' => 'decimal:2',
         'salary_per_month' => 'decimal:2',
         'salary_percentage' => 'decimal:2',
+        'theme_settings' => 'array',
     ];
 
 

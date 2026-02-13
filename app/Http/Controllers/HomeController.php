@@ -10,8 +10,15 @@ use App\Models\CarWashJob;
 use App\Models\CarWashShopExpense;
 use App\Models\PaymentMethod;
 use App\Models\BankAccount;
+use App\Models\Sale;
+use App\Models\Purchase;
+use App\Models\Item;
+use App\Models\Customer;
+use App\Models\Supplier;
 use App\Http\Controllers\CarWashPaymentController;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use App\Http\Controllers\Traits\HasBranchAccess;
 
 class HomeController extends Controller
@@ -29,12 +36,101 @@ class HomeController extends Controller
 
     /**
      * Show the application dashboard.
+     * Data filtered by branch (same as sidebar permissions).
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
     public function index()
     {
-        return view('home');
+        $user = auth()->user();
+        $today = Carbon::today();
+
+        // Sales (branch-filtered)
+        $saleQuery = Sale::query();
+        $this->applyBranchFilter($saleQuery, 'branch_id');
+        $todayOrdersCount = (clone $saleQuery)->whereDate('sale_date', $today)->count();
+        $totalSales = (clone $saleQuery)->sum('grand_total');
+        $totalSalesReturn = (clone $saleQuery)->where('status', 'return')->sum('grand_total');
+
+        // Purchases (branch-filtered)
+        $purchaseQuery = Purchase::query();
+        $this->applyBranchFilter($purchaseQuery, 'branch_id');
+        $totalPurchase = (clone $purchaseQuery)->sum('grand_total');
+        $totalPurchaseReturn = (clone $purchaseQuery)->where('status', 'return')->sum('grand_total');
+
+        // Low stock: on_hand <= l_stock or 5 (min_qty column may not exist)
+        $lowStockItems = Item::where('is_active', true)
+            ->whereRaw('COALESCE(on_hand, 0) <= COALESCE(l_stock, 5)')
+            ->orderByRaw('COALESCE(on_hand, 0) ASC')
+            ->limit(10)
+            ->get(['id', 'p_id', 'on_hand', 'l_stock', 'image', 'sale_price', 'short_disc']);
+
+        $supplierQuery = Supplier::query();
+        $this->applyBranchFilter($supplierQuery, 'branch_id');
+        $suppliersCount = $supplierQuery->count();
+        $customersCount = Customer::count();
+        $ordersCount = (clone $saleQuery)->count();
+
+        // Recent sales (branch-filtered)
+        $recentSalesQuery = Sale::query()->with('customer');
+        $this->applyBranchFilter($recentSalesQuery, 'branch_id');
+        $recentSales = $recentSalesQuery->orderBy('sale_date', 'desc')->orderBy('id', 'desc')->limit(5)->get();
+
+        // Recent purchases (branch-filtered)
+        $recentPurchasesQuery = Purchase::query()->with('supplier');
+        $this->applyBranchFilter($recentPurchasesQuery, 'branch_id');
+        $recentPurchases = $recentPurchasesQuery->orderBy('purchase_date', 'desc')->orderBy('id', 'desc')->limit(5)->get();
+
+        // Top selling items (from sale_items, branch via sale)
+        $topSellingQuery = DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->join('items', 'items.id', '=', 'sale_items.item_id')
+            ->select('items.id', 'items.p_id', 'items.sale_price', DB::raw('SUM(sale_items.quantity) as total_qty'))
+            ->groupBy('items.id', 'items.p_id', 'items.sale_price');
+        $branchId = $this->getUserBranchId($user);
+        if ($branchId) {
+            $topSellingQuery->where(function ($q) use ($branchId) {
+                $q->where('sales.branch_id', $branchId)->orWhereNull('sales.branch_id');
+            });
+        }
+        $topSellingProducts = $topSellingQuery->orderByDesc('total_qty')->limit(5)->get();
+
+        // Top customers by total sales (branch-filtered)
+        $topCustomersQuery = Sale::query()
+            ->select('customer_id', DB::raw('COUNT(*) as order_count'), DB::raw('SUM(grand_total) as total_amount'))
+            ->whereNotNull('customer_id')
+            ->groupBy('customer_id')
+            ->orderByDesc('total_amount')
+            ->limit(5);
+        $this->applyBranchFilter($topCustomersQuery, 'branch_id');
+        $topCustomersIds = $topCustomersQuery->pluck('customer_id');
+        $topCustomersData = $topCustomersQuery->get();
+        $topCustomers = Customer::whereIn('id', $topCustomersIds)->get()->keyBy('id');
+        $topCustomersList = $topCustomersData->map(function ($row) use ($topCustomers) {
+            $c = $topCustomers->get($row->customer_id);
+            return (object)[
+                'id' => $row->customer_id,
+                'name' => $c ? (is_array($c->names) ? ($c->names[0] ?? $c->company ?? 'N/A') : $c->company ?? 'N/A') : 'N/A',
+                'order_count' => $row->order_count,
+                'total_amount' => $row->total_amount,
+            ];
+        });
+
+        return view('home', compact(
+            'todayOrdersCount',
+            'totalSales',
+            'totalSalesReturn',
+            'totalPurchase',
+            'totalPurchaseReturn',
+            'lowStockItems',
+            'suppliersCount',
+            'customersCount',
+            'ordersCount',
+            'recentSales',
+            'recentPurchases',
+            'topSellingProducts',
+            'topCustomersList'
+        ));
     }
 
     /**

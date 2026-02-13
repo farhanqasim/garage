@@ -36,6 +36,7 @@ use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PaymentMethodController;
 use App\Http\Controllers\Admin\BankTransactionController;
 use App\Http\Controllers\Auth\WebAuthnController;
+use App\Http\Controllers\ThemeSettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -90,6 +91,10 @@ Route::middleware('auth')->group(function () {
     // Save pattern and fingerprint (requires authentication)
     Route::post('/save-pattern', [LoginController::class, 'savePattern'])->name('save.pattern');
     Route::post('/save-fingerprint', [LoginController::class, 'saveFingerprint'])->name('save.fingerprint');
+
+    // Theme Customizer (save/load from database)
+    Route::get('/theme-settings', [ThemeSettingsController::class, 'index'])->name('theme.settings.index');
+    Route::post('/theme-settings', [ThemeSettingsController::class, 'update'])->name('theme.settings.update');
 });
      
 // Normal user dashboard
