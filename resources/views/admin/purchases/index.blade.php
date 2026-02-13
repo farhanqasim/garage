@@ -32,8 +32,10 @@
         </ul>
         <div class="d-flex purchase-pg-btn">
             <div class="page-btn">
+                @can('add_purchases')
                 <a href="{{ route('purchases.create') }}" class="btn btn-primary"><i
                         data-feather="plus-circle" class="me-1"></i>Add Purchase</a>
+                @endcan
             </div>
             <div class="page-btn import">
                 <a href="#" class="btn btn-secondary color" data-bs-toggle="modal" data-bs-target="#view-notes"><i
@@ -106,15 +108,21 @@
                                         class="ti ti-point-filled me-1 fs-11"></i>Paid</span></td>
                             <td class="action-table-data no-highlight">
                                 <div class="edit-delete-action">
+                                    @can('view_purchases')
                                     <a class="me-2 p-2" href="{{ route('purchases.show', $purchase->id) }}" title="View">
                                         <i data-feather="eye" class="action-eye"></i>
                                     </a>
+                                    @endcan
+                                    @can('update_purchases')
                                     <a class="me-2 p-2" href="{{ route('purchases.edit', $purchase->id) }}" title="Edit">
                                         <i data-feather="edit" class="feather-edit"></i>
                                     </a>
+                                    @endcan
+                                    @can('delete_purchases')
                                     <a href="javascript:void(0);" class="p-2 text-danger delete-purchase" data-id="{{ $purchase->id }}" title="Delete">
                                         <i data-feather="trash-2" class="feather-trash-2"></i>
                                     </a>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -127,11 +135,6 @@
                 </table>
             </div>
         </div>
-        @if(isset($purchases) && $purchases->hasPages())
-        <div class="card-footer">
-            {{ $purchases->links('pagination::bootstrap-5') }}
-        </div>
-        @endif
     </div>
 </div>
 

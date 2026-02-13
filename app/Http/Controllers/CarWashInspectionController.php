@@ -6,9 +6,12 @@ use Illuminate\Http\Request;
 use App\Models\CarWashInspection;
 use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashInspectionController extends Controller
 {
+    use HasBranchAccess;
+    
     /**
      * Store or update inspection for a job
      */
@@ -21,16 +24,15 @@ class CarWashInspectionController extends Controller
 
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
 
-        // Check permission
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to add inspection for this job'
             ], 403);
         }
 
+        $branchId = $this->getUserBranchId($user);
         // Update or create inspection
         $inspection = CarWashInspection::updateOrCreate(
             ['job_id' => $jobId],
@@ -62,10 +64,8 @@ class CarWashInspectionController extends Controller
     {
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
 
-        // Check permission
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to view this inspection'

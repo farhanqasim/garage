@@ -68,7 +68,7 @@
                                 </div>
                                 <div class="text-end">
                                     <div class="mb-1">
-                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="purchase-number">INV #{{ $purchase->invoice_no }}</span>
+                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="purchase-number">Bill #{{ $purchase->invoice_no }}</span>
                                     </div>
                                     <div style="font-size: 13px; color: #6c757d;">
                                         <span id="currentDateTime">{{ $purchase->purchase_date->format('d/m/Y, H:i:s') }}</span>
@@ -83,9 +83,9 @@
                         <!-- Supplier/Customer Information -->
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">CUSTOMER NAME</label>
+                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">SUPPLIER NAME</label>
                                 <select name="supplier_id" id="supplier_id" class="form-control @error('supplier_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="">Party Name</option>
+                                    <option value="">Select vendor</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}" 
                                                 data-name="{{ $supplier->names[0] ?? '' }}" 
@@ -94,7 +94,7 @@
                                                 data-address="{{ $supplier->address ?? '' }}"
                                                 data-area="{{ $supplier->area ?? '' }}"
                                                 {{ $purchase->supplier_id == $supplier->id ? 'selected' : '' }}>
-                                            {{ $supplier->names[0] ?? 'N/A' }} @if($supplier->company) - {{ $supplier->company }} @endif
+                                            {{ $supplier->names[0] ?? 'N/A' }}@if($supplier->company) - {{ $supplier->company }}@endif @if(!empty($supplier->phones[0])) - {{ $supplier->phones[0] }}@endif
                                         </option>
                                     @endforeach
                                 </select>

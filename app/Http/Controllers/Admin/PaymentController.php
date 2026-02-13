@@ -4,44 +4,55 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Models\PaymentMethod;
+use App\Models\BankAccount;
+use App\Models\Customer;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
-    /**
-     * Display a listing of the payments.
-     */
     public function index(Request $request)
     {
-        $query = Payment::with(['user', 'bank']);
+        $query = Payment::with(['user', 'customer', 'supplier', 'paymentMethod', 'bankAccount']);
 
-        // Filter by payment method
-        if ($request->has('payment_method') && $request->payment_method) {
-            $query->where('payment_method', $request->payment_method);
+        if ($request->has('payment_method_id') && $request->payment_method_id) {
+            $query->where('payment_method_id', $request->payment_method_id);
         }
 
-        // Filter by status
+        if ($request->has('direction') && $request->direction) {
+            $query->where('direction', $request->direction);
+        }
+
         if ($request->has('status') && $request->status) {
             $query->where('status', $request->status);
         }
 
-        $payments = $query->orderBy('created_at', 'desc')->paginate(15);
+        if ($request->has('customer_id') && $request->customer_id) {
+            $query->where('customer_id', $request->customer_id);
+        }
 
-        return view('admin.payments.index', compact('payments'));
+        if ($request->has('supplier_id') && $request->supplier_id) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
+        $payments = $query->orderBy('payment_date', 'desc')
+                         ->orderBy('created_at', 'desc')
+                         ->paginate(15);
+
+        $paymentMethods = PaymentMethod::active()->get();
+        $customers = Customer::orderBy('names', 'asc')->get();
+        $suppliers = Supplier::orderBy('names', 'asc')->get();
+
+        return view('admin.payments.index', compact('payments', 'paymentMethods', 'customers', 'suppliers'));
     }
 
-    /**
-     * Display the specified payment.
-     */
     public function show(Payment $payment)
     {
-        $payment->load(['user', 'bank']);
+        $payment->load(['user', 'customer', 'supplier', 'paymentMethod', 'bankAccount', 'sales', 'purchases']);
         return view('admin.payments.show', compact('payment'));
     }
 
-    /**
-     * Mark payment as paid.
-     */
     public function markAsPaid(Payment $payment)
     {
         $payment->update([
@@ -53,9 +64,6 @@ class PaymentController extends Controller
             ->with('success', 'Payment marked as paid successfully!');
     }
 
-    /**
-     * Mark payment as failed.
-     */
     public function markAsFailed(Payment $payment)
     {
         $payment->update([
@@ -66,9 +74,6 @@ class PaymentController extends Controller
             ->with('success', 'Payment marked as failed successfully!');
     }
 
-    /**
-     * Mark payment as refunded.
-     */
     public function markAsRefunded(Payment $payment)
     {
         $payment->update([

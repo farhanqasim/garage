@@ -11,14 +11,31 @@
                     <input type="file" name="visiting_doc" id="visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
                 </div>
                 <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
-                @if($supplier->visiting_doc)
-                    <div class="mt-2">
-                        <a href="{{ asset($supplier->visiting_doc) }}" target="_blank" class="btn btn-sm btn-outline-primary">View Current Document</a>
+                @if(!empty($supplier->visiting_doc))
+                    @php
+                        $visitingDocPath = $supplier->visiting_doc;
+                        $extension = strtolower(pathinfo($visitingDocPath, PATHINFO_EXTENSION));
+                        $isImage = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
+                        $fullPath = public_path($visitingDocPath);
+                        $fileExists = file_exists($fullPath);
+                    @endphp
+                    <div class="mt-2 existing-visiting-doc">
+                        @if($isImage)
+                            <div class="mb-2" style="border: 2px solid #dee2e6; border-radius: 8px; padding: 10px; background-color: #f8f9fa; text-align: center;">
+                                <img src="{{ asset($visitingDocPath) }}?v={{ time() }}" alt="Current Visiting Document" class="img-fluid rounded shadow-sm" style="max-height: 300px; max-width: 100%; border: 1px solid #dee2e6;" onerror="this.parentElement.style.display='none';">
+                            </div>
+                        @endif
+                        <a href="{{ asset($visitingDocPath) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i> View Current Document
+                        </a>
                     </div>
                 @endif
-                <div id="visiting_preview" style="display: none; margin-top: 10px;">
-                    <div id="visiting_img_container" style="display: none;">
-                        <img id="visiting_img" src="" alt="Visiting Doc Preview" class="img-fluid rounded" style="max-height: 200px;">
+                <div id="visiting_preview" style="display: none; margin-top: 15px; position: relative; border: 2px solid #dee2e6; border-radius: 8px; padding: 10px; background-color: #f8f9fa;">
+                    <button type="button" id="cancelVisitingDoc" class="btn btn-danger btn-sm position-absolute" style="top: 5px; right: 5px; z-index: 10; border-radius: 50%; width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center;" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <div id="visiting_img_container" style="display: none; text-align: center;">
+                        <img id="visiting_img" src="" alt="Visiting Doc Preview" class="img-fluid rounded shadow-sm" style="max-height: 300px; max-width: 100%; border: 1px solid #dee2e6;">
                     </div>
                     <div id="visiting_file_info" style="display: none; text-center p-3 bg-light rounded">
                         <i class="fas fa-file fa-3x text-muted mb-2"></i>
@@ -100,18 +117,6 @@
             <div class="col-md-6">
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ old('company', $supplier->company) }}" class="form-control">
-            </div>
-            <div class="col-md-6">
-                <label for="carnumber">Add Vehicles:</label>
-                <div class="input-group">
-                    <select class="form-control" name="carnumber" id="carnumber">
-                        <option value="">Select Services</option>
-                        <option value="1" {{ $supplier->carnumber == 1 ? 'selected' : '' }}>Vehicle One</option>
-                    </select>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vehical-add-modal">
-                        <i data-feather="plus"></i>
-                    </button>
-                </div>
             </div>
             <div class="col-md-6">
                 <label for="email" class="form-label">Email</label>

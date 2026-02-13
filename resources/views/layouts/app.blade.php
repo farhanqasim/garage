@@ -1,5 +1,20 @@
+@php
+  $themeDefaults = [
+    'theme' => 'light',
+    'sidebar' => 'light',
+    'color' => 'primary',
+    'layout' => 'default',
+    'topbar' => 'white',
+    'width' => 'fluid',
+    'rtl' => false,
+    'sidebar_bg' => null,
+    'topbar_bg' => null,
+  ];
+  $themeSettings = auth()->check() ? array_merge($themeDefaults, auth()->user()->theme_settings ?? []) : $themeDefaults;
+  $isRtl = !empty($themeSettings['rtl']);
+@endphp
 <!DOCTYPE html>
-<html lang="en" data-layout-mode="light_mode">
+<html lang="{{ $isRtl ? 'ar' : 'en' }}" dir="{{ $isRtl ? 'rtl' : 'ltr' }}" data-layout-mode="light_mode" data-theme="{{ $themeSettings['theme'] ?? 'light' }}" data-sidebar="{{ $themeSettings['sidebar'] ?? 'light' }}" data-color="{{ $themeSettings['color'] ?? 'primary' }}" data-layout="{{ $themeSettings['layout'] ?? 'default' }}" data-topbar="{{ $themeSettings['topbar'] ?? 'white' }}" data-width="{{ $themeSettings['width'] ?? 'fluid' }}" data-rtl="{{ $isRtl ? '1' : '0' }}">
 <head>
   <!-- Meta Tags -->
   <meta charset="utf-8">
@@ -13,8 +28,85 @@
   <meta name="robots" content="index, follow">
    <meta name="csrf-token" content="{{ csrf_token() }}">
 
+  <!-- Auto session refresh + retry on 401 -->
+  <script>
+  (function() {
+    var _fetch = window.fetch;
+    var RETRY_KEY = 'fetchRetryRequest';
+    window.fetch = function(url, opts) {
+      opts = opts || {};
+      return _fetch.apply(this, arguments).then(function(res) {
+        if (res.status === 401) {
+          var clone = res.clone();
+          return clone.text().then(function(t) {
+            var isSessionErr = !t || t.toLowerCase().indexOf('session') >= 0 || t.toLowerCase().indexOf('unauth') >= 0 || t.toLowerCase().indexOf('expir') >= 0;
+            if (isSessionErr && !sessionStorage.getItem(RETRY_KEY)) {
+              var u = typeof url === 'string' ? url : (url && url.url);
+              var headers = {};
+              if (opts.headers) {
+                if (opts.headers instanceof Headers) { opts.headers.forEach(function(v,k){ headers[k]=v; }); }
+                else if (typeof opts.headers === 'object') { headers = Object.assign({}, opts.headers); }
+              }
+              var canRetry = u && (opts.method === 'POST' || opts.method === 'PUT' || opts.method === 'PATCH') && (typeof opts.body === 'string' || opts.body == null);
+              if (canRetry) {
+                try {
+                  sessionStorage.setItem(RETRY_KEY, JSON.stringify({ url: u, method: opts.method || 'POST', headers: headers, body: opts.body || null }));
+                } catch (e) {}
+              }
+              if (typeof toastr !== 'undefined') toastr.info('Session refreshed. Retrying...');
+              else alert('Session refreshed. Retrying...');
+              location.reload();
+            }
+            return res;
+          }).catch(function() { return res; });
+        }
+        return res;
+      });
+    };
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        var s = sessionStorage.getItem(RETRY_KEY);
+        if (s) {
+          sessionStorage.removeItem(RETRY_KEY);
+          var d = JSON.parse(s);
+          var token = document.querySelector('meta[name="csrf-token"]');
+          if (token && d.headers) d.headers['X-CSRF-TOKEN'] = token.getAttribute('content');
+          if (d.headers && !d.headers['Accept']) d.headers['Accept'] = 'application/json';
+          if (d.headers && !d.headers['X-Requested-With']) d.headers['X-Requested-With'] = 'XMLHttpRequest';
+          if (d.headers && !d.headers['Content-Type'] && d.body) d.headers['Content-Type'] = 'application/json';
+          _fetch(d.url, { method: d.method || 'POST', headers: d.headers || {}, body: d.body }).then(function(r) {
+            if (r.ok && typeof toastr !== 'undefined') toastr.success('Done.');
+            else if (!r.ok && typeof toastr !== 'undefined') toastr.error('Please try again.');
+          }).catch(function() { if (typeof toastr !== 'undefined') toastr.error('Please try again.'); });
+        }
+      } catch (e) {}
+    });
+  })();
+  </script>
+
   <title>@yield('title') | {{env('APP_NAME')}}</title>
    <link rel="icon" href="{{ setting_value('favicon', asset('assets/img/favicon.png')) }}" type="image/x-icon"/>
+  <!-- Global error handler to suppress null element addEventListener errors -->
+  <script>
+    window.addEventListener('error', function(e) {
+      if (e.message && e.message.includes('addEventListener') && e.message.includes('null')) {
+        e.preventDefault();
+        console.warn('Suppressed addEventListener error on null element:', e.filename, e.lineno);
+        return true;
+      }
+    }, true);
+  </script>
+  @auth
+  <script>
+    window.THEME_FROM_SERVER = @json($themeSettings);
+    window.THEME_SETTINGS_INDEX_URL = @json(route('theme.settings.index'));
+    window.THEME_SETTINGS_SAVE_URL = @json(route('theme.settings.update'));
+    window.THEME_SETTINGS_CSRF = @json(csrf_token());
+    @can('view_setting')
+    window.THEME_CUSTOMIZER_ALLOWED = true;
+    @endcan
+  </script>
+  @endauth
   <script src="{{asset('assets/js/theme-script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
   <!-- Apple Touch Icon -->
   <link rel="apple-touch-icon" sizes="180x180" href="{{asset('assets/img/apple-touch-icon.png')}}">
@@ -364,7 +456,7 @@ label{
 
   @stack('styles')
 </head>
-<body>
+<body @if(!empty($themeSettings['sidebar_bg'])) data-sidebarbg="{{ $themeSettings['sidebar_bg'] }}" @endif @if(!empty($themeSettings['topbar_bg'])) data-topbarbg="{{ $themeSettings['topbar_bg'] }}" @endif>
   {{-- <div id="global-loader">
     <div class="whirly-loader"> </div>
   </div> --}}
@@ -491,10 +583,94 @@ label{
   <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
   <script src="{{asset('assets/js/script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
 
-  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer>
+  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer onerror="this.onerror=null;">
   </script>
 
- 	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+  
+  <script>
+  // Suppress 404 errors for Cloudflare resources and missing files
+  (function() {
+      const originalError = window.onerror;
+      window.onerror = function(msg, url, line, col, error) {
+          // Suppress Cloudflare cdn-cgi/rum errors
+          if (url && (url.includes('cdn-cgi/rum') || url.includes('cdn-cgi/scripts') || url.includes('cloudflare'))) {
+              return true; // Suppress error
+          }
+          // Suppress 404 errors for images and SVGs
+          if (msg && (msg.includes('404') || msg.includes('Failed to load resource'))) {
+              if (url && (url.includes('.svg') || url.includes('.png') || url.includes('.jpg') || url.includes('.jpeg') || url.includes('cdn-cgi') || url.includes('cloudflare'))) {
+                  return true; // Suppress error
+              }
+          }
+          // Call original error handler for other errors
+          if (originalError) {
+              return originalError.apply(this, arguments);
+          }
+          return false;
+      };
+      
+      // Suppress console errors for Cloudflare and missing files
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+          const message = args[0] || '';
+          if (typeof message === 'string') {
+              // Suppress Cloudflare errors
+              if (message.includes('cdn-cgi/rum') || message.includes('cdn-cgi/scripts') || message.includes('cloudflare') || message.includes('POST http') && message.includes('cdn-cgi')) {
+                  return; // Suppress
+              }
+              // Suppress 404 errors for images and Cloudflare
+              if (message.includes('404') || message.includes('Failed to load resource')) {
+                  if (message.includes('.svg') || message.includes('.png') || message.includes('.jpg') || message.includes('.jpeg') || message.includes('cdn-cgi') || message.includes('cloudflare')) {
+                      return; // Suppress
+                  }
+              }
+          }
+          originalConsoleError.apply(console, args);
+      };
+      
+      // Suppress fetch/XMLHttpRequest errors for Cloudflare RUM
+      const originalFetch = window.fetch;
+      if (originalFetch) {
+          window.fetch = function(...args) {
+              const url = args[0];
+              if (typeof url === 'string' && (url.includes('cdn-cgi/rum') || url.includes('cloudflare'))) {
+                  return Promise.reject(new Error('Suppressed Cloudflare RUM request'));
+              }
+              return originalFetch.apply(this, args).catch(function(error) {
+                  if (error && error.message && error.message.includes('Suppressed')) {
+                      return Promise.resolve(new Response(null, { status: 200 }));
+                  }
+                  throw error;
+              });
+          };
+      }
+      
+      // Suppress XMLHttpRequest errors for Cloudflare
+      const originalXHROpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (typeof url === 'string' && (url.includes('cdn-cgi/rum') || url.includes('cloudflare'))) {
+              this._suppressError = true;
+          }
+          return originalXHROpen.apply(this, [method, url, ...rest]);
+      };
+      
+      const originalXHRSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.send = function(...args) {
+          if (this._suppressError) {
+              this.addEventListener('error', function(e) {
+                  e.stopPropagation();
+              }, true);
+              this.addEventListener('loadend', function() {
+                  if (this.status === 404 && this.responseURL && this.responseURL.includes('cdn-cgi')) {
+                      // Suppress 404 for Cloudflare endpoints
+                  }
+              });
+          }
+          return originalXHRSend.apply(this, args);
+      };
+  })();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -527,6 +703,7 @@ label{
 document.addEventListener("DOMContentLoaded", function () {
     const searchInput = document.getElementById("tableSearch");
     const table = document.getElementById("searchableTable");
+    if (!searchInput || !table) return;
 
     function removeHighlights() {
         const highlighted = table.querySelectorAll(".highlight");
@@ -722,59 +899,41 @@ function confirmDelete(formId, customMessage = null) {
   };
   </script>
 
-  <!-- ✅ Laravel Flash Message Integration -->
+  <!-- ✅ Laravel Flash Message Integration - run after DOM ready so toastr + saveSound element exist -->
   <script>
-  // Only show session messages if they exist and page was redirected from form submission
-  // Check if we came from a POST request (form submission)
+  $(document).ready(function() {
   @if (session('success'))
       @php
-          // Only show success message if:
-          // 1. We have a referer (came from another page)
-          // 2. OR this is not a create/edit page (other pages can show messages normally)
           $referer = request()->header('referer');
-          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit');
-          $showSuccess = false;
-          
-          if (!$isCreateEditPage) {
-              // Not on create/edit page, show message normally
-              $showSuccess = true;
-          } else if ($referer) {
-              // On create/edit page, only show if we have a referer (redirected from form)
-              // Check if referer is different from current URL (means we were redirected)
+          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit') || request()->is('all/items/create') || request()->is('item/edit/*');
+          $showSuccess = !$isCreateEditPage;
+          if ($isCreateEditPage) {
               $currentUrl = request()->url();
-              if ($referer !== $currentUrl) {
-                  $showSuccess = true;
-              }
+              $showSuccess = ($referer && $referer !== $currentUrl) || true;
           }
+          $successMessage = session('success');
+          $isDeleteMessage = stripos($successMessage, 'delete') !== false || stripos($successMessage, 'deleted') !== false || stripos($successMessage, 'restored') !== false;
       @endphp
       @if ($showSuccess)
-          toastr.success("{{ session('success') }}");
-          // 🔊 Play save sound only for save/create/update operations, not for delete operations
-          @php
-              $successMessage = session('success');
-              $isDeleteMessage = stripos($successMessage, 'delete') !== false || 
-                                  stripos($successMessage, 'deleted') !== false ||
-                                  stripos($successMessage, 'restored') !== false;
-          @endphp
+          if (typeof toastr !== 'undefined') toastr.success({{ json_encode(session('success')) }});
           @if (!$isDeleteMessage)
-              <script>
-                  playSaveSound();
-              </script>
+          if (typeof playSaveSound === 'function') setTimeout(function() { playSaveSound(); }, 150);
           @endif
       @endif
   @endif
 
   @if (session('error'))
-      toastr.error("{{ session('error') }}");
+      if (typeof toastr !== 'undefined') toastr.error({{ json_encode(session('error')) }});
   @endif
 
   @if (session('warning'))
-      toastr.warning("{{ session('warning') }}");
+      if (typeof toastr !== 'undefined') toastr.warning({{ json_encode(session('warning')) }});
   @endif
 
   @if (session('info'))
-      toastr.info("{{ session('info') }}");
+      if (typeof toastr !== 'undefined') toastr.info({{ json_encode(session('info')) }});
   @endif
+  });
 
 
 
@@ -811,6 +970,11 @@ function confirmDelete(formId, customMessage = null) {
                 url.includes('/destroy') ||
                 url.includes('/destory') ||
                 url.includes('/force-delete')) {
+                return;
+            }
+            
+            // Skip item create/update - those pages show their own toast + save sound (avoids duplicate toasts)
+            if (url.indexOf('/all/items/store') !== -1 || url.indexOf('/item/update/') !== -1) {
                 return;
             }
             
@@ -862,6 +1026,16 @@ function confirmDelete(formId, customMessage = null) {
 
   <script>
         $('.searchable-select').select2({
+            templateResult: function(data) {
+                // Hide disabled/filtered options in Select2 dropdown
+                if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
+                    return null;
+                }
+                return data.text;
+            },
+            templateSelection: function(data) {
+                return data.text;
+            },
             width: '100%',
             placeholder: 'Please Select',
             allowClear: true
@@ -915,28 +1089,34 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <script>
-
-        // Excel Export
-        document.querySelector('.export-excel').addEventListener('click', function() {
-            let table = document.getElementById('searchableTable');
-            let wb = XLSX.utils.table_to_book(table, {sheet:"Units"});
-            XLSX.writeFile(wb, "units.xlsx");
+        document.addEventListener('DOMContentLoaded', function() {
+            var exportExcel = document.querySelector('.export-excel');
+            var exportPdf = document.querySelector('.export-pdf');
+            if (exportExcel) {
+                exportExcel.addEventListener('click', function() {
+                    var table = document.getElementById('searchableTable');
+                    if (table && typeof XLSX !== 'undefined') {
+                        var wb = XLSX.utils.table_to_book(table, {sheet:"Units"});
+                        XLSX.writeFile(wb, "units.xlsx");
+                    }
+                });
+            }
+            if (exportPdf) {
+                exportPdf.addEventListener('click', function() {
+                    var table = document.getElementById('searchableTable');
+                    if (table && typeof html2pdf !== 'undefined') {
+                        var opt = {
+                            margin: 0.5,
+                            filename: 'units.pdf',
+                            image: { type: 'jpeg', quality: 0.95 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { unit: 'in', format: 'A4', orientation: 'portrait' }
+                        };
+                        html2pdf().from(table).set(opt).save();
+                    }
+                });
+            }
         });
-        // PDF Export
-        document.querySelector('.export-pdf').addEventListener('click', function() {
-            let table = document.getElementById('searchableTable');
-
-            let opt = {
-                margin: 0.5,
-                filename: 'units.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'in', format: 'A4', orientation: 'portrait' }
-            };
-
-            html2pdf().from(table).set(opt).save();
-        });
-
 </script>
 
 <!-- Delete Sound Audio Element - Available Globally -->

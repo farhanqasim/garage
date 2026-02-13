@@ -31,8 +31,12 @@ use App\Http\Controllers\Admin\VehicalTypeController;
 use App\Http\Controllers\Admin\WarehouseController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\BankAccountController;
+use App\Http\Controllers\Admin\CashAccountController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PaymentMethodController;
+use App\Http\Controllers\Admin\BankTransactionController;
 use App\Http\Controllers\Auth\WebAuthnController;
+use App\Http\Controllers\ThemeSettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,9 +56,18 @@ Auth::routes();
 // Get user branch by email (for login form auto-detection)
 Route::post('/get-user-branch', [LoginController::class, 'getUserBranchByEmail'])->name('get.user.branch');
 
-// WebAuthn Routes
+// Check pattern/fingerprint status
+Route::post('/get-user-pattern-status', [LoginController::class, 'getUserPatternStatus'])->name('get.user.pattern.status');
+Route::post('/get-user-fingerprint-status', [LoginController::class, 'getUserFingerprintStatus'])->name('get.user.fingerprint.status');
+
+// Pattern and Fingerprint login routes
+Route::post('/login/pattern', [LoginController::class, 'verifyPatternLogin'])->name('login.pattern');
+Route::post('/login/fingerprint', [LoginController::class, 'verifyFingerprintLogin'])->name('login.fingerprint');
+
+// WebAuthn Routes (fingerprint / passkey login)
 Route::prefix('webauthn')->name('webauthn.')->group(function () {
     Route::post('/login/options', [WebAuthnController::class, 'getLoginOptions'])->name('login.options');
+    Route::post('/login/conditional-options', [WebAuthnController::class, 'getConditionalOptions'])->name('login.conditional.options');
     Route::post('/login/verify', [WebAuthnController::class, 'verifyLogin'])->name('login.verify');
     Route::post('/register/verify', [WebAuthnController::class, 'verifyRegister'])->name('register.verify');
 });
@@ -70,15 +83,38 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/branch/select/complete', [LoginController::class, 'completeBranchSelection'])
         ->name('branch.select.complete');
+    
+    // Branch switching for admin ONLY (can switch to any branch)
+    Route::post('/branch/switch', [LoginController::class, 'switchBranch'])
+        ->name('branch.switch');
+
+    // Save pattern and fingerprint (requires authentication)
+    Route::post('/save-pattern', [LoginController::class, 'savePattern'])->name('save.pattern');
+    Route::post('/save-fingerprint', [LoginController::class, 'saveFingerprint'])->name('save.fingerprint');
+
+    // Theme Customizer (save/load from database)
+    Route::get('/theme-settings', [ThemeSettingsController::class, 'index'])->name('theme.settings.index');
+    Route::post('/theme-settings', [ThemeSettingsController::class, 'update'])->name('theme.settings.update');
 });
      
 // Normal user dashboard
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
+Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
+Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
+Route::get('/attendance/history-page', [\App\Http\Controllers\CarWashAttendanceController::class, 'historyPage'])->name('attendance.history.page')->middleware('auth');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
+Route::get('/employee/home', [HomeController::class, 'carWashHome'])->name('employee.home')->middleware(['auth', 'can:view_car_wash_jobs']);
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
 Route::get('/car-wash/services', [HomeController::class, 'carWashServices'])->name('car.wash.services')->middleware('auth');
+Route::get('/car-wash/services/rate-list', [\App\Http\Controllers\CarWashServiceController::class, 'rateList'])->name('car.wash.services.rate-list')->middleware('auth');
 Route::get('/car-wash/staff', [HomeController::class, 'carWashStaff'])->name('car.wash.staff')->middleware('auth');
+Route::get('/car-wash/daily-report', [\App\Http\Controllers\CarWashJobController::class, 'dailyReport'])->name('car.wash.daily-report')->middleware('auth');
+Route::get('/car-wash/all-shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'showAllExpenses'])->name('car.wash.all-shop-expenses')->middleware('auth');
+Route::get('/car-wash/transaction-history', [\App\Http\Controllers\CarWashTransactionHistoryController::class, 'index'])->name('car.wash.transaction-history')->middleware('auth');
+Route::get('/car-wash/worker-bank-accounts', [\App\Http\Controllers\CarWashPaymentController::class, 'workerBankAccounts'])->name('car.wash.worker-bank-accounts')->middleware('auth');
+Route::get('/car-wash/worker-cash-accounts', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashAccounts'])->name('car.wash.worker-cash-accounts')->middleware('auth');
+Route::get('/car-wash/worker-cash-accounts/{worker}/print', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashAccountPrint'])->name('car.wash.worker-cash-accounts.print')->middleware('auth');
 
 // Car Wash Web Form Routes (for standard Laravel forms)
 Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function () {
@@ -105,20 +141,36 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/api/services', [\App\Http\Controllers\CarWashServiceController::class, 'index'])->name('services.index');
     Route::post('/services', [\App\Http\Controllers\CarWashServiceController::class, 'store'])->name('services.store');
     Route::put('/services/{id}', [\App\Http\Controllers\CarWashServiceController::class, 'update'])->name('services.update');
+    Route::post('/services/reorder', [\App\Http\Controllers\CarWashServiceController::class, 'reorder'])->name('services.reorder');
     Route::delete('/services/{id}', [\App\Http\Controllers\CarWashServiceController::class, 'destroy'])->name('services.destroy');
     Route::post('/services/{id}/toggle-status', [\App\Http\Controllers\CarWashServiceController::class, 'toggleStatus'])->name('services.toggle-status');
     
+    // Attendance Routes
+    Route::get('/attendance/branches', [\App\Http\Controllers\CarWashAttendanceController::class, 'branches'])->name('attendance.branches');
+    Route::get('/attendance/employees', [\App\Http\Controllers\CarWashAttendanceController::class, 'employees'])->name('attendance.employees');
+    Route::post('/attendance', [\App\Http\Controllers\CarWashAttendanceController::class, 'store'])->name('attendance.store');
+    Route::get('/attendance/history', [\App\Http\Controllers\CarWashAttendanceController::class, 'history'])->name('attendance.history');
+    Route::get('/attendance/completed', [\App\Http\Controllers\CarWashAttendanceController::class, 'completed'])->name('attendance.completed');
+
     // Workers Routes
     Route::get('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'index'])->name('workers.index');
     Route::post('/workers', [\App\Http\Controllers\CarWashWorkerController::class, 'store'])->name('workers.store');
     Route::put('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'update'])->name('workers.update');
+    Route::patch('/workers/{id}/bank', [\App\Http\Controllers\CarWashWorkerController::class, 'updateBankDetails'])->name('workers.update-bank');
+    Route::post('/workers/{id}/cash-account', [\App\Http\Controllers\CarWashWorkerController::class, 'createCashAccount'])->name('workers.create-cash-account');
+    Route::get('/workers/{id}/cash-timeline', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCashTimeline'])->name('workers.cash-timeline');
+    Route::get('/workers/commission-pay-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'workerCommissionPayBalance'])->name('workers.commission-pay-balance');
     Route::delete('/workers/{id}', [\App\Http\Controllers\CarWashWorkerController::class, 'destroy'])->name('workers.destroy');
     
     // Jobs Routes
     Route::get('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'index'])->name('jobs.index');
     Route::get('/jobs/active', [\App\Http\Controllers\CarWashJobController::class, 'activeJobs'])->name('jobs.active');
     Route::get('/jobs/completed', [\App\Http\Controllers\CarWashJobController::class, 'completedJobs'])->name('jobs.completed');
+    Route::get('/jobs/search-by-plate', [\App\Http\Controllers\CarWashJobController::class, 'searchByPlate'])->name('jobs.search-by-plate');
+    Route::get('/jobs/vehicle-history', [\App\Http\Controllers\CarWashJobController::class, 'vehicleHistory'])->name('jobs.vehicle-history');
     Route::get('/jobs/today-stats', [\App\Http\Controllers\CarWashJobController::class, 'todayStats'])->name('jobs.today-stats');
+    Route::get('/daily-report/pdf', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportPdf'])->name('jobs.daily-report-pdf');
+    Route::get('/daily-report/data', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportData'])->name('jobs.daily-report-data');
     Route::get('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'show'])->name('jobs.show');
     Route::post('/jobs', [\App\Http\Controllers\CarWashJobController::class, 'store'])->name('jobs.store');
     Route::put('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'update'])->name('jobs.update');
@@ -127,12 +179,43 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::delete('/jobs/{id}', [\App\Http\Controllers\CarWashJobController::class, 'destroy'])->name('jobs.destroy');
     
     // Inspections Routes
+    Route::get('/banks', [BankController::class, 'index'])->name('banks.index');
+    Route::get('/bank-accounts', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsIndex'])->name('bank-accounts.index');
+    Route::get('/bank-accounts/for-transfer', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsForTransfer'])->name('bank-accounts.for-transfer');
+    Route::get('/bank-accounts/{id}/ledger', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountLedger'])->name('bank-accounts.ledger');
+    Route::put('/bank-transactions/{id}', [\App\Http\Controllers\CarWashJobController::class, 'updateBankTransaction'])->name('bank-transactions.update');
+    Route::delete('/bank-transactions/{id}', [\App\Http\Controllers\CarWashJobController::class, 'destroyBankTransaction'])->name('bank-transactions.destroy');
+    Route::post('/cash-transfers', [BankController::class, 'storeTransfer'])->name('cash-transfers.store');
+
     Route::get('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'show'])->name('inspections.show');
     Route::post('/inspections/{jobId}', [\App\Http\Controllers\CarWashInspectionController::class, 'store'])->name('inspections.store');
     
-    // Expenses Routes
+    // Expenses Routes (index with from/to must come before /expenses/{jobId})
+    Route::get('/expenses', [\App\Http\Controllers\CarWashExpenseController::class, 'index'])->name('expenses.index');
     Route::get('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'show'])->name('expenses.show');
     Route::post('/expenses/{jobId}', [\App\Http\Controllers\CarWashExpenseController::class, 'store'])->name('expenses.store');
+
+    // Shop Expenses Routes (shop-level, not per job)
+    Route::get('/shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'index'])->name('shop-expenses.index');
+    Route::post('/shop-expenses', [\App\Http\Controllers\CarWashShopExpenseController::class, 'store'])->name('shop-expenses.store');
+    
+    // Transaction History API Route
+    Route::get('/transaction-history/data', [\App\Http\Controllers\CarWashTransactionHistoryController::class, 'getTransactions'])->name('transaction-history.get');
+    
+    // Payments Routes
+    Route::get('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/create', [\App\Http\Controllers\CarWashPaymentController::class, 'create'])->name('payments.create');
+    Route::post('/payments', [\App\Http\Controllers\CarWashPaymentController::class, 'store'])->name('payments.store');
+    Route::post('/payments/reverse-last-for-worker', [\App\Http\Controllers\CarWashPaymentController::class, 'reverseLastForWorker'])->name('payments.reverse-last-for-worker');
+    Route::get('/payments/pending-commission/{workerId}', [\App\Http\Controllers\CarWashPaymentController::class, 'getPendingCommission'])->name('payments.pending-commission');
+    Route::get('/payments/available-cash', [\App\Http\Controllers\CarWashPaymentController::class, 'getAvailableCashApi'])->name('payments.available-cash');
+    Route::get('/payments/cash-account-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashAccountBalance'])->name('payments.cash-account-balance');
+    Route::get('/payments/admin-cash-account-balance', [\App\Http\Controllers\CarWashPaymentController::class, 'getAdminCashAccountBalance'])->name('payments.admin-cash-account-balance');
+    Route::get('/payments/cash-method', [\App\Http\Controllers\CarWashPaymentController::class, 'getCashMethod'])->name('payments.cash-method');
+    Route::get('/payments/branch-users', [\App\Http\Controllers\CarWashPaymentController::class, 'getBranchUsers'])->name('payments.branch-users');
+    Route::post('/payments/transfer-to-user', [\App\Http\Controllers\CarWashPaymentController::class, 'transferToUser'])->name('payments.transfer-to-user');
+    Route::delete('/payments/cash-transfer/{id}/delete', [\App\Http\Controllers\CarWashPaymentController::class, 'deleteCashTransfer'])->name('payments.delete-cash-transfer');
+    Route::delete('/payments/bank-transfer/{id}/delete', [\App\Http\Controllers\CarWashPaymentController::class, 'deleteBankTransfer'])->name('payments.delete-bank-transfer');
 });
 
 // ==============================
@@ -141,14 +224,26 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
 Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::resource('banks', BankController::class);
     Route::post('banks/{bank}/toggle-status', [BankController::class, 'toggleStatus'])->name('banks.toggle-status');
+    Route::post('banks/{bank}/toggle-api', [BankController::class, 'toggleApiEnabled'])->name('banks.toggle-api');
     
-    Route::resource('bank-accounts', BankAccountController::class);
+    Route::get('bank-accounts', fn(\Illuminate\Http\Request $r) => redirect()->route('admin.banks.index', array_filter(['tab' => 'accounts', 'account_type' => $r->account_type])))->name('bank-accounts.index');
+    Route::resource('bank-accounts', BankAccountController::class)->except(['index']);
     Route::post('bank-accounts/{bankAccount}/toggle-status', [BankAccountController::class, 'toggleStatus'])->name('bank-accounts.toggle-status');
+    Route::get('bank-accounts/branch/{branchId}/users', [BankAccountController::class, 'getUsersByBranch'])->name('bank-accounts.branch-users');
+    
+    Route::resource('cash-accounts', CashAccountController::class)->only(['index', 'show', 'create', 'store']);
+    Route::get('cash-transactions', [CashAccountController::class, 'transactions'])->name('cash-transactions.index');
     
     Route::resource('payments', PaymentController::class)->only(['index', 'show']);
     Route::post('payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payments.mark-paid');
     Route::post('payments/{payment}/mark-failed', [PaymentController::class, 'markAsFailed'])->name('payments.mark-failed');
     Route::post('payments/{payment}/mark-refunded', [PaymentController::class, 'markAsRefunded'])->name('payments.mark-refunded');
+    
+    Route::resource('payment-methods', PaymentMethodController::class);
+    
+    Route::resource('bank-transactions', BankTransactionController::class);
+    Route::post('bank-transactions/{bankTransaction}/reconcile', [BankTransactionController::class, 'reconcile'])->name('bank-transactions.reconcile');
+    Route::post('bank-transactions/{bankTransaction}/unreconcile', [BankTransactionController::class, 'unreconcile'])->name('bank-transactions.unreconcile');
 });
 
 Route::get('setting',[SettingController::class,"setting"])->name('admin.setting');
@@ -156,6 +251,11 @@ Route::post('settings/save',[SettingController::class,"save"])->name('admin.sett
 Route::get('user/profile/{id}', [HomeController::class, 'userprofile'])->name('user.profile');
 Route::post('user/password/verify', [HomeController::class, 'verifyOldPassword'])->name('user.password.verify');
 Route::put('user/profile/update/{id}', [HomeController::class, 'userprofileupdate'])->name('user.profile.update');
+
+// Employee Profile Routes
+Route::get('employee/profile/{id}', [HomeController::class, 'employeeProfile'])->name('employee.profile')->middleware('auth');
+Route::put('employee/profile/update/{id}', [HomeController::class, 'employeeProfileUpdate'])->name('employee.profile.update')->middleware('auth');
+Route::post('employee/password/verify', [HomeController::class, 'verifyOldPassword'])->name('employee.password.verify')->middleware('auth');
 
 
 Route::get('/all/category', [CategoryController::class, 'all_category'])->name('all.category');
@@ -302,7 +402,8 @@ Route::delete('/branch/delete/{id}', [BranchController::class, 'delete_branch'])
 
 // All Users
 Route::get('/all/users', [UserController::class, 'all_users'])->name('all.users');
-Route::get('/delete-user/{id}', [UserController::class, 'deleteuser'])->name('delete.user');
+Route::get('/branch/{branchId}/users', [UserController::class, 'branchUsers'])->name('branch.users');
+Route::delete('/delete-user/{id}', [UserController::class, 'deleteuser'])->name('delete.user');
 Route::put('/update-user/{id}', [UserController::class, 'updateuser'])->name('update.user');
 
 
@@ -320,6 +421,7 @@ Route::post('/update-employees-status/{id}', [EmployeeController::class, 'update
 // items
 Route::get('/all/items', [ItemController::class, 'all_items'])->name('all.items');
 Route::get('/all/items/create', [ItemController::class, 'items_create'])->name('all.items.create');
+Route::get('/all/items/create/new', [ItemController::class, 'items_create_new'])->name('all.items.create.new');
 Route::post('/all/items/store', [ItemController::class, 'items_store'])->name('all.items.store');
 Route::get('/item/edit/{id}', [ItemController::class, 'item_edit'])->name('item.edit');
 Route::put('/item/update/{id}', [ItemController::class, 'item_update'])->name('item.update');
@@ -373,7 +475,15 @@ Route::put('/update/car/manufacturer/{id}', [ItemController::class, 'update_car_
 Route::delete('/destory/car/manufacturer/{id}', [ItemController::class, 'destory_car_manufacturer'])->name('destory.car.manufacturer');
 
 // Roles
-Route::resource('admin/roles', RoleController::class);
+Route::resource('admin/roles', RoleController::class)->names([
+    'index' => 'roles.index',
+    'create' => 'roles.create',
+    'store' => 'roles.store',
+    'show' => 'roles.show',
+    'edit' => 'roles.edit',
+    'update' => 'roles.update',
+    'destroy' => 'roles.destroy',
+]);
 Route::get('admin/users/edit/{id}', [RoleController::class,'edit_access_role'])->name('edit_access_role');
 Route::post('admin/users/update/{id}', [RoleController::class,'update_access_role'])->name('update_access_role');
 Route::get('admin/delete/customer/{id}', [RoleController::class,'admin_delete_customer'])->name('admin_delete_customer');
@@ -503,11 +613,24 @@ Route::get('all/suppliers',[SupplierController::class,'all_suppliers'])->name('a
 // sales
 Route::get('all/sales',[SalesController::class,'all_sales'])->name('all_sales');
 Route::get('create/sale',[SalesController::class,'create_sale'])->name('create.sale');
+Route::get('create/sale/new',[SalesController::class,'create_sale_new'])->name('create.sale.new');
 Route::post('create/sale',[SalesController::class,'store'])->name('sales.store');
+Route::get('sales/{id}',[SalesController::class,'show'])->name('sales.show');
+Route::get('sales/{id}/edit',[SalesController::class,'edit'])->name('sales.edit');
+Route::put('sales/{id}',[SalesController::class,'update'])->name('sales.update');
+Route::delete('sales/{id}',[SalesController::class,'destroy'])->name('sales.destroy');
+Route::get('sales/{id}/pdf',[SalesController::class,'pdf'])->name('sales.download.pdf');
+Route::get('sales/{id}/payments',[SalesController::class,'getPayments'])->name('sales.payments');
+Route::get('sales/{id}/payments/create',[SalesController::class,'showCreatePayment'])->name('sales.payments.create');
+Route::post('sales/{id}/payments',[SalesController::class,'createPayment'])->name('sales.payments.store');
 Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
     ->name('sales.items.ajax.search');
 Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])
     ->name('sales.filter.options');
+Route::get('/sales/next-estimate-number', [SalesController::class, 'getNextEstimateNumber'])
+    ->name('sales.next.estimate.number');
+Route::get('/sales/next-sale-order-number', [SalesController::class, 'getNextSaleOrderNumber'])
+    ->name('sales.next.sale.order.number');
 Route::get('sales/items/{id}',[SalesController::class,'getItemDetails'])->name('sales.items.details');
 Route::get('sales/items/{id}/stock-status',[SalesController::class,'getItemStockStatus'])->name('sales.items.stock.status');
 Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemPurchaseHistory'])->name('sales.items.purchase.history');
@@ -515,6 +638,8 @@ Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemP
 // purchases
 Route::get('all/purchases',[PurchaseController::class,'all_purchases'])->name('all_purchases');
 Route::get('purchases/create',[PurchaseController::class,'create'])->name('purchases.create')->middleware('auth');
+Route::get('purchases/claim-return-access-list',[PurchaseController::class,'getClaimReturnAccessList'])->name('purchases.claim.return.access.list')->middleware('auth');
+Route::post('purchases/claim-return-access-toggle',[PurchaseController::class,'toggleClaimReturnAccess'])->name('purchases.claim.return.access.toggle')->middleware('auth');
 Route::post('purchases',[PurchaseController::class,'store'])->name('purchases.store');
 Route::get('purchases/items/search',[PurchaseController::class,'searchItems'])->name('purchases.items.search');
 // Specific routes must come before parameterized routes
@@ -524,7 +649,11 @@ Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOp
     ->name('purchases.filter.options');
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
+Route::get('purchases/suppliers/{id}/balance',[PurchaseController::class,'getSupplierBalance'])->name('purchases.suppliers.balance');
+Route::get('purchases/items/{id}/purchase-history',[PurchaseController::class,'getItemPurchaseHistory'])->name('purchases.items.purchase.history');
 Route::get('purchases/suppliers/search-phone',[PurchaseController::class,'searchSuppliersByPhone'])->name('purchases.suppliers.search.phone');
+Route::get('purchases/cart', [PurchaseController::class, 'getPurchaseCart'])->name('purchases.cart.get')->middleware('auth');
+Route::post('purchases/cart', [PurchaseController::class, 'updatePurchaseCart'])->name('purchases.cart.update')->middleware('auth');
 Route::get('purchases/{id}',[PurchaseController::class,'show'])->name('purchases.show')->middleware('auth');
 Route::get('purchases/{id}/pdf',[PurchaseController::class,'pdf'])->name('purchases.pdf')->middleware('auth');
 Route::get('purchases/{id}/convert-to-sale',[PurchaseController::class,'convertToSale'])->name('purchases.convert.to.sale')->middleware('auth');
@@ -553,6 +682,7 @@ Route::get('pos/search', [PosController::class, 'search'])->name('pos.search');
 
 Route::get('/customers', [CustomerController::class, 'all_customers'])->name('customers.index');
 Route::post('/customers', [CustomerController::class, 'customer_store'])->name('customers.store');
+Route::get('/admin/customers/{id}/edit-data', [CustomerController::class, 'getCustomerForEdit'])->name('customers.edit.data');
 Route::put('/customers/{customer}', [CustomerController::class, 'customer_update'])->name('customers.update');
 Route::get('/customers/{customer}/ledger', [CustomerController::class, 'getCustomerLedger'])->name('customers.ledger');
 Route::delete('/customers/{customer}', [CustomerController::class, 'customer_delete'])->name('customers.delete');

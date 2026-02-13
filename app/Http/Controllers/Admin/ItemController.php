@@ -47,11 +47,42 @@ use GuzzleHttp\Client;
 
 class ItemController extends Controller
 {
+    /** Map item type to add permission name */
+    protected function getAddPermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
+        return $map[$type ?? ''] ?? 'add_items';
+    }
+
+    /** Map item type to update permission name */
+    protected function getUpdatePermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'update_parts', 'filters' => 'update_filters', 'breakpad' => 'update_break_pad', 'oil' => 'update_oil', 'battery' => 'update_battery', 'scrap' => 'update_scrap', 'services' => 'update_services'];
+        return $map[$type ?? ''] ?? 'update_items';
+    }
+
+    /** Map item type to view permission name */
+    protected function getViewPermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'view_parts', 'filters' => 'view_filters', 'breakpad' => 'view_break_pad', 'oil' => 'view_oil', 'battery' => 'view_battery', 'scrap' => 'view_scrap', 'services' => 'view_services'];
+        return $map[$type ?? ''] ?? 'view_items';
+    }
+
+    /** Map item type to delete permission name */
+    protected function getDeletePermissionForType(?string $type): string
+    {
+        $map = ['parts' => 'delete_parts', 'filters' => 'delete_filters', 'breakpad' => 'delete_break_pad', 'oil' => 'delete_oil', 'battery' => 'delete_battery', 'scrap' => 'delete_scrap', 'services' => 'delete_services'];
+        return $map[$type ?? ''] ?? 'delete_items';
+    }
 
 
 
     public function all_items(Request $request)
     {
+        $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
+        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to view items.');
+        }
         $items = Item::with([
             'item_user', 
             'product_item', 
@@ -128,11 +159,13 @@ class ItemController extends Controller
 
     public function items_create()
     {
-        // Ensure user is authenticated
+        $addPerms = ['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'];
         if (!auth()->check()) {
             return redirect('/')->with('error', 'Please login to continue.');
         }
-        
+        if (!collect($addPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to create items.');
+        }
         $platos      = Platos::where('status', 'active')->get();
         $amphors     = Amphor::where('status', 'active')->get();
         $lineitems   = LineItem::where('status', 'active')->get();
@@ -253,6 +286,11 @@ class ItemController extends Controller
 
         $made_ins      = MadeIn::where('status', 'active')->get();
         $levels      = Level::where('status', 'active')->get();
+
+        // Permission-based allowed item types (jo permission active ho)
+        $typePermMap = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
+        $allowedItemTypes = collect($typePermMap)->filter(fn ($perm) => auth()->user()->can($perm) || auth()->user()->can('add_items'))->keys()->values()->all();
+
         return view('admin.item.create', compact(
             'platos',
             'amphors',
@@ -276,22 +314,104 @@ class ItemController extends Controller
             'technologies',
             'grades',
             'brands',
-            'product',
             'formulas',
+            'product',
             'qualities',
             'partnumbers',
             'engineccs',
             'latestItems',
             'Vehis',
+            'units',
+            'services',
             'warrenties',
             'groups',
             'made_ins',
             'levels',
-            'services',
-            'units'
+            'allowedItemTypes'
         ));
     }
 
+    public function items_create_new()
+    {
+        // Ensure user is authenticated
+        if (!auth()->check()) {
+            return redirect('/')->with('error', 'Please login to continue.');
+        }
+        
+        $platos      = Platos::where('status', 'active')->get();
+        $amphors     = Amphor::where('status', 'active')->get();
+        $lineitems   = LineItem::where('status', 'active')->get();
+        $Companies   = Company::where('status', 'active')->get();
+        $Categories = Category::whereNull('parent_id')
+            ->where('status', 'active')
+            ->with('children')
+            ->get();
+        $packings    = Packing::where('status', 'active')->get();
+        $scales      = Scale::where('status', 'active')->get();
+        $milleages   = Mileage::where('status', 'active')->get();
+        $item_types  = Producttype::where('status', 'active')->get();
+        $items = collect([]);
+        $units = Unit::with('baseUnits')->orderBy('name')->get();
+        $carCompanies     = CarCompany::orderBy('name')->get();
+        $carNames         = CarName::orderBy('name')->get();
+        $carModels        = CarModel::orderBy('name')->get();
+        $carCountries     = CarCountry::orderBy('name')->get();
+        $carManufacturers = CarManufacturer::orderBy('name')->get();
+        $volts      = Volt::where('status', 'active')->get();
+        $ccas      = Cca::where('status', 'active')->get();
+        $minspols      = Minuspool::where('status', 'active')->get();
+        $technologies      = Technology::where('status', 'active')->get();
+        $grades      = Grade::where('status', 'active')->get();
+        $brands      = Brand::where('status', 'active')->get();
+        $formulas      = Formula::where('status', 'active')->get();
+        $product      = Product::where('status', 'active')->get();
+        $qualities      = Quality::where('status', 'active')->get();
+        $partnumbers      = PartNumber::select('id', 'name', 'type')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+        $engineccs      = EngineCc::where('status', 'active')->get();
+        $services      = Services::where('status', 'active')->get();
+        $warrenties      = Warrenty::where('status', 'active')->get();
+        $groups      = Group::where('status', 'active')->get();
+        $made_ins      = MadeIn::where('status', 'active')->get();
+        $levels      = Level::where('status', 'active')->get();
+
+        return view('admin.item.create-new', compact(
+            'platos',
+            'amphors',
+            'lineitems',
+            'Companies',
+            'Categories',
+            'packings',
+            'scales',
+            'milleages',
+            'item_types',
+            'items',
+            'carCompanies',
+            'carNames',
+            'carModels',
+            'carCountries',
+            'carManufacturers',
+            'volts',
+            'ccas',
+            'minspols',
+            'technologies',
+            'grades',
+            'brands',
+            'formulas',
+            'product',
+            'qualities',
+            'partnumbers',
+            'engineccs',
+            'units',
+            'services',
+            'warrenties',
+            'groups',
+            'made_ins',
+            'levels'
+        ));
+    }
 
     public function getSubcategories($id)
     {
@@ -306,6 +426,11 @@ class ItemController extends Controller
 
     public function items_store(Request $request)
     {
+        $type = $request->input('type');
+        $perm = $this->getAddPermissionForType($type);
+        $this->authorize($perm);
+
+        // return $request->all(); 
         // Validate fields first (before transaction)
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code',
@@ -361,9 +486,9 @@ class ItemController extends Controller
             'gorup' => 'nullable|string', // Keep both for backward compatibility
             'made_in' => 'nullable|string',
             'pro_dis' => 'nullable|string',
+            'short_disc' => 'nullable|string',
             'part_number_id' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
-            'pro_dis' => 'nullable|string',
             'auto_deactive' => 'sometimes|boolean',
             'is_dead' => 'sometimes|boolean',
         ]);
@@ -404,6 +529,9 @@ class ItemController extends Controller
             if ($request->has('technology') && !isset($data['technology'])) {
                 $data['technology'] = $request->input('technology');
             }
+            // Ensure short_disc and pro_dis (descriptions) are always passed from request
+            $data['short_disc'] = $request->input('short_disc', $data['short_disc'] ?? null);
+            $data['pro_dis'] = $request->input('pro_dis', $data['pro_dis'] ?? null);
 
             /* ============================
             ✅ Barcode Generation
@@ -440,6 +568,11 @@ class ItemController extends Controller
             $data['is_active'] = $data['is_active'] ?? true;
             $data['auto_deactive'] = $data['auto_deactive'] ?? false;
             $data['is_dead'] = $data['is_dead'] ?? false;
+            
+            /* ============================
+            ✅ Serial Number - Only use if provided
+            ============================ */
+            // Don't auto-generate serial number - only use if explicitly provided
 
             /* ============================
             ✅ Field Name Mapping (Form → Database)
@@ -640,7 +773,8 @@ class ItemController extends Controller
            
             'unit_item'
         ])->findOrFail($id);
-        //   return $item;
+        $this->authorize($this->getUpdatePermissionForType($item->type));
+        // return $item;
         // All the collections you already had
         $platos     = Platos::where('status', 'active')->get();
         $amphors    = Amphor::where('status', 'active')->get();
@@ -688,7 +822,7 @@ class ItemController extends Controller
         $warrenties      = Warrenty::where('status', 'active')->get();
         $made_ins      = MadeIn::where('status', 'active')->get();
         $levels      = Level::where('status', 'active')->get();
-        // Get all vehicles - each record already has all year ranges in years JSON column
+        // Get latest 5 vehicles - each record already has all year ranges in years JSON column
         $Vehis = VehicalType::with([
             'manutacturer_vehical',
             'model_vehical',
@@ -697,6 +831,8 @@ class ItemController extends Controller
             'vehical_part_number'
         ])
             ->where('status', 'active')
+            ->orderBy('id', 'desc')
+            ->take(5) // Limit to 5 latest vehicles
             ->get()
             ->map(function($vehicle) {
                 // Format year ranges from JSON column and sort them by 'from' year
@@ -766,8 +902,10 @@ class ItemController extends Controller
 
     public function item_update(Request $request, $id)
     {
-        // return $request->all();
         $item = Item::findOrFail($id);
+        $type = $request->input('type', $item->type);
+        $this->authorize($this->getUpdatePermissionForType($type));
+        // return $request->all();
         // Validate ONLY fields that exist in $fillable
         $validated = $request->validate([
             'bar_code' => 'required|unique:items,bar_code,' . $item->id,
@@ -847,11 +985,13 @@ class ItemController extends Controller
                 
                 $exists = $query->exists();
                 if ($exists) {
+                    $msg = 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.';
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['success' => false, 'message' => $msg], 422);
+                    }
                     return redirect()->back()
                         ->withInput()
-                        ->withErrors([
-                            'duplicate' => 'This combination of Category, Quality, Part Number and Company already exists for this type. Please change one value.'
-                        ]);
+                        ->withErrors(['duplicate' => $msg]);
                 }
             }
         }
@@ -860,6 +1000,24 @@ class ItemController extends Controller
             DB::beginTransaction();
 
             $data = $validated;
+            
+            // Ensure short_disc and pro_dis are always passed from request
+            $data['short_disc'] = $request->input('short_disc');
+            $data['pro_dis'] = $request->input('pro_dis');
+            
+            // Ensure unit value is included if present in request (even if validation didn't catch it)
+            if ($request->has('unit') && (!isset($data['unit']) || $data['unit'] === null)) {
+                $data['unit'] = $request->input('unit');
+            }
+            
+            // Debug: Log unit value before update
+            Log::info('Item Update - Unit Value Check', [
+                'item_id' => $id,
+                'unit_from_request' => $request->input('unit'),
+                'unit_from_validated' => $validated['unit'] ?? 'NOT IN VALIDATED',
+                'unit_in_data' => $data['unit'] ?? 'NOT IN DATA',
+                'request_has_unit' => $request->has('unit')
+            ]);
 
             // === Handle Thumbnail (Single Image) ===
             if ($request->hasFile('image')) {
@@ -915,10 +1073,22 @@ class ItemController extends Controller
 
             // === Update using mass assignment (safe via $fillable) ===
             $item->update($data);
+            
+            // Debug: Log unit value after update
+            $item->refresh();
+            Log::info('Item Update - After Save', [
+                'item_id' => $item->id,
+                'unit_in_database' => $item->unit,
+                'unit_was_saved' => isset($data['unit']) ? 'YES' : 'NO'
+            ]);
 
             DB::commit();
 
             Log::info('Item updated successfully', ['item_id' => $item->id]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Item updated successfully!']);
+            }
             return redirect()->back()->with('success', 'Item updated successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -930,6 +1100,9 @@ class ItemController extends Controller
                 'data' => $request->except(['image', 'images'])
             ]);
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Failed to update item: ' . $e->getMessage()], 500);
+            }
             return redirect()->back()
                 ->with('error', 'Failed to update item: ' . $e->getMessage())
                 ->withInput();
@@ -969,6 +1142,7 @@ class ItemController extends Controller
         if (!$item) {
             abort(404, 'Item not found');
         }
+        $this->authorize($this->getViewPermissionForType($item->type));
         return view('admin.item.show', compact('item'));
     }
 
@@ -1310,20 +1484,27 @@ class ItemController extends Controller
     public function itembulkDelete(Request $request)
     {
         $ids = $request->ids ?? [];
-        if (count($ids) > 0) {
-            Item::whereIn('id', $ids)->delete();
-            return back()->with('success', 'Selected items deleted successfully.');
+        if (count($ids) === 0) {
+            return back()->with('error', 'No items selected.');
         }
-        return back()->with('error', 'No items selected.');
+        $deleted = 0;
+        foreach ($ids as $id) {
+            $item = Item::find($id);
+            if ($item && auth()->user()->can($this->getDeletePermissionForType($item->type))) {
+                $item->delete();
+                $deleted++;
+            }
+        }
+        return back()->with('success', $deleted > 0 ? "{$deleted} item(s) deleted successfully." : 'No items could be deleted (permission denied).');
     }
 
 
 
     public function item_delete($id)
     {
-        // return $id;
-        $items = Item::findOrFail($id);
-        $items->delete();
+        $item = Item::findOrFail($id);
+        $this->authorize($this->getDeletePermissionForType($item->type));
+        $item->delete();
         return redirect()->back()->with('success', 'Item deleted successfully.');
     }
 
@@ -1366,6 +1547,7 @@ class ItemController extends Controller
     public function duplicate($id)
     {
         $original = Item::findOrFail($id);
+        $this->authorize($this->getAddPermissionForType($original->type));
         $item = $original->replicate();
 
         // Give a unique barcode and mark as copy
@@ -1768,5 +1950,24 @@ class ItemController extends Controller
             Log::error('Product Specification PDF Generation Error: ' . $e->getMessage());
             return back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
         }
+    }
+
+    public function checkBarcode(Request $request)
+    {
+        $barCode = $request->input('bar_code');
+        
+        if (!$barCode) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'Barcode is required'
+            ], 400);
+        }
+        
+        $exists = Item::where('bar_code', $barCode)->exists();
+        
+        return response()->json([
+            'exists' => $exists,
+            'bar_code' => $barCode
+        ]);
     }
 }

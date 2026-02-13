@@ -402,9 +402,13 @@
             <form method="POST" action="{{ route('all.items.store') }}" enctype="multipart/form-data" id="mainItemForm">
                 @csrf
                 <input type="hidden" name="user_id" value="{{ auth()->check() ? auth()->user()->id : '' }}">
+                <input type="hidden" name="action" id="mainFormAction" value="save_new">
+                <input type="hidden" name="short_disc" id="short_disc_submit" value="{{ old('short_disc') }}">
+                <input type="hidden" name="pro_dis" id="pro_dis_submit" value="{{ old('pro_dis') }}">
                 <div class="container" x-data="productForm()">
-                    <!-- 4 Clickable Type Boxes -->
+                    <!-- Type Boxes - @@can permission ke hisaab se -->
                     <div class="row mb-5 g-3">
+                        @canany(['view_items', 'view_parts'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'parts' }"
                                 @click="selectType('parts')">
@@ -412,6 +416,8 @@
                                 Parts
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_filters'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'filters' }"
                                 @click="selectType('filters')">
@@ -419,6 +425,8 @@
                                 Filters
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_break_pad'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'breakpad' }"
                                 @click="selectType('breakpad')">
@@ -426,6 +434,8 @@
                                 Break Pad
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_oil'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'oil' }"
                                 @click="selectType('oil')">
@@ -433,6 +443,8 @@
                                 Oil
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_battery'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'battery' }"
                                 @click="selectType('battery')">
@@ -440,6 +452,8 @@
                                 Battery
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_scrap'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'scrap' }"
                                 @click="selectType('scrap')">
@@ -447,6 +461,8 @@
                                 Scrap
                             </div>
                         </div>
+                        @endcanany
+                        @canany(['view_items', 'view_services'])
                         <div class="col-md-3 col-6">
                             <div class="type-box text-center p-4" :class="{ 'selected': selectedType === 'services' }"
                                 @click="selectType('services')">
@@ -454,6 +470,7 @@
                                 Services
                             </div>
                         </div>
+                        @endcanany
                     </div>
                     <input type="hidden" name="type" x-model="selectedType">
                     <!-- Hidden inputs to ensure quality_id and technology are submitted even when fields are hidden -->
@@ -514,7 +531,7 @@
                         </div>
                          <!-- Product Name -->
                                 <div class="col-md-4 mb-3"
-                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad' || selectedType === 'battery'">
                                     <div class="mb-1">
                                         <div class="d-flex justify-content-center align-items-center px-1">
                                             <label for="itemname" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Product Name:</label>
@@ -600,12 +617,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-mode="add" data-title="Add group"
-                                            data-route="{{ route('post.groups') }}" data-target-select=".group-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit group"
                                             data-fetch-route="{{ route('show.groups', ':id') }}"
@@ -651,7 +662,7 @@
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Series/Technology -->
-                                <div class="col-md-4 mb-3"  x-show=" selectedType === 'battery' || selectedType === 'oil'">
+                                <div class="col-md-4 mb-3" style="display: none !important;">
                                     <label for="technology_select">
                                         <b x-show="selectedType === 'oil'">Technology:</b>
                                         <b x-show="selectedType == 'battery'">Series:</b>
@@ -669,13 +680,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Add Technology' : 'Add Series'"
-                                            data-mode="add"
-                                            data-route="{{ route('post.technology') }}"
-                                            data-target-select=".technology-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
                                             x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
@@ -816,11 +820,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Plate" data-mode="add"
-                                            data-route="{{ route('post.platos') }}" data-target-select=".plates-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Plates"
                                             data-fetch-route="{{ route('show.plate', ':id') }}"
@@ -848,12 +847,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Amperes" data-mode="add"
-                                            data-route="{{ route('post.amphors') }}"
-                                            data-target-select=".amperes-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Amperes"
                                             data-fetch-route="{{ route('show.ampere', ':id') }}"
@@ -881,11 +874,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Volt" data-mode="add" data-route="{{ route('post.volts') }}"
-                                            data-target-select=".volt-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Volt"
                                             data-fetch-route="{{ route('show.volt', ':id') }}"
@@ -913,12 +901,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add CCA" data-mode="add" data-route="{{ route('post.cca') }}"
-                                            data-target-select=".cca-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
-
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit CCA"
                                             data-fetch-route="{{ route('show.cca', ':id') }}"
@@ -949,13 +931,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Minus Pole Direction" data-mode="add"
-                                            data-route="{{ route('post.minuspool') }}"
-                                            data-target-select=".minus-pole-direction-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Minus Pole Direction"
                                             data-fetch-route="{{ route('show.minuspool', ':id') }}"
@@ -985,12 +960,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Warrenty" data-mode="add"
-                                            data-route="{{ route('post.warrenty') }}"
-                                            data-target-select=".Warrenty-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Warrenty"
                                             data-fetch-route="{{ route('show.warrenty', ':id') }}"
@@ -1019,12 +988,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Made In" data-mode="add"
-                                            data-route="{{ route('post.made_ins') }}"
-                                            data-target-select=".made_in-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Made In"
                                             data-fetch-route="{{ route('show.madeins', ':id') }}"
@@ -1072,11 +1035,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Grade" data-mode="add"
-                                            data-route="{{ route('post.grade') }}" data-target-select=".grade-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Grade"
                                             data-fetch-route="{{ route('show.grade', ':id') }}"
@@ -1138,12 +1096,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Mileage" data-mode="add"
-                                            data-route="{{ route('post.item.mileage') }}"
-                                            data-target-select=".mileage-select">
-                                            <i data-feather="plus" class="feather-plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Mileage"
                                             data-fetch-route="{{ route('show.mileage', ':id') }}"
@@ -1169,11 +1121,6 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
-                                            data-title="Add Level" data-mode="add"
-                                            data-route="{{ route('post.levels') }}" data-target-select=".level-select">
-                                            <i data-feather="plus"></i>
-                                        </button>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit" data-title="Edit Level"
                                             data-fetch-route="{{ route('show.level', ':id') }}"
@@ -1277,11 +1224,6 @@
                                     </option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary open-universal-modal"
-                                    data-title="Add Services" data-mode="add" data-route="{{ route('post.services') }}"
-                                    data-target-select=".Services-select">
-                                    <i data-feather="plus" class="feather-plus"></i>
-                                </button>
                                 <button type="button" class="btn btn-secondary open-universal-modal" data-mode="edit"
                                     data-title="Edit Services" data-fetch-route="{{ route('show.service', ':id') }}"
                                     data-update-route="{{ route('update.service', ':id') }}"
@@ -1548,10 +1490,6 @@
                                     </option>
                                     @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary " data-bs-toggle="modal"
-                                    data-bs-target="#vehical-add-modal">
-                                    <i data-feather="plus" class="feather-plus"></i>
-                                </button>
                             </div>
                             @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
 
@@ -1769,13 +1707,12 @@
                         </div> -->
                         <div class="col-md-12 mt-3">
                             <label for="content" class="form-label fw-bold">Short Description</label>
-                            <input name="short_disc" class="form-control" value="{{ old('short_disc') }}" />
+                            <input id="short_disc_visible" class="form-control" value="{{ old('short_disc') }}" placeholder="Enter short description" />
                         </div>
                         <!-- Description -->
                         <div class="col-md-12 mt-3">
                             <label for="content" class="form-label fw-bold">Long Description</label>
-                            <textarea id="summernote" name="pro_dis"
-                                class="form-control">{{ old('pro_dis') }}</textarea>
+                            <textarea id="summernote" class="form-control" placeholder="Write something awesome...">{{ old('pro_dis') }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -1784,10 +1721,10 @@
         <!-- Submit Buttons -->
         <div class="page-btn d-flex justify-content-end mt-4">
             <a href="{{ route('all.items') }}" class="btn btn-secondary me-2">Cancel</a>
-            {{-- <button type="submit" name="action" value="save" class="btn btn-primary">
-                            Save
-                        </button> --}}
-            <button type="submit" name="action" value="save_new" class="btn btn-success">
+            <button type="submit" name="action" value="save" class="btn btn-primary me-2">
+                Save
+            </button>
+            <button type="submit" name="action" value="save_new" class="btn btn-success d-none">
                 Save & New
             </button>
         </div>
@@ -5103,10 +5040,22 @@
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
+                // Filter dropdowns on initial load if type is already selected
+                if (this.selectedType) {
+                    // Wait for DOM and Select2 to be ready
+                    setTimeout(() => {
+                        filterDropdownsByType(this.selectedType);
+                    }, 300);
+                }
+                
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType) => {
                     // Filter all dropdowns based on selected type
-                    filterDropdownsByType(newType);
+                    if (newType) {
+                        setTimeout(() => {
+                            filterDropdownsByType(newType);
+                        }, 100);
+                    }
                 });
             },
             selectType(type) {
@@ -5201,6 +5150,9 @@
 
     // Function to filter dropdowns by selected type
     function filterDropdownsByType(selectedType) {
+        if (!selectedType) return;
+        
+        console.log('Filtering dropdowns by type:', selectedType);
         
         // List of all dropdowns that need filtering
         const dropdowns = [
@@ -5230,15 +5182,25 @@
                     // Show option if:
                     // 1. It's the empty/default option
                     // 2. No type is selected (show all)
-                    // 3. Option type matches selected type
-                    // 4. Option has no type (backward compatibility)
-                    if ($option.val() === '' || !selectedType || optionType === selectedType || optionType === '') {
+                    // 3. Option type matches selected type (case-insensitive)
+                    // 4. Option has no type (backward compatibility - show it)
+                    const optionTypeLower = (optionType || '').toLowerCase().trim();
+                    const selectedTypeLower = (selectedType || '').toLowerCase().trim();
+                    
+                    if ($option.val() === '' || !selectedType || optionTypeLower === selectedTypeLower || optionType === '') {
                         $option.show().prop('disabled', false);
+                        $option.removeClass('filtered-out');
                         if ($option.val() !== '') visibleCount++;
                     } else {
                         $option.hide().prop('disabled', true);
+                        $option.addClass('filtered-out');
                     }
                 });
+                
+                // Log for product name dropdown
+                if ($select.hasClass('name-select')) {
+                    console.log(`Product Name dropdown: ${visibleCount} products visible for type "${selectedType}"`);
+                }
 
                 // If current selected value is hidden or disabled, clear selection
                 const $selectedOption = $select.find('option:selected');
@@ -5263,18 +5225,38 @@
                                     placeholder: 'Please Select',
                                     allowClear: true,
                                     width: '100%',
-                                    dropdownPosition: 'above'
+                                    dropdownPosition: 'above',
+                                    templateResult: function(data) {
+                                        // Hide disabled/filtered options in Select2 dropdown
+                                        if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
+                                            return null;
+                                        }
+                                        return data.text;
+                                    },
+                                    templateSelection: function(data) {
+                                        return data.text;
+                                    }
                                 });
                             } else {
                                 $select.select2({
                                     placeholder: 'Please Select',
                                     allowClear: true,
-                                    width: '100%'
+                                    width: '100%',
+                                    templateResult: function(data) {
+                                        // Hide disabled/filtered options in Select2 dropdown
+                                        if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
+                                            return null;
+                                        }
+                                        return data.text;
+                                    },
+                                    templateSelection: function(data) {
+                                        return data.text;
+                                    }
                                 });
                             }
                             
                             // Restore selection if it's still valid
-                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled])`).length) {
+                            if (selectedValue && $select.find(`option[value="${selectedValue}"]:not(:hidden):not([disabled]):not(.filtered-out)`).length) {
                                 $select.val(selectedValue).trigger('change');
                             }
                         }, 50);
@@ -5855,8 +5837,8 @@
             }
         }
         
-        // Auto focus search input for Category, Company, Quality, and Unit dropdowns
-        $(document).on('select2:opening', '#category, #company_parts, #quality, #unit_parts', function(e) {
+        // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit dropdowns
+        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts', function(e) {
             const selectId = $(this).attr('id');
             // Focus search input as soon as dropdown starts opening
             requestAnimationFrame(function() {
@@ -5877,8 +5859,8 @@
             
             if (!selectId) return;
             
-            // Auto focus search input for Category, Company, Quality, and Unit
-            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'unit_parts') {
+            // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit
+            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts') {
                 function focusSearchInput() {
                     const $container = $select.next('.select2-container');
                     if ($container.length) {
@@ -5960,10 +5942,85 @@
                         route: '{{ route("post.qualities") }}',
                         targetSelect: '.quality-select'
                     },
+                    'quality_filters': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
+                    'quality_breakpad': {
+                        title: 'Add Quality',
+                        route: '{{ route("post.qualities") }}',
+                        targetSelect: '.quality-select'
+                    },
+                    'technology_select': {
+                        title: 'Add Technology',
+                        route: '{{ route("post.technology") }}',
+                        targetSelect: '.technology-select'
+                    },
+                    'grade_select': {
+                        title: 'Add Grade',
+                        route: '{{ route("post.grade") }}',
+                        targetSelect: '.grade-select'
+                    },
+                    'mileage_oil': {
+                        title: 'Add Mileage',
+                        route: '{{ route("post.item.mileage") }}',
+                        targetSelect: '.mileage-select'
+                    },
+                    'Level_select': {
+                        title: 'Add Level',
+                        route: '{{ route("post.levels") }}',
+                        targetSelect: '.level-select'
+                    },
+                    'plates_scrap': {
+                        title: 'Add Plate',
+                        route: '{{ route("post.platos") }}',
+                        targetSelect: '.plates-select'
+                    },
+                    'amperes_select': {
+                        title: 'Add Amperes',
+                        route: '{{ route("post.amphors") }}',
+                        targetSelect: '.amperes-select'
+                    },
+                    'volt_select': {
+                        title: 'Add Volt',
+                        route: '{{ route("post.volts") }}',
+                        targetSelect: '.volt-select'
+                    },
+                    'cca_select': {
+                        title: 'Add CCA',
+                        route: '{{ route("post.cca") }}',
+                        targetSelect: '.cca-select'
+                    },
+                    'minus_pole_direction_select': {
+                        title: 'Add Minus Pole Direction',
+                        route: '{{ route("post.minuspool") }}',
+                        targetSelect: '.minus-pole-direction-select'
+                    },
+                    'Warrenty_select': {
+                        title: 'Add Warrenty',
+                        route: '{{ route("post.warrenty") }}',
+                        targetSelect: '.Warrenty-select'
+                    },
+                    'made_in_select': {
+                        title: 'Add Made In',
+                        route: '{{ route("post.made_ins") }}',
+                        targetSelect: '.made_in-select'
+                    },
+                    'Services_scrap': {
+                        title: 'Add Services',
+                        route: '{{ route("post.services") }}',
+                        targetSelect: '.Services-select'
+                    },
                     'unit_parts': {
                         title: 'Add Unit',
                         route: '{{ route("post.units") }}',
                         targetSelect: '#unit_parts'
+                    },
+                    'group_select': {
+                        title: 'Add Group',
+                        route: '{{ route("post.groups") }}',
+                        targetSelect: '.group-select'
                     }
                 };
                 
@@ -6979,42 +7036,93 @@
             });
         }
 
+        // Set action (save vs save_new) when submit button is clicked (for AJAX FormData)
+        $('#mainItemForm').on('click', 'button[type=submit][name=action]', function() {
+            $('#mainFormAction').val($(this).val());
+            // Unlock save audio on user click (volume 0) so play() works after AJAX success
+            var s = document.getElementById('saveSound');
+            if (s && typeof s.play === 'function') {
+                var v = s.volume;
+                s.volume = 0;
+                s.currentTime = 0;
+                s.play().then(function() { s.pause(); s.currentTime = 0; s.volume = v; }).catch(function(){ s.volume = v; });
+            }
+        });
+
         // =========================
-        // ENSURE quality_id AND technology ARE SUBMITTED ON FORM SUBMIT
-        // This ensures they are sent even if fields are hidden by Alpine.js
+        // SUBMIT VIA AJAX - show success toast + save audio (same as other pages)
         // =========================
-        $('#mainItemForm').on('submit', function(e) {
-            // Extract unit ID from composite value (unit_id_base_unit_id format)
-            const unitSelectVal = $('#unit_parts').val();
-            if (unitSelectVal && unitSelectVal.includes('_')) {
-                const unitId = unitSelectVal.split('_')[0];
-                // Remove existing unit hidden input
-                $(this).find('input[type="hidden"][name="unit"]').remove();
-                // Set the actual unit ID
-                $('#unit_parts').val(unitId);
+        $('#mainItemForm').off('submit').on('submit', function(e) {
+            e.preventDefault();
+            var $form = $(this);
+
+            // ========== SYNC hidden fields before submit ==========
+            var shortDiscVal = ($('#short_disc_visible').val() || '').trim();
+            var proDisVal = '';
+            var $summernote = $('#summernote');
+            if ($summernote.length && $summernote.data('summernote')) {
+                try { proDisVal = $summernote.summernote('code') || ''; } catch (err) { console.warn('Summernote sync:', err); }
+            } else {
+                proDisVal = $summernote.val() || '';
             }
-            
-            // Get quality_id from any visible quality field
-            const qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
-            
-            // Remove any existing hidden quality_id inputs to avoid duplicates
-            $(this).find('input[type="hidden"][name="quality_id"]').remove();
-            
-            // Add hidden input if quality_id has a value
-            if (qualityVal) {
-                $(this).append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
+            $('#short_disc_submit').val(shortDiscVal);
+            $('#pro_dis_submit').val(proDisVal);
+
+            var unitSelectVal = $('#unit_parts').val();
+            if (unitSelectVal && unitSelectVal !== '') {
+                var unitId = unitSelectVal.includes('_') ? unitSelectVal.split('_')[0] : unitSelectVal;
+                $form.find('input[type="hidden"][name="unit"]').remove();
+                $form.append('<input type="hidden" name="unit" value="' + unitId + '">');
+            } else {
+                $form.find('input[type="hidden"][name="unit"]').remove();
             }
-            
-            // Get technology from any visible technology field
-            const techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
-            
-            // Remove any existing hidden technology inputs to avoid duplicates
-            $(this).find('input[type="hidden"][name="technology"]').remove();
-            
-            // Add hidden input if technology has a value
-            if (techVal) {
-                $(this).append('<input type="hidden" name="technology" value="' + techVal + '">');
-            }
+
+            var qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
+            $form.find('input[type="hidden"][name="quality_id"]').remove();
+            if (qualityVal) $form.append('<input type="hidden" name="quality_id" value="' + qualityVal + '">');
+
+            var techVal = $('#technology_select').val() || $('#technology_oil_select').val() || '';
+            $form.find('input[type="hidden"][name="technology"]').remove();
+            if (techVal) $form.append('<input type="hidden" name="technology" value="' + techVal + '">');
+
+            var formData = new FormData($form[0]);
+            formData.set('action', $('#mainFormAction').val() || 'save_new');
+
+            var $focused = $form.find('button[type=submit][name=action]:focus');
+            if ($focused.length) formData.set('action', $focused.val());
+
+            var $submitBtns = $form.find('button[type=submit][name=action]');
+            $submitBtns.each(function() { $(this).data('orig-html', $(this).html()); });
+            $submitBtns.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Saving...');
+
+            $.ajax({
+                url: $form.attr('action'),
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                success: function(data) {
+                    if (data.success && data.message) {
+                        if (typeof toastr !== 'undefined') toastr.success(data.message, '', { timeOut: 3500 });
+                        if (typeof playSaveSound === 'function') {
+                            playSaveSound();
+                        }
+                    }
+                    // Delay redirect/reload so toast is visible and save audio can play (then navigate)
+                    var go = function() {
+                        if (data.redirect) window.location.href = data.redirect;
+                        else window.location.reload();
+                    };
+                    setTimeout(go, 450);
+                },
+                error: function(xhr) {
+                    $form.find('button[type=submit][name=action]').prop('disabled', false).each(function() { $(this).html($(this).data('orig-html') || 'Save'); });
+                    var res = xhr.responseJSON;
+                    var msg = (res && res.errors && typeof res.errors === 'object') ? (Object.values(res.errors).flat().join(' ') || (res.message || 'Validation failed')) : (res && res.message) ? res.message : 'Failed to save item. Please try again.';
+                    if (typeof toastr !== 'undefined') toastr.error(msg);
+                }
+            });
         });
     });
 </script>

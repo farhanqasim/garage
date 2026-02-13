@@ -5,31 +5,39 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\CarWashService;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashServiceController extends Controller
 {
+    use HasBranchAccess;
     /**
      * Get all services for the current user's branch
      */
     public function index()
     {
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
-        
-        // Get services for this branch or global services (where branch_id is null)
-        $services = CarWashService::where(function($query) use ($branchId) {
-            $query->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
-        })
-        ->where('status', true)
-        ->orderBy('created_at', 'desc')
-        ->get();
+        $query = CarWashService::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $services = $query->where('status', true)->orderBy('sort_order', 'asc')->orderBy('created_at', 'desc')->get();
         
         return response()->json([
             'success' => true,
             'services' => $services
         ]);
     }
+
+    /**
+     * Show rate list page (A4 print / PDF view)
+     */
+    public function rateList()
+    {
+        $user = Auth::user();
+        $query = CarWashService::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $services = $query->where('status', true)->orderBy('sort_order', 'asc')->orderBy('created_at', 'desc')->get();
+        return view('car-wash-services-rate-list', compact('services'));
+    }
+
 
     /**
      * Store a new service
@@ -43,10 +51,12 @@ class CarWashServiceController extends Controller
             'icon' => 'nullable|string|max:50',
             'color' => 'nullable|string|max:50',
             'color_value' => 'nullable|string|max:20',
+            'inspection_compulsory' => 'nullable|boolean',
+            'is_per_foot' => 'nullable|boolean',
         ]);
 
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
+        $branchId = $this->getUserBranchId($user);
 
         $service = CarWashService::create([
             'branch_id' => $branchId,
@@ -58,6 +68,8 @@ class CarWashServiceController extends Controller
             'color_value' => $request->color_value ?? '#3b82f6',
             'is_default' => false,
             'status' => true,
+            'inspection_compulsory' => $request->boolean('inspection_compulsory', true),
+            'is_per_foot' => $request->boolean('is_per_foot', false),
         ]);
 
         // Return JSON for AJAX requests, redirect for form submissions
@@ -84,29 +96,39 @@ class CarWashServiceController extends Controller
             'icon' => 'nullable|string|max:50',
             'color' => 'nullable|string|max:50',
             'color_value' => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer|min:0',
+            'inspection_compulsory' => 'nullable|boolean',
+            'is_per_foot' => 'nullable|boolean',
         ]);
 
         $service = CarWashService::findOrFail($id);
-        
-        // Check if user has permission to update this service
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
-        
-        if ($service->branch_id !== null && $service->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($service, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to update this service'
             ], 403);
         }
 
-        $service->update([
+        $data = [
             'label' => strtoupper($request->label),
             'base_price' => $request->base_price,
             'additional_prices' => $request->additional_prices ?? [],
             'icon' => $request->icon ?? $service->icon,
             'color' => $request->color ?? $service->color,
             'color_value' => $request->color_value ?? $service->color_value,
-        ]);
+        ];
+        if ($request->has('sort_order')) {
+            $data['sort_order'] = (int) $request->sort_order;
+        }
+        if ($request->has('inspection_compulsory')) {
+            $data['inspection_compulsory'] = $request->boolean('inspection_compulsory');
+        }
+        if ($request->has('is_per_foot')) {
+            $data['is_per_foot'] = $request->boolean('is_per_foot');
+        }
+        $service->update($data);
 
         // Return JSON for AJAX requests, redirect for form submissions
         if ($request->ajax() || $request->wantsJson()) {
@@ -126,12 +148,9 @@ class CarWashServiceController extends Controller
     public function destroy(Request $request, $id)
     {
         $service = CarWashService::findOrFail($id);
-        
-        // Check if user has permission to delete this service
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
-        
-        if ($service->branch_id !== null && $service->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($service, $user)) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
@@ -167,16 +186,40 @@ class CarWashServiceController extends Controller
     }
 
     /**
+     * Reorder services (save sequence).
+     */
+    public function reorder(Request $request)
+    {
+        $request->validate([
+            'order' => 'required|array',
+            'order.*.id' => 'required|exists:car_wash_services,id',
+            'order.*.sort_order' => 'required|integer|min:0',
+        ]);
+
+        $user = Auth::user();
+        foreach ($request->order as $item) {
+            $service = CarWashService::find($item['id']);
+            if (!$service || !$this->canAccessResourceBranch($service, $user)) {
+                continue;
+            }
+            $service->update(['sort_order' => (int) $item['sort_order']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order saved successfully',
+        ]);
+    }
+
+    /**
      * Toggle service status
      */
     public function toggleStatus($id)
     {
         $service = CarWashService::findOrFail($id);
-        
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
-        
-        if ($service->branch_id !== null && $service->branch_id !== $branchId) {
+
+        if (!$this->canAccessResourceBranch($service, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to update this service'

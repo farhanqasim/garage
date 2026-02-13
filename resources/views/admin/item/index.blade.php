@@ -36,63 +36,30 @@
 
         </ul>
         <div class="page-btn">
+            @canany(['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'])
             <a href="{{ route('all.items.create') }}" class="btn btn-primary me-2">
                 <i class="ti ti-circle-plus me-1"></i>Add Items
             </a>
+            @endcanany
         </div>
     </div>
     <!-- /Product List -->
     <div class="card">
         <div class="card-header">
-            <!-- Type Filter Tabs -->
-            <div class="row mb-4 g-3" id="typeTabsContainer">
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="all" id="tab-all">
-                        <i class="ti ti-list fs-2 d-block mb-2"></i>
-                        <span>All Items</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="parts" id="tab-parts">
-                        <i class="ti ti-tool fs-2 d-block mb-2"></i>
-                        <span>Parts</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="filters" id="tab-filters">
-                        <i class="ti ti-filter fs-2 d-block mb-2"></i>
-                        <span>Filters</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="breakpad" id="tab-breakpad">
-                        <i class="ti ti-disc fs-2 d-block mb-2"></i>
-                        <span>Break Pad</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="oil" id="tab-oil">
-                        <i class="ti ti-droplet fs-2 d-block mb-2"></i>
-                        <span>Oil</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="battery" id="tab-battery">
-                        <i class="ti ti-battery fs-2 d-block mb-2"></i>
-                        <span>Battery</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="scrap" id="tab-scrap">
-                        <i class="ti ti-trash fs-2 d-block mb-2"></i>
-                        <span>Scrap</span>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="type-tab text-center p-3 cursor-pointer" data-type="services" id="tab-services">
-                        <i class="ti ti-tools fs-2 d-block mb-2"></i>
-                        <span>Services</span>
-                    </div>
+            <!-- Type Filter Dropdown -->
+            <div class="row mb-4 g-3">
+                <div class="col-md-3">
+                    <label for="typeFilterDropdown" class="form-label fw-bold mb-2">Filter by Type:</label>
+                    <select id="typeFilterDropdown" class="form-control form-select">
+                        <option value="all">All Items</option>
+                        @canany(['view_items', 'view_parts'])<option value="parts">Parts</option>@endcanany
+                        @canany(['view_items', 'view_filters'])<option value="filters">Filters</option>@endcanany
+                        @canany(['view_items', 'view_break_pad'])<option value="breakpad">Break Pad</option>@endcanany
+                        @canany(['view_items', 'view_oil'])<option value="oil">Oil</option>@endcanany
+                        @canany(['view_items', 'view_battery'])<option value="battery">Battery</option>@endcanany
+                        @canany(['view_items', 'view_scrap'])<option value="scrap">Scrap</option>@endcanany
+                        @canany(['view_items', 'view_services'])<option value="services">Services</option>@endcanany
+                    </select>
                 </div>
             </div>
             <div class="d-flex align-items-center justify-content-end flex-wrap row-gap-3">
@@ -110,10 +77,13 @@
                         <thead class="thead-primary">
                             <tr>
                                 <th>
+                                    @canany(['delete_items', 'delete_parts', 'delete_filters', 'delete_break_pad', 'delete_oil', 'delete_battery', 'delete_scrap', 'delete_services'])
                                     <input type="checkbox" id="selectAll" class="form-check" style="width: 20px; height:20px">
+                                    @endcanany
                                 </th>
                                 <th>Product Image</th>
                                 <th>Actions</th>
+                                <th>Serial Number</th>
                                 <th>Update History</th>
                                 <th>Part Number</th>
                                 <th>User Name</th>
@@ -126,9 +96,22 @@
                         </thead>
                         <tbody id="itemsTableBody">
                             @forelse ($items as $item)
+                            @php
+                                $t = $item->type ?? '';
+                                $permMap = ['parts'=>'view_parts','filters'=>'view_filters','breakpad'=>'view_break_pad','oil'=>'view_oil','battery'=>'view_battery','scrap'=>'view_scrap','services'=>'view_services'];
+                                $viewPerm = $permMap[$t] ?? 'view_items';
+                                $permMapU = ['parts'=>'update_parts','filters'=>'update_filters','breakpad'=>'update_break_pad','oil'=>'update_oil','battery'=>'update_battery','scrap'=>'update_scrap','services'=>'update_services'];
+                                $updatePerm = $permMapU[$t] ?? 'update_items';
+                                $permMapD = ['parts'=>'delete_parts','filters'=>'delete_filters','breakpad'=>'delete_break_pad','oil'=>'delete_oil','battery'=>'delete_battery','scrap'=>'delete_scrap','services'=>'delete_services'];
+                                $deletePerm = $permMapD[$t] ?? 'delete_items';
+                                $permMapA = ['parts'=>'add_parts','filters'=>'add_filters','breakpad'=>'add_break_pad','oil'=>'add_oil','battery'=>'add_battery','scrap'=>'add_scrap','services'=>'add_services'];
+                                $addPerm = $permMapA[$t] ?? 'add_items';
+                            @endphp
                             <tr data-type="{{ $item->type }}">
                                 <td>
+                                    @can($deletePerm)
                                     <input type="checkbox" name="ids[]" value="{{ $item->id }}" style="width: 20px; height:20px"   class="item-checkbox form-check">
+                                    @endcan
                                 </td>
                                 <td>
                                     <img src="{{ asset($item->image ?? 'assets/img/media/default.png') }}"
@@ -144,16 +127,21 @@
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu">
+                                            @can($viewPerm)
                                             <li>
                                                 <a class="dropdown-item mt-3" href="{{ route('item.show',$item->id) }}">
                                                     <i data-feather="eye" class="me-1"></i> View
                                                 </a>
                                             </li>
+                                            @endcan
+                                            @can($updatePerm)
                                             <li>
                                                 <a class="dropdown-item mt-2" href="{{ route('item.edit',$item->id) }}">
                                                     <i data-feather="edit" class="me-1"></i> Edit
                                                 </a>
                                             </li>
+                                            @endcan
+                                            @can($deletePerm)
                                             <li>
                                                 <a href="javascript:void(0)"
                                                     onclick="confirmDelete('delete-form-{{ $item->id }}')"
@@ -161,12 +149,15 @@
                                                     <i data-feather="trash-2" class="feather-trash-2"></i>  Delete
                                                 </a>
                                             </li>
+                                            @endcan
                                             <hr>
+                                    @can($addPerm)
                                     <li>
                                         <a class="dropdown-item text-primary" href="{{ route('item.duplicate', $item->id) }}">
                                             <i data-feather="copy" class="me-1"></i> Duplicate
                                         </a>
                                     </li>
+                                    @endcan
                                     @if($item->vehical_item)
                                     <hr>
                                     <li>
@@ -178,6 +169,13 @@
                                 </ul>
                             </div>
                         </td>
+                                <td>
+                                    @if($item->serial_number && $item->serial_number != $item->id)
+                                        <span class="badge bg-primary">{{ $item->serial_number }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
                                 <td>
                                     @if($item->updated_by_user)
                                         <div class="small">
@@ -214,7 +212,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="11" class="text-center">No items found.</td>
+                                <td colspan="12" class="text-center">No items found.</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -234,9 +232,11 @@
             </div>
         </div>
         <div class="card-footer">
+            @can('delete_items')
             <button type="button" id="bulkDeleteBtn" class="btn btn-danger" style="display: none;">
                 <i class="ti ti-trash me-1"></i> Delete Selected
             </button>
+            @endcan
             <button type="button" id="shareWhatsAppBtn" class="btn btn-success" style="display: none;">
                 <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
             </button>
@@ -353,28 +353,8 @@
 </div>
 <!-- Styles -->
 <style>
-    .type-tab {
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        background: #fff;
-    }
-    .type-tab:hover {
-        border-color: #fe9f43;
-        background: #f8f9fa;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .type-tab.active {
-        border-color: #fe9f43;
-        background: #fe9f43;
-        color: #fff;
-    }
-    .type-tab.active i {
-        color: #fff;
-    }
-    .cursor-pointer {
+    /* Type filter dropdown styles */
+    #typeFilterDropdown {
         cursor: pointer;
     }
 </style>
@@ -384,25 +364,17 @@
     document.addEventListener('DOMContentLoaded', function () {
         let currentType = 'all'; // Track current selected type
         
-        // Initialize: Set 'All Items' as active by default
-        document.getElementById('tab-all').classList.add('active');
-        
-        // Type Tab Click Handler
-        document.querySelectorAll('.type-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                const type = this.getAttribute('data-type');
+        // Type Dropdown Change Handler
+        const typeFilterDropdown = document.getElementById('typeFilterDropdown');
+        if (typeFilterDropdown) {
+            typeFilterDropdown.addEventListener('change', function() {
+                const type = this.value;
                 currentType = type;
-                
-                // Remove active class from all tabs
-                document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
-                
-                // Add active class to clicked tab
-                this.classList.add('active');
                 
                 // Load items for selected type
                 loadItemsByType(type);
             });
-        });
+        }
         
         // Function to load items by type
         function loadItemsByType(type) {

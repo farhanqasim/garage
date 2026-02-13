@@ -7,7 +7,6 @@
     <div class="page-header">
         <div class="page-title">
             <h4>Create Sales</h4>
-            <h6>Add new sales order</h6>
         </div>
         <div class="page-btn">
             <a href="{{ route('all_sales') }}" class="btn btn-secondary">
@@ -37,6 +36,10 @@
                                         @php
                                             $branches = \App\Models\Branch::where('status', 'active')->get();
                                             $currentBranchId = session('selected_branch_id');
+                                            // Find Barki Express branch for auto-select
+                                            $barkiBranch = $branches->first(function($branch) {
+                                                return stripos($branch->branch_name, 'barki') !== false;
+                                            });
                                         @endphp
                                         @foreach($branches as $branch)
                                         <li>
@@ -51,75 +54,89 @@
                             </div>
                             <input type="hidden" name="branch_id" id="salesBranchId" value="{{ session('selected_branch_id') }}" required>
                         </div>
-                        <!-- Business Information Panel (Like Gemini Design) -->
-                        <div class="mb-4 p-3 rounded" style="border: 1px solid #0d6efd; background: #f8f9fa;">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div class="d-flex align-items-center">
-                                    <div class="bg-primary text-white rounded p-2 me-3" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="ti ti-file-invoice fs-20"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4>
-                                        <p class="mb-0 text-primary" style="font-size: 13px;">
-                                            <i class="ti ti-phone me-1"></i>
-                                            HELPLINE: <span id="helplineNumber">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="mb-1">
-                                        <span class="text-primary fw-bold" style="font-size: 16px;" id="sales-number">INV #{{ str_pad(1, 5, '0', STR_PAD_LEFT) }}</span>
-                                    </div>
-                                    <div style="font-size: 13px; color: #6c757d;">
-                                        <span id="currentDateTime">{{ date('d/m/Y, H:i:s') }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Hidden sales date field -->
-                        <input type="hidden" name="sale_date" id="sale_date" value="{{ date('Y-m-d') }}" required>
-                        <!-- Customer Information (Like Gemini Design) -->
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">CUSTOMER NAME</label>
-                                <select name="customer_id" id="customer_id" class="form-control @error('customer_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="">Party Name</option>
-                                    @foreach($customers as $customer)
-                                        <option value="{{ $customer->id }}" 
-                                                data-name="{{ $customer->names[0] ?? '' }}" 
-                                                data-phone="{{ $customer->phones[0] ?? '' }}"
-                                                data-company="{{ $customer->company ?? '' }}"
-                                                data-address="{{ $customer->address ?? '' }}"
-                                                data-area="{{ $customer->area ?? '' }}">
-                                            {{ $customer->names[0] ?? 'N/A' }} @if($customer->company) - {{ $customer->company }} @endif
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('customer_id')
-                                    <div class="text-danger small">{{ $message }}</div>
-                                @enderror
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NUMBER</label>
-                                <input type="text" id="customer_mobile" name="customer_mobile" class="form-control" placeholder="03xx..." style="border-radius: 6px;">
-                            </div>
-                        </div>
                         
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">ADDRESS</label>
-                                <input type="text" id="customer_address" name="customer_address" class="form-control" placeholder="Shop/House #" style="border-radius: 6px;">
+                        <!-- Modern Invoice Card -->
+                        <div class="invoice-card p-5 mb-4">
+                            <!-- Header -->
+                            <div class="invoice-header">
+                                <div class="invoice-header-left">
+                                    @php
+                                        $branchName = session('selected_branch_name', 'MUBARAK TRADERS');
+                                        // Replace specific branch names
+                                        if(strtoupper($branchName) === 'BARKI') {
+                                            $branchName = 'Barki Express';
+                                        }
+                                    @endphp
+                                    <h1 id="branch-name-title">{{ $branchName }}</h1>
+                                    <p class="subtitle">Auto Oil & Spare Parts Specialist</p>
+                                    <p class="helpline"><i class="ti ti-phone me-1"></i> {{ setting_value('helpline', '+92-335-08-999-08') }}</p>
+                                </div>
+                                <div class="invoice-header-right">
+                                    <p class="invoice-date" id="currentDateTime">{{ date('d/m/Y, h:i:s A') }}</p>
+                                    <div class="d-flex flex-row align-items-center" style="gap: 10px; align-items: center;">
+                                        <p class="invoice-number" id="sales-number" style="margin-bottom: 0;">INV #{{ str_pad(1, 5, '0', STR_PAD_LEFT) }}</p>
+                                        <div class="custom-3step-switch switch-sale" id="estimateSwitch" style="position: relative; width: 80px; height: 30px; border-radius: 15px; cursor: pointer; transition: all 0.3s ease; margin-top: 0;">
+                                            <div class="switch-slider switch-position-0" style="position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 3px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                                            <div class="switch-indicators" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; pointer-events: none;">
+                                                <span style="font-size: 8px; color: rgba(255,255,255,0.5);">S</span>
+                                                <span style="font-size: 8px; color: rgba(255,255,255,0.5);">E</span>
+                                                <span style="font-size: 8px; color: rgba(255,255,255,0.5);">O</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">AREA</label>
-                                <input type="text" id="customer_area" name="customer_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;">
+                            
+                            <!-- Vehicle Section -->
+                            <div class="mb-4">
+                                <button type="button" class="btn w-100 mb-3" id="add-vehicle-btn" style="background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 12px; padding: 18px; color: #2563eb; font-weight: 900; text-transform: uppercase; font-size: 14px;">
+                                    <i class="ti ti-car me-2"></i>Add / Link Vehicle Details
+                                </button>
+                                
+                                <div id="vehicle-display-section" style="display: none;">
+                                    <p class="text-primary fw-bold mb-2" style="font-size: 11px;">ACTIVE VEHICLES</p>
+                                    <div id="vehicles-list" class="flex-column gap-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+                                        <!-- Vehicles will be dynamically added here -->
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <!-- Reference (Optional) -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
-                                <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" value="{{ $purchaseData['reference'] ?? '' }}" style="border-radius: 6px;">
+                            
+                            <!-- Customer Information -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="modern-label">Party Name / Vehicle #</label>
+                                    <div class="position-relative">
+                                        <input type="text" id="customer_search" class="modern-input @error('customer_id') is-invalid @enderror" placeholder="Search Customer or Plate..." autocomplete="off" oninput="searchCustomer(this.value)">
+                                        <input type="hidden" name="customer_id" id="customer_id" required>
+                                        <div id="customerSuggestions" class="suggestions-list hidden"></div>
+                                    </div>
+                                    @error('customer_id')
+                                        <div class="text-danger small">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="modern-label">Mobile No.</label>
+                                    <input type="text" id="customer_mobile" name="customer_mobile" class="modern-input" placeholder="03xx-xxxxxxx">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="modern-label">Address</label>
+                                    <input type="text" id="customer_address" name="customer_address" class="modern-input" placeholder="Shop/House #">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="modern-label">Area</label>
+                                    <input type="text" id="customer_area" name="customer_area" class="modern-input" placeholder="Location/City">
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden sales date field -->
+                            <input type="hidden" name="sale_date" id="sale_date" value="{{ date('Y-m-d') }}" required>
+                            
+                            <!-- Reference (Optional) -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label class="modern-label">Reference</label>
+                                    <input type="text" name="reference" id="reference" class="modern-input" placeholder="Enter reference number" value="{{ $purchaseData['reference'] ?? '' }}">
+                                </div>
                             </div>
                         </div>
                         
@@ -129,72 +146,157 @@
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                         @endif
-                        <!-- Items Summary Section -->
-                        <div class="mb-4">
-                            <h5 class="fw-bold mb-3">ITEMS SUMMARY</h5>
-                            <div id="items-summary-container" class="text-center py-5" style="background: #f8f9fa; border-radius: 8px; min-height: 200px;">
-                                <div id="empty-items-state">
-                                    <i class="ti ti-package fs-48 text-muted mb-3" style="display: block;"></i>
-                                    <p class="text-muted mb-0">ABHI KOI ITEM NAHI HAI</p>
+                            
+                            <!-- Items List -->
+                            <div id="items-summary-container" class="items-container mb-4">
+                                <div id="empty-items-state" class="empty-state">
+                                    <p>No items added yet...</p>
                                 </div>
                                 <div id="items-list" style="display: none;">
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered">
-                                            <thead>
-                                                <tr>
-                                                    <th>Item</th>
-                                                    <th>Qty</th>
-                                                    <th>Unit</th>
-                                                    <th>Rate</th>
-                                                    <th>Discount</th>
-                                                    <th>Tax %</th>
-                                                    <th>Total</th>
-                                                    <th>Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="items-tbody">
-                                            </tbody>
-                                        </table>
+                                    <div id="items-tbody">
+                                        <!-- Items will be dynamically added here -->
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Amount Summary -->
-                        <div class="row mb-4">
-                            <div class="col-md-6 offset-md-6">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-bold">GROSS AMOUNT</span>
-                                    <span class="fw-bold" id="gross-amount">Rs 0</span>
+                            
+                            <!-- Total Summary Section -->
+                            <div class="total-section">
+                                <div id="breakdownRows" class="mb-2"></div>
+                                
+                                <div class="total-row">
+                                    <p class="mb-0" style="font-size: 10px; font-weight: 700; text-transform: uppercase;">Total Items Amount</p>
+                                    <p class="mb-0" style="font-size: 14px; font-weight: 700;">Rs <span id="gross-amount">0</span></p>
                                 </div>
-                                <div class="bg-primary text-white p-3 rounded mb-3">
+                                
+                                <div class="discount-section">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <p class="discount-label mb-0">Discount (Manual Edit)</p>
+                                        <div class="d-flex align-items-center bg-white rounded-lg px-2 border" style="border-color: #bbf7d0 !important;">
+                                            <button type="button" onclick="toggleBillDiscType()" id="billDiscToggle" class="text-[10px] font-black text-green-600 mr-2 bg-green-100 px-1.5 py-0.5 rounded" style="font-size: 10px; font-weight: 900; color: #16a34a; background: #dcfce7; padding: 2px 6px; border-radius: 4px; border: none;">Rs</button>
+                                            <input type="number" id="totalBillDiscount" oninput="calculateFinalTotalFromInput()" value="0" class="w-16 bg-transparent font-black text-right outline-none text-green-700" style="width: 64px; background: transparent; font-weight: 900; text-align: right; outline: none; color: #16a34a; border: none; font-size: 14px;">
+                                            <input type="hidden" id="totalBillDiscType" value="fixed">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="net-payable">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <p class="net-payable-label mb-0">Net Payable</p>
+                                        <p class="net-payable-value mb-0">Rs <span id="net-payable-total">0</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div id="cash-received-section" class="received-amount-section">
+                                    <p class="received-amount-label mb-2" style="font-size: 9px; font-weight: 900; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;">Cash Received</p>
+                                    <div id="cashReceivedWrapper" class="space-y-2">
+                                        <div class="payment-card border-blue-100 no-print">
+                                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                                <p class="mb-0" style="font-size: 10px; font-weight: 900; color: #374151; text-transform: uppercase;">Cash Entry</p>
+                                        <div class="d-flex align-items-center bg-white rounded-lg px-2 border" style="border-color: #e5e7eb !important;">
+                                                    <span class="text-[10px] font-black text-gray-400 mr-1.5 uppercase" style="font-size: 10px; font-weight: 900; color: #9ca3af; text-transform: uppercase; margin-right: 6px;">Rs</span>
+                                                    <input type="number" class="cash-input" oninput="calculateFinalTotalFromInput()" value="0" style="width: 96px; background: transparent; font-weight: 900; text-align: right; outline: none; color: #1f2937; border: none; font-size: 14px;">
+                                        </div>
+                                            </div>
+                                            <div class="mt-2">
+                                                <label class="d-flex-1 cursor-pointer bg-white border border-dashed rounded-lg p-2 text-center block transition-all duration-300" style="border-color: #bfdbfe;">
+                                                    <p class="status-text mb-0" style="font-size: 8px; font-weight: 900; color: #60a5fa; text-transform: uppercase;"><i class="ti ti-camera me-1"></i> Attach Photo</p>
+                                                    <input type="file" accept="image/*" class="d-none cash-input-pic" onchange="handleImagePick(this, 'blue', 'Photo Attached')">
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 no-print">
+                                        <button type="button" onclick="addCashReceivedRow()" class="btn btn-sm w-100" style="background-color: #dbeafe; color: #2563eb; border: 1px dashed #93c5fd; border-radius: 12px; padding: 8px; font-size: 9px; font-weight: 900; text-transform: uppercase;">
+                                            <i class="ti ti-plus me-1"></i> Add More Cash Received
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- BANK RECEIVED -->
+                                <div id="bank-received-section" class="space-y-1 pt-1 border-top" style="border-color: #e5e7eb; padding-top: 8px;">
+                                    <p class="mb-2" style="font-size: 9px; font-weight: 900; color: #a855f7; text-transform: uppercase; letter-spacing: 1px; margin-left: 8px;">Bank Received</p>
+                                    <div id="bankPaymentsWrapper" class="space-y-2"></div>
+                                    <div class="px-2 no-print mt-1">
+                                        <button type="button" onclick="addBankPaymentRow()" class="btn btn-sm w-100" style="background-color: #f3e8ff; color: #9333ea; border: 1px dashed #c084fc; border-radius: 12px; padding: 8px; font-size: 9px; font-weight: 900; text-transform: uppercase;">
+                                            <i class="ti ti-building-bank me-1"></i> Add Bank Payment
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="total-row" style="color: #ea580c;">
+                                    <p class="mb-0" style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #ea580c;">Current Remaining</p>
+                                    <p class="mb-0" style="font-size: 14px; font-weight: 700; color: #ea580c;">Rs <span id="currentRemainingText">0</span></p>
+                                </div>
+                                
+                                <div class="previous-balance-section">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <p class="previous-balance-label mb-0">Previous Balance</p>
+                                        <div class="d-flex align-items-center bg-white rounded-lg px-2 border" style="border-color: #fde68a !important;">
+                                            <span class="text-[10px] font-black text-yellow-400 mr-2 uppercase" style="font-size: 10px; font-weight: 900; color: #fbbf24; text-transform: uppercase; margin-right: 8px;">Rs</span>
+                                            <input type="number" id="previousBalance" oninput="calculateFinalTotalFromInput()" value="0" class="w-24 bg-transparent font-black text-right outline-none text-yellow-800" style="width: 96px; background: transparent; font-weight: 900; text-align: right; outline: none; color: #92400e; border: none; font-size: 14px;">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="grand-total-card">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <div class="fw-bold fs-16">GRAND TOTAL</div>
-                                            <div class="small">Total Payable Amount</div>
+                                            <p class="grand-total-label mb-1" id="balanceLabel">Total Final Balance</p>
+                                            <p class="item-count mb-0" id="item-count">0 Items Listed</p>
                                         </div>
-                                        <div class="fw-bold fs-24" id="grand-total">Rs 0</div>
+                                        <div class="text-end">
+                                            <span style="font-size: 12px; font-weight: 700; margin-right: 4px;">PKR</span>
+                                            <span class="grand-total-value" id="grand-total">0</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
+                        
                         <!-- Hidden fields for order tax, discount, shipping -->
                         <input type="hidden" name="order_tax" id="order_tax" value="0">
                         <input type="hidden" name="discount" id="discount" value="0">
                         <input type="hidden" name="shipping" id="shipping" value="0">
-                        <input type="hidden" name="status" value="pending">
+                        <input type="hidden" name="status" id="sale-status" value="pending">
 
+                        
                         <!-- Add Item Button -->
-                        <div class="text-center mb-4">
-                            <button type="button" class="btn btn-primary btn-lg" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
-                                <i class="ti ti-plus me-2"></i>ADD NEW ITEM
+                        <div class="mb-4">
+                            <button type="button" class="modern-btn-primary pulse-animation" id="add-new-item-btn" data-bs-toggle="modal" data-bs-target="#add-item-modal">
+                                <i class="ti ti-plus"></i> Add Sale Item
+                            </button>
+                        </div>
+
+                        <!-- Action Buttons Grid -->
+                        <div class="action-btn-grid mb-4">
+                            <button type="button" class="action-btn" id="return-entry-btn" style="background-color: #fee2e2; color: #dc2626; border-color: #fecaca;">
+                                <i class="ti ti-arrow-back-up"></i> Return
+                            </button>
+                            <button type="button" class="action-btn" id="claim-entry-btn" style="background-color: #fef3c7; color: #b45309; border-color: #fde68a;">
+                                <i class="ti ti-shield-check"></i> Claim
+                            </button>
+                            <button type="button" class="action-btn" id="scrap-in-btn" style="background-color: #fed7aa; color: #ea580c; border-color: #fdba74;">
+                                <i class="ti ti-recycle"></i> Scrap In
+                            </button>
+                            <button type="button" class="action-btn" id="scrap-sale-btn" style="background-color: #dcfce7; color: #16a34a; border-color: #bbf7d0;">
+                                <i class="ti ti-coins"></i> Scrap Sale
+                            </button>
+                        </div>
+                        
+                        <!-- Delivery Buttons -->
+                        <div class="d-flex gap-2 mb-4 no-print">
+                            <button type="button" class="btn flex-1" id="delivery-entry-btn" style="background-color: #f97316; color: white; border-radius: 16px; padding: 14px; font-weight: 900; text-transform: uppercase; font-size: 11px;">
+                                <i class="ti ti-truck me-1"></i> Delivery Entry
+                            </button>
+                            <button type="button" class="btn" id="share-delivery-btn" style="background-color: #ea580c; color: white; border-radius: 16px; padding: 14px; width: 60px; font-weight: 900;">
+                                <i class="ti ti-share"></i>
                             </button>
                         </div>
 
                         <!-- Submit Buttons -->
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{{ route('all_sales') }}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-success">
+                            <button type="submit" class="btn btn-success" id="save-sale-btn">
                                 <i class="ti ti-check me-1"></i> Save Sale
                             </button>
                         </div>
@@ -364,28 +466,42 @@
 </div>
 
 <!-- Add Item Modal - ITEM DETAIL BOX -->
-<div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="add-item-modal" tabindex="-1" role="dialog" aria-labelledby="addItemModalLabel" aria-modal="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
             <div class="modal-header border-0 pb-2">
-                <h5 class="modal-title fw-bold">
+                <h5 class="modal-title fw-bold" style="color: #2563eb;">
                     <i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Product Name (Searchable/Selectable) -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold mb-2">PRODUCT NAME</label>
-                    <div class="position-relative">
-                        <input type="text" id="item-search" class="form-control" placeholder="Search by product name, barcode, category, part number, vehicle, model..." autocomplete="off" style="background-color: #f8f9fa; border-radius: 8px;">
-                        <i class="ti ti-search position-absolute" style="right: 15px; top: 50%; transform: translateY(-50%); color: #999; pointer-events: none;"></i>
-                        <!-- Advanced Filters Toggle -->
-                        <button type="button" id="advanced-filters-toggle" class="btn btn-sm btn-outline-secondary position-absolute" style="right: 45px; top: 50%; transform: translateY(-50%); padding: 2px 8px; font-size: 10px;">
-                            <i class="ti ti-filter me-1"></i>Filters
-                        </button>
+                <!-- Product Name (Searchable/Selectable) - Premium search -->
+                <div class="mb-3" id="item-search-wrapper">
+                    <label class="form-label fw-bold mb-2 d-flex align-items-center">
+                        <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
+                            <i class="ti ti-search" style="font-size: 14px;"></i>
+                        </span>
+                        PRODUCT NAME
+                    </label>
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="position-relative flex-grow-1">
+                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off">
+                        <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
-                        <div id="item-search-results" class="position-absolute w-100 bg-white border rounded shadow-lg" style="top: 100%; left: 0; z-index: 1050; max-height: 300px; overflow-y: auto; display: none; margin-top: 5px;">
+                        <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
+                            </div>
+                        <!-- Selected Item Details Display (below input) -->
+                        <div id="selected-item-details-display" class="mt-2 d-none" style="font-size: 0.85rem;">
+                            <div class="text-muted mb-1" id="selected-item-details-line1"></div>
+                            <div class="text-muted mb-1" id="selected-item-details-line2"></div>
+                            <div class="text-warning fw-semibold" id="selected-item-details-line3"></div>
+                        </div>
+                        </div>
+                        <!-- Item Image Preview -->
+                        <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
+                            <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
+                            <div id="item-search-stock" class="text-center mt-1" style="font-size: 0.75rem; font-weight: 600;"></div>
                         </div>
                     </div>
                     <input type="hidden" id="selected-item-id">
@@ -595,9 +711,287 @@
         </div>
     </div>
 </div>
+
+<!-- Vehicle Modal -->
+<div class="modal fade" id="vehicle-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-2">
+                <h5 class="modal-title fw-bold">
+                    <i class="ti ti-car me-2"></i>VEHICLE DETAILS
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Registration Number</label>
+                    <input type="text" id="vehicle-reg" class="form-control" placeholder="e.g. LEC-22-1234" style="text-transform: uppercase;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Make / Brand</label>
+                    <input type="text" id="vehicle-make" class="form-control" placeholder="e.g. Toyota, Honda">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Model / Name</label>
+                    <input type="text" id="vehicle-model" class="form-control" placeholder="e.g. Civic, Corolla">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Model Year</label>
+                    <input type="number" id="vehicle-year" class="form-control" placeholder="e.g. 2022" min="1900" max="2100">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary fw-bold" id="save-vehicle-btn" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
+                    SAVE VEHICLE
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delivery Entry Modal -->
+<div class="modal fade" id="delivery-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-2" style="background-color: #f97316; color: white;">
+                <h5 class="modal-title fw-bold">
+                    <i class="ti ti-truck me-2"></i>DELIVERY ENTRY
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="delivery-items-list" class="mb-3" style="display: none;">
+                    <label class="form-label fw-bold mb-2">
+                        <i class="ti ti-package me-1"></i>Items to Deliver:
+                    </label>
+                    <div class="card border-primary" style="border-radius: 8px; max-height: 200px; overflow-y: auto;">
+                        <div class="card-body p-2">
+                            <ul id="delivery-items-ul" class="mb-0" style="list-style: none; padding: 0;">
+                                <!-- Items will be populated here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Delivery Fare (Rs)</label>
+                    <input type="number" id="delivery-fare" class="form-control" value="0" step="0.01" min="0" placeholder="Enter delivery charges">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Rider Mobile Number</label>
+                    <input type="tel" id="delivery-rider-mobile" class="form-control" placeholder="03xx-xxxxxxx">
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-truck me-1 text-blue-600"></i>Vehicle Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #3b82f6; border-radius: 8px; background-color: #eff6ff; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#dbeafe'; this.style.borderColor='#2563eb';" onmouseout="this.style.backgroundColor='#eff6ff'; this.style.borderColor='#3b82f6';">
+                            <i class="ti ti-box text-2xl text-blue-600 mb-2 d-block" id="vehicle-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-blue-600" id="vehicle-text-placeholder">Vehicle Photo</p>
+                            <input type="file" id="vehicle-photo-capture" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'vehicle')">
+                            <div id="vehicle-photo-capture-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(239, 246, 255, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-user-circle me-1 text-purple-600"></i>Rider Front Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #a855f7; border-radius: 8px; background-color: #faf5ff; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#f3e8ff'; this.style.borderColor='#9333ea';" onmouseout="this.style.backgroundColor='#faf5ff'; this.style.borderColor='#a855f7';">
+                            <i class="ti ti-user-circle text-2xl text-purple-600 mb-2 d-block" id="rider-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-purple-600" id="rider-text-placeholder">Rider Photo</p>
+                            <input type="file" id="vehicle-rider-photo" accept="image/*" capture="user" class="d-none" onchange="handleVehiclePhoto(this, 'rider')">
+                            <div id="vehicle-rider-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(250, 245, 255, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-id me-1 text-green-600"></i>ID Card Front Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #10b981; border-radius: 8px; background-color: #f0fdf4; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#dcfce7'; this.style.borderColor='#059669';" onmouseout="this.style.backgroundColor='#f0fdf4'; this.style.borderColor='#10b981';">
+                            <i class="ti ti-id text-2xl text-green-600 mb-2 d-block" id="id-front-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-green-600" id="id-front-text-placeholder">ID Card Front</p>
+                            <input type="file" id="id-card-front-photo" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'id-front')">
+                            <div id="id-card-front-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(240, 253, 244, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-id me-1 text-orange-600"></i>ID Card Back Photo
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #f97316; border-radius: 8px; background-color: #fff7ed; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#ffedd5'; this.style.borderColor='#ea580c';" onmouseout="this.style.backgroundColor='#fff7ed'; this.style.borderColor='#f97316';">
+                            <i class="ti ti-id text-2xl text-orange-600 mb-2 d-block" id="id-back-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-orange-600" id="id-back-text-placeholder">ID Card Back</p>
+                            <input type="file" id="id-card-back-photo" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'id-back')">
+                            <div id="id-card-back-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(255, 247, 237, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold mb-2 small">
+                            <i class="ti ti-truck-delivery me-1 text-red-600"></i>Current Vehicle Photo (If Vehicle Changed)
+                        </label>
+                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #ef4444; border-radius: 8px; background-color: #fef2f2; transition: all 0.3s ease; min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#fee2e2'; this.style.borderColor='#dc2626';" onmouseout="this.style.backgroundColor='#fef2f2'; this.style.borderColor='#ef4444';">
+                            <i class="ti ti-truck-delivery text-2xl text-red-600 mb-2 d-block" id="current-vehicle-icon-placeholder"></i>
+                            <p class="mb-0 small fw-bold text-red-600" id="current-vehicle-text-placeholder">Current Vehicle Photo</p>
+                            <input type="file" id="current-vehicle-photo" accept="image/*" class="d-none" onchange="handleVehiclePhoto(this, 'current-vehicle')">
+                            <div id="current-vehicle-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(254, 242, 242, 0.95); border-radius: 8px;"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info fw-bold" id="share-delivery-link-btn" style="border-radius: 8px; padding: 10px 20px;">
+                    <i class="ti ti-share me-1"></i>Share Link
+                </button>
+                <button type="button" class="btn btn-primary fw-bold" id="confirm-delivery-btn" style="background-color: #f97316; border-radius: 8px; padding: 10px 30px;">
+                    CONFIRM DELIVERY
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rider View Modal (for delivery data submission) -->
+<div class="modal fade" id="rider-view-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header border-0 pb-2" style="background-color: #f97316; color: white;">
+                <h5 class="modal-title fw-bold">
+                    <i class="ti ti-truck me-2"></i>GODOWN LOADING FORM
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <h4 class="fw-bold text-orange-600 mb-2">MUBARAK TRADERS</h4>
+                    <span class="badge bg-orange-500 text-white px-3 py-1" style="font-size: 10px; font-weight: 900; text-transform: uppercase;">Godown Loading Form</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold mb-2">Rider Mobile Number</label>
+                    <input type="tel" id="rider-mobile-input" class="form-control" placeholder="03xx-xxxxxxx">
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">Saman ki Photo</label>
+                        <label class="d-block border border-dashed border-blue-200 rounded-lg p-3 text-center cursor-pointer" style="background-color: #eff6ff;">
+                            <i class="ti ti-box text-2xl text-blue-600 mb-2 d-block"></i>
+                            <p class="mb-0 small fw-bold text-blue-600">Item Photo</p>
+                            <input type="file" id="rider-item-photo" accept="image/*" class="d-none" onchange="handleRiderFile(this, 'item')">
+                            <div id="rider-item-preview" class="mt-2"></div>
+                        </label>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-2 small">Rider Face Photo</label>
+                        <label class="d-block border border-dashed border-purple-200 rounded-lg p-3 text-center cursor-pointer" style="background-color: #faf5ff;">
+                            <i class="ti ti-user-circle text-2xl text-purple-600 mb-2 d-block"></i>
+                            <p class="mb-0 small fw-bold text-purple-600">Face Photo</p>
+                            <input type="file" id="rider-face-photo" accept="image/*" capture="user" class="d-none" onchange="handleRiderFile(this, 'face')">
+                            <div id="rider-face-preview" class="mt-2"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary fw-bold" id="submit-rider-data-btn" style="background-color: #f97316; border-radius: 8px; padding: 10px 30px;">
+                    CONFIRM & SEND DATA
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 @push('styles')
 <style>
+    /* ========== Premium Search Filter (unique, beautiful) ========== */
+    /* YouTube-style search input */
+    .item-search-input {
+        background: #fff !important;
+        border: 1px solid #ccc !important;
+        border-radius: 40px !important;
+        padding: 10px 50px 10px 20px !important;
+        font-size: 1rem !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+    }
+    .item-search-input::placeholder {
+        color: #999;
+        font-weight: 400;
+    }
+    .item-search-input:hover {
+        border-color: #999 !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    .item-search-input:focus {
+        border-color: #1a73e8 !important;
+        box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2) !important;
+        background: #fff !important;
+        outline: none !important;
+    }
+    .item-search-icon {
+        color: #667eea !important;
+        opacity: 0.85;
+    }
+    
+    /* YouTube-style results dropdown */
+    .item-search-results-box {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        animation: searchResultsIn 0.2s ease-out;
+        margin-top: 4px !important;
+    }
+    
+    @keyframes searchResultsIn {
+        from {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    
+    .item-search-result {
+        transition: all 0.2s ease;
+    }
+    .item-search-result:last-child {
+        border-bottom: none !important;
+    }
+    /* YouTube-style result hover */
+    .item-search-result:hover,
+    .item-search-result.selected {
+        background-color: #f5f5f5 !important;
+        cursor: pointer;
+    }
+    
+    .item-search-result {
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .item-search-result:last-child {
+        border-bottom: none !important;
+    }
+    
+    #item-search-results .p-3 {
+        padding: 1rem !important;
+    }
+    
+    #item-search-results .fw-bold.text-dark.mb-1 {
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+    
+    #item-search-results .text-primary.mb-1 {
+        font-size: 0.85rem;
+    }
     .filter-chip {
         background: #fff;
         border: 1px solid #ddd;
@@ -636,6 +1030,493 @@
         padding: 2px 4px;
         border-radius: 3px;
     }
+    
+    /* 3-Step Switch Styles */
+    .custom-3step-switch {
+        position: relative;
+        width: 80px;
+        height: 30px;
+        background: #6c757d;
+        border-radius: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .custom-3step-switch.switch-sale {
+        background: var(--bs-primary, #0d6efd) !important;
+    }
+    
+    .custom-3step-switch.switch-estimate {
+        background: var(--bs-warning, #ffc107) !important;
+    }
+    
+    .custom-3step-switch.switch-sale-order {
+        background: var(--bs-success, #198754) !important;
+    }
+    
+    .switch-slider {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        background: white;
+        border-radius: 50%;
+        top: 3px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .switch-slider.switch-position-0 {
+        left: 3px !important;
+    }
+    
+    .switch-slider.switch-position-1 {
+        left: 28px !important;
+    }
+    
+    .switch-slider.switch-position-2 {
+        left: 53px !important;
+    }
+    
+    .switch-indicators {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        pointer-events: none;
+        padding: 0 8px;
+    }
+    
+    .switch-indicators span {
+        font-size: 8px;
+        color: rgba(255,255,255,0.5);
+        font-weight: 600;
+    }
+    
+    /* Ensure modal footer buttons are visible */
+    #add-item-modal .modal-footer {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    #add-item-modal .modal-footer .row {
+        display: flex !important;
+    }
+    
+    #add-item-modal .modal-footer .col-6 {
+        display: block !important;
+    }
+    
+    #return-entry-btn,
+    #claim-entry-btn,
+    #scrap-in-btn,
+    #scrap-sale-btn {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Modern Invoice Design Styles */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+    
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8fafc;
+    }
+    
+    .invoice-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        position: relative;
+        overflow: hidden;
+        border-top: 8px solid #2563eb;
+    }
+    
+    .modern-input {
+        width: 100%;
+        padding: 16px;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 16px;
+        font-weight: 800;
+        font-size: 18px;
+        color: #1f2937;
+        transition: all 0.2s;
+    }
+    
+    .modern-input:focus {
+        border-color: #2563eb;
+        outline: none;
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    }
+    
+    .modern-label {
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #9ca3af;
+        margin-left: 4px;
+        margin-bottom: 4px;
+        display: block;
+        letter-spacing: 0.05em;
+    }
+    
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .invoice-header-left h1 {
+        font-size: 32px;
+        font-weight: 900;
+        color: #1e3a8a;
+        text-transform: uppercase;
+        line-height: 1;
+        letter-spacing: -0.02em;
+    }
+    
+    .invoice-header-left .subtitle {
+        font-size: 10px;
+        color: #2563eb;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-top: 4px;
+    }
+    
+    .invoice-header-left .helpline {
+        font-size: 16px;
+        color: #6b7280;
+        font-weight: bold;
+        margin-top: -12px;
+    }
+    
+    .invoice-header-right {
+        text-align: right;
+    }
+    
+    .invoice-header-right .invoice-label {
+        font-size: 12px;
+        color: #9ca3af;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .invoice-header-right .invoice-number {
+        font-size: 20px;
+        font-weight: 900;
+        color: #2563eb;
+    }
+    
+    .invoice-header-right .invoice-date {
+        font-size: 14px;
+        font-weight: 700;
+        color: #374151;
+        margin-top: 4px;
+    }
+    
+    .vehicle-card {
+        background: rgba(37, 99, 235, 0.05);
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(37, 99, 235, 0.1);
+        position: relative;
+    }
+    
+    .vehicle-label {
+        font-size: 9px;
+        font-weight: 900;
+        color: #60a5fa;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    
+    .vehicle-reg {
+        font-size: 14px;
+        font-weight: 900;
+        color: #2563eb;
+        text-transform: uppercase;
+        margin-top: 4px;
+    }
+    
+    .vehicle-details {
+        font-size: 11px;
+        font-weight: 700;
+        color: #1e3a8a;
+        text-transform: uppercase;
+        margin-top: 2px;
+    }
+    
+    .items-container {
+        min-height: 60px;
+        padding-top: 12px;
+    }
+    
+    .item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .item-name {
+        font-weight: 700;
+        font-size: 12px;
+        color: #1f2937;
+    }
+    
+    .item-details {
+        font-size: 9px;
+        color: #9ca3af;
+    }
+    
+    .item-total {
+        font-weight: 900;
+        font-size: 14px;
+        color: #374151;
+    }
+    
+    .total-section {
+        padding-top: 16px;
+        border-top: 2px dashed #e5e7eb;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 16px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #6b7280;
+    }
+    
+    .discount-section {
+        background: #dcfce7;
+        border-radius: 12px;
+        border: 1px solid #bbf7d0;
+        padding: 8px 16px;
+        margin: 8px 0;
+    }
+    
+    .discount-label {
+        font-size: 10px;
+        font-weight: 900;
+        color: #16a34a;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .net-payable {
+        background: #eff6ff;
+        border-radius: 12px;
+        border: 1px solid #bfdbfe;
+        padding: 6px 16px;
+        margin: 8px 0;
+    }
+    
+    .net-payable-label {
+        font-size: 10px;
+        font-weight: 900;
+        color: #1e40af;
+        text-transform: uppercase;
+    }
+    
+    .net-payable-value {
+        font-size: 14px;
+        font-weight: 900;
+        color: #1e40af;
+    }
+    
+    .received-amount-section {
+        background: #f9fafb;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 8px 16px;
+        margin: 8px 0;
+    }
+    
+    .received-amount-label {
+        font-size: 10px;
+        font-weight: 900;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .payment-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px;
+        margin-top: 5px;
+    }
+    
+    .bank-received-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px;
+        margin-top: 5px;
+    }
+    
+    .previous-balance-section {
+        background: #fef3c7;
+        border-radius: 12px;
+        border: 1px solid #fde68a;
+        padding: 8px 16px;
+        margin: 8px 0;
+    }
+    
+    .previous-balance-label {
+        font-size: 10px;
+        font-weight: 900;
+        color: #92400e;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .grand-total-card {
+        background: #1f2937;
+        border-radius: 16px;
+        padding: 16px;
+        color: white;
+        margin-top: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .grand-total-label {
+        font-size: 9px;
+        font-weight: 900;
+        text-transform: uppercase;
+        opacity: 0.6;
+        letter-spacing: 0.1em;
+    }
+    
+    .grand-total-value {
+        font-size: 32px;
+        font-weight: 900;
+        color: #60a5fa;
+        letter-spacing: -0.02em;
+    }
+    
+    .item-count {
+        font-size: 8px;
+        font-weight: 700;
+        color: #60a5fa;
+    }
+    
+    .modern-btn-primary {
+        width: 100%;
+        padding: 20px;
+        background: #2563eb;
+        color: white;
+        border-radius: 24px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        border: none;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .modern-btn-primary:active {
+        transform: scale(0.95);
+    }
+    
+    .modern-btn-primary i {
+        font-size: 24px;
+    }
+    
+    .action-btn-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .action-btn {
+        padding: 14px;
+        border-radius: 16px;
+        font-weight: 900;
+        text-transform: uppercase;
+        font-size: 10px;
+        border: 2px solid;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .action-btn:active {
+        transform: scale(0.95);
+    }
+    
+    .empty-state {
+        text-align: center;
+        color: #d1d5db;
+        font-size: 10px;
+        padding: 20px;
+        font-style: italic;
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+    }
+    
+    .suggestions-list {
+        position: absolute;
+        width: 100%;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        max-height: 250px;
+        overflow-y: auto;
+        z-index: 110;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        margin-top: 4px;
+        top: 100%;
+        left: 0;
+    }
+    
+    .suggestion-item {
+        padding: 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.2s;
+    }
+    
+    .suggestion-item:hover {
+        background-color: #eff6ff;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .hidden {
+        display: none !important;
+    }
 </style>
 @endpush
 
@@ -644,18 +1525,74 @@
 $(document).ready(function() {
     let salesItems = [];
     let itemCounter = 0;
-
-    // Customer change handler
-    $('#customer_id').on('change', function() {
-        const selected = $(this).find('option:selected');
-        const name = selected.data('name') || '';
-        const phone = selected.data('phone') || '';
-        const address = selected.data('address') || '';
-        const area = selected.data('area') || '';
+    
+    // Store customer data for search
+    const customersData = [
+        @foreach($customers as $customer)
+        {
+            id: {{ $customer->id }},
+            name: '{{ $customer->names[0] ?? 'N/A' }}',
+            phone: '{{ $customer->phones[0] ?? '' }}',
+            company: '{{ $customer->company ?? '' }}',
+            address: '{{ $customer->address ?? '' }}',
+            area: '{{ $customer->area ?? '' }}',
+            displayText: '{{ $customer->names[0] ?? 'N/A' }}@if($customer->company) - {{ $customer->company }}@endif'
+        }@if(!$loop->last),@endif
+        @endforeach
+    ];
+    
+    // Customer search function
+    window.searchCustomer = function(val) {
+        const list = $('#customerSuggestions');
+        if(!val || val.trim() === '') {
+            list.addClass('hidden');
+            return;
+        }
         
+        const searchTerm = val.toLowerCase();
+        const matches = customersData.filter(c => 
+            c.name.toLowerCase().includes(searchTerm) ||
+            c.company.toLowerCase().includes(searchTerm) ||
+            c.phone.includes(searchTerm) ||
+            c.displayText.toLowerCase().includes(searchTerm)
+        );
+        
+        let html = '';
+        if(matches.length > 0) {
+            html = matches.map(c => `
+                <div class="suggestion-item" onclick="selectCustomer(${c.id}, '${c.name.replace(/'/g, "\\'")}', '${c.phone.replace(/'/g, "\\'")}', '${c.address.replace(/'/g, "\\'")}', '${c.area.replace(/'/g, "\\'")}', '${c.displayText.replace(/'/g, "\\'")}')">
+                    <p class="mb-0 fw-bold" style="font-size: 14px;">${c.displayText}</p>
+                    ${c.phone ? '<p class="mb-0 text-muted small">' + c.phone + '</p>' : ''}
+                </div>
+            `).join('');
+        } else {
+            html = '<div class="suggestion-item text-muted" style="padding: 12px;">No customers found</div>';
+        }
+        
+        list.html(html);
+        list.removeClass('hidden');
+    };
+    
+    // Select customer function
+    window.selectCustomer = function(id, name, phone, address, area, displayText) {
+        $('#customer_id').val(id);
+        $('#customer_search').val(displayText);
         $('#customer_mobile').val(phone);
         $('#customer_address').val(address);
         $('#customer_area').val(area);
+        $('#customerSuggestions').addClass('hidden');
+        
+        // Trigger calculation if needed
+        if(typeof calculateFinalTotalFromInput === 'function') {
+            calculateFinalTotalFromInput();
+        }
+    };
+    
+    // Hide suggestions when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#customer_search, #customerSuggestions').length) {
+            $('#customerSuggestions').addClass('hidden');
+        }
     });
 
     // Branch selection for sales
@@ -714,6 +1651,33 @@ $(document).ready(function() {
     }
     window.selectSalesBranch = selectSalesBranch;
 
+    // Auto-select Barki Express branch on page load (after function is defined)
+    setTimeout(function() {
+        // Find Barki Express branch from dropdown
+        const branchDropdown = $('#branchDropdown').next('.dropdown-menu');
+        const barkiBranch = branchDropdown.find('a').filter(function() {
+            const branchText = $(this).text().toUpperCase();
+            return branchText.includes('BARKI');
+        }).first();
+        
+        if (barkiBranch.length > 0) {
+            // Extract branch info from onclick attribute
+            const onclickAttr = barkiBranch.attr('onclick');
+            if (onclickAttr) {
+                // Parse: selectSalesBranch(branchId, 'branchName', 'branchCode')
+                const match = onclickAttr.match(/selectSalesBranch\((\d+),\s*'([^']+)',\s*'([^']*)'\)/);
+                if (match) {
+                    const branchId = parseInt(match[1]);
+                    const branchName = match[2];
+                    const branchCode = match[3];
+                    
+                    // Auto-select Barki Express branch
+                    selectSalesBranch(branchId, branchName, branchCode);
+                }
+            }
+        }
+    }, 800);
+
     // Load warehouse info for selected branch
     function loadBranchWarehouseInfo(branchId) {
         $.ajax({
@@ -739,18 +1703,208 @@ $(document).ready(function() {
         });
     }
 
+
     // Update date/time display every second
     function updateDateTime() {
         const now = new Date();
         const day = String(now.getDate()).padStart(2, '0');
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const year = now.getFullYear();
-        const hours = String(now.getHours()).padStart(2, '0');
+        let hours = now.getHours();
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        hours = String(hours).padStart(2, '0');
         
-        $('#currentDateTime').text(`${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`);
+        $('#currentDateTime').text(`${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`);
     }
+    
+    // Store original invoice number and current state
+    let originalInvoiceNumber = $('#sales-number').text();
+    let currentState = 0; // 0 = Sale, 1 = Estimate, 2 = Sale Order
+    let originalEstimateNumber = null;
+    let originalSaleOrderNumber = null;
+    
+    // Initialize slider position and icon box color
+    $('#estimateSwitch').find('.switch-slider').addClass('switch-position-0');
+    $('#estimateSwitch').addClass('switch-sale');
+    $('#status-icon-box').addClass('bg-primary');
+    // Initialize invoice number color to blue and switch background
+    $('#sales-number').css({'color': '#2563eb', 'margin-bottom': '0'});
+    $('#estimateSwitch').css('background', '#2563eb');
+    $('#add-vehicle-btn').css('color', '#2563eb'); // Initialize vehicle button color to blue
+    $('#add-item-modal .modal-title').css('color', '#2563eb'); // Initialize modal title color to blue
+    $('#add-new-item-btn').css('background', '#2563eb'); // Initialize ADD SALE ITEM button color to blue
+    $('#save-sale-btn').attr('style', 'background: #2563eb !important; border-color: #2563eb !important;'); // Initialize Save Sale button color to blue
+    $('#branch-name-title').css('color', '#2563eb'); // Initialize branch name title color to blue
+    
+    // Handle 3-in-1 Switch Toggle (Sale -> Estimate -> Sale Order -> Sale)
+    $('#estimateSwitch').on('click', function(e) {
+        e.preventDefault();
+        
+        const salesNumber = $('#sales-number');
+        const pageTitle = $('.page-title h4');
+        const switchLabel = $('#switch-label');
+        const slider = $(this).find('.switch-slider');
+        const iconBox = $('#status-icon-box');
+        
+        // Cycle through states: 0 -> 1 -> 2 -> 0
+        currentState = (currentState + 1) % 3;
+        
+        if (currentState === 0) {
+            // State 0: Sale/Invoice
+            $('#sale-status').val('pending');
+            
+            // Set colors immediately - Blue
+            salesNumber.removeClass('text-warning text-success text-info text-primary');
+            salesNumber.css({'color': '#2563eb', 'margin-bottom': '0'});
+            $('#estimateSwitch').css('background', '#2563eb');
+            $('#add-vehicle-btn').css('color', '#2563eb'); // Update vehicle button color
+            $('#add-item-modal .modal-title').css('color', '#2563eb'); // Update modal title color
+            $('#add-new-item-btn').css('background', '#2563eb'); // Update ADD SALE ITEM button color
+            $('#save-sale-btn').attr('style', 'background: #2563eb !important; border-color: #2563eb !important;'); // Update Save Sale button color
+            $('#branch-name-title').css('color', '#2563eb'); // Update branch name title color
+            $('#cash-received-section').show(); // Show cash received section for Sale
+            $('#bank-received-section').show(); // Show bank received section for Sale
+            
+            // Restore original invoice number or show INV #
+            if (originalInvoiceNumber && originalInvoiceNumber.includes('INV #')) {
+                salesNumber.text(originalInvoiceNumber);
+            } else {
+                const currentNumber = salesNumber.text().match(/\d+/);
+                salesNumber.text('INV #' + (currentNumber ? currentNumber[0] : '00001'));
+            }
+            
+            switchLabel.text('SALE');
+            pageTitle.text('Create Sales');
+            // Update switch - Position 0, Blue color
+            slider.removeClass('switch-position-1 switch-position-2').addClass('switch-position-0');
+            $(this).removeClass('switch-estimate switch-sale-order').addClass('switch-sale');
+            // Update icon box color - Blue
+            iconBox.removeClass('bg-warning bg-success').addClass('bg-primary');
+            
+        } else if (currentState === 1) {
+            // State 1: Estimate
+            $('#sale-status').val('estimate');
+            
+            // Set colors immediately - Yellow
+            salesNumber.removeClass('text-primary text-info text-success text-warning');
+            salesNumber.css('color', '#ffc107');
+            $('#estimateSwitch').css('background', '#ffc107');
+            $('#add-vehicle-btn').css('color', '#ffc107'); // Update vehicle button color
+            $('#add-item-modal .modal-title').css('color', '#ffc107'); // Update modal title color
+            $('#add-new-item-btn').css('background', '#ffc107'); // Update ADD SALE ITEM button color
+            $('#save-sale-btn').attr('style', 'background: #ffc107 !important; border-color: #ffc107 !important;'); // Update Save Sale button color
+            $('#branch-name-title').css('color', '#ffc107'); // Update branch name title color
+            $('#cash-received-section').hide(); // Hide cash received section for Estimate
+            $('#bank-received-section').hide(); // Hide bank received section for Estimate
+            
+            // Store original invoice number if not already stored
+            if (!originalInvoiceNumber || originalInvoiceNumber.includes('EST #') || originalInvoiceNumber.includes('SO #')) {
+                originalInvoiceNumber = $('#sales-number').text().replace(/EST #|SO #/g, 'INV #');
+            }
+            
+            // Store estimate number if switching from sale order
+            if (salesNumber.text().includes('SO #')) {
+                const currentNumber = salesNumber.text().match(/\d+/);
+                originalEstimateNumber = currentNumber ? currentNumber[0] : null;
+            }
+            
+            // Fetch next estimate number from server
+            $.ajax({
+                url: '{{ route("sales.next.estimate.number") }}',
+                method: 'GET',
+                success: function(response) {
+                    if (response.number) {
+                        salesNumber.text('EST #' + response.number);
+                        originalEstimateNumber = response.number;
+                    } else {
+                        const currentNumber = salesNumber.text().match(/\d+/);
+                        const estNumber = currentNumber ? currentNumber[0] : '00000';
+                        salesNumber.text('EST #' + estNumber);
+                        originalEstimateNumber = estNumber;
+                    }
+                    // Ensure color stays yellow
+                    salesNumber.css('color', '#ffc107');
+                },
+                error: function() {
+                    const currentNumber = salesNumber.text().match(/\d+/);
+                    const estNumber = currentNumber ? currentNumber[0] : '00000';
+                    salesNumber.text('EST #' + estNumber);
+                    originalEstimateNumber = estNumber;
+                    // Ensure color stays yellow
+                    salesNumber.css('color', '#ffc107');
+                }
+            });
+            
+            switchLabel.text('ESTIMATE');
+            pageTitle.text('Create Estimate');
+            // Update switch - Position 1, Yellow color
+            slider.removeClass('switch-position-0 switch-position-2').addClass('switch-position-1');
+            $(this).removeClass('switch-sale switch-sale-order').addClass('switch-estimate');
+            // Update icon box color - Yellow
+            iconBox.removeClass('bg-primary bg-success').addClass('bg-warning');
+            
+        } else if (currentState === 2) {
+            // State 2: Sale Order
+            $('#sale-status').val('sale_order');
+            
+            // Set colors immediately - Green
+            salesNumber.removeClass('text-primary text-warning text-info text-success');
+            salesNumber.css('color', '#198754');
+            $('#estimateSwitch').css('background', '#198754');
+            $('#add-vehicle-btn').css('color', '#198754'); // Update vehicle button color
+            $('#add-item-modal .modal-title').css('color', '#198754'); // Update modal title color
+            $('#add-new-item-btn').css('background', '#198754'); // Update ADD SALE ITEM button color
+            $('#save-sale-btn').attr('style', 'background: #198754 !important; border-color: #198754 !important;'); // Update Save Sale button color
+            $('#branch-name-title').css('color', '#198754'); // Update branch name title color
+            $('#cash-received-section').show(); // Show cash received section for Sale Order
+            $('#bank-received-section').show(); // Show bank received section for Sale Order
+            
+            // Store estimate number if switching from estimate
+            if (salesNumber.text().includes('EST #')) {
+                const currentNumber = salesNumber.text().match(/\d+/);
+                originalEstimateNumber = currentNumber ? currentNumber[0] : null;
+            }
+            
+            // Fetch next sale order number from server
+            $.ajax({
+                url: '{{ route("sales.next.sale.order.number") }}',
+                method: 'GET',
+                success: function(response) {
+                    if (response.number) {
+                        salesNumber.text('SO #' + response.number);
+                        originalSaleOrderNumber = response.number;
+                    } else {
+                        const currentNumber = salesNumber.text().match(/\d+/);
+                        const soNumber = currentNumber ? currentNumber[0] : '00000';
+                        salesNumber.text('SO #' + soNumber);
+                        originalSaleOrderNumber = soNumber;
+                    }
+                    // Ensure color stays green
+                    salesNumber.css('color', '#198754');
+                },
+                error: function() {
+                    const currentNumber = salesNumber.text().match(/\d+/);
+                    const soNumber = currentNumber ? currentNumber[0] : '00000';
+                    salesNumber.text('SO #' + soNumber);
+                    originalSaleOrderNumber = soNumber;
+                    // Ensure color stays green
+                    salesNumber.css('color', '#198754');
+                }
+            });
+            
+            switchLabel.text('SALE ORDER');
+            pageTitle.text('Create Sale Order');
+            // Update switch - Position 2, Green color
+            slider.removeClass('switch-position-0 switch-position-1').addClass('switch-position-2');
+            $(this).removeClass('switch-sale switch-estimate').addClass('switch-sale-order');
+            // Update icon box color - Green
+            iconBox.removeClass('bg-primary bg-warning').addClass('bg-success');
+        }
+    });
     
     // Load warehouse info on page load if branch is already selected
     $(document).ready(function() {
@@ -965,21 +2119,7 @@ $(document).ready(function() {
         salesNoResults.hide();
         salesLoadingResults.show();
         
-        // Get selected branch ID
-        const branchId = $('#salesBranchId').val();
-        if (!branchId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Branch Required',
-                text: 'Please select a branch first.'
-            });
-            return;
-        }
-        
-        // Add branch_id to params
-        params.branch_id = branchId;
-        
-        // Perform AJAX search
+        // Perform AJAX search (no branch_id required)
         $.ajax({
             url: "{{ route('sales.items.ajax.search') }}",
             data: params,
@@ -999,103 +2139,350 @@ $(document).ready(function() {
                 const searchTerm = query.toLowerCase();
                 const regex = searchTerm ? new RegExp(searchTerm.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'gi') : null;
                 
+                // Helper to check if text is dummy/invalid
+                const isDummy = function(t) {
+                    if (!t || t.length > 200) return true;
+                    const lower = t.toLowerCase().trim();
+                    return lower.indexOf('lorem') !== -1 || 
+                           lower.indexOf('dummy') !== -1 || 
+                           lower.indexOf('simply') !== -1 ||
+                           lower === 'sdfsdf' ||
+                           lower === 'test' ||
+                           /^[a-z]{5,}$/.test(lower) && lower.split('').every(c => c === lower[0]); // All same character repeated
+                };
+                
+                // Helper to highlight search terms in text (only the matching part, not whole word)
+                const highlightText = function(text, searchQuery) {
+                    if (!text || !searchQuery) return text;
+                    const searchTerms = searchQuery.trim().split(/\s+/).filter(t => t.length > 0);
+                    if (searchTerms.length === 0) return text;
+                    
+                    let highlighted = text;
+                    searchTerms.forEach(term => {
+                        if (term.length < 1) return; // Allow single character matching
+                        // Escape special regex characters and match case-insensitively
+                        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`(${escapedTerm})`, 'gi');
+                        // Replace only the matching part, not the whole word
+                        highlighted = highlighted.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: 600;">$1</mark>');
+                    });
+                    return highlighted;
+                };
+                
                 items.forEach(itemData => {
+                    // Handle branch results
+                    if (itemData.type === 'branch') {
+                        html += `
+                            <div class="p-2 border-bottom branch-search-result" 
+                                 data-type="branch"
+                                 data-id="${itemData.id}"
+                                 style="background-color: #e7f3ff; cursor: pointer; transition: background 0.2s;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ti ti-building me-2 text-primary"></i>
+                                    <div>
+                                        <div class="fw-bold text-primary">${itemData.display}</div>
+                                        <div class="small text-muted">Branch</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Handle warehouse results
+                    if (itemData.type === 'warehouse') {
+                        html += `
+                            <div class="p-2 border-bottom warehouse-search-result" 
+                                 data-type="warehouse"
+                                 data-id="${itemData.id}"
+                                 style="background-color: #f0f9ff; cursor: pointer; transition: background 0.2s;">
+                                <div class="d-flex align-items-center">
+                                    <i class="ti ti-archive me-2 text-info"></i>
+                                    <div>
+                                        <div class="fw-bold text-info">${itemData.display}</div>
+                                        <div class="small text-muted">Warehouse${itemData.branch_name ? ' - ' + itemData.branch_name : ''}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
                     // Extract item and warehouse information
                     const item = itemData.item || itemData;
-                    const itemName = itemData.item_name || item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                    const partNumber = itemData.part_number || item.partnumber_item?.name || '';
-                    const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
-                    const model = item.vehical_item?.model_vehical?.name || '';
-                    const yearFrom = item.vehical_item?.year_from || '';
-                    const yearTo = item.vehical_item?.year_to || '';
-                    const yearDisplay = yearFrom && yearTo ? `${yearFrom}-${yearTo}` : (yearFrom || yearTo || '');
+                    const itemType = item.type || '';
+                    const partNumber = item.partnumber_item ? item.partnumber_item.name : (itemData.part_number || '');
+                    const barCode = item.bar_code || itemData.bar_code || '';
+                    const shortDisc = (item.short_disc || '').trim();
+                    const proDis = (item.pro_dis || '').trim();
+                    
+                    // PRIMARY: Get product name (product_item.name first, then short_disc or pro_dis) - NOT code
+                    let productName = '';
+                    
+                    // Priority 1: product_item.name (actual product name)
+                    const productFromRelation = item.product_item ? item.product_item.name : '';
+                    if (productFromRelation && !isDummy(productFromRelation)) {
+                        productName = productFromRelation.trim();
+                    }
+                    
+                    // Priority 2: short_disc (if product_item.name not available)
+                    if (!productName && !isDummy(shortDisc)) {
+                        productName = shortDisc;
+                    }
+                    
+                    // Priority 3: pro_dis (if still no product name)
+                    if (!productName && !isDummy(proDis)) {
+                        productName = proDis;
+                    }
+                    
+                    // Priority 4: Part Number (if available, but NOT barcode)
+                    if (!productName && partNumber) {
+                        productName = partNumber;
+                    }
+                    
+                    // Last resort: Item ID (never use barcode as product name)
+                    if (!productName) {
+                        productName = 'Item #' + item.id;
+                    }
+                    
+                    // Truncate if too long
+                    if (productName.length > 100) {
+                        productName = productName.substring(0, 97) + '...';
+                    }
+                    
+                    // SECONDARY: Code line (barcode/part number)
+                    let codeInfo = '';
+                    if (barCode) {
+                        codeInfo = barCode;
+                        if (partNumber && partNumber !== barCode) {
+                            codeInfo += ' | ' + partNumber;
+                        }
+                    } else if (partNumber) {
+                        codeInfo = partNumber;
+                    }
+                    
+                    // Get all item details based on type
+                    const manufacturer = item.vehical_item && item.vehical_item.manutacturer_vehical ? item.vehical_item.manutacturer_vehical.name : '';
+                    const model = item.vehical_item && item.vehical_item.model_vehical ? item.vehical_item.model_vehical.name : '';
+                    const category = item.category ? item.category.name : (itemData.category_name || '');
+                    const subcategory = item.subcategory ? item.subcategory.name : '';
+                    const company = item.company_item ? item.company_item.name : '';
+                    const product = item.product_item ? item.product_item.name : '';
+                    const quality = item.quality_item ? item.quality_item.name : '';
+                    const technology = item.technology_item ? item.technology_item.name : '';
+                    const grade = item.grade_item ? item.grade_item.name : '';
+                    const volt = item.volt_item ? item.volt_item.name : '';
+                    const cca = item.cca_item ? item.cca_item.name : '';
+                    const group = item.group_item ? item.group_item.name : '';
+                    const madeIn = item.made_in_item ? item.made_in_item.name : '';
+                    const level = item.level_item ? item.level_item.name : '';
+                    const batterySize = item.battery_size || '';
+                    const plate = item.plate_item ? item.plate_item.name : '';
+                    const amperes = item.amphors_item ? item.amphors_item.name : '';
                     
                     // Warehouse stock and quantity
-                    const warehouseQuantity = parseFloat(itemData.warehouse_quantity || 0);
-                    const availableQuantity = parseFloat(itemData.available_quantity || 0);
-                    const cartons = parseInt(itemData.cartons || 0);
-                    const loose = parseFloat(itemData.loose || 0);
+                    const warehouseQuantity = parseFloat(itemData.warehouse_quantity || item.on_hand || 0);
+                    const availableQuantity = parseFloat(itemData.available_quantity || warehouseQuantity);
+                    const stock = warehouseQuantity;
                     
                     // Price information - prioritize sale_price
                     const salePrice = parseFloat(itemData.sale_price || item.sale_price || 0);
                     const calculatedPricePerUnit = parseFloat(itemData.calculated_price_per_unit || 0);
-                    const totalCost = parseFloat(itemData.total_cost || 0);
                     const pricePerUnit = parseFloat(itemData.price_per_unit || item.price_per_unit || 0);
                     const packingPurchaseRate = parseFloat(itemData.packing_purchase_rate || item.packing_purchase_rate || 0);
+                    const totalPrice = parseFloat(itemData.total_price || item.total_price || 0);
                     
-                    // Priority: sale_price > calculated_price_per_unit > price_per_unit > packing_purchase_rate
-                    let displayPrice = 0;
+                    // Priority: sale_price > calculated_price_per_unit > price_per_unit > packing_purchase_rate > total_price
+                    let rate = 0;
                     if (salePrice > 0) {
-                        displayPrice = salePrice;
+                        rate = salePrice;
                     } else if (calculatedPricePerUnit > 0) {
-                        displayPrice = calculatedPricePerUnit;
+                        rate = calculatedPricePerUnit;
                     } else if (pricePerUnit > 0) {
-                        displayPrice = pricePerUnit;
+                        rate = pricePerUnit;
                     } else if (packingPurchaseRate > 0) {
-                        displayPrice = packingPurchaseRate;
+                        rate = packingPurchaseRate;
+                    } else if (totalPrice > 0) {
+                        rate = totalPrice;
                     }
                     
-                    const barCode = itemData.bar_code || item.bar_code || '';
-                    const serialNumber = itemData.serial_number || item.serial_number || '';
-                    const categoryName = itemData.category_name || (item.category ? item.category.name : '');
-                    const unit = itemData.unit || item.unit || 'Unit';
+                    const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) 
+                        ? (item.unit_item.name || item.unit_item.short_name) 
+                        : (itemData.unit || item.unit || 'Unit');
                     
-                    // Highlight search term
-                    let displayItemName = itemName;
-                    let displayPartNumber = partNumber;
-                    let displayManufacturer = manufacturer;
-                    let displayModel = model;
-                    let displayYear = yearDisplay;
-                    let displayCategory = categoryName;
-                    
-                    if (regex) {
-                        displayItemName = itemName.replace(regex, match => `<mark>${match}</mark>`);
-                        displayPartNumber = partNumber.replace(regex, match => `<mark>${match}</mark>`);
-                        displayManufacturer = manufacturer.replace(regex, match => `<mark>${match}</mark>`);
-                        displayModel = model.replace(regex, match => `<mark>${match}</mark>`);
-                        displayYear = yearDisplay.replace(regex, match => `<mark>${match}</mark>`);
-                        displayCategory = categoryName.replace(regex, match => `<mark>${match}</mark>`);
+                    // Update product name: Priority 1 - product_item.name (actual product name)
+                    if (product && !isDummy(product)) {
+                        productName = product;
                     }
+                    
+                    // Build first line for battery: Product Name + Plates + Amperes + Company
+                    let firstLineParts = [];
+                    if (itemType === 'battery') {
+                        firstLineParts.push(productName);
+                        if (plate) firstLineParts.push(plate + 'PL');
+                        if (amperes) firstLineParts.push(amperes + 'AH');
+                        if (company) firstLineParts.push(company);
+                    }
+                    
+                    // Build short details array for search display (includes vehicle)
+                    let searchDetails = [];
+                    
+                    // Common fields (short format) - exclude company for battery (it's on first line)
+                    if (itemType !== 'battery' && company) searchDetails.push(company);
+                    if (category) searchDetails.push(category);
+                    
+                    // Type-specific details (short format)
+                    if (itemType === 'battery') {
+                        if (group && !isDummy(group)) searchDetails.push(group);
+                        if (volt) searchDetails.push(volt + 'V');
+                        if (cca) searchDetails.push(cca + 'CCA');
+                        if (technology && !isDummy(technology)) searchDetails.push(technology);
+                        if (grade && !isDummy(grade)) searchDetails.push(grade);
+                        if (batterySize && !isDummy(batterySize)) searchDetails.push(batterySize);
+                    } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                        if (partNumber && !isDummy(partNumber)) searchDetails.push(partNumber);
+                        if (quality && !isDummy(quality)) searchDetails.push(quality);
+                        if (manufacturer && model) {
+                            searchDetails.push(manufacturer + ' ' + model);
+                        } else if (manufacturer) {
+                            searchDetails.push(manufacturer);
+                        }
+                    } else if (itemType === 'oil') {
+                        if (technology && !isDummy(technology)) searchDetails.push(technology);
+                        if (grade && !isDummy(grade)) searchDetails.push(grade);
+                    }
+                    
+                    // Vehicle info (ONLY for search display, NOT for input field) - separate for styling
+                    let vehicleInfo = '';
+                    if (itemType !== 'parts' && itemType !== 'filters' && itemType !== 'breakpad') {
+                        if (manufacturer && model) {
+                            vehicleInfo = manufacturer + ' ' + model;
+                        } else if (manufacturer) {
+                            vehicleInfo = manufacturer;
+                        }
+                    }
+                    
+                    // Build details for input field (NO vehicle)
+                    let inputDetails = [];
+                    if (company) inputDetails.push(company);
+                    if (category) inputDetails.push(category);
+                    
+                    // Type-specific details (NO vehicle)
+                    if (itemType === 'battery') {
+                        if (group && !isDummy(group)) inputDetails.push(group);
+                        if (volt) inputDetails.push(volt + 'V');
+                        if (cca) inputDetails.push(cca + 'CCA');
+                        if (technology && !isDummy(technology)) inputDetails.push(technology);
+                        if (grade && !isDummy(grade)) inputDetails.push(grade);
+                        if (batterySize && !isDummy(batterySize)) inputDetails.push(batterySize);
+                        if (plate) inputDetails.push(plate + ' PL');
+                        if (amperes) inputDetails.push(amperes + ' AH');
+                    } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                        if (partNumber && !isDummy(partNumber)) inputDetails.push(partNumber);
+                        if (quality && !isDummy(quality)) inputDetails.push(quality);
+                    } else if (itemType === 'oil') {
+                        if (technology && !isDummy(technology)) inputDetails.push(technology);
+                        if (grade && !isDummy(grade)) inputDetails.push(grade);
+                    }
+                    
+                    // Stock status color and icon
+                    const stockValue = parseFloat(stock) || 0;
+                    let stockColor = stockValue > 10 ? 'success' : (stockValue > 0 ? 'secondary' : 'danger');
+                    let stockIcon = stockValue > 10 ? 'ti-check' : (stockValue > 0 ? '' : 'ti-x');
+                    const stockDisplay = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(2);
+                    
+                    // Build first line HTML for battery items
+                    let firstLineHtml = '';
+                    let firstLineText = productName; // Default to product name
+                    if (itemType === 'battery' && firstLineParts.length > 0) {
+                        firstLineText = firstLineParts.join(' ');
+                        const highlightedFirstLine = highlightText(firstLineText, query);
+                        firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
+                    } else {
+                        // For non-battery items, show product name as before
+                        const highlightedProductName = highlightText(productName, query);
+                        firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedProductName + '</div>';
+                    }
+                    
+                    // Build short details HTML for search display (includes vehicle) with highlighting
+                    let detailsHtml = '';
+                    if (searchDetails.length > 0) {
+                        const detailsText = searchDetails.join(' • ');
+                        const highlightedDetails = highlightText(detailsText, query);
+                        
+                        // Add vehicle info with different color if available
+                        if (vehicleInfo) {
+                            const highlightedVehicle = highlightText(vehicleInfo, query);
+                            detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + ' • <span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
+                        } else {
+                            detailsHtml = '<div class="small text-muted mt-1">' + highlightedDetails + '</div>';
+                        }
+                    } else if (vehicleInfo) {
+                        // Only vehicle info, no other details
+                        const highlightedVehicle = highlightText(vehicleInfo, query);
+                        detailsHtml = '<div class="small text-muted mt-1"><span class="text-primary fw-semibold">' + highlightedVehicle + '</span></div>';
+                    }
+                    
+                    // Build display string for input: Product Name + Details (NO vehicle)
+                    let displayString = productName;
+                    if (inputDetails.length > 0) {
+                        displayString += ' ' + inputDetails.join(' ');
+                    }
+                    
+                    // Build details strings for display below input
+                    const detailsText = searchDetails.length > 0 ? searchDetails.join(' • ') : '';
+                    const vehicleText = vehicleInfo || '';
+                    const codeText = codeInfo || '';
+                    
+                    // For battery items, build line 1: company + volt (if available)
+                    let line1Details = '';
+                    if (itemType === 'battery') {
+                        const line1Parts = [];
+                        if (company) line1Parts.push(company);
+                        if (volt) line1Parts.push(volt + 'V');
+                        line1Details = line1Parts.join(' • ');
+                    } else {
+                        line1Details = detailsText;
+                    }
+                    
+                    // Highlight barcode
+                    const highlightedCodeInfo = codeInfo ? highlightText(codeInfo, query) : '';
+                    
+                    // Get item image URL
+                    const itemImage = item.image || itemData.image || '';
                     
                     html += `
-                        <div class="item-card" data-id="${item.id}" 
-                             data-name="${itemName.replace(/"/g, '&quot;')}"
-                             data-price="${displayPrice}"
-                             data-stock="${warehouseQuantity}"
-                             data-warehouse-id="${itemData.warehouse_id || ''}">
+                        <div class="p-3 border-bottom item-search-result" 
+                             data-type="item"
+                             data-id="${item.id}" 
+                             data-name="${productName.replace(/"/g, '&quot;')}"
+                             data-display="${displayString.replace(/"/g, '&quot;')}"
+                             data-first-line="${firstLineText.replace(/"/g, '&quot;')}"
+                             data-details="${detailsText.replace(/"/g, '&quot;')}"
+                             data-line1-details="${line1Details.replace(/"/g, '&quot;')}"
+                             data-vehicle="${vehicleText.replace(/"/g, '&quot;')}"
+                             data-code="${codeText.replace(/"/g, '&quot;')}"
+                             data-cca="${(itemType === 'battery' && cca) ? (cca + 'CCA') : ''}"
+                             data-rate="${rate}"
+                             data-unit="${unit}"
+                             data-warehouse-id="${itemData.warehouse_id || ''}"
+                             style="cursor: pointer; transition: all 0.2s ease; background: white;">
                             <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-1 fw-bold">${displayItemName}</h6>
-                                    ${displayPartNumber ? `<div class="small text-muted mb-1"><i class="fas fa-tag me-1"></i>${displayPartNumber}</div>` : ''}
-                                    ${displayCategory ? `<div class="small text-info mb-1"><i class="fas fa-folder me-1"></i>${displayCategory}</div>` : ''}
-                                    <div class="small text-muted mb-2">
-                                        ${displayManufacturer ? displayManufacturer + ' ' : ''}${displayModel}${displayYear ? ' (' + displayYear + ')' : ''}
+                                ${itemImage ? `<div class="me-3" style="flex-shrink: 0;">
+                                    <img src="${itemImage}" alt="${productName}" class="rounded border" style="width: 60px; height: 60px; object-fit: cover;">
+                                </div>` : ''}
+                                <div class="flex-grow-1 me-3">
+                                    ${firstLineHtml}
+                                    ${detailsHtml}
+                                    ${codeInfo ? '<div class="text-primary small fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + highlightedCodeInfo + '</div>' : ''}
                                     </div>
-                                    <div class="d-flex gap-3 small mb-2">
-                                        ${barCode ? `<span><i class="fas fa-barcode me-1"></i>${barCode}</span>` : ''}
-                                        ${serialNumber ? `<span><i class="fas fa-hashtag me-1"></i>${serialNumber}</span>` : ''}
-                                    </div>
-                                    <div class="d-flex gap-3 small">
-                                        <span class="text-${warehouseQuantity > 0 ? 'success' : 'danger'}">
-                                            <i class="fas fa-box me-1"></i>Stock: ${warehouseQuantity.toFixed(2)} ${unit}
+                                <div class="text-end" style="min-width: 100px;">
+                                    <div class="fw-bold text-primary mb-1">Rs ${parseFloat(rate).toFixed(2)}</div>
+                                    <div class="small">
+                                        <span class="badge bg-${stockColor} bg-opacity-10 text-${stockColor}">
+                                            ${stockIcon ? '<i class="ti ' + stockIcon + ' me-1"></i>' : ''}${stockDisplay} ${unit}
                                         </span>
-                                        ${cartons > 0 || loose > 0 ? `<span class="text-info">
-                                            <i class="fas fa-cubes me-1"></i>${cartons}C | ${loose.toFixed(2)}L
-                                        </span>` : ''}
-                                        ${availableQuantity !== warehouseQuantity ? `<span class="text-warning">
-                                            <i class="fas fa-lock me-1"></i>Available: ${availableQuantity.toFixed(2)}
-                                        </span>` : ''}
                                     </div>
-                                    ${totalCost > 0 ? `<div class="small text-muted mt-1">
-                                        <i class="fas fa-calculator me-1"></i>Total Cost: Rs ${totalCost.toFixed(2)}
-                                    </div>` : ''}
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-bold text-primary mb-1">Rs ${displayPrice.toFixed(2)}</div>
-                                    ${pricePerUnit > 0 && pricePerUnit !== displayPrice ? `<div class="small text-muted mb-1">Per Unit: Rs ${pricePerUnit.toFixed(2)}</div>` : ''}
-                                    <button class="btn btn-sm btn-primary sales-add-item-btn">
-                                        <i class="fas fa-plus me-1"></i>Select
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1126,6 +2513,11 @@ $(document).ready(function() {
         let totalAvailableStock = 0;
         
         items.forEach(itemData => {
+            // Skip branches and warehouses
+            if (itemData.type === 'branch' || itemData.type === 'warehouse') {
+                return;
+            }
+            
             const item = itemData.item || itemData;
             const warehouseQuantity = parseFloat(itemData.warehouse_quantity || item.on_hand || 0);
             const availableQuantity = parseFloat(itemData.available_quantity || warehouseQuantity);
@@ -1138,36 +2530,142 @@ $(document).ready(function() {
         $('#sales-shop-stock').text(totalAvailableStock.toFixed(2) + ' Available');
     }
     
-    // Add item to sales detail modal
-    $(document).on('click', '.item-card, .sales-add-item-btn', function(e) {
+    // Select from search results (branch, warehouse, or item) - purchase style
+    $(document).on('click', '.branch-search-result, .warehouse-search-result, .item-search-result, .sales-add-item-btn', function(e) {
         e.stopPropagation();
-        const card = $(this).closest('.item-card');
-        const itemId = card.data('id');
-        const itemName = card.data('name');
-        const itemPrice = card.data('price');
-        const itemStock = card.data('stock');
-        const warehouseId = card.data('warehouse-id');
+        const resultType = $(this).data('type');
+        const resultId = $(this).data('id');
         
-        // Close search modal
-        salesSearchModal.modal('hide');
+        if (resultType === 'branch') {
+            // Select branch and reload search
+            selectSalesBranch(resultId, $(this).find('.fw-bold').text(), '');
+            salesSearchInput.val(''); // Clear search to show all items for this branch
+            salesResultsContainer.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                    <p>Start typing to search items or use filters above</p>
+                </div>
+            `);
+            // Trigger search again after branch selection
+            setTimeout(function() {
+                salesSearchInput.trigger('input');
+            }, 500);
+            return;
+        } else if (resultType === 'warehouse') {
+            // Filter by warehouse - reload search with warehouse filter
+            const currentQuery = salesSearchInput.val();
+            salesSearchInput.val(currentQuery + ' [Warehouse: ' + resultId + ']');
+            salesResultsContainer.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                    <p>Start typing to search items or use filters above</p>
+                </div>
+            `);
+            // Could add warehouse filter here if needed
+            return;
+        } else if (resultType === 'item') {
+            // Select item - load full details
+            const card = $(this).closest('.item-search-result');
+            const itemId = resultId;
+            const itemName = card.data('name');
+            const itemFirstLine = card.data('first-line') || itemName; // Use first line text (black text from search result)
+            const itemDisplay = card.data('display') || itemName; // Use display string (product name + details)
+            const itemDetails = card.data('details') || ''; // All details
+            const itemLine1Details = card.data('line1-details') || ''; // Line 1 details (company + volt for battery)
+            const itemVehicle = card.data('vehicle') || ''; // Vehicle like "HONDA City"
+            const itemCode = card.data('code') || ''; // Barcode/code like "6704861980"
+            const itemCca = card.data('cca') || ''; // CCA like "380CCA"
+            const itemRate = card.data('rate');
+            const itemUnit = card.data('unit');
+            const warehouseId = card.data('warehouse-id');
+            
+            // Close search modal
+            salesSearchModal.modal('hide');
         
         // Set item data immediately
         $('#selected-item-id').val(itemId);
-        $('#item-search').val(itemName);
+        $('#item-search').val(itemFirstLine); // Use first line text like purchase
         $('#selected-warehouse-id').val(warehouseId || '');
         
         // Set price immediately from search results
-        if (itemPrice && parseFloat(itemPrice) > 0) {
-            $('#sales-item-rate').val(parseFloat(itemPrice).toFixed(2));
+        if (itemRate && parseFloat(itemRate) > 0) {
+            $('#sales-item-rate').val(parseFloat(itemRate).toFixed(2));
+        }
+        
+        // Show item details below input (matching purchase format)
+        let line1 = '';
+        let line2 = '';
+        let line3 = '';
+        
+        // Line 1: Volt only (remove company like "AGS")
+        if (itemLine1Details) {
+            // Remove company from line1Details (e.g., "AGS • 12V" -> "12V")
+            const parts = itemLine1Details.split('•').map(p => p.trim());
+            if (parts.length > 1) {
+                line1 = parts.slice(1).join(' • ').trim();
+            } else {
+                line1 = itemLine1Details;
+            }
+        } else if (itemDetails) {
+            // Fallback: use details without vehicle, CCA, and company
+            let detailsOnly = itemDetails;
+            if (itemVehicle && detailsOnly.includes(itemVehicle)) {
+                detailsOnly = detailsOnly.replace(new RegExp('\\s*•\\s*' + itemVehicle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+            }
+            if (itemCca && detailsOnly.includes(itemCca)) {
+                detailsOnly = detailsOnly.replace(new RegExp('\\s*•\\s*' + itemCca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+            }
+            const parts = detailsOnly.split('•').map(p => p.trim());
+            if (parts.length > 1) {
+                detailsOnly = parts.slice(1).join(' • ').trim();
+            }
+            line1 = detailsOnly.trim();
+        }
+        
+        // Line 2: CCA + Vehicle (e.g., "380CCA • HONDA City" with vehicle in orange)
+        if (itemCca && itemVehicle) {
+            line2 = itemCca + ' • <span class="text-warning fw-semibold">' + itemVehicle + '</span>';
+        } else if (itemCca) {
+            line2 = itemCca;
+        } else if (itemVehicle) {
+            line2 = '<span class="text-warning fw-semibold">' + itemVehicle + '</span>';
+        }
+        
+        // Line 3: Barcode/Code (in orange with icon)
+        if (itemCode) {
+            line3 = '<i class="ti ti-barcode me-1"></i><span class="text-warning fw-semibold">' + itemCode + '</span>';
+        }
+        
+        // Update selected item details display
+        if (line1 || line2 || line3) {
+            $('#selected-item-details-line1').html(line1 || '&nbsp;').parent().removeClass('d-none');
+            $('#selected-item-details-line2').html(line2 || '&nbsp;');
+            $('#selected-item-details-line3').html(line3 || '&nbsp;');
+        } else {
+            $('#selected-item-details-display').addClass('d-none');
         }
         
         // Load full item details (will update price if needed)
-        loadItemDetails(itemId, itemPrice);
+        loadItemDetails(itemId, itemRate);
         
         // Open detail modal
-        $('#add-item-modal').modal('show');
+        const modal = $('#add-item-modal');
+        modal.removeAttr('aria-hidden');
+        modal.attr('aria-modal', 'true');
+        modal.modal('show');
     });
     // ========== End YouTube-Style Search Modal ==========
+
+    // Fix aria-hidden warning for all modals
+    $('.modal').on('show.bs.modal', function() {
+        $(this).removeAttr('aria-hidden');
+        $(this).attr('aria-modal', 'true');
+    });
+    
+    $('.modal').on('hidden.bs.modal', function() {
+        $(this).attr('aria-hidden', 'true');
+        $(this).removeAttr('aria-modal');
+    });
 
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
@@ -1184,256 +2682,236 @@ $(document).ready(function() {
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
-    });
-    
-    // Product name search with dropdown (Only Items)
-    let itemSearchTimeout = null;
-    let activeFilters = {};
-    
-    // Advanced Filters Toggle
-    $('#advanced-filters-toggle').on('click', function() {
-        $('#advanced-filters-panel').slideToggle(200);
-        $(this).toggleClass('active');
-    });
-    
-    // Clear All Filters
-    $('#clear-all-filters').on('click', function() {
-        $('#filter-item-type').val('');
-        $('#filter-category').val('');
-        $('#filter-part-number').val('');
-        $('#filter-manufacturer').val('');
-        $('#filter-vehicle-model').val('');
-        $('#filter-barcode').val('');
-        $('#filter-min-price').val('');
-        $('#filter-max-price').val('');
-        activeFilters = {};
-        updateActiveFiltersChips();
-        performSearch();
-    });
-    
-    // Filter change handlers
-    $('#filter-item-type, #filter-category, #filter-part-number, #filter-manufacturer, #filter-vehicle-model, #filter-barcode, #filter-min-price, #filter-max-price').on('change input', function() {
-        updateActiveFilters();
-        performSearch();
-    });
-    
-    // Update active filters object
-    function updateActiveFilters() {
-        activeFilters = {};
-        const itemType = $('#filter-item-type').val();
-        const category = $('#filter-category').val();
-        const partNumber = $('#filter-part-number').val().trim();
-        const manufacturer = $('#filter-manufacturer').val().trim();
-        const vehicleModel = $('#filter-vehicle-model').val().trim();
-        const barcode = $('#filter-barcode').val().trim();
-        const minPrice = $('#filter-min-price').val();
-        const maxPrice = $('#filter-max-price').val();
         
-        if (itemType) activeFilters.item_type = itemType;
-        if (category) activeFilters.category = category;
-        if (partNumber) activeFilters.part_number = partNumber;
-        if (manufacturer) activeFilters.manufacturer = manufacturer;
-        if (vehicleModel) activeFilters.vehicle_model = vehicleModel;
-        if (barcode) activeFilters.barcode = barcode;
-        if (minPrice) activeFilters.min_price = parseFloat(minPrice);
-        if (maxPrice) activeFilters.max_price = parseFloat(maxPrice);
+        // Update modal title based on entry type
+        const entryType = currentEntryType || 'sale';
+        const modalTitle = $('#add-item-modal .modal-title');
         
-        updateActiveFiltersChips();
-    }
-    
-    // Update active filter chips display
-    function updateActiveFiltersChips() {
-        const chipsContainer = $('#active-filters-chips');
-        chipsContainer.empty();
-        
-        Object.keys(activeFilters).forEach(key => {
-            const value = activeFilters[key];
-            const label = {
-                'item_type': 'Type',
-                'category': 'Category',
-                'part_number': 'Part Number',
-                'manufacturer': 'Manufacturer',
-                'vehicle_model': 'Vehicle Model',
-                'barcode': 'Barcode',
-                'min_price': 'Min Price',
-                'max_price': 'Max Price'
-            }[key] || key;
-            
-            chipsContainer.append(`
-                <span class="badge bg-primary d-inline-flex align-items-center gap-1" style="font-size: 10px;">
-                    ${label}: ${value}
-                    <button type="button" class="btn-close btn-close-white" style="font-size: 8px;" data-filter="${key}"></button>
-                </span>
-            `);
-        });
-    }
-    
-    // Remove individual filter chip
-    $(document).on('click', '.badge .btn-close', function(e) {
-        e.stopPropagation();
-        const filterKey = $(this).data('filter');
-        delete activeFilters[filterKey];
-        
-        // Map filter keys to input IDs
-        const filterIdMap = {
-            'item_type': 'filter-item-type',
-            'category': 'filter-category',
-            'part_number': 'filter-part-number',
-            'manufacturer': 'filter-manufacturer',
-            'vehicle_model': 'filter-vehicle-model',
-            'barcode': 'filter-barcode',
-            'min_price': 'filter-min-price',
-            'max_price': 'filter-max-price'
-        };
-        
-        const inputId = filterIdMap[filterKey];
-        if (inputId) {
-            $(`#${inputId}`).val('');
-        }
-        
-        updateActiveFiltersChips();
-        performSearch();
-    });
-    
-    // Perform search with filters
-    function performSearch() {
-        const query = $('#item-search').val().trim();
-        const branchId = $('#salesBranchId').val();
-        const resultsDiv = $('#item-search-results');
-        
-        // Clear previous timeout
-        clearTimeout(itemSearchTimeout);
-        
-        // Check if branch is selected
-        if (!branchId) {
-            if (query.length > 0 || Object.keys(activeFilters).length > 0) {
-                resultsDiv.html('<div class="p-3 text-warning text-center"><i class="ti ti-alert-circle me-1"></i> Please select a branch first</div>');
-                resultsDiv.show();
-            } else {
-                resultsDiv.hide();
+        // Determine color based on switch state for sale entries
+        let saleColor = '#2563eb'; // Default blue
+        if (typeof currentState !== 'undefined') {
+            if (currentState === 0) {
+                saleColor = '#2563eb'; // Blue for Sale
+            } else if (currentState === 1) {
+                saleColor = '#ffc107'; // Yellow for Estimate
+            } else if (currentState === 2) {
+                saleColor = '#198754'; // Green for Sale Order
             }
-            return;
         }
         
-        // If no query and no filters, hide results
-        if (query.length < 1 && Object.keys(activeFilters).length === 0) {
-            resultsDiv.hide();
-            $('#selected-item-id').val('');
-            return;
+        if (entryType === 'return') {
+            modalTitle.html('<i class="ti ti-arrow-back-up me-2"></i>RETURN ITEM').css('color', '#dc2626');
+        } else if (entryType === 'claim') {
+            modalTitle.html('<i class="ti ti-shield-check me-2"></i>CLAIM ITEM').css('color', '#b45309');
+        } else if (entryType === 'scrap_in') {
+            modalTitle.html('<i class="ti ti-recycle me-2"></i>SCRAP IN').css('color', '#ea580c');
+        } else if (entryType === 'scrap_sale') {
+            modalTitle.html('<i class="ti ti-coins me-2"></i>SCRAP SALE').css('color', '#16a34a');
+        } else {
+            // Use switch state color for sale entries
+            modalTitle.html('<i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS').css('color', saleColor);
         }
-        
-        // Debounce search
-        itemSearchTimeout = setTimeout(function() {
-            $.ajax({
-                url: "{{ route('sales.items.ajax.search') }}",
-                method: 'GET',
-                data: {
-                    q: query,
-                    branch_id: branchId,
-                    limit: 50,
-                    ...activeFilters
-                },
-                success: function(results) {
-                    console.log('Search results:', results);
+    });
+    
+    // Handle "ADD NEW ITEM" button - set entry type to 'sale'
+    $('#add-new-item-btn').on('click', function() {
+        currentEntryType = 'sale';
+    });
+    
+    // ========== NEW SIMPLE ITEM SEARCH WITH DEBUGGING ==========
+    let searchTimeout = null;
+    
+    // Search function with full error handling
+    function searchItems() {
+        try {
+            console.log('=== SEARCH FUNCTION CALLED ===');
+            const query = $('#item-search').val().trim();
+            const resultsDiv = $('#item-search-results');
+            
+            console.log('Query:', query);
+            console.log('Results div found:', resultsDiv.length > 0);
+            
+            if (resultsDiv.length === 0) {
+                console.error('ERROR: #item-search-results div not found!');
+                alert('Error: Search results container not found. Please refresh the page.');
+                return;
+            }
+            
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            // Hide if empty
+            if (query.length < 1) {
+                console.log('Query empty, hiding results');
+                resultsDiv.hide();
+                return;
+            }
+            
+            // Show loading
+            console.log('Showing loading...');
+            resultsDiv.html('<div class="p-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div> Searching...</div>').show();
+            
+            // Debounce - wait 300ms after user stops typing
+            searchTimeout = setTimeout(function() {
+                try {
+                    console.log('Making AJAX request...');
+                    const searchUrl = "{{ route('sales.items.ajax.search') }}";
+                    console.log('URL:', searchUrl);
                     
-                    // Handle error response
-                    if (results && results.error) {
-                        resultsDiv.html(`<div class="p-3 text-warning text-center">${results.error}</div>`);
-                        resultsDiv.show();
-                        return;
-                    }
-                    
-                    if (!results || results.length === 0) {
-                        resultsDiv.html('<div class="p-3 text-muted text-center">No results found</div>');
-                        resultsDiv.show();
-                        return;
-                    }
-                    
-                    let html = '';
-                    let itemCount = 0;
-                    
-                    // Only show items, skip branches and warehouses
-                    results.forEach(function(result) {
-                        if (result.type === 'item') {
-                            itemCount++;
-                                // Item result - use the data from backend
-                                const item = result.item;
-                                const itemName = result.item_name || item.short_disc || item.pro_dis || item.bar_code || 'N/A';
-                                const partNumber = result.part_number || item.partnumber_item?.name || '';
-                                const manufacturer = item.vehical_item?.manutacturer_vehical?.name || '';
-                                const model = item.vehical_item?.model_vehical?.name || '';
+                    $.ajax({
+                        url: searchUrl,
+                        method: 'GET',
+                        data: { q: query, limit: 20 },
+                        success: function(results) {
+                            try {
+                                console.log('AJAX Success!');
+                                console.log('Results:', results);
+                                console.log('Results type:', typeof results);
+                                console.log('Results length:', results ? results.length : 0);
                                 
-                                // Get price from result data
-                                const salePrice = parseFloat(result.sale_price || item.sale_price || 0);
-                                const calculatedPrice = parseFloat(result.calculated_price_per_unit || 0);
-                                const pricePerUnit = parseFloat(result.price_per_unit || item.price_per_unit || 0);
-                                const packingRate = parseFloat(result.packing_purchase_rate || item.packing_purchase_rate || 0);
-                                
-                                // Priority: sale_price > calculated_price_per_unit > price_per_unit > packing_purchase_rate
-                                let displayPrice = 0;
-                                if (salePrice > 0) {
-                                    displayPrice = salePrice;
-                                } else if (calculatedPrice > 0) {
-                                    displayPrice = calculatedPrice;
-                                } else if (pricePerUnit > 0) {
-                                    displayPrice = pricePerUnit;
-                                } else if (packingRate > 0) {
-                                    displayPrice = packingRate;
+                                if (!results || results.length === 0) {
+                                    console.log('No results found');
+                                    resultsDiv.html('<div class="p-3 text-center text-muted">No items found</div>');
+                                    resultsDiv.show();
+                                    return;
                                 }
                                 
-                                const warehouseQuantity = parseFloat(result.warehouse_quantity || 0);
-                                const warehouseId = result.warehouse_id || '';
+                                let html = '';
+                                let itemCount = 0;
                                 
-                                let displayName = itemName;
-                                if (partNumber) displayName += ' - ' + partNumber;
-                                if (manufacturer) displayName += ' ' + manufacturer;
-                                if (model) displayName += ' ' + model;
+                                results.forEach(function(result) {
+                                    try {
+                                        if (result.type === 'item') {
+                                            itemCount++;
+                                            const item = result.item;
+                                            const itemName = (item.product_item && item.product_item.name) || item.short_disc || item.pro_dis || (item.partnumber_item ? item.partnumber_item.name : '') || 'Item #' + item.id;
+                                            const price = parseFloat(result.sale_price || item.sale_price || item.price_per_unit || 0);
+                                            const stock = parseFloat(result.warehouse_quantity || item.on_hand || 0);
+                                            const barcode = item.bar_code || '';
+                                            
+                                            html += '<div class="p-3 border-bottom item-search-result" data-type="item" data-id="' + item.id + '" data-name="' + itemName.replace(/"/g, '&quot;') + '" data-rate="' + price + '" style="cursor: pointer;">';
+                                            html += '<div class="d-flex justify-content-between">';
+                                            html += '<div><div class="fw-bold">' + itemName + '</div>';
+                                            if (barcode) html += '<div class="small text-muted">Code: ' + barcode + '</div>';
+                                            html += '</div>';
+                                            html += '<div class="text-end"><div class="fw-bold text-primary">Rs ' + price.toFixed(2) + '</div><div class="small text-muted">Stock: ' + stock + '</div></div>';
+                                            html += '</div></div>';
+                                        }
+                                    } catch (itemError) {
+                                        console.error('Error processing item:', itemError);
+                                    }
+                                });
                                 
-                                html += `
-                                    <div class="p-2 border-bottom item-search-result" 
-                                         data-type="item"
-                                         data-id="${item.id}" 
-                                         data-name="${displayName.replace(/"/g, '&quot;')}"
-                                         data-rate="${displayPrice}"
-                                         data-unit="${result.unit || item.unit || 'Unit'}"
-                                         data-warehouse-id="${warehouseId}"
-                                         style="cursor: pointer; transition: background 0.2s; padding-left: 30px;">
-                                        <div class="d-flex align-items-center">
-                                            <i class="ti ti-package me-2 text-muted" style="font-size: 12px;"></i>
-                                            <div class="flex-grow-1">
-                                                <div class="fw-bold">${displayName}</div>
-                                                <div class="small text-muted">
-                                                    ${item.bar_code ? 'Barcode: ' + item.bar_code : ''}
-                                                    ${warehouseQuantity > 0 ? ' | Stock: ' + warehouseQuantity.toFixed(2) : ''}
-                                                    ${displayPrice > 0 ? ' | Price: Rs ' + displayPrice.toFixed(2) : ''}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
+                                console.log('Items processed:', itemCount);
+                                
+                                if (html === '') {
+                                    resultsDiv.html('<div class="p-3 text-center text-muted">No items found</div>');
+                                } else {
+                                    resultsDiv.html(html);
+                                }
+                                resultsDiv.show();
+                                console.log('Results displayed successfully');
+                            } catch (successError) {
+                                console.error('Error in success handler:', successError);
+                                resultsDiv.html('<div class="p-3 text-center text-danger">Error processing results: ' + successError.message + '</div>');
+                                resultsDiv.show();
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('=== AJAX ERROR ===');
+                            console.error('Status:', status);
+                            console.error('Error:', error);
+                            console.error('Status Code:', xhr.status);
+                            console.error('Response:', xhr.responseText);
+                            console.error('Response JSON:', xhr.responseJSON);
+                            
+                            let errorMsg = 'Error loading items';
+                            if (xhr.status === 404) {
+                                errorMsg = 'Search route not found (404). Please check route configuration.';
+                            } else if (xhr.status === 500) {
+                                errorMsg = 'Server error (500). Please check server logs.';
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMsg = xhr.responseJSON.message;
+                            } else if (error) {
+                                errorMsg = error;
+                            }
+                            
+                            resultsDiv.html('<div class="p-3 text-center text-danger"><strong>Error:</strong> ' + errorMsg + '<br><small>Status: ' + xhr.status + '</small></div>');
+                            resultsDiv.show();
+                            
+                            // Show alert for debugging
+                            alert('Search Error:\n' + errorMsg + '\n\nStatus: ' + xhr.status + '\n\nCheck console for details.');
                         }
                     });
-                    
-                    if (itemCount === 0) {
-                        resultsDiv.html('<div class="p-3 text-muted text-center">No items found</div>');
-                    } else {
-                        resultsDiv.html(html);
-                    }
+                } catch (ajaxError) {
+                    console.error('Error setting up AJAX:', ajaxError);
+                    resultsDiv.html('<div class="p-3 text-center text-danger">Error: ' + ajaxError.message + '</div>');
                     resultsDiv.show();
-                },
-                error: function(xhr) {
-                    console.error('Search error:', xhr);
-                    let errorMsg = 'Error searching items';
-                    if (xhr.responseJSON && xhr.responseJSON.error) {
-                        errorMsg = xhr.responseJSON.error;
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMsg = xhr.responseJSON.message;
-                    }
-                    resultsDiv.html(`<div class="p-3 text-danger text-center">${errorMsg}</div>`);
-                    resultsDiv.show();
+                    alert('Error: ' + ajaxError.message);
                 }
-            });
-        }, 300);
+            }, 300);
+        } catch (error) {
+            console.error('=== FATAL ERROR IN searchItems ===');
+            console.error('Error:', error);
+            alert('Fatal Error in search function: ' + error.message + '\n\nCheck console for details.');
+        }
+    }
+    
+    // Trigger search on input with error handling
+    $(document).ready(function() {
+        console.log('Setting up search event handlers...');
+        
+        // Check if element exists
+        if ($('#item-search').length === 0) {
+            console.error('ERROR: #item-search input not found!');
+            alert('Error: Search input field not found. Please refresh the page.');
+            return;
+        }
+        
+        console.log('Search input found, attaching events...');
+        
+        // Multiple event handlers for better compatibility
+        $(document).on('input', '#item-search', function() {
+            console.log('Input event triggered');
+            try {
+                searchItems();
+            } catch (e) {
+                console.error('Error in input handler:', e);
+                alert('Error: ' + e.message);
+            }
+        });
+        
+        $(document).on('keyup', '#item-search', function(e) {
+            if (e.keyCode !== 13 && e.keyCode !== 27 && e.keyCode !== 38 && e.keyCode !== 40) {
+                console.log('Keyup event triggered, key:', e.keyCode);
+                try {
+                    searchItems();
+                } catch (e) {
+                    console.error('Error in keyup handler:', e);
+                }
+            }
+        });
+        
+        // Test function call
+        console.log('Search handlers attached successfully');
+        
+        // Manual test function (for debugging)
+        window.testSearch = function() {
+            console.log('=== MANUAL SEARCH TEST ===');
+            const testQuery = $('#item-search').val() || 'test';
+            $('#item-search').val(testQuery);
+            console.log('Setting query to:', testQuery);
+            searchItems();
+        };
+        
+        console.log('Test function available: window.testSearch()');
+    });
+    
+    // Hide results when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('#item-search-wrapper').length && !$(e.target).closest('#item-search-results').length) {
+            $('#item-search-results').hide();
+        }
     });
     
     // Select from search results (only items now)
@@ -1455,6 +2933,35 @@ $(document).ready(function() {
             $('#sales-item-rate').val(parseFloat(itemRate || 0).toFixed(2));
             $('#sales-item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
+            
+            // Load full item details to get image and stock
+            $.ajax({
+                url: '{{ route("sales.items.details", ":id") }}'.replace(':id', itemId),
+                method: 'GET',
+                success: function(response) {
+                    // Show item image if available
+                    if (response.image) {
+                        $('#item-search-image').attr('src', response.image);
+                        $('#item-search-image-preview').removeClass('d-none');
+                    } else {
+                        $('#item-search-image-preview').addClass('d-none');
+                    }
+                    
+                    // Show stock below image
+                    if (response.stock !== undefined) {
+                        const stockValue = parseFloat(response.stock) || 0;
+                        const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
+                        const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
+                        const unit = response.unit || 'Unit';
+                        $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                    } else {
+                        $('#item-search-stock').html('');
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error loading item details:', xhr);
+                }
+            });
             
             // Load stock status
             loadItemStockStatus(itemId);
@@ -1627,8 +3134,8 @@ $(document).ready(function() {
     const advancedFiltersToggle = $('#advanced-filters-toggle');
     const clearAllFiltersBtn = $('#clear-all-filters');
     
-    // Filter state
-    let activeFilters = {};
+    // Filter state (renamed to avoid conflict with main activeFilters)
+    let oldActiveFilters = {};
     let filterOptions = {};
     let searchTimeout = null;
     
@@ -1727,8 +3234,8 @@ $(document).ready(function() {
         
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(function() {
-            if (query.length >= 2 || Object.keys(activeFilters).length > 0) {
-                performSearch();
+            if (query.length >= 2 || Object.keys(oldActiveFilters).length > 0) {
+                performSalesModalSearch();
             } else {
                 resultsContainer.html(`
                     <div class="text-center text-muted py-5">
@@ -1744,7 +3251,7 @@ $(document).ready(function() {
     clearSearchBtn.on('click', function() {
         searchInput.val('');
         $(this).addClass('d-none');
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Filter chip clicks
@@ -1754,15 +3261,15 @@ $(document).ready(function() {
         
         if ($(this).hasClass('active')) {
             $(this).removeClass('active');
-            delete activeFilters[filter];
+            delete oldActiveFilters[filter];
         } else {
             $('.filter-chip[data-filter="' + filter + '"]').removeClass('active');
             $(this).addClass('active');
-            activeFilters[filter] = value;
+            oldActiveFilters[filter] = value;
         }
         
         updateClearAllButton();
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Advanced filter changes
@@ -1771,13 +3278,13 @@ $(document).ready(function() {
         const value = $(this).val();
         
         if (value) {
-            activeFilters[filterId] = value;
+            oldActiveFilters[filterId] = value;
         } else {
-            delete activeFilters[filterId];
+            delete oldActiveFilters[filterId];
         }
         
         updateClearAllButton();
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Toggle advanced filters
@@ -1787,22 +3294,22 @@ $(document).ready(function() {
     
     // Clear all filters
     clearAllFiltersBtn.on('click', function() {
-        activeFilters = {};
+        oldActiveFilters = {};
         $('.filter-chip').removeClass('active');
         $('#filter-category, #filter-manufacturer, #filter-part-number, #filter-technology, #filter-grade, #filter-volt, #filter-cca, #filter-supplier, #filter-rack').val('');
         $('#filter-min-price, #filter-max-price').val('');
         updateClearAllButton();
-        performSearch();
+        performSalesModalSearch();
     });
     
     // Update clear all button visibility
     function updateClearAllButton() {
-        const hasFilters = Object.keys(activeFilters).length > 0 || searchInput.val().trim().length > 0;
+        const hasFilters = Object.keys(oldActiveFilters).length > 0 || searchInput.val().trim().length > 0;
         clearAllFiltersBtn.toggleClass('d-none', !hasFilters);
     }
     
-    // Perform search
-    function performSearch() {
+    // Perform search for sales-item-search-modal (renamed to avoid conflict)
+    function performSalesModalSearch() {
         const query = searchInput.val().trim();
         
         // Build search params
@@ -1812,8 +3319,8 @@ $(document).ready(function() {
         };
         
         // Add active filters
-        Object.keys(activeFilters).forEach(key => {
-            params[key] = activeFilters[key];
+        Object.keys(oldActiveFilters).forEach(key => {
+            params[key] = oldActiveFilters[key];
         });
         
         // Show loading
@@ -2051,8 +3558,11 @@ $(document).ready(function() {
         $('#sales-selected-warehouse-id').val(warehouseId);
     });
     
-    // Confirm entry
-    $('#confirm-entry').on('click', function() {
+    // Entry type tracking
+    let currentEntryType = 'sale';
+    
+    // Function to add item with entry type
+    function addItemWithType(entryType) {
         const itemId = $('#selected-item-id').val();
         let quantity = parseFloat($('#sales-item-quantity').val()) || 0;
         
@@ -2084,7 +3594,12 @@ $(document).ready(function() {
         // Calculate totals
         const subtotal = (quantity * rate) - discountAmount;
         const taxAmount = (subtotal * taxPercentage) / 100;
-        const total = subtotal + taxAmount;
+        let total = subtotal + taxAmount;
+        
+        // For return, claim, scrap_in: make total negative
+        if (entryType === 'return' || entryType === 'claim' || entryType === 'scrap_in') {
+            total = -Math.abs(total);
+        }
 
         // Get warehouse ID
         const warehouseId = $('#selected-warehouse-id').val();
@@ -2102,7 +3617,8 @@ $(document).ready(function() {
             tax_amount: taxAmount,
             total: total,
             warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
-            warehouse_id: warehouseId || null
+            warehouse_id: warehouseId || null,
+            entry_type: entryType
         };
 
         salesItems.push(item);
@@ -2110,41 +3626,661 @@ $(document).ready(function() {
         resetItemModal();
         $('#add-item-modal').modal('hide');
         calculateTotals();
+    }
+    
+    // Confirm entry - use current entry type or default to 'sale'
+    $('#confirm-entry').on('click', function() {
+        const entryType = currentEntryType || 'sale';
+        addItemWithType(entryType);
+        // Reset entry type after adding
+        currentEntryType = 'sale';
+    });
+    
+    // Return entry - open modal
+    $('#return-entry-btn').on('click', function() {
+        currentEntryType = 'return';
+        $('#add-item-modal').modal('show');
+    });
+    
+    // Claim entry - open modal
+    $('#claim-entry-btn').on('click', function() {
+        currentEntryType = 'claim';
+        $('#add-item-modal').modal('show');
+    });
+    
+    // Scrap In entry - open modal
+    $('#scrap-in-btn').on('click', function() {
+        currentEntryType = 'scrap_in';
+        $('#add-item-modal').modal('show');
+    });
+    
+    // Scrap Sale entry - open modal
+    $('#scrap-sale-btn').on('click', function() {
+        currentEntryType = 'scrap_sale';
+        $('#add-item-modal').modal('show');
+    });
+    
+    // Delivery entry - open modal
+    $('#delivery-entry-btn').on('click', function() {
+        $('#delivery-modal').modal('show');
+    });
+    
+    // Share delivery link - Open delivery modal with items
+    $('#share-delivery-btn').on('click', function() {
+        // Get current items from salesItems
+        const items = salesItems.filter(item => item.type !== 'delivery'); // Exclude delivery items themselves
+        
+        if (items.length === 0) {
+            alert('Please add items first before sharing delivery form!');
+            return;
+        }
+        
+        // Store items for sharing
+        window.deliveryItemsToShare = items;
+        
+        // Populate items list in modal
+        populateDeliveryItemsList(items);
+        
+        // Show items list
+        $('#delivery-items-list').show();
+        
+        // Open delivery modal
+        $('#delivery-modal').modal('show');
+    });
+    
+    // Function to populate delivery items list
+    function populateDeliveryItemsList(items) {
+        const itemsList = $('#delivery-items-ul');
+        itemsList.empty();
+        
+        if (items.length === 0) {
+            itemsList.append('<li class="text-muted">No items to deliver</li>');
+            return;
+        }
+        
+        items.forEach((item, index) => {
+            const listItem = $('<li>').addClass('mb-2 p-2 border-bottom').html(`
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${item.name || 'Item ' + (index + 1)}</strong>
+                        <br>
+                        <small class="text-muted">Qty: ${item.quantity || 1} ${item.unit || 'Unit'}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-primary">Rs. ${parseFloat(item.total || item.rate || 0).toFixed(2)}</span>
+                    </div>
+                </div>
+            `);
+            itemsList.append(listItem);
+        });
+    }
+    
+    // Check if page is opened with delivery mode (shared link)
+    $(document).ready(function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        const deliveryId = urlParams.get('did');
+        const itemsParam = urlParams.get('items');
+        
+        if (mode === 'delivery' && itemsParam) {
+            try {
+                const items = JSON.parse(decodeURIComponent(itemsParam));
+                
+                // Store items for delivery
+                window.deliveryItemsToShare = items;
+                
+                // Populate items list
+                populateDeliveryItemsList(items);
+                
+                // Show items list
+                $('#delivery-items-list').show();
+                
+                // Open delivery modal automatically
+                setTimeout(function() {
+                    $('#delivery-modal').modal('show');
+                }, 500);
+            } catch (e) {
+                console.error('Error parsing delivery items:', e);
+            }
+        }
+    });
+    
+    // Share delivery link button in modal
+    $('#share-delivery-link-btn').on('click', function() {
+        const items = window.deliveryItemsToShare || salesItems.filter(item => item.type !== 'delivery');
+        
+        if (items.length === 0) {
+            alert('No items to share!');
+            return;
+        }
+        
+        // Generate shareable link with items data
+        const deliveryId = 'DEL_' + Date.now();
+        const itemsData = items.map(item => ({
+            id: item.item_id || item.id,
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            rate: item.rate,
+            total: item.total
+        }));
+        
+        // Encode items data in URL
+        const itemsEncoded = encodeURIComponent(JSON.stringify(itemsData));
+        const baseUrl = window.location.origin + window.location.pathname;
+        const shareUrl = baseUrl + '?mode=delivery&did=' + deliveryId + '&items=' + itemsEncoded;
+        
+        // Copy to clipboard
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        // Show success message
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Link Copied!',
+                text: 'Delivery link has been copied to clipboard. Share it with the rider via WhatsApp.',
+                timer: 3000,
+                showConfirmButton: true
+            });
+        } else {
+            alert('Delivery link copied! Send it to the rider via WhatsApp.\n\n' + shareUrl);
+        }
+    });
+    
+    // Confirm delivery entry
+    $('#confirm-delivery-btn').on('click', function() {
+        // Get vehicle photo details if added
+        const vehiclePhoto = $('#vehicle-photo-capture')[0].files[0] || null;
+        const vehicleRiderPhoto = $('#vehicle-rider-photo')[0].files[0] || null;
+        const idCardFrontPhoto = $('#id-card-front-photo')[0].files[0] || null;
+        const idCardBackPhoto = $('#id-card-back-photo')[0].files[0] || null;
+        const currentVehiclePhoto = $('#current-vehicle-photo')[0].files[0] || null;
+        
+        // Store vehicle details in a global variable or form data
+        window.deliveryVehicleDetails = {
+            vehiclePhoto: vehiclePhoto,
+            riderPhoto: vehicleRiderPhoto,
+            idCardFrontPhoto: idCardFrontPhoto,
+            idCardBackPhoto: idCardBackPhoto,
+            currentVehiclePhoto: currentVehiclePhoto
+        };
+        
+        // Continue with existing delivery confirmation logic
+        const fare = parseFloat($('#delivery-fare').val()) || 0;
+        const riderMobile = $('#delivery-rider-mobile').val() || '';
+        
+        if (fare > 0) {
+            // Add delivery item to sales items
+            const deliveryItem = {
+                id: itemCounter++,
+                item_id: 'DELIVERY_' + Date.now(),
+                name: 'Delivery Service' + (riderMobile ? ' (Rider: ' + riderMobile + ')' : ''),
+                quantity: 1,
+                unit: 'Service',
+                rate: fare,
+                total: fare,
+                entry_type: 'delivery',
+                type: 'delivery',
+                rider_mobile: riderMobile,
+                vehicle_photo: vehiclePhoto,
+                vehicle_rider_photo: vehicleRiderPhoto,
+                id_card_front_photo: idCardFrontPhoto,
+                id_card_back_photo: idCardBackPhoto,
+                current_vehicle_photo: currentVehiclePhoto
+            };
+            
+            salesItems.push(deliveryItem);
+            addItemToTable(deliveryItem);
+            calculateTotals();
+            $('#delivery-modal').modal('hide');
+            
+            // Reset form
+            $('#delivery-fare').val('0');
+            $('#delivery-rider-mobile').val('');
+            $('#vehicle-photo-capture').val('');
+            $('#vehicle-rider-photo').val('');
+            $('#id-card-front-photo').val('');
+            $('#id-card-back-photo').val('');
+            $('#current-vehicle-photo').val('');
+            $('#vehicle-photo-capture-preview').empty().css('display', 'none');
+            $('#vehicle-rider-photo-preview').empty().css('display', 'none');
+            $('#id-card-front-photo-preview').empty().css('display', 'none');
+            $('#id-card-back-photo-preview').empty().css('display', 'none');
+            $('#current-vehicle-photo-preview').empty().css('display', 'none');
+            $('#vehicle-icon-placeholder').show();
+            $('#vehicle-text-placeholder').show();
+            $('#rider-icon-placeholder').show();
+            $('#rider-text-placeholder').show();
+            $('#id-front-icon-placeholder').show();
+            $('#id-front-text-placeholder').show();
+            $('#id-back-icon-placeholder').show();
+            $('#id-back-text-placeholder').show();
+            $('#current-vehicle-icon-placeholder').show();
+            $('#current-vehicle-text-placeholder').show();
+        } else {
+            alert('Please enter delivery fare');
+        }
+    });
+    
+    // Handle rider file upload
+    window.handleRiderFile = function(input, type) {
+        const previewId = type === 'item' ? 'rider-item-preview' : 'rider-face-preview';
+        const preview = $('#' + previewId);
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.html('<img src="' + e.target.result + '" class="img-preview" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">');
+                $(input).closest('label').addClass('bg-green-50 border-green-400');
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+    
+    // Handle vehicle photo capture and attachment
+    window.handleVehiclePhoto = function(input, type) {
+        let previewId, iconId, textId;
+        if (type === 'vehicle') {
+            previewId = 'vehicle-photo-capture-preview';
+            iconId = 'vehicle-icon-placeholder';
+            textId = 'vehicle-text-placeholder';
+        } else if (type === 'rider') {
+            previewId = 'vehicle-rider-photo-preview';
+            iconId = 'rider-icon-placeholder';
+            textId = 'rider-text-placeholder';
+        } else if (type === 'id-front') {
+            previewId = 'id-card-front-photo-preview';
+            iconId = 'id-front-icon-placeholder';
+            textId = 'id-front-text-placeholder';
+        } else if (type === 'id-back') {
+            previewId = 'id-card-back-photo-preview';
+            iconId = 'id-back-icon-placeholder';
+            textId = 'id-back-text-placeholder';
+        } else if (type === 'current-vehicle') {
+            previewId = 'current-vehicle-photo-preview';
+            iconId = 'current-vehicle-icon-placeholder';
+            textId = 'current-vehicle-text-placeholder';
+        }
+        
+        const preview = $('#' + previewId);
+        const icon = $('#' + iconId);
+        const text = $('#' + textId);
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageUrl = e.target.result;
+                preview.html(`
+                    <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                        <img src="${imageUrl}" class="img-preview" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px; padding: 5px; cursor: pointer;" onclick="window.open('${imageUrl}', '_blank')">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeVehiclePhoto('${type}')" style="position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            <i class="ti ti-x" style="font-size: 16px;"></i>
+                        </button>
+                    </div>
+                `);
+                preview.css('display', 'flex');
+                icon.hide();
+                text.hide();
+                
+                if (type === 'vehicle') {
+                    $(input).closest('label').css({
+                        'background-color': '#eff6ff',
+                        'border-color': '#3b82f6'
+                    });
+                } else if (type === 'rider') {
+                    $(input).closest('label').css({
+                        'background-color': '#faf5ff',
+                        'border-color': '#a855f7'
+                    });
+                } else if (type === 'id-front') {
+                    $(input).closest('label').css({
+                        'background-color': '#f0fdf4',
+                        'border-color': '#10b981'
+                    });
+                } else if (type === 'id-back') {
+                    $(input).closest('label').css({
+                        'background-color': '#fff7ed',
+                        'border-color': '#f97316'
+                    });
+                } else if (type === 'current-vehicle') {
+                    $(input).closest('label').css({
+                        'background-color': '#fef2f2',
+                        'border-color': '#ef4444'
+                    });
+                }
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+    
+    // Remove vehicle photo function
+    window.removeVehiclePhoto = function(type) {
+        let inputId, previewId, iconId, textId;
+        if (type === 'vehicle') {
+            inputId = 'vehicle-photo-capture';
+            previewId = 'vehicle-photo-capture-preview';
+            iconId = 'vehicle-icon-placeholder';
+            textId = 'vehicle-text-placeholder';
+        } else if (type === 'rider') {
+            inputId = 'vehicle-rider-photo';
+            previewId = 'vehicle-rider-photo-preview';
+            iconId = 'rider-icon-placeholder';
+            textId = 'rider-text-placeholder';
+        } else if (type === 'id-front') {
+            inputId = 'id-card-front-photo';
+            previewId = 'id-card-front-photo-preview';
+            iconId = 'id-front-icon-placeholder';
+            textId = 'id-front-text-placeholder';
+        } else if (type === 'id-back') {
+            inputId = 'id-card-back-photo';
+            previewId = 'id-card-back-photo-preview';
+            iconId = 'id-back-icon-placeholder';
+            textId = 'id-back-text-placeholder';
+        } else if (type === 'current-vehicle') {
+            inputId = 'current-vehicle-photo';
+            previewId = 'current-vehicle-photo-preview';
+            iconId = 'current-vehicle-icon-placeholder';
+            textId = 'current-vehicle-text-placeholder';
+        }
+        
+        $('#' + inputId).val('');
+        $('#' + previewId).empty().css('display', 'none');
+        $('#' + iconId).show();
+        $('#' + textId).show();
+        
+        if (type === 'vehicle') {
+            $('#' + inputId).closest('label').css({
+                'background-color': '#eff6ff',
+                'border-color': '#3b82f6'
+            });
+        } else if (type === 'rider') {
+            $('#' + inputId).closest('label').css({
+                'background-color': '#faf5ff',
+                'border-color': '#a855f7'
+            });
+        } else if (type === 'id-front') {
+            $('#' + inputId).closest('label').css({
+                'background-color': '#f0fdf4',
+                'border-color': '#10b981'
+            });
+        } else if (type === 'id-back') {
+            $('#' + inputId).closest('label').css({
+                'background-color': '#fff7ed',
+                'border-color': '#f97316'
+            });
+        } else if (type === 'current-vehicle') {
+            $('#' + inputId).closest('label').css({
+                'background-color': '#fef2f2',
+                'border-color': '#ef4444'
+            });
+        }
+    };
+    
+    // Reset delivery modal when closed
+    $('#delivery-modal').on('hidden.bs.modal', function() {
+        // Hide items list
+        $('#delivery-items-list').hide();
+        $('#delivery-items-ul').empty();
+        $('#vehicle-photo-capture').val('');
+        $('#vehicle-rider-photo').val('');
+        $('#id-card-front-photo').val('');
+        $('#id-card-back-photo').val('');
+        $('#current-vehicle-photo').val('');
+        $('#vehicle-photo-capture-preview').empty().css('display', 'none');
+        $('#vehicle-rider-photo-preview').empty().css('display', 'none');
+        $('#id-card-front-photo-preview').empty().css('display', 'none');
+        $('#id-card-back-photo-preview').empty().css('display', 'none');
+        $('#current-vehicle-photo-preview').empty().css('display', 'none');
+        $('#vehicle-icon-placeholder').show();
+        $('#vehicle-text-placeholder').show();
+        $('#rider-icon-placeholder').show();
+        $('#rider-text-placeholder').show();
+        $('#id-front-icon-placeholder').show();
+        $('#id-front-text-placeholder').show();
+        $('#id-back-icon-placeholder').show();
+        $('#id-back-text-placeholder').show();
+        $('#current-vehicle-icon-placeholder').show();
+        $('#current-vehicle-text-placeholder').show();
+        // Reset label styles
+        $('#vehicle-photo-capture').closest('label').css({
+            'background-color': '#eff6ff',
+            'border-color': '#bfdbfe'
+        });
+        $('#vehicle-rider-photo').closest('label').css({
+            'background-color': '#faf5ff',
+            'border-color': '#e9d5ff'
+        });
+        $('#id-card-front-photo').closest('label').css({
+            'background-color': '#f0fdf4',
+            'border-color': '#86efac'
+        });
+        $('#id-card-back-photo').closest('label').css({
+            'background-color': '#fff7ed',
+            'border-color': '#fdba74'
+        });
+        $('#current-vehicle-photo').closest('label').css({
+            'background-color': '#fef2f2',
+            'border-color': '#fca5a5'
+        });
+    });
+    
+    // Submit rider data
+    $('#submit-rider-data-btn').on('click', function() {
+        const mobile = $('#rider-mobile-input').val();
+        if (!mobile) {
+            alert('Mobile number is required!');
+            return;
+        }
+        
+        const btn = $(this);
+        btn.prop('disabled', true).text('Sending...');
+        
+        // Here you would typically send data to server
+        // For now, just show success message
+        setTimeout(function() {
+            alert('Data sent successfully!');
+            $('#rider-view-modal').modal('hide');
+            btn.prop('disabled', false).text('CONFIRM & SEND DATA');
+            // Reset form
+            $('#rider-mobile-input').val('');
+            $('#rider-item-photo').val('');
+            $('#rider-face-photo').val('');
+            $('#rider-item-preview').empty();
+            $('#rider-face-preview').empty();
+        }, 1000);
+    });
+    
+    // Share delivery link function
+    window.shareDeliveryLink = function() {
+        const fareInput = prompt('Delivery Charges Likhen (Optional):', '0');
+        if (fareInput === null) return;
+        
+        const fare = parseFloat(fareInput) || 0;
+        const deliveryId = 'DEL_' + Date.now();
+        
+        // Generate shareable link
+        const baseUrl = window.location.origin + window.location.pathname;
+        const shareUrl = baseUrl + '?mode=rider&did=' + deliveryId;
+        
+        // Copy to clipboard
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        alert('Delivery link copied! Send it to the loader via WhatsApp.');
+        
+        // Store delivery sync data (you can integrate with your backend here)
+        console.log('Delivery ID:', deliveryId, 'Fare:', fare);
+    };
+    
+    // Vehicle Management - Multiple vehicles support
+    let selectedVehicles = [];
+    let vehicleCounter = 0;
+    
+    // Open vehicle modal
+    $('#add-vehicle-btn').on('click', function() {
+        $('#vehicle-modal').modal('show');
+    });
+    
+    // Save vehicle
+    $('#save-vehicle-btn').on('click', function() {
+        const reg = $('#vehicle-reg').val().trim().toUpperCase();
+        const make = $('#vehicle-make').val().trim();
+        const model = $('#vehicle-model').val().trim();
+        const year = $('#vehicle-year').val().trim();
+        
+        if (!reg) {
+            alert('Please enter registration number');
+            return;
+        }
+        
+        // Check if vehicle with same registration already exists
+        const exists = selectedVehicles.some(v => v.reg === reg);
+        if (exists) {
+            alert('Vehicle with this registration number already added');
+            return;
+        }
+        
+        // Add vehicle to array
+        const vehicle = {
+            id: vehicleCounter++,
+            reg: reg,
+            make: make,
+            model: model,
+            year: year
+        };
+        
+        selectedVehicles.push(vehicle);
+        
+        // Update display
+        updateVehicleDisplay();
+        
+        // Close modal and reset form
+        $('#vehicle-modal').modal('hide');
+        resetVehicleModal();
+    });
+    
+    // Remove vehicle
+    $(document).on('click', '.remove-vehicle-btn', function() {
+        const vehicleId = parseInt($(this).data('vehicle-id'));
+        selectedVehicles = selectedVehicles.filter(v => v.id !== vehicleId);
+        updateVehicleDisplay();
+    });
+    
+    // Update vehicle display
+    function updateVehicleDisplay() {
+        const displaySection = $('#vehicle-display-section');
+        const vehiclesList = $('#vehicles-list');
+        
+        if (selectedVehicles.length > 0) {
+            vehiclesList.empty();
+            
+            selectedVehicles.forEach(vehicle => {
+                let details = [];
+                if (vehicle.make) details.push(vehicle.make);
+                if (vehicle.model) details.push(vehicle.model);
+                if (vehicle.year) details.push(vehicle.year);
+                
+                const vehicleHtml = `
+                    <div class="p-3 rounded border d-flex justify-content-between align-items-start" style="background-color: #f0f9ff; border-color: #0ea5e9 !important;">
+                        <div class="flex-grow-1">
+                            <p class="fw-bold text-primary mb-1">${vehicle.reg}</p>
+                            <p class="text-muted small mb-0">${details.join(' • ') || 'No additional details'}</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-vehicle-btn" data-vehicle-id="${vehicle.id}">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                `;
+                vehiclesList.append(vehicleHtml);
+            });
+            
+            displaySection.show();
+        } else {
+            displaySection.hide();
+        }
+    }
+    
+    // Reset vehicle modal
+    function resetVehicleModal() {
+        $('#vehicle-reg').val('');
+        $('#vehicle-make').val('');
+        $('#vehicle-model').val('');
+        $('#vehicle-year').val('');
+    }
+    
+    // Reset vehicle modal when it closes
+    $('#vehicle-modal').on('hidden.bs.modal', function() {
+        resetVehicleModal();
     });
 
     function addItemToTable(item) {
         $('#empty-items-state').hide();
         $('#items-list').show();
         
+        // Entry type badge
+        let typeBadge = '';
+        const entryType = item.entry_type || item.type || 'sale';
+        if (entryType === 'return') {
+            typeBadge = ' <span class="badge bg-danger text-white ms-1" style="font-size: 9px;">RETURN</span>';
+        } else if (entryType === 'claim') {
+            typeBadge = ' <span class="badge bg-warning text-dark ms-1" style="font-size: 9px;">CLAIM</span>';
+        } else if (entryType === 'scrap_in') {
+            typeBadge = ' <span class="badge bg-orange text-white ms-1" style="font-size: 9px;">SCRAP IN</span>';
+        } else if (entryType === 'scrap_sale') {
+            typeBadge = ' <span class="badge bg-success text-white ms-1" style="font-size: 9px;">SCRAP SALE</span>';
+        } else if (entryType === 'delivery') {
+            typeBadge = ' <span class="badge bg-orange text-white ms-1" style="font-size: 9px; background-color: #f97316 !important;">DELIVERY</span>';
+        }
+        
+        // Format total - show negative for return/claim/scrap_in
+        const totalValue = parseFloat(item.total);
+        const totalDisplay = totalValue < 0 ? 'Rs -' + Math.abs(totalValue).toLocaleString() : 'Rs ' + totalValue.toLocaleString();
+        const totalClass = totalValue < 0 ? 'text-danger' : '';
+        
         const row = `
-            <tr data-item-id="${item.item_id}" data-row-id="${item.id}">
-                <td>${item.name}</td>
-                <td>${item.quantity}</td>
-                <td>${item.unit}</td>
-                <td>Rs ${parseFloat(item.rate).toFixed(2)}</td>
-                <td>Rs ${parseFloat(item.discount).toFixed(2)}</td>
-                <td>${parseFloat(item.tax_percentage).toFixed(2)}%</td>
-                <td>Rs ${parseFloat(item.total).toFixed(2)}</td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-item" data-row-id="${item.id}">
-                        <i class="ti ti-x"></i>
+            <div class="item-row" data-item-id="${item.item_id}" data-row-id="${item.id}">
+                <div>
+                    <h4 class="item-name">${item.name}${typeBadge}</h4>
+                    <p class="item-details">${item.quantity} ${item.unit} x Rs ${parseFloat(item.rate).toLocaleString()}</p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="item-total ${totalClass}">${totalDisplay}</span>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-item" data-row-id="${item.id}">
+                        <i class="ti ti-trash"></i>
                     </button>
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
         $('#items-tbody').append(row);
+        
+        // Update item count
+        const itemCount = $('#items-tbody .item-row').length;
+        $('#item-count').text(itemCount + ' Items Listed');
     }
 
     // Remove item
     $(document).on('click', '.remove-item', function() {
         const rowId = $(this).data('row-id');
         salesItems = salesItems.filter(item => item.id !== rowId);
-        $(this).closest('tr').remove();
+        $(this).closest('.item-row').remove();
         
-        if ($('#items-tbody tr').length === 0) {
+        if ($('#items-tbody .item-row').length === 0) {
             $('#empty-items-state').show();
             $('#items-list').hide();
         }
+        
+        // Update item count
+        const itemCount = $('#items-tbody .item-row').length;
+        $('#item-count').text(itemCount + ' Items Listed');
         
         calculateTotals();
     });
@@ -2179,11 +4315,245 @@ $(document).ready(function() {
         const shipping = parseFloat($('#shipping').val()) || 0;
 
         const grossTotal = itemTotal;
+        const netPayable = itemTotal - discount;
         const grandTotal = itemTotal + orderTax - discount + shipping;
 
-        $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
-        $('#grand-total').text('Rs ' + parseFloat(grandTotal).toFixed(2));
+        $('#gross-amount').text(parseFloat(grossTotal).toLocaleString());
+        $('#net-payable-total').text(parseFloat(netPayable).toLocaleString());
+        $('#grand-total').text(parseFloat(grandTotal).toLocaleString());
+        
+        // Set max payment amount to grand total
+        const grandTotalValue = parseFloat(grandTotal);
+        if ($('#sales_payment_amount').length) {
+            $('#sales_payment_amount').attr('max', grandTotalValue);
+            if (parseFloat($('#sales_payment_amount').val()) > grandTotalValue) {
+                $('#sales_payment_amount').val(grandTotalValue);
+            }
+        }
+        
+        // Calculate final totals with received amount and previous balance
+        calculateFinalTotalFromInput();
     }
+    
+    // Toggle discount type between fixed (Rs) and percentage (%)
+    function toggleBillDiscType() {
+        const btn = $('#billDiscToggle');
+        const type = $('#totalBillDiscType');
+        if (type.val() === 'fixed') {
+            type.val('percent');
+            btn.text('%');
+        } else {
+            type.val('fixed');
+            btn.text('Rs');
+        }
+        calculateFinalTotalFromInput();
+    }
+    
+    // Calculate final totals including received amount and previous balance
+    function calculateFinalTotalFromInput() {
+        // Get gross total from items
+        let itemTotal = 0;
+        salesItems.forEach(function(item) {
+            itemTotal += parseFloat(item.total);
+        });
+        
+        // Get manual discount
+        const manualDiscValue = parseFloat($('#totalBillDiscount').val()) || 0;
+        const discType = $('#totalBillDiscType').val();
+        
+        // Calculate discount amount
+        let discountAmount = 0;
+        if (discType === 'percent') {
+            discountAmount = (itemTotal * manualDiscValue) / 100;
+        } else {
+            discountAmount = manualDiscValue;
+        }
+        
+        // Update hidden discount field
+        $('#discount').val(discountAmount);
+        
+        // Calculate net payable
+        const netPayable = itemTotal - discountAmount;
+        
+        // Calculate total cash received from all cash inputs
+        let totalCash = 0;
+        $('.cash-input').each(function() {
+            totalCash += parseFloat($(this).val()) || 0;
+        });
+        
+        // Calculate total bank payments
+        let totalBank = 0;
+        $('.bank-input-amt').each(function() {
+            totalBank += parseFloat($(this).val()) || 0;
+        });
+        
+        // Calculate total cash returns
+        let totalReturns = 0;
+        $('.return-input').each(function() {
+            totalReturns += parseFloat($(this).val()) || 0;
+        });
+        
+        // Total received = cash + bank - returns
+        const totalReceived = (totalCash + totalBank) - totalReturns;
+        
+        // Get previous balance
+        const preBalance = parseFloat($('#previousBalance').val()) || 0;
+        
+        // Calculate current remaining
+        const currentRemaining = netPayable - totalReceived;
+        
+        // Calculate final total balance
+        const finalTotalBalance = currentRemaining + preBalance;
+        
+        // Update displays
+        $('#gross-amount').text(parseFloat(itemTotal).toLocaleString());
+        $('#net-payable-total').text(parseFloat(netPayable).toLocaleString());
+        $('#currentRemainingText').text(parseFloat(currentRemaining).toLocaleString());
+        
+        const grandTotalElem = $('#grand-total');
+        grandTotalElem.text(parseFloat(finalTotalBalance).toLocaleString());
+        
+        // Update balance label and color
+        const balanceLabel = $('#balanceLabel');
+        if (finalTotalBalance > 0) {
+            grandTotalElem.removeClass('text-blue-400').addClass('text-red-500');
+            balanceLabel.text('Total Final Balance');
+        } else if (finalTotalBalance < 0) {
+            grandTotalElem.removeClass('text-red-500').addClass('text-blue-400');
+            balanceLabel.text('Change to Return');
+        } else if (finalTotalBalance === 0 && netPayable > 0) {
+            grandTotalElem.removeClass('text-red-500').addClass('text-blue-400');
+            balanceLabel.text('Settled / Fully Paid');
+        } else {
+            grandTotalElem.removeClass('text-red-500').addClass('text-blue-400');
+            balanceLabel.text('Total Final Balance');
+        }
+    }
+    
+    // Handle image pick for cash, bank, and return entries
+    window.handleImagePick = function(input, activeColor, statusTextLabel) {
+        const label = $(input).parent();
+        const statusText = label.find('.status-text');
+        if (input.files && input.files[0]) {
+            label.removeClass('bg-white').removeClass('border-' + activeColor + '-200');
+            label.addClass('bg-green-50').addClass('border-green-400');
+            statusText.removeClass('text-' + activeColor + '-400');
+            statusText.addClass('text-green-600');
+            statusText.html('<i class="ti ti-check me-1"></i> ' + statusTextLabel);
+        }
+    };
+    
+    // Add new cash received row
+    window.addCashReceivedRow = function() {
+        const wrapper = $('#cashReceivedWrapper');
+        const row = $('<div>').addClass('payment-card border-blue-100 no-print');
+        row.html(`
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <p class="mb-0" style="font-size: 10px; font-weight: 900; color: #374151; text-transform: uppercase;">Cash Entry</p>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center bg-white rounded-lg px-2 border" style="border-color: #e5e7eb !important;">
+                        <span class="text-[10px] font-black text-gray-400 mr-1.5 uppercase" style="font-size: 10px; font-weight: 900; color: #9ca3af; text-transform: uppercase; margin-right: 6px;">Rs</span>
+                        <input type="number" class="cash-input" oninput="calculateFinalTotalFromInput()" value="0" style="width: 96px; background: transparent; font-weight: 900; text-align: right; outline: none; color: #1f2937; border: none; font-size: 14px;">
+                    </div>
+                    <button type="button" onclick="$(this).closest('.payment-card').remove(); calculateFinalTotalFromInput();" class="text-red-400 p-1">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <label class="d-flex-1 cursor-pointer bg-white border border-dashed rounded-lg p-2 text-center block transition-all duration-300" style="border-color: #bfdbfe;">
+                    <p class="status-text mb-0" style="font-size: 8px; font-weight: 900; color: #60a5fa; text-transform: uppercase;"><i class="ti ti-camera me-1"></i> Attach Photo</p>
+                    <input type="file" accept="image/*" class="d-none cash-input-pic" onchange="handleImagePick(this, 'blue', 'Photo Attached')">
+                </label>
+            </div>
+        `);
+        wrapper.append(row);
+    };
+    
+    // Add bank payment row
+    window.addBankPaymentRow = function() {
+        const wrapper = $('#bankPaymentsWrapper');
+        const row = $('<div>').addClass('bank-received-card border-purple-200 no-print');
+        row.html(`
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <p class="mb-0" style="font-size: 9px; font-weight: 900; color: #9333ea; text-transform: uppercase; font-style: italic;">Bank Entry</p>
+                <button type="button" onclick="$(this).closest('.bank-received-card').remove(); calculateFinalTotalFromInput();" class="text-red-400">
+                    <i class="ti ti-trash"></i>
+                </button>
+            </div>
+            <div class="mb-2 bg-white rounded-lg px-2 border" style="border-color: #e9d5ff;">
+                <p class="mb-0" style="font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; font-style: italic;">Select Bank</p>
+                <select class="bank-input-name w-100 bg-transparent font-black outline-none" style="color: #9333ea; font-size: 14px; border: none;">
+                    <option value="UBL-Pakistan Battery Agency">UBL-Pakistan Battery Agency</option>
+                    <option value="Easypaisa Malik Bilal Mubarak">Easypaisa Malik Bilal Mubarak</option>
+                    <option value="JazzCash Ghulam Mrtaza">JazzCash Ghulam Mrtaza</option>
+                </select>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <div class="bg-white rounded-lg px-2 border" style="border-color: #e9d5ff;">
+                        <p class="mb-0" style="font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; font-style: italic;">Ref No.</p>
+                        <input type="text" placeholder="Trans ID..." class="bank-input-ref w-100 bg-transparent font-black outline-none" style="color: #9333ea; font-size: 14px; border: none; text-transform: uppercase;">
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="bg-white rounded-lg px-2 border" style="border-color: #e9d5ff;">
+                        <p class="mb-0" style="font-size: 8px; font-weight: 900; color: #6b7280; text-transform: uppercase; font-style: italic;">Amount (Rs)</p>
+                        <input type="number" oninput="calculateFinalTotalFromInput()" value="0" class="bank-input-amt w-100 bg-transparent font-black text-right outline-none" style="color: #9333ea; font-size: 14px; border: none;">
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2 d-flex align-items-center gap-2">
+                <label class="flex-1 cursor-pointer bg-white border border-dashed rounded-lg p-2 text-center" style="border-color: #c084fc;">
+                    <p class="status-text mb-0" style="font-size: 8px; font-weight: 900; color: #a855f7; text-transform: uppercase;"><i class="ti ti-camera me-1"></i> Receipt (Compulsory)</p>
+                    <input type="file" accept="image/*" class="d-none bank-input-pic" onchange="handleImagePick(this, 'purple', 'Receipt Attached')">
+                </label>
+            </div>
+        `);
+        wrapper.append(row);
+    };
+    
+    // Add cash return row
+    window.addCashReturnRow = function() {
+        const wrapper = $('#cashReturnWrapper');
+        const row = $('<div>').addClass('payment-card border-red-100 no-print mt-1');
+        row.html(`
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <p class="mb-0" style="font-size: 10px; font-weight: 900; color: #dc2626; text-transform: uppercase;">Return Entry</p>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center bg-white rounded-lg px-2 border" style="border-color: #e5e7eb !important;">
+                        <span class="text-[10px] font-black text-gray-400 mr-2 uppercase" style="font-size: 10px; font-weight: 900; color: #9ca3af; text-transform: uppercase; margin-right: 8px;">Rs</span>
+                        <input type="number" oninput="calculateFinalTotalFromInput()" value="0" class="return-input w-24 bg-transparent font-black text-right outline-none" style="width: 96px; background: transparent; font-weight: 900; text-align: right; outline: none; color: #991b1b; border: none; font-size: 14px;">
+                    </div>
+                    <button type="button" onclick="$(this).closest('.payment-card').remove(); calculateFinalTotalFromInput();" class="text-red-400 p-1">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2">
+                <label class="d-flex-1 cursor-pointer bg-white border border-dashed rounded-lg p-2 text-center block transition-all duration-300" style="border-color: #fca5a5;">
+                    <p class="status-text mb-0" style="font-size: 8px; font-weight: 900; color: #ef4444; text-transform: uppercase;"><i class="ti ti-camera me-1"></i> Refund Photo</p>
+                    <input type="file" accept="image/*" class="d-none return-input-pic" onchange="handleImagePick(this, 'red', 'Return Attached')">
+                </label>
+            </div>
+        `);
+        wrapper.append(row);
+    };
+    
+    // Payment method change handler for sales
+    $('#sales_payment_method_id').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        const requiresBank = selectedOption.data('requires-bank') == '1';
+        
+        if (requiresBank) {
+            $('#sales_bank_account_wrapper').show();
+            $('#sales_bank_account_id').prop('required', true);
+        } else {
+            $('#sales_bank_account_wrapper').hide();
+            $('#sales_bank_account_id').prop('required', false);
+            $('#sales_bank_account_id').val('');
+        }
+    });
 
     // Quantity dropdown change - show custom input if "Qty" selected
     $('#sales-item-quantity').on('change', function() {
@@ -2280,6 +4650,12 @@ $(document).ready(function() {
             order_tax: $('#order_tax').val() || 0,
             discount: $('#discount').val() || 0,
             shipping: $('#shipping').val() || 0,
+            vehicles: selectedVehicles.map(vehicle => ({
+                registration: vehicle.reg,
+                make: vehicle.make || null,
+                model: vehicle.model || null,
+                year: vehicle.year || null
+            })),
             items: salesItems.map(item => ({
                 item_id: item.item_id,
                 quantity: item.quantity,
@@ -2290,7 +4666,8 @@ $(document).ready(function() {
                 tax_amount: item.tax_amount,
                 total: item.total,
                 warranty: item.warranty || null,
-                warehouse_id: item.warehouse_id || null
+                warehouse_id: item.warehouse_id || null,
+                entry_type: item.entry_type || 'sale'
             }))
         };
         

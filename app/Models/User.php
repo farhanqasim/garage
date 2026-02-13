@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -23,6 +28,23 @@ class User extends Authenticatable
         'password',
         'profile_img',
         'phone',
+        'role',
+        'branch_id',
+        'user_id_card_front',
+        'user_id_card_back',
+        'father_id_card_front',
+        'father_id_card_back',
+        'current_location',
+        'house_photo_front',
+        'credit_limit',
+        'attachments',
+        'salary_per_day',
+        'salary_per_month',
+        'salary_percentage',
+        'pattern_lock',
+        'fingerprint_data',
+        'claim_return_enabled',
+        'theme_settings',
     ];
 
     /**
@@ -43,12 +65,15 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'credit_limit' => 'decimal:2',
+        'attachments' => 'array',
+        'claim_return_enabled' => 'boolean',
+        'salary_per_day' => 'decimal:2',
+        'salary_per_month' => 'decimal:2',
+        'salary_percentage' => 'decimal:2',
+        'theme_settings' => 'array',
     ];
 
-    public function branches()
-    {
-        return $this->hasOne(Branch::class, 'user_id');
-    }
 
     /**
      * Get all branches assigned to this user (many-to-many)
@@ -76,6 +101,93 @@ public function user_items()
     public function webauthnCredentials()
     {
         return $this->hasMany(WebAuthnCredential::class);
+    }
+
+    /**
+     * Get the cash account for this user
+     */
+    public function cashAccount()
+    {
+        return $this->hasOne(CashAccount::class);
+    }
+
+    /**
+     * Get all cash transactions for this user
+     */
+    public function cashTransactions()
+    {
+        return $this->hasMany(CashTransaction::class);
+    }
+
+    /**
+     * Get cash transfers sent by this user
+     */
+    public function sentCashTransfers()
+    {
+        return $this->hasMany(CashTransfer::class, 'from_user_id');
+    }
+
+    /**
+     * Get cash transfers received by this user
+     */
+    public function receivedCashTransfers()
+    {
+        return $this->hasMany(CashTransfer::class, 'to_user_id');
+    }
+
+    /**
+     * Get bank transfers for this user
+     */
+    public function bankTransfers()
+    {
+        return $this->hasMany(BankTransfer::class);
+    }
+
+
+    public static function getpermissionGroups()
+    {
+        $permission_groups = DB::table('permissions')
+            ->orderBy('id','asc')
+            ->select('group_name as name')
+            ->groupBy('group_name')
+            ->get();
+        return $permission_groups;
+    }
+    public static function getpermissionsByGroupName($group_name)
+    {
+        $permissions = DB::table('permissions')
+            ->select('name', 'id')
+            ->where('group_name', $group_name)
+            ->get();
+        return $permissions;
+    }
+    public static function roleHasPermissions($role, $permissions)
+    {
+        $hasPermission = true;
+        foreach ($permissions as $permission) {
+            if (!$role->hasPermissionTo($permission->name)) {
+                $hasPermission = false;
+                return $hasPermission;
+            }
+        }
+        return $hasPermission;
+    }
+    public function hasPermissionThroughRole($permission) : bool
+    {
+        if(auth()->check()){
+
+            $roles = auth()->user()->getRoleNames();
+            if (!empty($roles)) {
+
+                $role = Role::where('name',$roles[0])->first();
+                if ($role->hasPermissionTo($permission)) {
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+        return false;
     }
 
 }

@@ -10,6 +10,7 @@ class CarWashJob extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'branch_id',
         'service_id',
         'worker_id',
@@ -25,6 +26,9 @@ class CarWashJob extends Model
         'end_time',
         'duration_seconds',
         'notes',
+        'payment_method',
+        'bank_id',
+        'bank_account_id',
     ];
 
     protected $casts = [
@@ -97,5 +101,29 @@ class CarWashJob extends Model
     public function expense()
     {
         return $this->hasOne(CarWashExpense::class, 'job_id');
+    }
+
+    /**
+     * Get the user who created this job
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the bank (when commission transferred to bank)
+     */
+    public function bank()
+    {
+        return $this->belongsTo(Bank::class);
+    }
+
+    /**
+     * Get the bank account (when payment transferred to specific account)
+     */
+    public function bankAccount()
+    {
+        return $this->belongsTo(\App\Models\BankAccount::class);
     }
 }

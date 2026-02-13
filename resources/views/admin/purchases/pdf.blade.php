@@ -12,17 +12,147 @@
     <link rel="stylesheet" href="{{ public_path('assets/css/style.css') }}">
 
     <style>
+        @page {
+            margin: 8mm;
+            size: A4;
+        }
+        
         body {
             font-family: DejaVu Sans, sans-serif;
             color: #333;
-            line-height: 1.5;
+            line-height: 1.3;
+            font-size: 10px;
         }
-        .content { padding: 20px; }
-        .card { background: #fff; }
-        .card-body { padding: 30px; }
-        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .table th, .table td { border: 1px solid #ddd; padding: 8px; }
-        .table thead { background: #f8f9fa; }
+        
+        .content { 
+            padding: 5px; 
+        }
+        
+        .card { 
+            background: #fff;
+            margin: 0;
+        }
+        
+        .card-body { 
+            padding: 10px; 
+        }
+        
+        /* Compact header */
+        .row.justify-content-between {
+            margin-bottom: 5px !important;
+        }
+        
+        .row.justify-content-between img {
+            width: 70px !important;
+            height: auto !important;
+        }
+        
+        .row.justify-content-between h5 {
+            font-size: 12px !important;
+            margin: 2px 0 !important;
+        }
+        
+        .row.justify-content-between p {
+            font-size: 9px !important;
+            margin: 1px 0 !important;
+        }
+        
+        /* Compact from/to section */
+        .row.border-bottom {
+            margin-bottom: 5px !important;
+            padding-bottom: 5px !important;
+        }
+        
+        .row.border-bottom h4 {
+            font-size: 11px !important;
+            margin: 2px 0 !important;
+        }
+        
+        .row.border-bottom p {
+            font-size: 9px !important;
+            margin: 1px 0 !important;
+        }
+        
+        .row.border-bottom .small {
+            font-size: 8px !important;
+        }
+        
+        /* Compact table */
+        .table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 5px !important;
+            font-size: 9px !important;
+        }
+        
+        .table th, .table td { 
+            border: 1px solid #ddd; 
+            padding: 3px 5px !important;
+            font-size: 9px !important;
+        }
+        
+        .table thead { 
+            background: #f8f9fa; 
+        }
+        
+        .table h6 {
+            font-size: 9px !important;
+            margin: 1px 0 !important;
+        }
+        
+        .table small {
+            font-size: 7px !important;
+        }
+        
+        /* Compact totals */
+        .row.border-bottom.mb-3 {
+            margin-bottom: 5px !important;
+        }
+        
+        .row.border-bottom.mb-3 p {
+            font-size: 9px !important;
+            margin: 1px 0 !important;
+        }
+        
+        .row.border-bottom.mb-3 h5 {
+            font-size: 11px !important;
+            margin: 2px 0 !important;
+        }
+        
+        /* Compact terms and signature */
+        .row.align-items-center {
+            margin-bottom: 5px !important;
+        }
+        
+        .row.align-items-center h6 {
+            font-size: 10px !important;
+            margin: 2px 0 !important;
+        }
+        
+        .row.align-items-center p {
+            font-size: 8px !important;
+            margin: 1px 0 !important;
+        }
+        
+        .row.align-items-center img {
+            max-height: 40px !important;
+        }
+        
+        /* Compact footer */
+        .text-center {
+            margin-top: 5px !important;
+        }
+        
+        .text-center img {
+            width: 70px !important;
+        }
+        
+        .text-center p {
+            font-size: 8px !important;
+            margin: 1px 0 !important;
+        }
+        
+        /* Utility classes */
         .text-end { text-align: right; }
         .text-center { text-align: center; }
         .fw-medium { font-weight: 500; }
@@ -31,14 +161,26 @@
         .text-primary { color: #0d6efd; }
         .bg-success { background: #28a745; }
         .text-white { color: #fff; }
-        .fs-10 { font-size: 10px; }
-        .fs-12 { font-size: 12px; }
-        .fs-14 { font-size: 14px; }
+        .fs-10 { font-size: 9px !important; }
+        .fs-12 { font-size: 9px !important; }
+        .fs-14 { font-size: 10px !important; }
         h4, h5, h6 { margin: 0; }
-        p { margin: 5px 0; }
+        p { margin: 2px 0 !important; }
         .border-bottom { border-bottom: 1px solid #dee2e6; }
-        .mb-3 { margin-bottom: 1rem; }
-        .pe-3 { padding-right: 1rem; }
+        .mb-3 { margin-bottom: 5px !important; }
+        .mb-2 { margin-bottom: 3px !important; }
+        .mb-1 { margin-bottom: 2px !important; }
+        .pe-3 { padding-right: 0.5rem; }
+        .mt-3 { margin-top: 5px !important; }
+        
+        /* Prevent page breaks */
+        .card-body {
+            page-break-inside: avoid;
+        }
+        
+        .row {
+            page-break-inside: avoid;
+        }
     </style>
 </head>
 <body>
@@ -77,55 +219,57 @@
             </div>
 
             <!-- From / To / Status -->
-            <div class="row border-bottom mb-3">
-                <div class="col-md-5">
-                    <p class="text-dark mb-2 fw-semibold">From</p>
-                    <h4 class="mb-1">{{ $companyName }}</h4>
-                    @if($address || $city || $state || $zip || $country)
-                        <p class="mb-1">
-                            @if($address) {{ $address }}, @endif
-                            @if($city) {{ $city }}, @endif
-                            @if($state) {{ $state }}, @endif
-                            @if($zip) {{ $zip }} @endif
-                            @if($country) {{ $country }} @endif
-                        </p>
-                    @endif
-                    <p class="mb-1">Email: <span class="text-dark">{{ setting_value('email', '') }}</span></p>
-                    <p>Phone: <span class="text-dark">{{ $helpline }}</span></p>
-                </div>
-                <div class="col-md-5">
-                    <p class="text-dark mb-2 fw-semibold">To</p>
-                    <h4 class="mb-1">{{ $purchase->supplier->names[0] ?? 'N/A' }}</h4>
-                    @if($purchase->supplier && $purchase->supplier->company)
-                        <p class="mb-1">{{ $purchase->supplier->company }}</p>
-                    @endif
-                    @if($purchase->supplier && $purchase->supplier->address)
-                        <p class="mb-1">{{ $purchase->supplier->address }}</p>
-                    @endif
-                    @if($purchase->supplier && $purchase->supplier->area)
-                        <p class="mb-1">{{ $purchase->supplier->area }}</p>
-                    @endif
-                    @if($purchase->supplier && isset($purchase->supplier->phones[0]))
-                        <p class="mb-1">Email: <span class="text-dark">{{ $purchase->supplier->email ?? '-' }}</span></p>
-                        <p>Phone: <span class="text-dark">{{ $purchase->supplier->phones[0] }}</span></p>
-                    @endif
-                </div>
-                <div class="col-md-2">
-                    <p class="mb-2 fw-medium">Payment Status</p>
-                    <span class="bg-success text-white fs-10 px-1 rounded">
-                        {{ $purchase->status == 'received' ? 'Paid' : ($purchase->status == 'pending' ? 'Pending' : 'Ordered') }}
-                    </span>
-                    @if($purchase->branch)
-                        <div class="mt-3">
-                            <p class="mb-1 small"><strong>Branch:</strong></p>
-                            <p class="mb-0 small">{{ $purchase->branch->branch_name }}</p>
-                            @if($purchase->branch->branch_code)
-                                <p class="mb-0 small">({{ $purchase->branch->branch_code }})</p>
-                            @endif
-                        </div>
-                    @endif
-                </div>
-            </div>
+            <table class="border-bottom mb-3" style="width: 100%; border-collapse: collapse; margin-bottom: 5px;">
+                <tr>
+                    <td style="width: 40%; padding-right: 10px; vertical-align: top;">
+                        <p class="text-dark mb-2 fw-semibold">From</p>
+                        <h4 class="mb-1">{{ $companyName }}</h4>
+                        @if($address || $city || $state || $zip || $country)
+                            <p class="mb-1">
+                                @if($address) {{ $address }}, @endif
+                                @if($city) {{ $city }}, @endif
+                                @if($state) {{ $state }}, @endif
+                                @if($zip) {{ $zip }} @endif
+                                @if($country) {{ $country }} @endif
+                            </p>
+                        @endif
+                        <p class="mb-1">Email: <span class="text-dark">{{ setting_value('email', '') }}</span></p>
+                        <p>Phone: <span class="text-dark">{{ $helpline }}</span></p>
+                    </td>
+                    <td style="width: 40%; padding-left: 10px; padding-right: 10px; border-left: 1px solid #dee2e6; vertical-align: top;">
+                        <p class="text-dark mb-2 fw-semibold">To</p>
+                        <h4 class="mb-1">{{ $purchase->supplier->names[0] ?? 'N/A' }}</h4>
+                        @if($purchase->supplier && $purchase->supplier->company)
+                            <p class="mb-1">{{ $purchase->supplier->company }}</p>
+                        @endif
+                        @if($purchase->supplier && $purchase->supplier->address)
+                            <p class="mb-1">{{ $purchase->supplier->address }}</p>
+                        @endif
+                        @if($purchase->supplier && $purchase->supplier->area)
+                            <p class="mb-1">{{ $purchase->supplier->area }}</p>
+                        @endif
+                        @if($purchase->supplier && isset($purchase->supplier->phones[0]))
+                            <p class="mb-1">Email: <span class="text-dark">{{ $purchase->supplier->email ?? '-' }}</span></p>
+                            <p>Phone: <span class="text-dark">{{ $purchase->supplier->phones[0] }}</span></p>
+                        @endif
+                    </td>
+                    <td style="width: 20%; padding-left: 10px; border-left: 1px solid #dee2e6; vertical-align: top;">
+                        <p class="mb-2 fw-medium">Payment Status</p>
+                        <span class="bg-success text-white fs-10 px-1 rounded">
+                            {{ $purchase->status == 'received' ? 'Paid' : ($purchase->status == 'pending' ? 'Pending' : 'Ordered') }}
+                        </span>
+                        @if($purchase->branch)
+                            <div class="mt-3">
+                                <p class="mb-1 small"><strong>Branch:</strong></p>
+                                <p class="mb-0 small">{{ $purchase->branch->branch_name }}</p>
+                                @if($purchase->branch->branch_code)
+                                    <p class="mb-0 small">({{ $purchase->branch->branch_code }})</p>
+                                @endif
+                            </div>
+                        @endif
+                    </td>
+                </tr>
+            </table>
 
             <!-- Items Table -->
             <div>
@@ -172,48 +316,75 @@
             </div>
 
             <!-- Totals -->
-            <div class="row border-bottom mb-3">
-                <div class="col-md-5 ms-auto mb-3">
-                    <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                        <p class="mb-0">Sub Total</p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->subtotal, 2) }}</p>
-                    </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border-bottom: 1px solid #dee2e6;">
+                <tr>
+                    <td style="width: 33%; padding: 5px; text-align: center; border-right: 1px solid #dee2e6; vertical-align: top;">
+                        <p class="mb-1" style="font-size: 9px;">Sub Total</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->subtotal, 2) }}</p>
+                    </td>
                     @if($purchase->discount > 0)
-                    <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                        <p class="mb-0">Discount ({{ number_format(($purchase->subtotal > 0 ? ($purchase->discount / $purchase->subtotal) * 100 : 0), 2) }}%)</p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->discount, 2) }}</p>
-                    </div>
+                    <td style="width: 33%; padding: 5px; text-align: center; border-right: 1px solid #dee2e6; vertical-align: top;">
+                        <p class="mb-1" style="font-size: 9px;">Discount ({{ number_format(($purchase->subtotal > 0 ? ($purchase->discount / $purchase->subtotal) * 100 : 0), 2) }}%)</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->discount, 2) }}</p>
+                    </td>
+                    @else
+                    <td style="width: 33%; padding: 5px; text-align: center; border-right: 1px solid #dee2e6; vertical-align: top;">
+                        @if($purchase->order_tax > 0)
+                        <p class="mb-1" style="font-size: 9px;">VAT ({{ number_format(($purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0), 2) }}%)</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->order_tax, 2) }}</p>
+                        @elseif($purchase->shipping > 0)
+                        <p class="mb-1" style="font-size: 9px;">Shipping</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->shipping, 2) }}</p>
+                        @else
+                        <p class="mb-0" style="font-size: 9px;">-</p>
+                        @endif
+                    </td>
                     @endif
-                    @if($purchase->order_tax > 0)
-                    <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                        <p class="mb-0">VAT ({{ number_format(($purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0), 2) }}%)</p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->order_tax, 2) }}</p>
-                    </div>
-                    @endif
-                    @if($purchase->shipping > 0)
-                    <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                        <p class="mb-0">Shipping</p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->shipping, 2) }}</p>
-                    </div>
-                    @endif
-                    <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                        <h5>Total Amount</h5>
-                        <h5>Rs {{ number_format($purchase->grand_total, 2) }}</h5>
-                    </div>
-                    <p class="fs-12">
-                        Amount in Words: <span class="text-dark">
-                            @php
-                                $amount = (int)$purchase->grand_total;
-                                $paise = (int)(($purchase->grand_total - $amount) * 100);
-                                $words = ucwords(numberToWords($amount)) . ' Rupees';
-                                if ($paise > 0) $words .= ' and ' . ucwords(numberToWords($paise)) . ' Paise';
-                                $words .= ' Only';
-                            @endphp
-                            {{ $words }}
-                        </span>
-                    </p>
-                </div>
-            </div>
+                    <td style="width: 34%; padding: 5px; text-align: center; vertical-align: top;">
+                        <p class="mb-1" style="font-size: 9px;">Total Amount</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 11px; font-weight: 600;">Rs {{ number_format($purchase->grand_total, 2) }}</p>
+                    </td>
+                </tr>
+            </table>
+            @if($purchase->order_tax > 0 && $purchase->discount > 0)
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px;">
+                <tr>
+                    <td style="width: 50%; padding: 5px; text-align: center; border-right: 1px solid #dee2e6; vertical-align: top;">
+                        <p class="mb-1" style="font-size: 9px;">VAT ({{ number_format(($purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0), 2) }}%)</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->order_tax, 2) }}</p>
+                    </td>
+                    <td style="width: 50%; padding: 5px; text-align: center; vertical-align: top;">
+                        @if($purchase->shipping > 0)
+                        <p class="mb-1" style="font-size: 9px;">Shipping</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->shipping, 2) }}</p>
+                        @else
+                        <p class="mb-0" style="font-size: 9px;">-</p>
+                        @endif
+                    </td>
+                </tr>
+            </table>
+            @elseif($purchase->shipping > 0 && $purchase->discount == 0 && $purchase->order_tax == 0)
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px;">
+                <tr>
+                    <td style="width: 100%; padding: 5px; text-align: center; vertical-align: top;">
+                        <p class="mb-1" style="font-size: 9px;">Shipping</p>
+                        <p class="text-dark fw-medium mb-0" style="font-size: 10px;">Rs {{ number_format($purchase->shipping, 2) }}</p>
+                    </td>
+                </tr>
+            </table>
+            @endif
+            <p class="fs-12" style="text-align: center; margin-top: 5px;">
+                Amount in Words: <span class="text-dark">
+                    @php
+                        $amount = (int)$purchase->grand_total;
+                        $paise = (int)(($purchase->grand_total - $amount) * 100);
+                        $words = ucwords(numberToWords($amount)) . ' Rupees';
+                        if ($paise > 0) $words .= ' and ' . ucwords(numberToWords($paise)) . ' Paise';
+                        $words .= ' Only';
+                    @endphp
+                    {{ $words }}
+                </span>
+            </p>
 
             <!-- Terms & Signature -->
             <div class="row align-items-center border-bottom mb-3">

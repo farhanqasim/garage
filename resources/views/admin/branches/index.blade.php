@@ -12,15 +12,35 @@
 
          
             <div class="page-btn">
+                <a href="{{ route('home') }}" class="btn btn-secondary me-2">
+                    <i class="ti ti-arrow-left me-1"></i>Back
+                </a>
+                @can('add_branch')
                 <a href="" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
                         class="ti ti-circle-plus me-1"></i>Add</a>
+                @endcan
             </div>
         </div>
+        <!-- Success/Error Messages -->
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <strong>Success!</strong> {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Error!</strong> {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         <!-- /product list -->
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                <div class="d-flex justify-content-end mb-3">
-                    <input type="text" id="tableSearch" class="form-control w-100" placeholder="Search...">
+                <div class="d-flex justify-content-end mb-3 flex-grow-1 me-2">
+                    <input type="text" id="tableSearch" class="form-control" placeholder="Search by name, branch, code, manager, email, phone..." style="max-width: 320px;">
                 </div>
                 <div class="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
                     <div class="dropdown">
@@ -46,7 +66,6 @@
                         <thead class="thead-primary">
                             <tr>
                                 <th>#</th>
-                                <th>User Name</th>
                                 <th>Branch Name</th>
                                 <th>Branch Code</th>
                                 <th>Manager Name</th>
@@ -60,35 +79,6 @@
                             @forelse ($branches as $index => $item)
                                 <tr>
                                     <td>{{ $index + 1 + (($branches->currentPage() - 1) * $branches->perPage()) }}</td>
-                                    <td>
-                                        <div>
-                                            <strong>{{ $item->user->name ?? 'N/A' }}</strong>
-                                            <span class="badge badge-primary ms-1">Owner</span>
-                                        </div>
-                                        @if($item->users->count() > 0)
-                                            <div class="mt-2">
-                                                @foreach($item->users->take(3) as $assignedUser)
-                                                    @php
-                                                        $userRole = $assignedUser->pivot->role ?? 'staff';
-                                                        $roleBadges = [
-                                                            'manager' => 'badge-primary',
-                                                            'staff' => 'badge-info',
-                                                            'worker' => 'badge-warning',
-                                                            'other' => 'badge-secondary'
-                                                        ];
-                                                        $roleColor = $roleBadges[$userRole] ?? 'badge-secondary';
-                                                    @endphp
-                                                    <div class="small mb-1">
-                                                        {{ $assignedUser->name }}
-                                                        <span class="badge {{ $roleColor }}">{{ ucfirst($userRole) }}</span>
-                                                    </div>
-                                                @endforeach
-                                                @if($item->users->count() > 3)
-                                                    <small class="text-muted">+{{ $item->users->count() - 3 }} more</small>
-                                                @endif
-                                            </div>
-                                        @endif
-                                    </td>
                                     <td>{{ $item->branch_name }}</td>
                                     <td>{{ $item->branch_code }}</td>
                                     <td>{{ $item->manager_name ?? 'N/A' }}</td>
@@ -120,16 +110,18 @@
                                     </td>
                                     <td class="action-table-data">
                                         <div class="edit-delete-action">
+                                            @can('view_branch')
+                                            <a class="me-2 p-2 text-primary" href="{{ route('branch.users', $item->id) }}" title="View Branch Users">
+                                                <i data-feather="users" class="feather-users"></i>
+                                            </a>
+                                            @endcan
+                                            @can('update_branch')
                                             <a class="me-2 p-2" href="#" data-bs-toggle="modal"
                                                 data-bs-target="#edit-category{{ $item->id }}" title="Edit Branch">
                                                 <i data-feather="edit" class="feather-edit"></i>
                                             </a>
-                                            @if(auth()->user()->role === 'admin')
-                                            <a class="me-2 p-2 text-primary" href="#" data-bs-toggle="modal"
-                                                data-bs-target="#assign-users-modal{{ $item->id }}" title="Assign Users">
-                                                <i data-feather="users" class="feather-users"></i>
-                                            </a>
-                                            @endif
+                                            @endcan
+                                            @can('delete_branch')
                                             <a href="javascript:void(0)"
                                                 onclick="confirmDelete('delete-form-{{ $item->id }}')"
                                                 class="p-2 text-danger" title="Delete">
@@ -143,12 +135,13 @@
                                                 @csrf
                                                 @method('DELETE')
                                             </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center">No branches found.</td>
+                                    <td colspan="8" class="text-center">No branches found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -182,33 +175,11 @@
                     @method('PUT')
                     <div class="modal-body">
                         <div class="row ">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="user_id" class="col-form-label">Select User <span class="text-danger">*</span>:</label>
-                                    <select name="user_id" id="user_id" class="form-control @error('user_id') is-invalid @enderror" required>
-                                        @if(auth()->user()->role === 'admin')
-                                            <option value="">-- Select User --</option>
-                                            @foreach($users as $user)
-                                                <option value="{{ $user->id }}" {{ old('user_id', $item->user_id) == $user->id ? 'selected' : '' }}>
-                                                    {{ $user->name }} ({{ $user->email }})
-                                                </option>
-                                            @endforeach
-                                        @else
-                                            <option value="{{ auth()->user()->id }}" {{ auth()->user()->id == $item->user_id ? 'selected' : '' }}>
-                                                {{ auth()->user()->name }} ({{ auth()->user()->email }})
-                                            </option>
-                                        @endif
-                                    </select>
-                                    @error('user_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
 
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="branch_name" class="col-form-label">Branch Name <span class="text-danger">*</span>:</label>
-                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name', $item->branch_name) }}" required>
+                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name', $item->branch_name) }}" required style="text-transform: uppercase" oninput="this.value = this.value.toUpperCase()">
                                     @error('branch_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -295,73 +266,6 @@
                                     @enderror
                                 </div>
                             </div>
-                            @if(auth()->user()->role === 'admin')
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label class="col-form-label fw-bold">Assign Additional Users to this Branch:</label>
-                                    <div class="p-2 bg-light rounded mb-2">
-                                        <small class="text-muted">
-                                            <i class="ti ti-info-circle me-1"></i>
-                                            Owner: <strong>{{ $item->user->name ?? 'N/A' }}</strong>
-                                            @if($item->users->count() > 0)
-                                                | Currently assigned: <strong>{{ $item->users->count() }} user(s)</strong>
-                                            @endif
-                                        </small>
-                                    </div>
-                                    <select name="assigned_user_ids[]" id="assigned_user_ids{{ $item->id }}" class="form-control @error('assigned_user_ids') is-invalid @enderror" multiple size="5" onchange="updateEditRoleSelects{{ $item->id }}()">
-                                        @foreach($users as $user)
-                                            @if($user->id != $item->user_id)
-                                                <option value="{{ $user->id }}" 
-                                                    {{ $item->users->contains($user->id) ? 'selected' : '' }}>
-                                                    {{ $user->name }} ({{ $user->email }})
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                    <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users. These users will be able to access this branch.</small>
-                                    @error('assigned_user_ids')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                    <div class="mt-3" id="edit-role-selects-container{{ $item->id }}">
-                                        <label class="form-label fw-bold small">Assign Roles:</label>
-                                        <div id="edit-role-selects{{ $item->id }}"></div>
-                                    </div>
-                                    <script>
-                                        function updateEditRoleSelects{{ $item->id }}() {
-                                            const select = document.getElementById('assigned_user_ids{{ $item->id }}');
-                                            const roleContainer = document.getElementById('edit-role-selects{{ $item->id }}');
-                                            const selectedOptions = Array.from(select.selectedOptions);
-                                            
-                                            roleContainer.innerHTML = '';
-                                            
-                                            selectedOptions.forEach((option, index) => {
-                                                const userId = option.value;
-                                                const userName = option.text.split('(')[0].trim();
-                                                const currentRole = @json($item->users->pluck('pivot.role', 'id')->toArray())[userId] || 'staff';
-                                                
-                                                const div = document.createElement('div');
-                                                div.className = 'mb-2';
-                                                div.innerHTML = `
-                                                    <label class="form-label small">${userName}:</label>
-                                                    <select name="assigned_user_roles[]" class="form-control form-control-sm">
-                                                        <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Manager</option>
-                                                        <option value="staff" ${currentRole === 'staff' ? 'selected' : ''}>Staff</option>
-                                                        <option value="worker" ${currentRole === 'worker' ? 'selected' : ''}>Worker</option>
-                                                        <option value="other" ${currentRole === 'other' ? 'selected' : ''}>Other</option>
-                                                    </select>
-                                                `;
-                                                roleContainer.appendChild(div);
-                                            });
-                                        }
-                                        
-                                        // Initialize on page load
-                                        document.addEventListener('DOMContentLoaded', function() {
-                                            updateEditRoleSelects{{ $item->id }}();
-                                        });
-                                    </script>
-                                </div>
-                            </div>
-                            @endif
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -374,135 +278,6 @@
     </div>
     @endforeach
 
-    {{-- Assign Users Modal for each branch --}}
-    @foreach($branches as $item)
-    @if(auth()->user()->role === 'admin')
-    <div class="modal fade" id="assign-users-modal{{ $item->id }}">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <div class="page-title">
-                        <h4>Assign Users to Branch: {{ $item->branch_name }}</h4>
-                    </div>
-                    <button type="button" class="close bg-danger text-white fs-16" data-bs-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <form action="{{ route('branch.assign.users', $item->id) }}" method="POST">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Owner:</label>
-                            <div class="p-2 bg-light rounded">
-                                <i class="ti ti-user me-2"></i>{{ $item->user->name ?? 'N/A' }} <small class="text-muted">({{ $item->user->email ?? 'N/A' }})</small>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Currently Assigned Users:</label>
-                            @if($item->users->count() > 0)
-                                <div class="list-group">
-                                    @foreach($item->users as $assignedUser)
-                                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <i class="ti ti-user me-2"></i>{{ $assignedUser->name }}
-                                                <small class="text-muted">({{ $assignedUser->email }})</small>
-                                                @php
-                                                    $userRole = $assignedUser->pivot->role ?? 'staff';
-                                                    $roleBadges = [
-                                                        'manager' => 'badge-primary',
-                                                        'staff' => 'badge-info',
-                                                        'worker' => 'badge-warning',
-                                                        'other' => 'badge-secondary'
-                                                    ];
-                                                    $roleColors = $roleBadges[$userRole] ?? 'badge-secondary';
-                                                @endphp
-                                                <span class="badge {{ $roleColors }} ms-2">{{ ucfirst($userRole) }}</span>
-                                            </div>
-                                            <a href="{{ route('branch.remove.user', ['branchId' => $item->id, 'userId' => $assignedUser->id]) }}" 
-                                               class="btn btn-sm btn-danger" 
-                                               onclick="return confirm('Are you sure you want to remove this user from the branch?')">
-                                                <i data-feather="x" class="feather-sm"></i> Remove
-                                            </a>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="text-muted">No users assigned yet.</p>
-                            @endif
-                        </div>
-
-                        <div class="form-group mb-3">
-                            <label for="user_ids{{ $item->id }}" class="form-label fw-bold">Select Users to Assign:</label>
-                            <select name="user_ids[]" id="user_ids{{ $item->id }}" class="form-control @error('user_ids') is-invalid @enderror" multiple size="6" onchange="updateRoleSelects{{ $item->id }}()" required>
-                                @foreach($users as $user)
-                                    @if($user->id != $item->user_id)
-                                        <option value="{{ $user->id }}" 
-                                            {{ $item->users->contains($user->id) ? 'selected' : '' }}>
-                                            {{ $user->name }} ({{ $user->email }})
-                                        </option>
-                                    @endif
-                                @endforeach
-                            </select>
-                            <small class="form-text text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple users.</small>
-                            @error('user_ids')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="form-group" id="role-selects-container{{ $item->id }}">
-                            <label class="form-label fw-bold">Assign Roles:</label>
-                            <div id="role-selects{{ $item->id }}"></div>
-                            <small class="form-text text-muted">Select a role for each user. Default role is Staff.</small>
-                            @error('user_roles')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <script>
-                            function updateRoleSelects{{ $item->id }}() {
-                                const select = document.getElementById('user_ids{{ $item->id }}');
-                                const roleContainer = document.getElementById('role-selects{{ $item->id }}');
-                                const selectedOptions = Array.from(select.selectedOptions);
-                                
-                                roleContainer.innerHTML = '';
-                                
-                                selectedOptions.forEach((option, index) => {
-                                    const userId = option.value;
-                                    const userName = option.text.split('(')[0].trim();
-                                    const currentRole = @json($item->users->pluck('pivot.role', 'id')->toArray())[userId] || 'staff';
-                                    
-                                    const div = document.createElement('div');
-                                    div.className = 'mb-2';
-                                    div.innerHTML = `
-                                        <label class="form-label small">${userName}:</label>
-                                        <select name="user_roles[]" class="form-control form-control-sm">
-                                            <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Manager</option>
-                                            <option value="staff" ${currentRole === 'staff' ? 'selected' : ''}>Staff</option>
-                                            <option value="worker" ${currentRole === 'worker' ? 'selected' : ''}>Worker</option>
-                                            <option value="other" ${currentRole === 'other' ? 'selected' : ''}>Other</option>
-                                        </select>
-                                    `;
-                                    roleContainer.appendChild(div);
-                                });
-                            }
-                            
-                            // Initialize on page load
-                            document.addEventListener('DOMContentLoaded', function() {
-                                updateRoleSelects{{ $item->id }}();
-                            });
-                        </script>
-                    </div>
-                    <div class="modal-footer">
-                        <a href="" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Assign Users</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    @endif
-    @endforeach
 
     <div class="modal fade" id="add-category">
         <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -522,31 +297,8 @@
                         <div class="row ">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label for="user_id" class="col-form-label">Select User <span class="text-danger">*</span>:</label>
-                                    <select name="user_id" id="user_id" class="form-control @error('user_id') is-invalid @enderror" required>
-                                        @if(auth()->user()->role === 'admin')
-                                            <option value="">-- Select User --</option>
-                                            @foreach($users as $user)
-                                                <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
-                                                    {{ $user->name }} ({{ $user->email }})
-                                                </option>
-                                            @endforeach
-                                        @else
-                                            <option value="{{ auth()->user()->id }}" selected>
-                                                {{ auth()->user()->name }} ({{ auth()->user()->email }})
-                                            </option>
-                                        @endif
-                                    </select>
-                                    @error('user_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
                                     <label for="branch_name" class="col-form-label">Branch Name <span class="text-danger">*</span>:</label>
-                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name') }}" required>
+                                    <input type="text" class="form-control @error('branch_name') is-invalid @enderror" name="branch_name" id="branch_name" value="{{ old('branch_name') }}" required style="text-transform: uppercase" oninput="this.value = this.value.toUpperCase()">
                                     @error('branch_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -557,15 +309,6 @@
                                     <label for="branch_code" class="col-form-label">Branch Code <span class="text-danger">*</span>:</label>
                                     <input type="text" class="form-control @error('branch_code') is-invalid @enderror" name="branch_code" id="branch_code" value="{{ old('branch_code') }}" required>
                                     @error('branch_code')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="manager_name" class="col-form-label">Manager Name:</label>
-                                    <input type="text" class="form-control @error('manager_name') is-invalid @enderror" name="manager_name" id="manager_name" value="{{ old('manager_name') }}">
-                                    @error('manager_name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -597,24 +340,6 @@
                                     @enderror
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="city" class="col-form-label">City:</label>
-                                    <input type="text" class="form-control @error('city') is-invalid @enderror" name="city" id="city" value="{{ old('city') }}">
-                                    @error('city')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="state" class="col-form-label">State:</label>
-                                    <input type="text" class="form-control @error('state') is-invalid @enderror" name="state" id="state" value="{{ old('state') }}">
-                                    @error('state')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="country" class="col-form-label">Country:</label>
@@ -626,10 +351,15 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label for="location" class="col-form-label">Location:</label>
-                                    <input type="text" class="form-control @error('location') is-invalid @enderror" name="location" id="location" value="{{ old('location') }}">
+                                    <label for="add_branch_location" class="col-form-label">Location:</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control @error('location') is-invalid @enderror" name="location" id="add_branch_location" value="{{ old('location') }}" placeholder="Address or use current location">
+                                        <button type="button" class="btn btn-outline-primary" id="add_branch_location_btn" title="Use current location">
+                                            <i data-feather="map-pin" class="feather-14"></i> Current
+                                        </button>
+                                    </div>
                                     @error('location')
-                                        <div class="invalid-feedback">{{ $message }}</div>
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
                                     @enderror
                                 </div>
                             </div>
@@ -643,4 +373,65 @@
             </div>
         </div>
     </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var searchInput = document.getElementById('tableSearch');
+        var table = document.getElementById('searchableTable');
+        if (searchInput && table) {
+            searchInput.addEventListener('input', function() {
+                var term = (this.value || '').trim().toLowerCase();
+                var rows = table.querySelectorAll('tbody tr');
+                rows.forEach(function(row) {
+                    var text = (row.textContent || '').toLowerCase();
+                    row.style.display = term === '' || text.indexOf(term) !== -1 ? '' : 'none';
+                });
+            });
+        }
+    });
+    (function() {
+        var btn = document.getElementById('add_branch_location_btn');
+        var input = document.getElementById('add_branch_location');
+        if (!btn || !input) return;
+        btn.addEventListener('click', function() {
+            btn.disabled = true;
+            btn.textContent = 'Getting...';
+            if (typeof feather !== 'undefined') feather.replace();
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser.');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                if (typeof feather !== 'undefined') feather.replace();
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    var lat = pos.coords.latitude;
+                    var lng = pos.coords.longitude;
+                    fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json', {
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        input.value = data.display_name || (lat + ', ' + lng);
+                        btn.disabled = false;
+                        btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                        if (typeof feather !== 'undefined') feather.replace();
+                    })
+                    .catch(function() {
+                        input.value = lat + ', ' + lng;
+                        btn.disabled = false;
+                        btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                        if (typeof feather !== 'undefined') feather.replace();
+                    });
+                },
+                function(err) {
+                    alert('Could not get location: ' + (err.message || 'Permission denied or unavailable.'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-feather="map-pin" class="feather-14"></i> Current';
+                    if (typeof feather !== 'undefined') feather.replace();
+                }
+            );
+        });
+    })();
+    </script>
 @endsection

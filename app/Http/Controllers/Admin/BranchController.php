@@ -26,25 +26,23 @@ class BranchController extends Controller
 
             // ✅ If admin → show all branches with assigned users
             if ($user->role === 'admin') {
-                $branches = Branch::with(['user', 'users'])->paginate(10);
+                $branches = Branch::with(['users'])->paginate(10);
                 return view('admin.branches.index', compact('branches', 'users'));
             }
 
-            // ✅ If normal user - check owner OR assigned branches
+            // ✅ If normal user - check assigned branches
             if ($user->role === 'user') {
-                $branch = Branch::with(['user', 'users'])->where('user_id', $user->id)->first();
+                $branch = null;
                 
-                // If no branch as owner, check assigned branches
-                if (!$branch) {
-                    try {
-                        $assignedBranch = $user->assignedBranches()->first();
-                        if ($assignedBranch) {
-                            $branch = Branch::with(['user', 'users'])->find($assignedBranch->id);
-                        }
-                    } catch (\Exception $e) {
-                        // If branch_user table doesn't exist, continue without assigned branches
-                        Log::warning('Branch user relationship error: ' . $e->getMessage());
+                // Check assigned branches
+                try {
+                    $assignedBranch = $user->assignedBranches()->first();
+                    if ($assignedBranch) {
+                        $branch = Branch::with(['users'])->find($assignedBranch->id);
                     }
+                } catch (\Exception $e) {
+                    // If branch_user table doesn't exist, continue without assigned branches
+                    Log::warning('Branch user relationship error: ' . $e->getMessage());
                 }
 
                 if ($branch) {
@@ -66,66 +64,98 @@ class BranchController extends Controller
 
 public function store_branches(Request $request)
 {
-    $user = Auth::user();
-    $user_id = $request->user_id;
+    try {
+        $user = Auth::user();
 
+        // ✅ Validate input
+        $request->validate([
+            'branch_name' => 'required|string|max:255',
+            'branch_code' => 'required|string|max:255|unique:branches,branch_code',
+            'manager_name' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:255',
+        ]);
 
-    // ✅ Check if this user already has a branch
-    $existing = Branch::where('user_id', $user_id)->first();
+        // ✅ Create new branch
+        $branch = new Branch();
+        $branch->branch_name = $request->branch_name;
+        $branch->branch_code = $request->branch_code;
+        $branch->manager_name = $request->manager_name ?? null;
+        $branch->email = $request->email ?? null;
+        $branch->phone = $request->phone ?? null;
+        $branch->address = $request->address ?? null;
+        $branch->city = $request->city ?? null;
+        $branch->state = $request->state ?? null;
+        $branch->country = $request->country ?? 'Pakistan';
+        $branch->location = $request->location ?? null;
+        $branch->status = 'inactive';
+        
+        if (!$branch->save()) {
+            Log::error('Failed to save branch', ['request' => $request->all()]);
+            return redirect()->route('all.branches')->with('error', 'Failed to save branch. Please try again.');
+        }
 
-    if ($existing) {
-        // If the selected user already has a branch — block all except admin trying for new users
-        return redirect()->route('all.branches')->with('error', 'This user already has a branch. Only new users can have a branch added.');
+        Log::info('Branch created successfully', ['branch_id' => $branch->id, 'branch_name' => $branch->branch_name]);
+
+        // Auto-create warehouse for this branch
+        try {
+            $warehouseCode = 'WH-' . strtoupper(Str::random(6));
+            Warehouse::create([
+                'branch_id' => $branch->id,
+                'warehouse_name' => $branch->branch_name . ' Warehouse',
+                'warehouse_code' => $warehouseCode,
+                'address' => $branch->address,
+                'city' => $branch->city,
+                'state' => $branch->state,
+                'country' => $branch->country,
+                'phone' => $branch->phone,
+                'email' => $branch->email,
+                'manager_name' => $branch->manager_name,
+                'status' => 'active',
+            ]);
+            Log::info('Warehouse created for branch', ['branch_id' => $branch->id]);
+        } catch (\Exception $e) {
+            Log::error('Failed to create warehouse for branch: ' . $e->getMessage(), [
+                'branch_id' => $branch->id,
+                'error' => $e->getTraceAsString()
+            ]);
+            // Continue even if warehouse creation fails
+        }
+
+        // Connect all admin users to this new branch (admin role gets access to already saved branches)
+        try {
+            $adminIds = User::where('role', 'admin')->pluck('id');
+            foreach ($adminIds as $aid) {
+                $branch->users()->syncWithoutDetaching([$aid => ['role' => 'admin']]);
+            }
+            Log::info('Admins attached to branch', ['branch_id' => $branch->id, 'admin_count' => $adminIds->count()]);
+        } catch (\Exception $e) {
+            Log::warning('Could not attach admins to new branch: ' . $e->getMessage(), [
+                'branch_id' => $branch->id,
+                'error' => $e->getTraceAsString()
+            ]);
+            // Continue even if admin attachment fails
+        }
+
+        return redirect()->route('all.branches')->with('success', 'Branch and warehouse created successfully!');
+        
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Branch validation failed', ['errors' => $e->errors(), 'request' => $request->all()]);
+        return redirect()->back()
+            ->withErrors($e->errors())
+            ->withInput($request->all());
+    } catch (\Exception $e) {
+        Log::error('Branch creation error: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'request' => $request->all()
+        ]);
+        return redirect()->route('all.branches')->with('error', 'Error creating branch: ' . $e->getMessage());
     }
-
-    // ✅ Validate input
-    $request->validate([
-        'user_id' => 'required|exists:users,id',
-        'branch_name' => 'required|string|max:255',
-        'branch_code' => 'required|string|max:255|unique:branches,branch_code',
-        'manager_name' => 'nullable|string|max:255',
-        'email' => 'nullable|email|max:255',
-        'phone' => 'nullable|string|max:20',
-        'address' => 'nullable|string|max:255',
-        'city' => 'nullable|string|max:255',
-        'state' => 'nullable|string|max:255',
-        'country' => 'nullable|string|max:255',
-        'location' => 'nullable|string|max:255',
-    ]);
-
-    // ✅ Create new branch
-    $branch = new Branch();
-    $branch->user_id = $user_id;
-    $branch->branch_name = $request->branch_name;
-    $branch->branch_code = $request->branch_code;
-    $branch->manager_name = $request->manager_name;
-    $branch->email = $request->email;
-    $branch->phone = $request->phone;
-    $branch->address = $request->address;
-    $branch->city = $request->city;
-    $branch->state = $request->state;
-    $branch->country = $request->country ?? 'Pakistan';
-    $branch->location = $request->location;
-    $branch->status = 'inactive';
-    $branch->save();
-
-    // Auto-create warehouse for this branch
-    $warehouseCode = 'WH-' . strtoupper(Str::random(6));
-    Warehouse::create([
-        'branch_id' => $branch->id,
-        'warehouse_name' => $branch->branch_name . ' Warehouse',
-        'warehouse_code' => $warehouseCode,
-        'address' => $branch->address,
-        'city' => $branch->city,
-        'state' => $branch->state,
-        'country' => $branch->country,
-        'phone' => $branch->phone,
-        'email' => $branch->email,
-        'manager_name' => $branch->manager_name,
-        'status' => 'active',
-    ]);
-
-    return redirect()->route('all.branches')->with('success', 'Branch and warehouse created successfully for new user!');
 }
 
 
@@ -138,8 +168,12 @@ public function store_branches(Request $request)
 
         // ✅ Optional: Authorization check
         $user = Auth::user();
-        if ($user->role !== 'admin' && $model->user_id !== $user->id) {
-            return redirect()->back()->with('error', 'Unauthorized access.');
+        if ($user->role !== 'admin') {
+            // Check if user is assigned to this branch
+            $isAssigned = $user->assignedBranches()->where('branch_id', $model->id)->exists();
+            if (!$isAssigned) {
+                return redirect()->back()->with('error', 'Unauthorized access.');
+            }
         }
 
         $model->status = $request->status;
@@ -155,25 +189,8 @@ public function store_branches(Request $request)
         // ✅ Find the branch to update
         $branch = Branch::findOrFail($id);
 
-        // ✅ Authorization: restrict normal users from updating other users' branches
-        if ($user->role === 'user' && $branch->user_id !== $user->id) {
-            return redirect()->route('all.branches')->with('error', 'Unauthorized access.');
-        }
-
-        // ✅ Handle user_id update only for admins
-        $user_id = $branch->user_id;
-        if ($user->role === 'admin' && $request->user_id) {
-            // Check if new user already has a branch
-            $existing = Branch::where('user_id', $request->user_id)->where('id', '!=', $id)->first();
-            if ($existing) {
-                return redirect()->route('all.branches')->with('error', 'The selected user already has a branch.');
-            }
-            $user_id = $request->user_id;
-        }
-
         // ✅ Validate input
         $request->validate([
-            'user_id' => 'nullable|exists:users,id', // Only for admins
             'branch_name' => 'required|string|max:255',
             'branch_code' => 'required|string|max:255|unique:branches,branch_code,' . $branch->id,
             'manager_name' => 'nullable|string|max:255',
@@ -187,7 +204,6 @@ public function store_branches(Request $request)
         ]);
 
         // ✅ Update fields
-        $branch->user_id = $user_id;
         $branch->branch_name = $request->branch_name;
         $branch->branch_code = $request->branch_code;
         $branch->manager_name = $request->manager_name;
@@ -200,36 +216,6 @@ public function store_branches(Request $request)
         $branch->location = $request->location;
         // Keep existing status
         $branch->save();
-
-        // Handle assigning multiple users to branch with roles (for admins)
-        if ($user->role === 'admin' && $request->has('assigned_user_ids')) {
-            try {
-                $assignedUserIds = $request->assigned_user_ids ?? [];
-                $assignedUserRoles = $request->assigned_user_roles ?? [];
-                
-                // Remove branch owner from assigned users list (they're already the owner)
-                $filteredUserIds = [];
-                $filteredRoles = [];
-                foreach ($assignedUserIds as $index => $uid) {
-                    if ($uid != $branch->user_id) {
-                        $filteredUserIds[] = $uid;
-                        $filteredRoles[] = $assignedUserRoles[$index] ?? 'staff';
-                    }
-                }
-                
-                // Prepare sync data with roles
-                $syncData = [];
-                foreach ($filteredUserIds as $index => $userId) {
-                    $syncData[$userId] = ['role' => $filteredRoles[$index] ?? 'staff'];
-                }
-                
-                // Sync assigned users with roles
-                $branch->users()->sync($syncData);
-            } catch (\Exception $e) {
-                Log::error('Error syncing branch users: ' . $e->getMessage());
-                // Continue without failing the update
-            }
-        }
 
         // ✅ Redirect with success
         return redirect()->route('all.branches')->with('success', 'Branch updated successfully!');
@@ -254,21 +240,19 @@ public function store_branches(Request $request)
                 'user_ids' => 'required|array',
                 'user_ids.*' => 'exists:users,id',
                 'user_roles' => 'nullable|array',
-                'user_roles.*' => 'in:manager,staff,worker,other'
+                'user_roles.*' => 'in:admin,manager,staff,worker,other'
             ]);
 
             $userIds = $request->user_ids;
             $userRoles = $request->user_roles ?? [];
             
-            // Remove branch owner from list (they're already the owner)
+            // Prepare user IDs and roles
             $filteredUserIds = [];
             $filteredRoles = [];
             
             foreach ($userIds as $index => $uid) {
-                if ($uid != $branch->user_id) {
-                    $filteredUserIds[] = $uid;
-                    $filteredRoles[] = $userRoles[$index] ?? 'staff';
-                }
+                $filteredUserIds[] = $uid;
+                $filteredRoles[] = $userRoles[$index] ?? 'staff';
             }
 
             // Prepare sync data with roles
