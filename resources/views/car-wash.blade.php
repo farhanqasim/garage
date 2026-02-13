@@ -62,6 +62,7 @@
         window.tailwind = { config: { suppressWarnings: true } };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <!-- React and ReactDOM (Production builds to avoid DevTools warning) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -83,6 +84,19 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <style>
+        /* Remove Bootstrap modal backdrop */
+        .modal-backdrop {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+        .modal-backdrop.fade {
+            display: none !important;
+        }
+        .modal-backdrop.show {
+            display: none !important;
+        }
+        
         body {
             margin: 0;
             padding: 0;
@@ -844,6 +858,9 @@
     </style>
 </head>
 <body>
+    <form id="car-wash-logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+        @csrf
+    </form>
     <div class="settings-menu-container">
         <div class="settings-dropdown" id="settingsDropdown">
             <a href="{{ route('car.wash.services') }}" class="settings-dropdown-item" id="addNewCategoryBtn">
@@ -873,7 +890,7 @@
                     </svg>
                 </div>
                 <div class="settings-dropdown-content">
-                    <div class="settings-dropdown-title">Add Expense</div>
+                    <div class="settings-dropdown-title">Shop Expenses</div>
                 </div>
             </a>
         </div>
@@ -901,7 +918,7 @@
                             id="categoryName" 
                             name="categoryName" 
                             class="category-form-input" 
-                            placeholder="e.g. Engine Detail"
+                            placeholder="e.g. Vehicle Detail"
                             required
                         />
                     </div>
@@ -1287,8 +1304,10 @@
         });
         window.__app_id = 'service-station-app-pro';
         
-        // Home route URL
-        const homeRoute = '{{ route("home") }}';
+        // Home route URL (Employee Dashboard)
+        const homeRoute = '{{ route("employee.home") }}';
+        const eliteCarWashLogoUrl = '{{ asset("assets/img/elite-car-wash-logo.png") }}';
+        const bankLogoBaseUrl = '{{ asset("assets/img/banks") }}';
         
         // Get user and branch info from Blade (passed from controller)
         const branchName = @json(isset($branchName) ? $branchName : 'No Branch');
@@ -1305,6 +1324,7 @@
             services: {
                 index: '{{ route("car-wash.services.index") }}',
                 store: '{{ route("car-wash.services.store") }}',
+                rateList: '{{ route("car.wash.services.rate-list") }}',
                 update: (id) => `{{ url('/car-wash/services') }}/${id}`,
                 destroy: (id) => `{{ url('/car-wash/services') }}/${id}`,
             },
@@ -1318,20 +1338,55 @@
                 index: '{{ route("car-wash.jobs.index") }}',
                 active: '{{ route("car-wash.jobs.active") }}',
                 completed: '{{ route("car-wash.jobs.completed") }}',
+                searchByPlate: '{{ route("car-wash.jobs.search-by-plate") }}',
+                vehicleHistory: '{{ route("car-wash.jobs.vehicle-history") }}',
                 todayStats: '{{ route("car-wash.jobs.today-stats") }}',
                 store: '{{ route("car-wash.jobs.store") }}',
                 update: (id) => `{{ url('/car-wash/jobs') }}/${id}`,
                 complete: (id) => `{{ url('/car-wash/jobs') }}/${id}/complete`,
                 cancel: (id) => `{{ url('/car-wash/jobs') }}/${id}/cancel`,
                 destroy: (id) => `{{ url('/car-wash/jobs') }}/${id}`,
+                dailyReportData: '{{ route("car-wash.jobs.daily-report-data") }}',
+                dailyReportPdf: '{{ route("car-wash.jobs.daily-report-pdf") }}',
             },
             inspections: {
                 show: (jobId) => `{{ url('/car-wash/inspections') }}/${jobId}`,
                 store: (jobId) => `{{ url('/car-wash/inspections') }}/${jobId}`,
             },
             expenses: {
+                index: '{{ route("car-wash.expenses.index") }}',
                 show: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
                 store: (jobId) => `{{ url('/car-wash/expenses') }}/${jobId}`,
+            },
+            shopExpenses: {
+                index: '{{ url("/car-wash/shop-expenses") }}',
+                store: '{{ route("car-wash.shop-expenses.store") }}',
+            },
+            banks: {
+                index: '{{ route("car-wash.banks.index") }}',
+            },
+            bankAccounts: {
+                index: '{{ route("car-wash.bank-accounts.index") }}',
+                forTransfer: '{{ route("car-wash.bank-accounts.for-transfer") }}',
+                ledger: (id) => `{{ url('/car-wash/bank-accounts') }}/${id}/ledger`,
+                create: '{{ route("admin.bank-accounts.create") }}',
+            },
+            bankTransactions: {
+                update: (id) => `{{ url('/car-wash/bank-transactions') }}/${id}`,
+                destroy: (id) => `{{ url('/car-wash/bank-transactions') }}/${id}`,
+            },
+            cashTransfers: {
+                store: '{{ route("car-wash.cash-transfers.store") }}',
+            },
+            payments: {
+                cashAccountBalance: '{{ route("car-wash.payments.cash-account-balance") }}',
+                adminCashAccountBalance: '{{ route("car-wash.payments.admin-cash-account-balance") }}',
+                branchUsers: '{{ route("car-wash.payments.branch-users") }}',
+                transferToUser: '{{ route("car-wash.payments.transfer-to-user") }}',
+            },
+            attendance: {
+                employees: '{{ route("car-wash.attendance.employees") }}',
+                store: '{{ route("car-wash.attendance.store") }}',
             }
         };
         
@@ -1339,13 +1394,127 @@
         const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
         
+        // User role (for filtering admin cash)
+        const userRole = '{{ Auth::user()->role ?? "" }}';
+        const isAdmin = userRole === 'admin';
+        @php
+            $userRolesForDisplay = [
+                'role' => auth()->user()->role ?? '-',
+                'branch_id' => auth()->user()->branch_id ?? null,
+                'name' => auth()->user()->name ?? '-',
+                'email' => auth()->user()->email ?? '-',
+            ];
+        @endphp
+        const userRolesDisplay = @json($userRolesForDisplay);
+        
         // Simplified App Component (UI structure without Firebase)
         const App = () => {
             const [view, setView] = useState('dashboard');
-            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0 });
+            const [stats, setStats] = useState({ todayRevenue: 0, todayExpensesTotal: 0, todayGrandTotal: 0, cashOnHand: 0, reportCashOnHand: 0, reportBankBalance: 0 });
+            
+            // Fetch today's cash-on-hand from daily report (same as Daily Report page totCashOnHand)
+            const loadReportCashOnHand = () => {
+                if (!API_ROUTES.jobs || !API_ROUTES.jobs.dailyReportData) return;
+                const today = new Date().toISOString().slice(0, 10);
+                const params = new URLSearchParams({ date_from: today, date_to: today, payment: 'cash', customer: '', worker: '' });
+                fetch(API_ROUTES.jobs.dailyReportData + '?' + params)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.totals && (data.totals.cashOnHand != null || data.totals.cashOnHand === 0)) {
+                            setStats(prev => ({ ...prev, reportCashOnHand: parseFloat(data.totals.cashOnHand) || 0 }));
+                        }
+                    })
+                    .catch(err => console.error('Error loading report cash on hand:', err));
+            };
+            
+            // Fetch today's bank balance from daily report (same as Daily Report page totBankBalance)
+            const loadReportBankBalance = () => {
+                // First check localStorage for bank balance from daily report page
+                const storedBankBalance = localStorage.getItem('reportBankBalance');
+                if (storedBankBalance) {
+                    setStats(prev => ({ ...prev, reportBankBalance: parseFloat(storedBankBalance) || 0 }));
+                }
+                
+                // Also fetch from API as fallback
+                if (!API_ROUTES.jobs || !API_ROUTES.jobs.dailyReportData) return;
+                const today = new Date().toISOString().slice(0, 10);
+                const params = new URLSearchParams({ date_from: today, date_to: today, payment: 'bank', customer: '', worker: '' });
+                fetch(API_ROUTES.jobs.dailyReportData + '?' + params)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.totals && (data.totals.cashOnHand != null || data.totals.cashOnHand === 0)) {
+                            const bankBalance = parseFloat(data.totals.cashOnHand) || 0;
+                            setStats(prev => ({ ...prev, reportBankBalance: bankBalance }));
+                            // Store in localStorage for consistency
+                            localStorage.setItem('reportBankBalance', bankBalance.toString());
+                        }
+                    })
+                    .catch(err => console.error('Error loading report bank balance:', err));
+            };
+            
+            // Function to refresh cash account balance
+            const refreshCashBalance = () => {
+                loadReportCashOnHand();
+                loadReportBankBalance();
+                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                    fetch(API_ROUTES.payments.cashAccountBalance)
+                        .then(res => res.json())
+                        .then(balanceData => {
+                            if (balanceData.success) {
+                                const newBalance = parseFloat(balanceData.balance) || 0;
+                                setStats(prev => ({
+                                    ...prev,
+                                    cashOnHand: newBalance
+                                }));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error refreshing cash account balance:', err);
+                        });
+                }
+            };
             
             // Load stats from API on mount - simplified to avoid errors
             useEffect(() => {
+                // Load report cash on hand and bank balance (same as Daily Report totCashOnHand / totBankBalance) for header
+                loadReportCashOnHand();
+                loadReportBankBalance();
+                
+                // Listen for localStorage changes from daily report page
+                window.addEventListener('storage', function(e) {
+                    if (e.key === 'reportBankBalance' && e.newValue) {
+                        setStats(prev => ({ ...prev, reportBankBalance: parseFloat(e.newValue) || 0 }));
+                    }
+                });
+                
+                // Also check localStorage periodically (for same-tab updates)
+                setInterval(function() {
+                    const storedBankBalance = localStorage.getItem('reportBankBalance');
+                    if (storedBankBalance) {
+                        const balance = parseFloat(storedBankBalance);
+                        setStats(prev => {
+                            if (prev.reportBankBalance !== balance) {
+                                return { ...prev, reportBankBalance: balance };
+                            }
+                            return prev;
+                        });
+                    }
+                }, 1000); // Check every second
+                // Fetch user's cash account balance first
+                let userCashBalance = 0;
+                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                    fetch(API_ROUTES.payments.cashAccountBalance)
+                        .then(res => res.json())
+                        .then(balanceData => {
+                            if (balanceData.success) {
+                                userCashBalance = parseFloat(balanceData.balance) || 0;
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading cash account balance:', err);
+                        });
+                }
+                
                 // Calculate stats from completed jobs
                 fetch(API_ROUTES.jobs.completed)
                     .then(res => res.json())
@@ -1363,60 +1532,70 @@
                             });
                             const todayRevenue = todayJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
                             
+                            // Use user's cash account balance instead of calculating from jobs
+                            const cashOnHand = userCashBalance;
+                            
                             // Try to get expenses from todayStats API if available
                             if (API_ROUTES.jobs.todayStats) {
                                 fetch(API_ROUTES.jobs.todayStats)
                                     .then(res => res.json())
                                     .then(data => {
                                         if (data.success && data.stats) {
-                                            setStats({
+                                            setStats(prev => ({
+                                                ...prev,
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: data.stats.todayExpensesTotal || 0,
-                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0)
-                                            });
+                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0),
+                                                cashOnHand: cashOnHand
+                                            }));
                                         } else {
-                                            // Fallback: calculate without expenses
-                                            setStats({
+                                            setStats(prev => ({
+                                                ...prev,
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: 0,
-                                                todayGrandTotal: todayRevenue
-                                            });
+                                                todayGrandTotal: todayRevenue,
+                                                cashOnHand: cashOnHand
+                                            }));
                                         }
                                     })
                                     .catch(err => {
                                         console.error('Error loading stats from API:', err);
-                                        // Fallback: calculate without expenses
-                                        setStats({
+                                        setStats(prev => ({
+                                            ...prev,
                                             todayRevenue: todayRevenue,
                                             todayExpensesTotal: 0,
-                                            todayGrandTotal: todayRevenue
-                                        });
+                                            todayGrandTotal: todayRevenue,
+                                            cashOnHand: cashOnHand
+                                        }));
                                     });
                             } else {
-                                // No todayStats API, just use revenue
-                                setStats({
+                                setStats(prev => ({
+                                    ...prev,
                                     todayRevenue: todayRevenue,
                                     todayExpensesTotal: 0,
-                                    todayGrandTotal: todayRevenue
-                                });
+                                    todayGrandTotal: todayRevenue,
+                                    cashOnHand: cashOnHand
+                                }));
                             }
                         } else {
-                            // No jobs, set default stats
-                            setStats({
+                            setStats(prev => ({
+                                ...prev,
                                 todayRevenue: 0,
                                 todayExpensesTotal: 0,
-                                todayGrandTotal: 0
-                            });
+                                todayGrandTotal: 0,
+                                cashOnHand: userCashBalance
+                            }));
                         }
                     })
                     .catch(err => {
                         console.error('Error loading completed jobs for stats:', err);
-                        // Set default stats on error
-                        setStats({
+                        setStats(prev => ({
+                            ...prev,
                             todayRevenue: 0,
                             todayExpensesTotal: 0,
-                            todayGrandTotal: 0
-                        });
+                            todayGrandTotal: 0,
+                            cashOnHand: userCashBalance
+                        }));
                     });
             }, []);
             // Load categories from backend (passed from controller) - database only
@@ -1426,6 +1605,7 @@
             });
             const [selectedService, setSelectedService] = useState(null);
             const [selectedAdditionalPrices, setSelectedAdditionalPrices] = useState(new Set());
+            const [serviceQuantity, setServiceQuantity] = useState(1);
             const [formData, setFormData] = useState({
                 customerName: '',
                 vehicleNo: '',
@@ -1491,7 +1671,46 @@
             const [newCustomExpenseName, setNewCustomExpenseName] = useState('');
             const [showExpenseDetailsModal, setShowExpenseDetailsModal] = useState(false);
             const [expenseHistory, setExpenseHistory] = useState([]);
+            const [expenseFilterFrom, setExpenseFilterFrom] = useState(() => new Date().toISOString().split('T')[0]);
+            const [expenseFilterTo, setExpenseFilterTo] = useState(() => new Date().toISOString().split('T')[0]);
+            const [expenseDetailsJobExpenses, setExpenseDetailsJobExpenses] = useState([]);
+            const [expenseDetailsShopExpenses, setExpenseDetailsShopExpenses] = useState([]);
+            const [expenseDetailsLoading, setExpenseDetailsLoading] = useState(false);
+            const [showShopExpensesModal, setShowShopExpensesModal] = useState(false);
+            const [shopExpensesList, setShopExpensesList] = useState([]);
+            const [shopExpenseDate, setShopExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
+            const [shopExpenseForm, setShopExpenseForm] = useState({ category: '', amount: '', notes: '' });
+            // Check current day - Friday (5), Saturday (6), Sunday (0) should be OFF, others ON
+            const getDefaultInspectionState = () => {
+                const today = new Date();
+                const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                // Friday = 5, Saturday = 6, Sunday = 0
+                // OFF on Friday, Saturday, Sunday; ON on Monday-Thursday
+                return !(dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
+            };
+            const [inspectionCompulsoryToggle, setInspectionCompulsoryToggle] = useState(getDefaultInspectionState());
+            
+            // Update inspection toggle based on day of week
+            useEffect(() => {
+                const updateInspectionState = () => {
+                    const today = new Date();
+                    const dayOfWeek = today.getDay();
+                    // Friday = 5, Saturday = 6, Sunday = 0
+                    const shouldBeOff = (dayOfWeek === 0 || dayOfWeek === 5 || dayOfWeek === 6);
+                    setInspectionCompulsoryToggle(!shouldBeOff);
+                };
+                
+                // Update on mount
+                updateInspectionState();
+                
+                // Check every minute to see if day changed (optional, for long-running sessions)
+                const interval = setInterval(updateInspectionState, 60000); // Check every minute
+                
+                return () => clearInterval(interval);
+            }, []);
+            
             const [showCompletedJobsModal, setShowCompletedJobsModal] = useState(false);
+            const [showDailyReportModal, setShowDailyReportModal] = useState(false);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
             const [completedJobs, setCompletedJobs] = useState(() => {
@@ -1511,6 +1730,411 @@
             const [completeModalJobId, setCompleteModalJobId] = useState(null);
             const [selectedRating, setSelectedRating] = useState('');
             const [jobComment, setJobComment] = useState('');
+            const [paymentMethod, setPaymentMethod] = useState('cash');
+            const [selectedBankId, setSelectedBankId] = useState(null);
+            const [selectedWorkerFilter, setSelectedWorkerFilter] = useState(null);
+            const [showWorkerFilterModal, setShowWorkerFilterModal] = useState(false);
+            const [showCashTransferModal, setShowCashTransferModal] = useState(false);
+            const [showBankTransferModal, setShowBankTransferModal] = useState(false);
+            const [transferTab, setTransferTab] = useState('cash'); // 'cash' or 'bank' (user merged into cash)
+            const [transferMethods, setTransferMethods] = useState([
+                { id: 'admin_cash', name: 'Admin Cash', icon: '💵', type: 'cash', balance: 0, subtitle: '', bankId: null }
+            ]);
+            const [bankAccounts, setBankAccounts] = useState([]); // Logged-in user's bank accounts (for balance display)
+            const [transferBankAccounts, setTransferBankAccounts] = useState([]); // Other users' bank accounts (for dropdown)
+            const [bankBalanceTotal, setBankBalanceTotal] = useState(0); // Login user's total bank account balance for header
+            const [selectedBankAccountId, setSelectedBankAccountId] = useState(null); // For bank tab in transfer modal
+            const [transferAmount, setTransferAmount] = useState('');
+            const [selectedTransferMethod, setSelectedTransferMethod] = useState(null);
+            const [bankTransferAmount, setBankTransferAmount] = useState('');
+            const [bankTransferNote, setBankTransferNote] = useState('');
+            const [showBankAccountDropdown, setShowBankAccountDropdown] = useState(false);
+            const [bankTransferLoading, setBankTransferLoading] = useState(false);
+            const [showBankBalanceHistoryModal, setShowBankBalanceHistoryModal] = useState(false);
+            const [branchBalanceHistoryAccounts, setBranchBalanceHistoryAccounts] = useState([]);
+            const [branchBalanceHistoryLoading, setBranchBalanceHistoryLoading] = useState(false);
+            const bankBalanceHoldTimerRef = React.useRef(null);
+            const [showAccountLedgerModal, setShowAccountLedgerModal] = useState(false);
+            const [accountLedgerData, setAccountLedgerData] = useState(null);
+            const [accountLedgerLoading, setAccountLedgerLoading] = useState(false);
+            const [accountLedgerAccountId, setAccountLedgerAccountId] = useState(null);
+            const [accountLedgerFrom, setAccountLedgerFrom] = useState(() => new Date().toISOString().slice(0, 10));
+            const [accountLedgerTo, setAccountLedgerTo] = useState(() => new Date().toISOString().slice(0, 10));
+            const [editingLedgerRow, setEditingLedgerRow] = useState(null);
+            const [branchUsers, setBranchUsers] = useState([]);
+            const [selectedUserId, setSelectedUserId] = useState(null);
+            const [transferNote, setTransferNote] = useState('');
+            
+            // Plate search autocomplete & vehicle history
+            const [plateSuggestions, setPlateSuggestions] = useState([]);
+            const [showPlateDropdown, setShowPlateDropdown] = useState(false);
+            const [vehicleHistoryJobs, setVehicleHistoryJobs] = useState([]);
+            const [showVehicleHistoryModal, setShowVehicleHistoryModal] = useState(false);
+            const [vehicleHistoryLoading, setVehicleHistoryLoading] = useState(false);
+            const plateSearchTimeoutRef = React.useRef(null);
+            
+            // Daily Report Modal States
+            const [dailyReportDate, setDailyReportDate] = useState(() => new Date().toISOString().split('T')[0]);
+            const [dailyReportCustomer, setDailyReportCustomer] = useState('');
+            const [dailyReportWorker, setDailyReportWorker] = useState('');
+            const [dailyReportData, setDailyReportData] = useState(null);
+            const [dailyReportLoading, setDailyReportLoading] = useState(false);
+            const [dailyReportCustomers, setDailyReportCustomers] = useState([]);
+            const [dailyReportWorkers, setDailyReportWorkers] = useState([]);
+            const [dailyReportBankBalance, setDailyReportBankBalance] = useState(0);
+            const [dailyReportCashBalance, setDailyReportCashBalance] = useState(0);
+            
+            // Load banks/transfer methods from API and admin cash balance
+            useEffect(() => {
+                // Load admin cash balance (for ALL users - so they can transfer to admin)
+                if (API_ROUTES.payments && API_ROUTES.payments.adminCashAccountBalance) {
+                    fetch(API_ROUTES.payments.adminCashAccountBalance, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(balanceData => {
+                            if (balanceData.success && balanceData.balance != null) {
+                                const adminCashBalance = parseFloat(balanceData.balance) || 0;
+                                // Update admin cash balance in transfer methods
+                                setTransferMethods(prev => prev.map(method => 
+                                    method.id === 'admin_cash' 
+                                        ? { ...method, balance: adminCashBalance }
+                                        : method
+                                ));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading admin cash balance:', err);
+                        });
+                }
+                
+                // Load banks
+                fetch(API_ROUTES.banks.index, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.banks) {
+                            // Map banks to transfer methods format
+                            const bankMethods = data.banks.map(bank => ({
+                                id: `bank_${bank.id}`,
+                                name: bank.name,
+                                icon: bank.icon === 'bank' ? 'bank' : bank.icon,
+                                type: bank.type,
+                                balance: bank.balance || 0,
+                                subtitle: bank.subtitle || '',
+                                bankId: bank.id
+                            }));
+                            
+                            // Combine with default admin cash (balance already updated above)
+                            setTransferMethods(prev => [
+                                prev[0], // Keep admin cash with updated balance
+                                ...bankMethods
+                            ]);
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error loading banks:', err);
+                        // Keep default methods on error
+                    });
+            }, []);
+            
+            // Close bank account dropdown when clicking outside
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (showBankAccountDropdown && !event.target.closest('.bank-account-dropdown-container')) {
+                        setShowBankAccountDropdown(false);
+                    }
+                };
+                if (showBankAccountDropdown) {
+                    document.addEventListener('mousedown', handleClickOutside);
+                }
+                return () => {
+                    document.removeEventListener('mousedown', handleClickOutside);
+                };
+            }, [showBankAccountDropdown]);
+            
+            // Automatically load branch users when transfer modal opens on cash tab
+            useEffect(() => {
+                if (showCashTransferModal && transferTab === 'cash') {
+                    // Load branch users automatically when modal opens
+                    fetch(API_ROUTES.payments.branchUsers, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.users) {
+                                setBranchUsers(data.users);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading branch users:', err);
+                        });
+                }
+            }, [showCashTransferModal, transferTab]);
+
+            // When Bank Transfer modal opens: fetch bank accounts, refresh report bank balance, load cash balance, auto-fill amount
+            useEffect(() => {
+                if (!showBankTransferModal) return;
+                // Refresh bank balance from daily report API (so fallback shows correct value when no linked accounts)
+                if (typeof loadReportBankBalance === 'function') {
+                    loadReportBankBalance();
+                }
+                // Fetch user's bank accounts so attached accounts show in the balance card
+                if (API_ROUTES.bankAccounts?.index && typeof fetchBankAccounts === 'function') {
+                    fetchBankAccounts();
+                }
+                // Auto-fill amount with login user ka bank balance; zero ho to 0
+                const userBankBal = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                setBankTransferAmount(String(Math.round(userBankBal)));
+                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
+                    fetch(API_ROUTES.payments.cashAccountBalance, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.balance != null) {
+                                const cashBal = parseFloat(data.balance) || 0;
+                                setStats(prev => ({
+                                    ...prev,
+                                    cashOnHand: cashBal,
+                                    reportCashOnHand: cashBal
+                                }));
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error loading cash balance for bank transfer:', err);
+                        });
+                }
+            }, [showBankTransferModal]);
+
+            // Load employees when Attendance modal opens
+            useEffect(() => {
+                if (showAttendanceModal && API_ROUTES.attendance && API_ROUTES.attendance.employees) {
+                    fetch(API_ROUTES.attendance.employees, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && Array.isArray(data.employees)) {
+                                setAttendanceEmployees(data.employees);
+                            } else {
+                                setAttendanceEmployees([]);
+                            }
+                        })
+                        .catch(() => setAttendanceEmployees([]));
+                }
+            }, [showAttendanceModal]);
+
+            // Load login user's branch bank accounts (for Bank tab in complete job modal). Refetch via fetchBankAccounts (e.g. after creating in Admin).
+            const fetchBankAccounts = React.useCallback(() => {
+                if (!API_ROUTES.bankAccounts?.index) return;
+                fetch(API_ROUTES.bankAccounts.index, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && Array.isArray(data.bankAccounts)) {
+                            setBankAccounts(data.bankAccounts);
+                            const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                            setBankBalanceTotal(total);
+                        }
+                    })
+                    .catch(err => console.error('Error loading bank accounts:', err));
+            }, []);
+            useEffect(() => { fetchBankAccounts(); }, [fetchBankAccounts]);
+
+            // Balance History modal: load usi branch ke saare users ke bank accounts (total + har account balance)
+            useEffect(() => {
+                if (!showBankBalanceHistoryModal || !API_ROUTES.bankAccounts?.forTransfer) return;
+                setBranchBalanceHistoryLoading(true);
+                fetch(API_ROUTES.bankAccounts.forTransfer, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && Array.isArray(data.bankAccounts)) {
+                            setBranchBalanceHistoryAccounts(data.bankAccounts);
+                        } else {
+                            setBranchBalanceHistoryAccounts([]);
+                        }
+                    })
+                    .catch(() => setBranchBalanceHistoryAccounts([]))
+                    .finally(() => setBranchBalanceHistoryLoading(false));
+            }, [showBankBalanceHistoryModal]);
+
+            // Shop Expenses: load list when modal opens; listen for legacy button
+            useEffect(() => {
+                if (showShopExpensesModal && API_ROUTES.shopExpenses) {
+                    fetch(API_ROUTES.shopExpenses.index + '?date=' + encodeURIComponent(shopExpenseDate))
+                        .then(r => r.json())
+                        .then(d => { if (d.success) setShopExpensesList(d.expenses || []); })
+                        .catch(() => setShopExpensesList([]));
+                }
+            }, [showShopExpensesModal, shopExpenseDate]);
+            useEffect(() => {
+                const onOpen = () => setShowShopExpensesModal(true);
+                window.addEventListener('openShopExpensesModal', onOpen);
+                return () => window.removeEventListener('openShopExpensesModal', onOpen);
+            }, []);
+
+            // Expense Details Modal: fetch job + shop expenses when modal opens or filters apply
+            const fetchExpenseDetailsReport = React.useCallback((from, to) => {
+                if (!API_ROUTES.expenses?.index || !API_ROUTES.shopExpenses?.index) return;
+                setExpenseDetailsLoading(true);
+                const fromTo = 'from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to);
+                Promise.all([
+                    fetch(API_ROUTES.expenses.index + '?' + fromTo).then(r => r.json()),
+                    fetch(API_ROUTES.shopExpenses.index + '?' + fromTo).then(r => r.json())
+                ]).then(([j, s]) => {
+                    setExpenseDetailsJobExpenses((j.success && j.expenses) ? j.expenses : []);
+                    setExpenseDetailsShopExpenses((s.success && s.expenses) ? s.expenses : []);
+                }).catch(() => {
+                    setExpenseDetailsJobExpenses([]);
+                    setExpenseDetailsShopExpenses([]);
+                }).finally(() => setExpenseDetailsLoading(false));
+            }, []);
+
+            useEffect(() => {
+                if (showExpenseDetailsModal) {
+                    const today = new Date().toISOString().split('T')[0];
+                    setExpenseFilterFrom(today);
+                    setExpenseFilterTo(today);
+                    fetchExpenseDetailsReport(today, today);
+                }
+            }, [showExpenseDetailsModal, fetchExpenseDetailsReport]);
+
+            // Load Daily Report Data (merged Cash + Bank)
+            const loadDailyReport = React.useCallback(() => {
+                if (!dailyReportDate || !API_ROUTES.jobs?.dailyReportData) return;
+                setDailyReportLoading(true);
+                // Fetch both cash and bank data separately, then merge
+                const baseParams = {
+                    date: dailyReportDate,
+                    customer: dailyReportCustomer || '',
+                    worker: dailyReportWorker || ''
+                };
+                
+                Promise.all([
+                    // Fetch cash data
+                    fetch(API_ROUTES.jobs.dailyReportData + '?' + new URLSearchParams({...baseParams, payment: 'cash'}).toString()).then(r => r.json()),
+                    // Fetch bank data
+                    fetch(API_ROUTES.jobs.dailyReportData + '?' + new URLSearchParams({...baseParams, payment: 'bank'}).toString()).then(r => r.json())
+                ])
+                    .then(([cashData, bankData]) => {
+                        if (cashData.success || bankData.success) {
+                            // Get opening row from cash data (or bank if cash has no data)
+                            const openingRow = (cashData.rows || []).find(r => r.isOpening) || (bankData.rows || []).find(r => r.isOpening);
+                            
+                            // Merge all non-opening rows from both
+                            const cashRows = (cashData.rows || []).filter(r => !r.isOpening);
+                            const bankRows = (bankData.rows || []).filter(r => !r.isOpening);
+                            const mergedRows = openingRow ? [openingRow, ...cashRows, ...bankRows] : [...cashRows, ...bankRows];
+                            
+                            // Merge totals - combine all values
+                            const cashTotals = cashData.totals || {};
+                            const bankTotals = bankData.totals || {};
+                            const mergedTotals = {
+                                totalVehicles: Math.max(cashTotals.totalVehicles || 0, bankTotals.totalVehicles || 0),
+                                totalDebit: (cashTotals.totalDebit || 0) + (bankTotals.totalDebit || 0),
+                                totalCredit: (cashTotals.totalCredit || 0) + (bankTotals.totalCredit || 0),
+                                cashOnHand: (cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0),
+                                totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
+                                totalCommission: (cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0),
+                                sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0))
+                            };
+                            
+                            // Merge customers and workers (unique)
+                            const allCustomers = [...(cashData.customers || []), ...(bankData.customers || [])];
+                            const uniqueCustomers = Array.from(new Map(allCustomers.map(c => [c.value, c])).values());
+                            
+                            const allWorkers = [...(cashData.workers || []), ...(bankData.workers || [])];
+                            const uniqueWorkers = Array.from(new Map(allWorkers.map(w => [w.value, w])).values());
+                            
+                            setDailyReportData({
+                                success: true,
+                                rows: mergedRows,
+                                totals: mergedTotals,
+                                customers: uniqueCustomers,
+                                workers: uniqueWorkers
+                            });
+                            setDailyReportCustomers(uniqueCustomers);
+                            setDailyReportWorkers(uniqueWorkers);
+                        } else {
+                            setDailyReportData(null);
+                            setDailyReportCustomers([]);
+                            setDailyReportWorkers([]);
+                        }
+                    })
+                    .catch(() => {
+                        setDailyReportData(null);
+                        setDailyReportCustomers([]);
+                        setDailyReportWorkers([]);
+                    })
+                    .finally(() => setDailyReportLoading(false));
+            }, [dailyReportDate, dailyReportCustomer, dailyReportWorker]);
+
+            // Load bank balance for daily report modal
+            const loadDailyReportBankBalance = React.useCallback(() => {
+                if (!API_ROUTES.bankAccounts?.index) return;
+                fetch(API_ROUTES.bankAccounts.index, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.bankAccounts) {
+                            const totalBalance = data.bankAccounts.reduce((sum, acc) => {
+                                return sum + (parseFloat(acc.balance) || 0);
+                            }, 0);
+                            setDailyReportBankBalance(Math.round(totalBalance));
+                        } else {
+                            setDailyReportBankBalance(0);
+                        }
+                    })
+                    .catch(() => {
+                        setDailyReportBankBalance(0);
+                    });
+            }, []);
+
+            // Load cash account balance for daily report modal
+            const loadDailyReportCashBalance = React.useCallback(() => {
+                if (!API_ROUTES.payments?.cashAccountBalance) return;
+                fetch(API_ROUTES.payments.cashAccountBalance, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            setDailyReportCashBalance(Math.round(parseFloat(data.balance) || 0));
+                        } else {
+                            setDailyReportCashBalance(0);
+                        }
+                    })
+                    .catch(() => {
+                        setDailyReportCashBalance(0);
+                    });
+            }, []);
+
+            useEffect(() => {
+                if (showDailyReportModal) {
+                    loadDailyReportBankBalance();
+                    loadDailyReportCashBalance();
+                    const timer = setTimeout(() => {
+                        loadDailyReport();
+                    }, 100);
+                    return () => clearTimeout(timer);
+                }
+            }, [showDailyReportModal, dailyReportDate, dailyReportCustomer, dailyReportWorker, loadDailyReport, loadDailyReportBankBalance, loadDailyReportCashBalance]);
+
             const [currentTime, setCurrentTime] = useState(new Date());
             const [inspectionModalJobId, setInspectionModalJobId] = useState(null);
             const [inspectionData, setInspectionData] = useState({});
@@ -1523,7 +2147,83 @@
             const [audioUrl, setAudioUrl] = useState(null);
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
+            const [speechNetworkError, setSpeechNetworkError] = useState(false);
+            
+            // Attendance modal state
+            const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+            const [attendanceEmployees, setAttendanceEmployees] = useState([]);
+            const [attendanceEmployeeSearch, setAttendanceEmployeeSearch] = useState('');
+            const [selectedAttendanceEmployee, setSelectedAttendanceEmployee] = useState(null);
+            const [attendanceStep, setAttendanceStep] = useState('select'); // 'select' | 'camera' | 'confirm'
+            const [attendancePhotoBlob, setAttendancePhotoBlob] = useState(null);
+            const [attendancePhotoUrl, setAttendancePhotoUrl] = useState(null);
+            const [attendanceLocation, setAttendanceLocation] = useState(null);
+            const [attendanceLocationError, setAttendanceLocationError] = useState(null);
+            const [attendanceLocationLoading, setAttendanceLocationLoading] = useState(false);
+            const [attendanceAccuracyWarning, setAttendanceAccuracyWarning] = useState(false);
+            const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
+            const [attendancePermissionError, setAttendancePermissionError] = useState(null);
+            const [attendanceCameraError, setAttendanceCameraError] = useState(null);
+            const [attendanceSuccess, setAttendanceSuccess] = useState(false);
+            const [attendanceCameraReady, setAttendanceCameraReady] = useState(false);
+            const attendanceVideoRef = React.useRef(null);
+            const attendanceStreamRef = React.useRef(null);
+            const attendanceCanvasRef = React.useRef(null);
             const recognitionTranscriptRef = React.useRef(''); // Store transcript for mobile compatibility
+            const customerNameInputRef = React.useRef(null);   // Direct ref to input so voice text always applies
+
+            // Apply voice transcript to customer name – jo bola jay wo customer name input mein auto likh jay
+            const applyCustomerNameFromTranscript = React.useCallback((text) => {
+                const name = (text && typeof text === 'string') ? String(text).trim().toUpperCase() : '';
+                if (!name) {
+                    console.log('⚠️ applyCustomerNameFromTranscript: Empty text, skipping');
+                    return;
+                }
+                console.log('✅ applyCustomerNameFromTranscript called with:', name);
+                recognitionTranscriptRef.current = name;
+                
+                // Step 1: Update React state FIRST (so controlled input gets value)
+                setFormData(prev => {
+                    console.log('✅ setFormData: Setting customerName to', name);
+                    return { ...prev, customerName: name };
+                });
+                
+                // Step 2: Force DOM update immediately and repeatedly to ensure it sticks
+                const forceInputUpdate = function(attemptNum) {
+                    const input = customerNameInputRef.current || document.getElementById('customerNameInput');
+                    if (!input) {
+                        console.log('⚠️ Input not found (attempt ' + attemptNum + ')');
+                        return;
+                    }
+                    try {
+                        // Set value directly
+                        input.value = name;
+                        // Trigger React's onChange by simulating user input
+                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+                        if (nativeInputValueSetter && nativeInputValueSetter.set) {
+                            nativeInputValueSetter.set.call(input, name);
+                        }
+                        // Fire events so React sees the change
+                        input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                        console.log('✅ Input updated (attempt ' + attemptNum + '), value:', input.value);
+                    } catch (e) {
+                        console.error('Error updating input:', e);
+                        input.value = name;
+                    }
+                };
+                
+                // Update immediately and with delays
+                forceInputUpdate(1);
+                setTimeout(function() { forceInputUpdate(2); }, 0);
+                setTimeout(function() { forceInputUpdate(3); }, 50);
+                setTimeout(function() { forceInputUpdate(4); }, 150);
+                setTimeout(function() { forceInputUpdate(5); }, 300);
+                setTimeout(function() { forceInputUpdate(6); }, 600);
+                setTimeout(function() { forceInputUpdate(7); }, 1000);
+                setTimeout(function() { forceInputUpdate(8); }, 2000);
+            }, []);
+
             const [activeJobs, setActiveJobs] = useState(() => {
                 // Use backend active jobs from database only
                 return initialActiveJobs && Array.isArray(initialActiveJobs) ? initialActiveJobs : [];
@@ -1753,6 +2453,12 @@
                             pendingInspectionAlertsRef.current.delete(job.id);
                             return;
                         }
+                        // Skip if this job's service does not require inspection
+                        const jobService = allServices.find(s => s.label === job.service);
+                        if (jobService && jobService.inspection_compulsory === false) {
+                            pendingInspectionAlertsRef.current.delete(job.id);
+                            return;
+                        }
                         
                         // Check if job is older than 30 seconds
                         const jobStartTime = new Date(job.startTime);
@@ -1879,7 +2585,7 @@
                         window.speechSynthesis.cancel();
                     }
                 };
-            }, [activeJobs, currentTime, completedInspections]);
+            }, [activeJobs, currentTime, completedInspections, allServices]);
             
             // Remove alert and stop speech when inspection is completed
             useEffect(() => {
@@ -1916,7 +2622,7 @@
                 }
             }, [showCompletedJobsModal]);
             
-            // Filter completed jobs based on date range
+            // Filter completed jobs based on date range and worker filter
             useEffect(() => {
                 if (completedJobs && Array.isArray(completedJobs)) {
                     const startDate = new Date(dateRangeStart);
@@ -1927,14 +2633,75 @@
                     const filtered = completedJobs.filter(job => {
                         if (!job.endTime) return false;
                         const jobDate = new Date(job.endTime);
-                        return jobDate >= startDate && jobDate <= endDate;
+                        const dateMatch = jobDate >= startDate && jobDate <= endDate;
+                        
+                        // Filter by worker if selected
+                        if (selectedWorkerFilter) {
+                            const jobWorkerName = (job.workerName || job.worker_name || job.worker || '').trim();
+                            const selectedWorkerName = selectedWorkerFilter.trim();
+                            return dateMatch && jobWorkerName === selectedWorkerName;
+                        }
+                        
+                        return dateMatch;
                     });
                     
-                    setFilteredCompletedJobs(filtered);
+                    // Sort jobs by END time (completion time): PEHLE COMPLETE HUI JOB UPAR, BAAD MEIN COMPLETE HUI NEECHE
+                    // Example: 5:25 PM complete → UPAR, 5:34 PM complete → NEECHE
+                    // Sort by endTime in ASCENDING order (earlier completion time = smaller number = comes first = UPAR)
+                    const sorted = [...filtered].sort((a, b) => {
+                        // Get end time (completion time) for both jobs (pehle complete hui job upar aayegi)
+                        const timeA = a.endTime ? new Date(a.endTime).getTime() : 0;
+                        const timeB = b.endTime ? new Date(b.endTime).getTime() : 0;
+                        
+                        // Handle jobs without end time - unko neeche bhejo
+                        if (timeA === 0 && timeB === 0) {
+                            // If both don't have endTime, sort by startTime as fallback
+                            const startTimeA = a.startTime ? new Date(a.startTime).getTime() : 0;
+                            const startTimeB = b.startTime ? new Date(b.startTime).getTime() : 0;
+                            return startTimeA - startTimeB;
+                        }
+                        if (timeA === 0) return 1; // Job A without endTime goes to bottom
+                        if (timeB === 0) return -1; // Job B without endTime goes to bottom
+                        
+                        // ASCENDING ORDER: timeA - timeB
+                        // Agar timeA < timeB (pehle complete hui), to negative number = A pehle aayega = UPAR
+                        // Agar timeA > timeB (baad mein complete hui), to positive number = B pehle aayega = A neeche
+                        // Result: Pehle complete hui (chhota time) UPAR, Baad mein complete hui (bada time) NEECHE
+                        return timeA - timeB;
+                    });
+                    
+                    setFilteredCompletedJobs(sorted);
                 } else {
                     setFilteredCompletedJobs([]);
                 }
-            }, [completedJobs, dateRangeStart, dateRangeEnd]);
+            }, [completedJobs, dateRangeStart, dateRangeEnd, selectedWorkerFilter]);
+            
+            // Plate number search (debounced) for autocomplete
+            useEffect(() => {
+                const q = (formData.vehicleNo || '').trim().toUpperCase();
+                if (q.length < 1) {
+                    setPlateSuggestions([]);
+                    setShowPlateDropdown(false);
+                    return;
+                }
+                if (plateSearchTimeoutRef.current) clearTimeout(plateSearchTimeoutRef.current);
+                plateSearchTimeoutRef.current = setTimeout(() => {
+                    const url = API_ROUTES.jobs.searchByPlate + '?q=' + encodeURIComponent(q);
+                    fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.suggestions) {
+                                setPlateSuggestions(data.suggestions);
+                                setShowPlateDropdown(data.suggestions.length > 0);
+                            } else {
+                                setPlateSuggestions([]);
+                                setShowPlateDropdown(false);
+                            }
+                        })
+                        .catch(() => { setPlateSuggestions([]); setShowPlateDropdown(false); });
+                }, 300);
+                return () => { if (plateSearchTimeoutRef.current) clearTimeout(plateSearchTimeoutRef.current); };
+            }, [formData.vehicleNo]);
             
             // Update staff list when All Staff modal opens - fetch from API
             useEffect(() => {
@@ -2550,16 +3317,44 @@
                     <header className="bg-slate-950 text-white p-3 sm:p-4 md:p-6 rounded-b-2xl sm:rounded-b-[30px] md:rounded-b-[45px] shadow-2xl relative z-50" role="banner">
                         <div className="flex justify-between items-center mb-4 sm:mb-6 md:mb-8 flex-wrap gap-2 sm:gap-3 md:gap-4">
                             <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
-                                <a 
-                                    href={homeRoute} 
-                                    className="text-white hover:text-blue-400 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 rounded-lg p-1.5 sm:p-2 flex-shrink-0" 
-                                    title="Back to Dashboard"
-                                    aria-label="Back to Dashboard"
+                                @if(in_array(Auth::user()->role ?? '', ['admin', 'branch_owner']))
+                                <button
+                                    type="button"
+                                    className="p-1.5 sm:p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                                    title="Back to home (triple-click to view roles)"
+                                    aria-label="Back to home"
+                                    onClick={(e) => {
+                                        const now = Date.now();
+                                        if (!window._backArrowClicks) window._backArrowClicks = { count: 0, firstTime: 0 };
+                                        const c = window._backArrowClicks;
+                                        c.count++;
+                                        if (c.count === 1) c.firstTime = now;
+                                        if (c.count >= 3 && (now - c.firstTime) < 500) {
+                                            c.count = 0;
+                                            const r = typeof userRolesDisplay !== 'undefined' ? userRolesDisplay : {};
+                                            alert('Roles & Info:\nRole: ' + (r.role || '-') + '\nBranch ID: ' + (r.branch_id ?? '-') + '\nName: ' + (r.name || '-') + '\nEmail: ' + (r.email || '-'));
+                                            return;
+                                        }
+                                        if (c.count === 1) {
+                                            setTimeout(() => {
+                                                if (window._backArrowClicks && window._backArrowClicks.count === 1) {
+                                                    window.location.href = '{{ route("home") }}';
+                                                }
+                                                window._backArrowClicks = { count: 0, firstTime: 0 };
+                                            }, 400);
+                                        }
+                                    }}
                                 >
-                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                     </svg>
-                                </a>
+                                </button>
+                                @endif
+                                <img
+                                    src={eliteCarWashLogoUrl}
+                                    alt="Elite Car Wash"
+                                    className="h-10 sm:h-12 md:h-14 w-auto flex-shrink-0 object-contain"
+                                />
                                 <div className="flex-1 min-w-0">
                                     <h1 className="text-lg sm:text-xl md:text-2xl font-black italic tracking-tighter uppercase leading-none text-blue-400 truncate">
                                         Elite Car Wash
@@ -2610,7 +3405,7 @@
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
-                                                    window.location.href = '{{ route("car.wash.services") }}';
+                                                    window.location.href ='{{ route("car.wash.services") }}';
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ' ') {
@@ -2681,30 +3476,172 @@
                                                 <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Completed Jobs</span>
                                             </button>
                                             
-                                            {/* ADD EXPENSE */}
+                                            {/* DAILY REPORT */}
                                             <button
                                                 onClick={() => {
                                                     setShowServicesDropdown(false);
-                                                    alert('Add Expense feature coming soon!');
+                                                    window.location.href = '{{ route("car.wash.daily-report") }}';
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter' || e.key === ' ') {
                                                         e.preventDefault();
                                                         setShowServicesDropdown(false);
-                                                        alert('Add Expense feature coming soon!');
+                                                        window.location.href = '{{ route("car.wash.daily-report") }}';
                                                     }
                                                 }}
                                                 className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
                                                 role="menuitem"
-                                                aria-label="Add expense (coming soon)"
+                                                aria-label="Daily jobs report"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Daily Report</span>
+                                            </button>
+                                            
+                                            {/* ALL SHOP EXPENSE */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    window.location.href = '{{ route("car.wash.all-shop-expenses") }}';
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        window.location.href = '{{ route("car.wash.all-shop-expenses") }}';
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="All shop expenses"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-red-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">All Shop Expense</span>
+                                            </button>
+                                            
+                                            {/* SHOP EXPENSES */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    setShowShopExpensesModal(true);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        setShowShopExpensesModal(true);
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="Shop Expenses"
                                             >
                                                 <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
                                                     <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                                                     </svg>
                                                 </div>
-                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Add Expense</span>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Shop Expenses</span>
                                             </button>
+
+                                            {/* TRANSACTION HISTORY */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    window.location.href = '{{ route("car.wash.transaction-history") }}';
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        window.location.href = '{{ route("car.wash.transaction-history") }}';
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-slate-50 transition-colors border-b border-slate-100 focus:outline-none focus:bg-slate-50 focus:ring-2 focus:ring-blue-500"
+                                                role="menuitem"
+                                                aria-label="Transaction History"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">Transaction History</span>
+                                            </button>
+
+                                            {/* LOGOUT */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowServicesDropdown(false);
+                                                    var f = document.getElementById('car-wash-logout-form');
+                                                    if (f) f.submit();
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setShowServicesDropdown(false);
+                                                        var f = document.getElementById('car-wash-logout-form');
+                                                        if (f) f.submit();
+                                                    }
+                                                }}
+                                                className="w-full flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 hover:bg-red-50 transition-colors focus:outline-none focus:bg-red-50 focus:ring-2 focus:ring-red-500 text-red-600"
+                                                role="menuitem"
+                                                aria-label="Logout"
+                                            >
+                                                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl border-2 border-red-500 flex items-center justify-center flex-shrink-0">
+                                                    <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black uppercase tracking-wide truncate">Logout</span>
+                                            </button>
+
+                                            {/* Inspection Compulsory Toggle Switch */}
+                                            <div className="flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-5 md:px-6 py-3.5 sm:py-4 md:py-5 border-t border-slate-200 bg-slate-50">
+                                                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                                    <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center flex-shrink-0">
+                                                        <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide block truncate">Inspection Required</span>
+                                                        <span className="text-[10px] sm:text-xs text-slate-600 block mt-0.5">
+                                                            {inspectionCompulsoryToggle ? 'Inspection is compulsory' : 'Inspection is optional'}
+                                                        </span>
+                                                        <span className="text-[9px] sm:text-[10px] text-slate-500 block mt-0.5 italic">
+                                                            OFF: Fri, Sat, Sun | ON: Mon-Thu
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setInspectionCompulsoryToggle(!inspectionCompulsoryToggle);
+                                                    }}
+                                                    className={`relative inline-flex h-6 sm:h-7 w-11 sm:w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-shrink-0 ${
+                                                        inspectionCompulsoryToggle ? 'bg-emerald-500' : 'bg-slate-400'
+                                                    }`}
+                                                    role="switch"
+                                                    aria-checked={inspectionCompulsoryToggle}
+                                                    aria-label={inspectionCompulsoryToggle ? 'Inspection compulsory (ON)' : 'Inspection optional (OFF)'}
+                                                    title={inspectionCompulsoryToggle ? 'Inspection is compulsory - Click to make optional' : 'Inspection is optional - Click to make compulsory'}
+                                                >
+                                                    <span
+                                                        className={`inline-block h-5 sm:h-6 w-5 sm:w-6 transform rounded-full bg-white transition-transform shadow-lg ${
+                                                            inspectionCompulsoryToggle ? 'translate-x-5 sm:translate-x-5' : 'translate-x-0.5'
+                                                        }`}
+                                                    />
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </button>
@@ -2719,7 +3656,7 @@
                             </div>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
+                        <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3" role="group" aria-label="Today's statistics">
                             <button
                                 type="button"
                                 className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
@@ -2748,16 +3685,109 @@
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
-                                        setShowCompletedJobsModal(true);
+                                        window.location.href = '{{ route("car.wash.daily-report") }}';
                                     }
                                 }}
-                                onClick={() => setShowCompletedJobsModal(true)}
-                                title="Click or long press to view completed jobs"
-                                aria-label="Total revenue today. Click to view details"
+                                onClick={() => { window.location.href = '{{ route("car.wash.daily-report") }}'; }}
+                                title="Click to view daily report"
+                                aria-label="Total revenue today. Click to view daily report"
                             >
                                 <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Total</p>
                                 <p className="text-xs sm:text-sm font-black text-emerald-400 font-mono truncate" aria-label="Total revenue amount">
-                                    Rs.{stats && typeof stats.todayRevenue !== 'undefined' ? stats.todayRevenue : 0}
+                                    Rs.{stats && typeof stats.reportCashOnHand !== 'undefined' ? Math.round(stats.reportCashOnHand) : 0}
+                                </p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    // Load cash balance first for validation
+                                    let cashBalanceForValidation = 0;
+                                    try {
+                                        const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
+                                            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                                        });
+                                        if (cashRes.ok) {
+                                            const cashData = await cashRes.json();
+                                            if (cashData.balance != null) {
+                                                cashBalanceForValidation = parseFloat(cashData.balance) || 0;
+                                                // Update stats with cash balance
+                                                setStats(prev => ({
+                                                    ...prev,
+                                                    cashOnHand: cashBalanceForValidation
+                                                }));
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading cash balance:', e);
+                                        // Use reportCashOnHand as fallback
+                                        cashBalanceForValidation = stats && typeof stats.reportCashOnHand !== 'undefined' ? stats.reportCashOnHand : 0;
+                                    }
+                                    
+                                    // Load logged-in user's bank accounts (for balance display)
+                                    try {
+                                        const res = await fetch(API_ROUTES.bankAccounts.index, {
+                                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                                        });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            if (data.success && data.bankAccounts) {
+                                                // Set logged-in user's bank accounts
+                                                setBankAccounts(data.bankAccounts);
+                                                // Calculate total balance for logged-in user's bank accounts
+                                                const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                setBankBalanceTotal(total);
+                                                // Auto-fill transfer amount with logged-in user's balance
+                                                setBankTransferAmount(String(Math.round(total)));
+                                            } else {
+                                                setBankAccounts([]);
+                                                setBankTransferAmount('0');
+                                            }
+                                        } else {
+                                            setBankAccounts([]);
+                                            setBankTransferAmount('0');
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading bank accounts:', e);
+                                        setBankAccounts([]);
+                                        setBankTransferAmount('0');
+                                    }
+                                    
+                                    // Load other users' bank accounts from same branch (for dropdown)
+                                    try {
+                                        const transferRes = await fetch(API_ROUTES.bankAccounts.forTransfer, {
+                                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                                        });
+                                        if (transferRes.ok) {
+                                            const transferData = await transferRes.json();
+                                            if (transferData.success && transferData.bankAccounts) {
+                                                setTransferBankAccounts(transferData.bankAccounts);
+                                            } else {
+                                                setTransferBankAccounts([]);
+                                            }
+                                        } else {
+                                            setTransferBankAccounts([]);
+                                        }
+                                    } catch (e) {
+                                        console.error('Error loading transfer bank accounts:', e);
+                                        setTransferBankAccounts([]);
+                                    }
+                                    
+                                    setShowBankTransferModal(true);
+                                    setSelectedBankAccountId(null);
+                                    setBankTransferNote('');
+                                    setShowBankAccountDropdown(false);
+                                }}
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 w-full"
+                                title="Click to transfer to bank"
+                                aria-label="Bank balance. Click to open bank transfer"
+                            >
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Bank</p>
+                                <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Bank account balance">
+                                    Rs.{(() => {
+                                        // Login user ke bank accounts ka total; zero ho to 0 hi dikhao
+                                        const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                        return Math.round(userBankBalance);
+                                    })()}
                                 </p>
                             </button>
                             <button
@@ -2800,15 +3830,239 @@
                                     Rs.{stats && typeof stats.todayExpensesTotal !== 'undefined' ? stats.todayExpensesTotal : 0}
                                 </p>
                             </button>
-                            <div className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center" role="status" aria-label="Grand total today">
-                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">G. Total</p>
-                                <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Grand total amount">
-                                    Rs.{stats && typeof stats.todayGrandTotal !== 'undefined' ? stats.todayGrandTotal : 0}
+                            <button
+                                type="button"
+                                onClick={() => setShowCashTransferModal(true)}
+                                className="bg-white/5 p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl md:rounded-[28px] border border-white/5 text-center cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                                title="Click to transfer cash"
+                                aria-label="Cash on hand today"
+                            >
+                                <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">ON HAND</p>
+                                <p className="text-xs sm:text-sm font-black text-yellow-400 font-mono truncate" aria-label="Cash on hand amount">
+                                    Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? Math.round(stats.cashOnHand) : 0}
                                 </p>
-                            </div>
+                            </button>
                         </div>
                     </header>
-                    
+
+                    {/* Attendance Modal - Mark employee attendance with front camera + GPS */}
+                    {showAttendanceModal && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="attendance-modal-title">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                                    <h2 id="attendance-modal-title" className="text-lg font-bold text-slate-900">Attendance</h2>
+                                    <button type="button"                                     onClick={() => {
+                                        setShowAttendanceModal(false);
+                                        setAttendanceCameraReady(false);
+                                        if (attendanceStreamRef.current) {
+                                            attendanceStreamRef.current.getTracks().forEach(t => t.stop());
+                                            attendanceStreamRef.current = null;
+                                        }
+                                        if (attendancePhotoUrl) URL.revokeObjectURL(attendancePhotoUrl);
+                                    }} className="text-slate-500 hover:text-slate-700 p-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">✕</button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                                    {attendanceSuccess ? (
+                                        <div className="text-center py-6">
+                                            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                                                <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 mb-2">Attendance marked successfully</p>
+                                            <button type="button" onClick={() => setShowAttendanceModal(false)} className="mt-4 px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded-xl font-semibold text-slate-800">Close</button>
+                                        </div>
+                                    ) : attendanceStep === 'select' ? (
+                                        <>
+                                            <p className="text-sm text-slate-600 mb-3">Select an employee to mark attendance (photo + location required).</p>
+                                            <div className="relative mb-4">
+                                                <input type="text" placeholder="Search employees..." value={attendanceEmployeeSearch} onChange={(e) => setAttendanceEmployeeSearch(e.target.value)} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 pr-10 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                                            </div>
+                                            <div className="border border-slate-200 rounded-xl max-h-48 overflow-y-auto">
+                                                {(() => {
+                                                    const q = (attendanceEmployeeSearch || '').trim().toLowerCase();
+                                                    const filtered = !q ? attendanceEmployees : attendanceEmployees.filter(emp => {
+                                                        const name = (emp.name || '').toLowerCase();
+                                                        const id = String(emp.employeeId || emp.id || '').toLowerCase();
+                                                        const typeStr = (emp.type === 'user' ? 'user' : emp.type === 'worker' ? 'worker' : '').toLowerCase();
+                                                        return name.includes(q) || id.includes(q) || typeStr.includes(q);
+                                                    });
+                                                    return filtered.length > 0 ? filtered.map(emp => (
+                                                        <button key={emp.id} type="button" onClick={() => setSelectedAttendanceEmployee(emp)} className={`w-full text-left px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selectedAttendanceEmployee && selectedAttendanceEmployee.id === emp.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}>
+                                                            <span className="font-semibold text-slate-900">{emp.name}</span>
+                                                            <span className="text-slate-500 text-sm ml-2">ID: {emp.employeeId}</span>
+                                                            {emp.type && <span className="text-slate-400 text-xs ml-1">({emp.type === 'user' ? 'User' : 'Worker'})</span>}
+                                                        </button>
+                                                    )) : attendanceEmployees.length === 0 ? <p className="px-4 py-6 text-slate-500 text-center">No employees found. Add workers (Staff) or ensure your branch has users.</p> : <p className="px-4 py-6 text-slate-500 text-center">No employees match &quot;{attendanceEmployeeSearch.trim()}&quot;</p>;
+                                                })()}
+                                            </div>
+                                            <button type="button" disabled={!selectedAttendanceEmployee} onClick={() => { setAttendanceStep('camera'); setAttendanceCameraError(null); setAttendancePermissionError(null); }} className="mt-4 w-full py-3 rounded-xl font-bold bg-blue-600 text-white disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Mark Attendance</button>
+                                        </>
+                                    ) : attendanceStep === 'camera' ? (
+                                        <>
+                                            <p className="text-sm text-slate-600 mb-3">Capture a photo using your front camera (selfie). No gallery — live capture only.</p>
+                                            {attendancePermissionError && (
+                                                <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                                                    <p className="font-semibold">Permission needed</p>
+                                                    <p>{attendancePermissionError}</p>
+                                                    <p className="mt-2">Please allow camera in your browser or device settings, then retry.</p>
+                                                </div>
+                                            )}
+                                            {attendanceCameraError && (
+                                                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+                                                    <p>{attendanceCameraError}</p>
+                                                    <button type="button" onClick={() => { setAttendanceCameraError(null); setAttendanceStep('camera'); }} className="mt-2 text-red-600 font-semibold underline">Retry camera</button>
+                                                </div>
+                                            )}
+                                            <div className="relative rounded-xl overflow-hidden bg-slate-900 aspect-[3/4] max-h-80 mx-auto">
+                                                <video ref={attendanceVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform scale-x-[-1]" style=@{{ display: attendanceCameraReady ? 'block' : 'none' }} />
+                                                {!attendanceCameraReady && !attendanceCameraError && !attendancePermissionError && (
+                                                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                                                        <button type="button" onClick={async () => {
+                                                            try {
+                                                                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                                                                attendanceStreamRef.current = stream;
+                                                                if (attendanceVideoRef.current) { attendanceVideoRef.current.srcObject = stream; }
+                                                                setAttendanceCameraReady(true);
+                                                                setAttendancePermissionError(null);
+                                                                setAttendanceCameraError(null);
+                                                            } catch (err) {
+                                                                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                                                                    setAttendancePermissionError('Camera access was denied. Please allow camera and try again.');
+                                                                } else {
+                                                                    setAttendanceCameraError(err.message || 'Could not open camera. Please retry.');
+                                                                }
+                                                            }
+                                                        }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold">Open camera</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2 mt-4">
+                                                <button type="button" onClick={() => { setAttendanceStep('select'); setAttendanceCameraReady(false); if (attendanceStreamRef.current) { attendanceStreamRef.current.getTracks().forEach(t => t.stop()); attendanceStreamRef.current = null; } }} className="flex-1 py-2.5 rounded-xl font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50">Back</button>
+                                                <button type="button" disabled={!attendanceCameraReady} onClick={() => {
+                                                    const video = attendanceVideoRef.current;
+                                                    const canvas = attendanceCanvasRef.current || document.createElement('canvas');
+                                                    if (!video || !video.videoWidth) return;
+                                                    canvas.width = video.videoWidth;
+                                                    canvas.height = video.videoHeight;
+                                                    const ctx = canvas.getContext('2d');
+                                                    ctx.save();
+                                                    ctx.scale(-1, 1);
+                                                    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                                                    ctx.restore();
+                                                    canvas.toBlob((blob) => {
+                                                        setAttendanceCameraReady(false);
+                                                        if (attendanceStreamRef.current) { attendanceStreamRef.current.getTracks().forEach(t => t.stop()); attendanceStreamRef.current = null; }
+                                                        if (attendancePhotoUrl) URL.revokeObjectURL(attendancePhotoUrl);
+                                                        setAttendancePhotoBlob(blob);
+                                                        setAttendancePhotoUrl(blob ? URL.createObjectURL(blob) : null);
+                                                        setAttendanceLocation(null);
+                                                        setAttendanceLocationError(null);
+                                                        setAttendanceAccuracyWarning(false);
+                                                        setAttendanceLocationLoading(true);
+                                                        const opts = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+                                                        navigator.geolocation.getCurrentPosition(
+                                                            (pos) => {
+                                                                const lat = pos.coords.latitude;
+                                                                const lng = pos.coords.longitude;
+                                                                const accuracy = pos.coords.accuracy != null ? pos.coords.accuracy : 0;
+                                                                const capturedAt = new Date().toISOString();
+                                                                const mapsLink = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+                                                                let address = '';
+                                                                fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json', { headers: { 'Accept': 'application/json' } })
+                                                                    .then(r => r.json())
+                                                                    .then(rev => { if (rev && rev.display_name) setAttendanceLocation(prev => prev ? { ...prev, address: rev.display_name } : { lat, lng, accuracy, address: rev.display_name, mapsLink, capturedAt, isMockLocationDetected: false }); })
+                                                                    .catch(() => {});
+                                                                setAttendanceLocation({ lat, lng, accuracy, address, mapsLink, capturedAt, isMockLocationDetected: false });
+                                                                setAttendanceLocationLoading(false);
+                                                                setAttendanceAccuracyWarning(accuracy > 50);
+                                                            },
+                                                            (err) => {
+                                                                setAttendanceLocationLoading(false);
+                                                                if (err.code === 1) setAttendanceLocationError('Location denied. Please allow location access to submit attendance.');
+                                                                else if (err.code === 3) setAttendanceLocationError('Location timed out. Please retry.');
+                                                                else setAttendanceLocationError(err.message || 'Could not get location.');
+                                                            }
+                                                        );
+                                                        setAttendanceStep('confirm');
+                                                    }, 'image/jpeg', 0.9);
+                                                }} className="flex-1 py-2.5 rounded-xl font-bold bg-blue-600 text-white disabled:bg-slate-300 hover:bg-blue-700">Capture</button>
+                                            </div>
+                                        </>
+                                    ) : attendanceStep === 'confirm' && (
+                                        <>
+                                            <p className="text-sm text-slate-600 mb-3">Confirm and submit attendance.</p>
+                                            {attendancePhotoUrl && <img src={attendancePhotoUrl} alt="Captured" className="w-full max-h-48 object-cover rounded-xl border border-slate-200 mb-4" />}
+                                            {attendanceLocationLoading && <p className="text-slate-600 py-2">Getting location…</p>}
+                                            {attendanceLocationError && (
+                                                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+                                                    <p>{attendanceLocationError}</p>
+                                                    <button type="button" onClick={() => {
+                                                        setAttendanceLocationError(null);
+                                                        setAttendanceLocationLoading(true);
+                                                        navigator.geolocation.getCurrentPosition(
+                                                            (pos) => {
+                                                                const lat = pos.coords.latitude;
+                                                                const lng = pos.coords.longitude;
+                                                                const accuracy = pos.coords.accuracy != null ? pos.coords.accuracy : 0;
+                                                                const capturedAt = new Date().toISOString();
+                                                                const mapsLink = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+                                                                setAttendanceLocation({ lat, lng, accuracy, address: '', mapsLink, capturedAt, isMockLocationDetected: false });
+                                                                setAttendanceLocationLoading(false);
+                                                                setAttendanceAccuracyWarning(accuracy > 50);
+                                                                setAttendanceLocationError(null);
+                                                            },
+                                                            (err) => {
+                                                                setAttendanceLocationLoading(false);
+                                                                setAttendanceLocationError(err.code === 1 ? 'Location denied.' : err.code === 3 ? 'Location timed out.' : err.message);
+                                                            },
+                                                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                                                        );
+                                                    }} className="mt-2 text-red-600 font-semibold underline">Retry location</button>
+                                                </div>
+                                            )}
+                                            {attendanceLocation && !attendanceLocationLoading && (
+                                                <div className="mb-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 space-y-1">
+                                                    <p><strong>Lat:</strong> {attendanceLocation.lat} <strong>Lng:</strong> {attendanceLocation.lng}</p>
+                                                    <p><strong>Accuracy:</strong> {attendanceLocation.accuracy != null ? attendanceLocation.accuracy.toFixed(0) : '—'} m</p>
+                                                    {attendanceLocation.address && <p><strong>Address:</strong> {attendanceLocation.address}</p>}
+                                                    <a href={attendanceLocation.mapsLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Open in Google Maps</a>
+                                                    {attendanceAccuracyWarning && <p className="text-amber-700 font-semibold mt-2">Location accuracy is weak (&gt;50m). Please retry location if possible.</p>}
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 mt-4">
+                                                <button type="button" onClick={() => { setAttendanceStep('camera'); setAttendancePhotoBlob(null); if (attendancePhotoUrl) URL.revokeObjectURL(attendancePhotoUrl); setAttendancePhotoUrl(null); setAttendanceLocation(null); setAttendanceLocationError(null); setAttendanceAccuracyWarning(false); }} className="flex-1 py-2.5 rounded-xl font-semibold border border-slate-300 text-slate-700 hover:bg-slate-50">Back</button>
+                                                <button type="button" disabled={!attendanceLocation || attendanceSubmitting} onClick={async () => {
+                                                    if (!attendanceLocation || !attendancePhotoBlob || !selectedAttendanceEmployee) return;
+                                                    setAttendanceSubmitting(true);
+                                                    const form = new FormData();
+                                                    form.append('type', selectedAttendanceEmployee.type || 'worker');
+                                                    form.append('employeeId', selectedAttendanceEmployee.employeeId);
+                                                    form.append('photo', attendancePhotoBlob, 'attendance.jpg');
+                                                    form.append('lat', attendanceLocation.lat);
+                                                    form.append('lng', attendanceLocation.lng);
+                                                    form.append('accuracy', String(attendanceLocation.accuracy != null ? attendanceLocation.accuracy : 0));
+                                                    form.append('address', attendanceLocation.address || '');
+                                                    form.append('mapsLink', attendanceLocation.mapsLink || '');
+                                                    form.append('capturedAt', attendanceLocation.capturedAt || new Date().toISOString());
+                                                    form.append('isMockLocationDetected', attendanceLocation.isMockLocationDetected ? '1' : '0');
+                                                    const deviceInfo = { userAgent: navigator.userAgent };
+                                                    form.append('deviceInfo[userAgent]', deviceInfo.userAgent);
+                                                    form.append('_token', csrfToken);
+                                                    try {
+                                                        const res = await fetch(API_ROUTES.attendance.store, { method: 'POST', body: form, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                        const data = await res.json();
+                                                        if (data.success) { setAttendanceSuccess(true); } else { alert(data.message || 'Failed to save attendance.'); }
+                                                    } catch (e) { alert('Network error. Please try again.'); }
+                                                    setAttendanceSubmitting(false);
+                                                }} className="flex-1 py-2.5 rounded-xl font-bold bg-blue-600 text-white disabled:bg-slate-300 hover:bg-blue-700">{attendanceSubmitting ? 'Submitting…' : 'Submit'}</button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <main id="main-content" className="p-3 sm:p-4 md:p-5" role="main" aria-label="Main content">
                         {view === 'dashboard' && (
                             <div className="space-y-8 animate-in fade-in duration-500" role="region" aria-label="Dashboard">
@@ -3211,14 +4465,20 @@
                                     const job = activeJobs.find(j => j.id === completeModalJobId);
                                     if (!job) return null;
                                     
+                                    // Whether this job's service requires inspection before completion
+                                    const jobService = allServices.find(s => s.label === job.service);
+                                    const serviceRequiresInspection = jobService ? (jobService.inspection_compulsory !== false) : true;
+                                    // Check global toggle - if OFF, inspection is not compulsory even if service requires it
+                                    const inspectionCompulsoryForJob = inspectionCompulsoryToggle && serviceRequiresInspection;
+                                    
                                     // Get expense items for this job (from expenseItems state or from backend)
                                     const currentJobExpenseItems = expenseItems || {};
                                     const currentJobCustomExpenses = customExpenses || [];
                                     
                                     // Define required inspection items
                                     const requiredInspectionItems = [
-                                        'engine_oil', 'gear_oil', 'brake_oil', 'air_filter', 
-                                        'radiator_water', 'shower_water', 'power_oil', 'horn', 
+                                        'engine_oil', 'wiper_rubber', 'brake_oil', 'air_filter', 
+                                        'radiator_water', 'shower_water', 'horn', 
                                         'head_lights', 'indicator', 'brake_pad', 'ac_filter'
                                     ];
                                     
@@ -3236,7 +4496,7 @@
                                     
                                     // Function to handle modal close attempt
                                     const handleCloseAttempt = () => {
-                                        if (!allItemsRated) {
+                                        if (inspectionCompulsoryForJob && !allItemsRated) {
                                             alert('Please complete all inspection items before closing. All inspection comments must be passed.');
                                             return false;
                                         }
@@ -3249,6 +4509,8 @@
                                                 setCompleteModalJobId(null);
                                                 setSelectedRating('');
                                                 setJobComment('');
+                                                setPaymentMethod('cash');
+                                                setSelectedBankId(null);
                                             }
                                         }}>
                                             <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -3265,6 +4527,8 @@
                                                                     setCompleteModalJobId(null);
                                                                     setSelectedRating('');
                                                                     setJobComment('');
+                                                                    setPaymentMethod('cash');
+                                                                    setSelectedBankId(null);
                                                                 }
                                                             }}
                                                             className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
@@ -3290,8 +4554,8 @@
                                                 
                                                 {/* Rating Section */}
                                                 <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
-                                                    {/* Inspection Validation Message */}
-                                                    {!allItemsRated && (
+                                                    {/* Inspection Validation Message - only when service has inspection compulsory */}
+                                                    {inspectionCompulsoryForJob && !allItemsRated && (
                                                         <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl">
                                                             <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                                                                 <span className="text-lg sm:text-xl flex-shrink-0">⚠️</span>
@@ -3310,12 +4574,11 @@
                                                                             .map(itemId => {
                                                                                 const itemNames = {
                                                                                     'engine_oil': 'Engine Oil',
-                                                                                    'gear_oil': 'Gear Oil',
+                                                                                    'wiper_rubber': 'Wiper Rubber',
                                                                                     'brake_oil': 'Brake Oil',
                                                                                     'air_filter': 'Air Filter',
                                                                                     'radiator_water': 'Radiator Water',
                                                                                     'shower_water': 'Shower Water level',
-                                                                                    'power_oil': 'Power Oil',
                                                                                     'horn': 'Horn',
                                                                                     'head_lights': 'Head Lights',
                                                                                     'indicator': 'Indicator',
@@ -3367,27 +4630,212 @@
                                                         </div>
                                                     </div>
                                                     
+                                                    {/* Payment Method Section */}
+                                                    <div className="mb-3 sm:mb-4">
+                                                        <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Payment Method</label>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+                                                            {[
+                                                                { value: 'cash', label: 'Cash', icon: '💵', color: 'bg-green-500' },
+                                                                { value: 'bank', label: 'Bank', icon: '🏦', color: 'bg-blue-500' },
+                                                                { value: 'card', label: 'Card', icon: '💳', color: 'bg-purple-500' },
+                                                                { value: 'other', label: 'Other', icon: '💰', color: 'bg-slate-500' }
+                                                            ].map((method) => (
+                                                                <button
+                                                                    key={method.value}
+                                                                    type="button"
+                                                                    onClick={() => { setPaymentMethod(method.value); if (method.value !== 'bank') setSelectedBankId(null); }}
+                                                                    className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all ${
+                                                                        paymentMethod === method.value
+                                                                            ? `${method.color} text-white border-${method.color.replace('bg-', '')} shadow-lg scale-105`
+                                                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                    }`}
+                                                                >
+                                                                    <div className="text-lg sm:text-xl mb-0.5 sm:mb-1">{method.icon}</div>
+                                                                    <div className="text-[9px] sm:text-[10px] font-black uppercase">{method.label}</div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        {paymentMethod === 'bank' && (
+                                                            <div className="mt-2 sm:mt-3 p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl" data-bank-account-box="true">
+                                                                <label className="text-xs font-black text-slate-700 uppercase block mb-2">
+                                                                    Bank Account (Jis Main Transfer Kiya) — Login User Ke Accounts
+                                                                    {!selectedBankId && <span className="text-red-600 ml-1">*</span>}
+                                                                </label>
+                                                                {(bankAccounts || []).length === 0 ? (
+                                                                    <div className="text-xs text-amber-700 space-y-1 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                                                        <p className="font-bold">⚠️ Bank account nahi hai!</p>
+                                                                        <p className="mt-1">Pehle account create karein, phir yahan list aa jayegi aur aap send kar sakte hain.</p>
+                                                                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
+                                                                            <a href={API_ROUTES.bankAccounts?.create || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 underline">
+                                                                                Create Bank Account →
+                                                                            </a>
+                                                                            <span className="text-slate-500">|</span>
+                                                                            <button type="button" onClick={fetchBankAccounts} className="font-bold text-slate-700 hover:text-slate-900 underline">
+                                                                                Refresh List
+                                                                            </button>
+                                                                        </p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-2">
+                                                                        {/* Show only the display account (primary account if multiple, or single account) */}
+                                                                        {(bankAccounts || []).filter(a => a.isDisplayAccount !== false).map(a => (
+                                                                            <button
+                                                                                key={a.id}
+                                                                                type="button"
+                                                                                onClick={() => setSelectedBankId(selectedBankId === a.id ? null : a.id)}
+                                                                                className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                                                                                    selectedBankId === a.id
+                                                                                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                                                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                                                }`}
+                                                                            >
+                                                                                <div className="text-sm font-bold text-slate-900">{a.bankName}</div>
+                                                                                {a.accountTitle ? <div className="text-xs text-slate-600 mt-0.5">Title: {a.accountTitle}</div> : null}
+                                                                                {a.accountNumber ? <div className="text-xs text-slate-600 font-mono">Account: {a.accountNumber}</div> : null}
+                                                                                {!a.accountTitle && !a.accountNumber ? <div className="text-xs text-slate-500 mt-0.5">Account #{a.id}</div> : null}
+                                                                            </button>
+                                                                        ))}
+                                                                        {!selectedBankId && (bankAccounts || []).filter(a => a.isDisplayAccount !== false).length > 0 && (
+                                                                            <p className="text-xs text-red-600 font-bold mt-2">⚠️ Please select a bank account to continue</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
                                                     {/* Comments Section */}
                                                     <div className="mb-3 sm:mb-4">
                                                         <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-1.5 sm:mb-2">Comments (Optional)</label>
-                                                        <textarea
-                                                            value={jobComment}
-                                                            onChange={(e) => setJobComment(e.target.value)}
-                                                            placeholder="Enter any comments or notes..."
-                                                            className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
-                                                            rows="3"
-                                                        />
+                                                        <div className="relative">
+                                                            <textarea
+                                                                value={jobComment}
+                                                                onChange={(e) => setJobComment(e.target.value)}
+                                                                placeholder="Enter any comments or notes..."
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 pr-10 sm:pr-12 text-xs sm:text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-emerald-500 focus:outline-none resize-none"
+                                                                rows="3"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                                                                        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                                                                    if (!SpeechRecognition) {
+                                                                        alert('Speech recognition is not available.');
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    if (isRecording) {
+                                                                        // Stop recording
+                                                                        if (recognition) {
+                                                                            recognition.stop();
+                                                                            setRecognition(null);
+                                                                        }
+                                                                        setIsRecording(false);
+                                                                    } else {
+                                                                        // Start recording
+                                                                        const recognitionInstance = new SpeechRecognition();
+                                                                        recognitionInstance.continuous = true;
+                                                                        recognitionInstance.interimResults = true;
+                                                                        recognitionInstance.lang = 'en-US';
+                                                                        
+                                                                        let processedResults = new Set(); // Track processed result indices
+                                                                        
+                                                                        recognitionInstance.onstart = () => {
+                                                                            setIsRecording(true);
+                                                                            processedResults.clear();
+                                                                        };
+                                                                        
+                                                                        recognitionInstance.onresult = (event) => {
+                                                                            // Process all results, but only add final ones we haven't processed yet
+                                                                            for (let i = 0; i < event.results.length; i++) {
+                                                                                const result = event.results[i];
+                                                                                const transcript = result[0].transcript.trim();
+                                                                                
+                                                                                // Only process final results that we haven't seen before
+                                                                                if (result.isFinal && transcript && !processedResults.has(i)) {
+                                                                                    processedResults.add(i);
+                                                                                    setJobComment(prev => {
+                                                                                        const trimmed = prev.trim();
+                                                                                        return trimmed ? trimmed + ' ' + transcript : transcript;
+                                                                                    });
+                                                                                }
+                                                                            }
+                                                                        };
+                                                                        
+                                                                        recognitionInstance.onerror = (event) => {
+                                                                            console.error('Speech recognition error:', event.error);
+                                                                            if (event.error === 'no-speech') {
+                                                                                alert('No speech detected. Please try again.');
+                                                                            } else if (event.error === 'not-allowed') {
+                                                                                alert('Microphone permission denied. Please allow microphone access.');
+                                                                            }
+                                                                            setIsRecording(false);
+                                                                            setRecognition(null);
+                                                                        };
+                                                                        
+                                                                        recognitionInstance.onend = () => {
+                                                                            setIsRecording(false);
+                                                                            setRecognition(null);
+                                                                        };
+                                                                        
+                                                                        try {
+                                                                            recognitionInstance.start();
+                                                                            setRecognition(recognitionInstance);
+                                                                        } catch (error) {
+                                                                            console.error('Error starting speech recognition:', error);
+                                                                            alert('Error starting speech recognition. Please try again.');
+                                                                            setIsRecording(false);
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className={`absolute right-2 sm:right-3 top-2 sm:top-2.5 p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-all ${
+                                                                    isRecording 
+                                                                        ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
+                                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                                                                }`}
+                                                                title={isRecording ? 'Stop recording' : 'Start voice recording'}
+                                                            >
+                                                                {isRecording ? (
+                                                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                                        <path d="M6 6h12v12H6z"/>
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                                                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                                                                    </svg>
+                                                                )}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Footer */}
                                                 <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
                                                     <button
-                                                        onClick={async () => {
-                                                            // Check if all inspection items are rated
-                                                            if (!allItemsRated) {
+                                                            onClick={async () => {
+                                                            // Check inspection only when service has inspection compulsory
+                                                            if (inspectionCompulsoryForJob && !allItemsRated) {
                                                                 alert('Please complete all inspection items before completing the job. All inspection comments must be passed.');
                                                                 return;
+                                                            }
+                                                            
+                                                            // Validate payment method and bank account
+                                                            if (paymentMethod === 'bank') {
+                                                                if (!selectedBankId || selectedBankId === null) {
+                                                                    alert('⚠️ BANK payment method selected!\n\nPlease select a bank account first.\n\nAgar account nahi hai to pehle account create karein, phir send karein.');
+                                                                    return;
+                                                                }
+                                                                // Also check if bank accounts list is empty
+                                                                if ((bankAccounts || []).length === 0) {
+                                                                    alert('⚠️ BANK payment method selected!\n\nKoi bank account nahi hai. Pehle account create karein, phir send karein.');
+                                                                    return;
+                                                                }
                                                             }
                                                             
                                                             try {
@@ -3480,7 +4928,9 @@
                                                                     },
                                                                     body: JSON.stringify({
                                                                         rating: selectedRating,
-                                                                        notes: jobComment || ''
+                                                                        notes: jobComment || '',
+                                                                        payment_method: paymentMethod,
+                                                                        bank_account_id: (paymentMethod === 'bank' && selectedBankId) ? selectedBankId : undefined
                                                                     })
                                                                 });
                                                                 
@@ -3497,7 +4947,8 @@
                                                                     status: 'completed',
                                                                     endTime: new Date().toISOString(),
                                                                     rating: selectedRating,
-                                                                    comment: jobComment
+                                                                    comment: jobComment,
+                                                                    paymentMethod: paymentMethod
                                                                 };
                                                                 
                                                                 // Complete job - remove from active jobs
@@ -3520,10 +4971,16 @@
                                                                     .catch(err => console.error('Error reloading completed jobs:', err));
                                                             
                                                             // Update stats
+                                                            const isCashPayment = paymentMethod === 'cash';
+                                                            // Refresh cash balance from database after job completion
+                                                            refreshCashBalance();
+                                                            
+                                                            // Update stats (revenue will be recalculated from completed jobs)
                                                             setStats(prev => ({
                                                                 ...prev,
                                                                 todayRevenue: (prev.todayRevenue || 0) + job.price,
-                                                                todayGrandTotal: (prev.todayGrandTotal || 0) + job.price
+                                                                todayGrandTotal: (prev.todayGrandTotal || 0) + job.price,
+                                                                // cashOnHand will be updated by refreshCashBalance
                                                             }));
                                                             
                                                             console.log('Job completed:', completedJob);
@@ -3531,20 +4988,36 @@
                                                             setCompleteModalJobId(null);
                                                             setSelectedRating('');
                                                             setJobComment('');
+                                                            setPaymentMethod('cash');
+                                                            setSelectedBankId(null);
                                                         } catch (error) {
                                                             console.error('Error completing job:', error);
                                                             alert('Error completing job. Please try again.');
                                                         }
                                                     }}
                                                         className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
-                                                            allItemsRated 
+                                                            (inspectionCompulsoryForJob ? allItemsRated : true) && (paymentMethod !== 'bank' || selectedBankId) 
                                                                 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700' 
                                                                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                                         }`}
-                                                        disabled={!allItemsRated}
+                                                        disabled={(inspectionCompulsoryForJob ? !allItemsRated : false) || (paymentMethod === 'bank' && !selectedBankId)}
                                                     >
-                                                        <span className="hidden sm:inline">{allItemsRated ? 'Confirm & Complete' : 'Complete All Inspections First'}</span>
-                                                        <span className="sm:hidden">{allItemsRated ? 'Complete' : 'Complete Inspections'}</span>
+                                                        <span className="hidden sm:inline">
+                                                            {(inspectionCompulsoryForJob && !allItemsRated) 
+                                                                ? 'Complete All Inspections First' 
+                                                                : (paymentMethod === 'bank' && !selectedBankId)
+                                                                    ? 'Select Bank Account First'
+                                                                    : 'Confirm & Complete'
+                                                            }
+                                                        </span>
+                                                        <span className="sm:hidden">
+                                                            {(inspectionCompulsoryForJob && !allItemsRated) 
+                                                                ? 'Complete Inspections' 
+                                                                : (paymentMethod === 'bank' && !selectedBankId)
+                                                                    ? 'Select Account'
+                                                                    : 'Complete'
+                                                            }
+                                                        </span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -3559,12 +5032,11 @@
                                     
                                     const inspectionItems = [
                                         { id: 'engine_oil', name: 'Engine Oil', icon: '🛢️' },
-                                        { id: 'gear_oil', name: 'Gear Oil', icon: '⚙️' },
+                                        { id: 'wiper_rubber', name: 'Wiper Rubber', icon: '🧹' },
                                         { id: 'brake_oil', name: 'Brake Oil', icon: '🛑' },
                                         { id: 'air_filter', name: 'Air Filter', icon: '🌬️' },
                                         { id: 'radiator_water', name: 'Radiator Water', icon: '💧' },
                                         { id: 'shower_water', name: 'Shower Water level', icon: '🚿' },
-                                        { id: 'power_oil', name: 'Power Oil', icon: '⚡' },
                                         { id: 'horn', name: 'Horn', icon: '📢' },
                                         { id: 'head_lights', name: 'Head Lights', icon: '💡' },
                                         { id: 'indicator', name: 'Indicator', icon: '↪️' },
@@ -3573,11 +5045,26 @@
                                     ];
                                     
                                     const getStatusIcon = (status) => {
+                                        const pct = parseInt(status, 10);
+                                        if (!isNaN(pct)) {
+                                            if (pct >= 90) return { icon: pct + '%', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+                                            if (pct >= 70) return { icon: pct + '%', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
+                                            if (pct >= 40) return { icon: pct + '%', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
+                                            if (pct >= 10) return { icon: pct + '%', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' };
+                                        }
                                         if (status === 'excellent') return { icon: '⭐', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
                                         if (status === 'good') return { icon: '✅', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
                                         if (status === 'average') return { icon: '⚠️', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
                                         if (status === 'poor') return { icon: '❌', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' };
                                         return { icon: '⚪', color: 'text-slate-400', bg: 'bg-slate-50', border: 'border-slate-200' };
+                                    };
+                                    const percentageOptions = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+                                    const getSelectStyle = (pct) => {
+                                        if (pct >= 90) return 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-blue-400 focus:ring-blue-500';
+                                        if (pct >= 70) return 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-green-400 focus:ring-green-500';
+                                        if (pct >= 40) return 'bg-gradient-to-r from-yellow-500 to-amber-600 text-white border-yellow-400 focus:ring-yellow-500';
+                                        if (pct >= 10) return 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-400 focus:ring-red-500';
+                                        return 'bg-slate-50 text-slate-700 border-slate-300 focus:ring-slate-500 hover:bg-slate-100';
                                     };
                                     
                                     return (
@@ -3636,171 +5123,62 @@
                                                                     </div>
                                                                     
                                                                     <div>
-                                                                        <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase block mb-1.5 sm:mb-2">Status</label>
-                                                                        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                                                                                {[
-                                                                                    { value: 'excellent', label: 'Excellent', icon: '⭐', color: 'bg-blue-500 hover:bg-blue-600' },
-                                                                                    { value: 'good', label: 'Good', icon: '✅', color: 'bg-green-500 hover:bg-green-600' },
-                                                                                    { value: 'average', label: 'Avg', icon: '⚠️', color: 'bg-yellow-500 hover:bg-yellow-600' },
-                                                                                    { value: 'poor', label: 'Poor', icon: '❌', color: 'bg-red-500 hover:bg-red-600' }
-                                                                                ].map((status) => (
-                                                                                    <button
-                                                                                        key={status.value}
-                                                                                        type="button"
-                                                                                        onClick={() => {
-                                                                                            setInspectionData(prev => ({
-                                                                                                ...prev,
-                                                                                                [item.id]: { ...prev[item.id], status: status.value }
-                                                                                            }));
-                                                                                        }}
-                                                                                        className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-white font-black text-[8px] sm:text-[9px] md:text-xs transition-all ${
-                                                                                            itemData.status === status.value 
-                                                                                                ? `${status.color} shadow-lg scale-105` 
-                                                                                                : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <div className="text-sm sm:text-base md:text-lg mb-0.5">{status.icon}</div>
-                                                                                        <div className="text-[8px] sm:text-[9px] leading-tight">{status.label}</div>
-                                                                                    </button>
+                                                                        {(() => {
+                                                                            const statusToPct = { excellent: '100', good: '80', average: '50', poor: '20' };
+                                                                            const displayValue = statusToPct[itemData.status] || itemData.status || '';
+                                                                            return (
+                                                                        <div className="relative">
+                                                                            <select
+                                                                                value={displayValue}
+                                                                                onChange={(e) => {
+                                                                                    setInspectionData(prev => ({
+                                                                                        ...prev,
+                                                                                        [item.id]: { ...prev[item.id], status: e.target.value }
+                                                                                    }));
+                                                                                }}
+                                                                                className={`w-full px-4 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl border-2 font-black text-sm sm:text-base transition-all duration-200 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 ${displayValue ? getSelectStyle(parseInt(displayValue, 10)) : 'bg-slate-50 text-slate-700 border-slate-300 focus:ring-slate-500 hover:bg-slate-100'}`}
+                                                                            >
+                                                                                <option value="" className="bg-white text-slate-700">Select % (10–100)</option>
+                                                                                {percentageOptions.map((pct) => (
+                                                                                    <option key={pct} value={String(pct)} className="bg-white text-slate-800">{pct}%</option>
                                                                                 ))}
+                                                                            </select>
+                                                                            <div className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                                                                <svg className={`w-5 h-5 ${displayValue ? 'text-white' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                                                </svg>
+                                                                            </div>
+                                                                            
+                                                                            {/* Percentage-wise graph (progress bar) when a value is selected */}
+                                                                            @verbatim
+                                                                            {displayValue && (() => {
+                                                                                const pctNum = parseInt(displayValue, 10);
+                                                                                if (isNaN(pctNum)) return null;
+                                                                                return (
+                                                                                    <div className="mt-3 sm:mt-4">
+                                                                                        <div className="flex items-center justify-between mb-1">
+                                                                                            <span className="text-xs sm:text-sm font-bold text-slate-600">Rating: {pctNum}%</span>
+                                                                                            <span className="text-xs sm:text-sm font-black text-slate-700">{pctNum}%</span>
+                                                                                        </div>
+                                                                                        <div className="w-full h-3 sm:h-4 bg-slate-200 rounded-full overflow-hidden">
+                                                                                            <div 
+                                                                                                className={`h-full rounded-full transition-all duration-500 ${pctNum >= 90 ? 'bg-gradient-to-r from-blue-500 to-indigo-600' : pctNum >= 70 ? 'bg-gradient-to-r from-green-500 to-emerald-600' : pctNum >= 40 ? 'bg-gradient-to-r from-yellow-500 to-amber-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}
+                                                                                                style={{ width: pctNum + '%' }}
+                                                                                            />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
+                                                                            @endverbatim
                                                                         </div>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
                                                 </div>
-                                                
-                                                {/* Percentage Summary Graph */}
-                                                {(() => {
-                                                    const statusCounts = {
-                                                        excellent: 0,
-                                                        good: 0,
-                                                        average: 0,
-                                                        poor: 0,
-                                                        total: 0
-                                                    };
-                                                    
-                                                    inspectionItems.forEach((item) => {
-                                                        const itemData = inspectionData[item.id];
-                                                        if (itemData && itemData.status && itemData.status !== '') {
-                                                            statusCounts[itemData.status] = (statusCounts[itemData.status] || 0) + 1;
-                                                            statusCounts.total++;
-                                                        }
-                                                    });
-                                                    
-                                                    const percentages = {
-                                                        excellent: statusCounts.total > 0 ? (statusCounts.excellent / statusCounts.total * 100).toFixed(1) : 0,
-                                                        good: statusCounts.total > 0 ? (statusCounts.good / statusCounts.total * 100).toFixed(1) : 0,
-                                                        average: statusCounts.total > 0 ? (statusCounts.average / statusCounts.total * 100).toFixed(1) : 0,
-                                                        poor: statusCounts.total > 0 ? (statusCounts.poor / statusCounts.total * 100).toFixed(1) : 0
-                                                    };
-                                                    
-                                                    const excellentWidth = percentages.excellent + '%';
-                                                    const goodWidth = percentages.good + '%';
-                                                    const averageWidth = percentages.average + '%';
-                                                    const poorWidth = percentages.poor + '%';
-                                                    
-                                                    const excellentStyle = { width: excellentWidth };
-                                                    const goodStyle = { width: goodWidth };
-                                                    const averageStyle = { width: averageWidth };
-                                                    const poorStyle = { width: poorWidth };
-                                                    
-                                                    if (statusCounts.total === 0) return null;
-                                                    
-                                                    return (
-                                                        <div className="px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
-                                                            <div className="bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4 md:p-5 rounded-xl sm:rounded-2xl border-2 border-slate-200 shadow-sm">
-                                                                <h3 className="text-xs sm:text-sm font-black text-slate-700 uppercase mb-3 sm:mb-4 tracking-wider">Status Distribution</h3>
-                                                                <div className="space-y-2 sm:space-y-2.5">
-                                                                    {/* Excellent */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">⭐</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-blue-600 uppercase">Excellent</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-blue-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={excellentStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.excellent) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.excellent + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.excellent) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-blue-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.excellent + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    {/* Good */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">✅</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-green-600 uppercase">Good</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-green-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={goodStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.good) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.good + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.good) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-green-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.good + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    {/* Average */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">⚠️</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-yellow-600 uppercase">Avg</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-yellow-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={averageStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.average) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.average + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.average) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-yellow-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.average + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                    
-                                                                    {/* Poor */}
-                                                                    <div className="flex items-center gap-2 sm:gap-3">
-                                                                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[70px] sm:min-w-[80px]">
-                                                                            <span className="text-base sm:text-lg">❌</span>
-                                                                            <span className="text-[9px] sm:text-[10px] font-bold text-red-600 uppercase">Poor</span>
-                                                                        </div>
-                                                                        <div className="flex-1 bg-slate-200 rounded-full h-4 sm:h-5 overflow-hidden">
-                                                                            <div 
-                                                                                className="bg-red-500 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1 sm:pr-2"
-                                                                                style={poorStyle}
-                                                                            >
-                                                                                {parseFloat(percentages.poor) > 10 && (
-                                                                                    <span className="text-[8px] sm:text-[9px] text-white font-black">{percentages.poor + '%'}</span>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {parseFloat(percentages.poor) <= 10 && (
-                                                                            <span className="text-[9px] sm:text-[10px] font-black text-red-600 min-w-[40px] sm:min-w-[45px] text-right">{percentages.poor + '%'}</span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()}
                                                 
                                                 {/* Footer */}
                                                 <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
@@ -3813,8 +5191,8 @@
                                                             
                                                             // Check if all items are rated
                                                             const requiredInspectionItems = [
-                                                                'engine_oil', 'gear_oil', 'brake_oil', 'air_filter', 
-                                                                'radiator_water', 'shower_water', 'power_oil', 'horn', 
+                                                                'engine_oil', 'wiper_rubber', 'brake_oil', 'air_filter', 
+                                                                'radiator_water', 'shower_water', 'horn', 
                                                                 'head_lights', 'indicator', 'brake_pad', 'ac_filter'
                                                             ];
                                                             
@@ -4332,6 +5710,7 @@
                                                                     
                                                                     console.log('Refreshment expense saved to backend:', result);
                                                                     
+                                                                    setActiveJobs(prev => prev.map(j => j.id === expenseModalJobId ? { ...j, expenseTotalAmount: totalAmount } : j));
                                                                     alert(`Refreshment expense of Rs.${totalAmount} saved successfully!`);
                                                                     setExpenseModalJobId(null);
                                                                     setExpenseItems({});
@@ -4390,130 +5769,98 @@
                                                 </div>
                                             </div>
                                             
-                                            {/* Content */}
+                                            {/* Filters + Download PDF */}
+                                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4 md:p-4 border-b border-slate-200 bg-slate-50/80">
+                                                <label className="text-xs font-bold text-slate-600">From</label>
+                                                <input type="date" value={expenseFilterFrom} onChange={(e) => setExpenseFilterFrom(e.target.value)} className="px-2 py-1.5 rounded-lg border-2 border-slate-200 text-sm font-bold" />
+                                                <label className="text-xs font-bold text-slate-600">To</label>
+                                                <input type="date" value={expenseFilterTo} onChange={(e) => setExpenseFilterTo(e.target.value)} className="px-2 py-1.5 rounded-lg border-2 border-slate-200 text-sm font-bold" />
+                                                <button onClick={() => fetchExpenseDetailsReport(expenseFilterFrom, expenseFilterTo)} disabled={expenseDetailsLoading} className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-black uppercase hover:bg-slate-800 disabled:opacity-60">Apply</button>
+                                                <button
+                                                    onClick={() => {
+                                                        const el = document.getElementById('expenseReportPdf');
+                                                        if (el && typeof html2pdf !== 'undefined') {
+                                                            const opt = { margin: 8, filename: 'all-expense-' + expenseFilterFrom + '-to-' + expenseFilterTo + '.pdf', image: { type: 'jpeg', quality: 0.96 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+                                                            html2pdf().set(opt).from(el).save();
+                                                        }
+                                                    }}
+                                                    className="ml-auto px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-black uppercase hover:bg-emerald-700 flex items-center gap-1"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                    Download PDF
+                                                </button>
+                                            </div>
+                                            
+                                            {/* Content - All Expense layout: Job (left) + Shop (right) + Total */}
                                             <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 bg-gradient-to-b from-slate-50 to-white">
-                                                {expenseHistory.length === 0 ? (
-                                                    <div className="text-center py-8 sm:py-12 md:py-16">
-                                                        <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 md:mb-6">
-                                                            <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                            </svg>
+                                                {expenseDetailsLoading ? (
+                                                    <div className="flex items-center justify-center py-12"><span className="text-slate-500 font-bold">Loading...</span></div>
+                                                ) : (() => {
+                                                    const jobList = expenseDetailsJobExpenses || [];
+                                                    const shopList = expenseDetailsShopExpenses || [];
+                                                    const jobTotal = jobList.reduce((s, e) => s + (parseFloat(e.subtotal) || 0), 0);
+                                                    const shopTotal = shopList.reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
+                                                    const grandTotal = jobTotal + shopTotal;
+                                                    const isEmpty = jobList.length === 0 && shopList.length === 0;
+                                                    if (isEmpty) {
+                                                        return (
+                                                            <div className="text-center py-8 sm:py-12">
+                                                                <p className="text-base sm:text-lg font-black text-slate-700 uppercase">No Expenses</p>
+                                                                <p className="text-xs sm:text-sm text-slate-500 mt-1">No job or shop expenses for the selected date range.</p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return (
+                                                    <div id="expenseReportPdf" className="space-y-4">
+                                                        {/* Two panels: Job (left) | Shop (right) */}
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                                                            {/* Total Job Expenses */}
+                                                            <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
+                                                                <div className="bg-slate-700 text-white px-3 py-2 font-black text-sm uppercase">Total Job Expenses</div>
+                                                                <div className="p-2 font-mono font-black text-lg text-slate-800">Rs.{Math.round(jobTotal)}</div>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="w-full text-left text-xs sm:text-sm">
+                                                                        <thead><tr className="border-b border-slate-200 bg-slate-100"><th className="p-2 font-black">Date &amp; Time</th><th className="p-2 font-black">Job Details &amp; User</th><th className="p-2 font-black text-right">Job Expense</th></tr></thead>
+                                                                        <tbody>
+                                                                            {jobList.map((e) => (
+                                                                                <tr key={e.jobId} className="border-b border-slate-100">
+                                                                                    <td className="p-2">{e.dateTime || '-'}</td>
+                                                                                    <td className="p-2">{(e.vehicleNo || '') + ' ' + (e.mobile || '') + ' ' + (e.customerName || '') + ' / ' + (e.workerName || e.userName || '')}</td>
+                                                                                    <td className="p-2 text-right font-bold">Rs.{Math.round(parseFloat(e.subtotal) || 0)}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                            {/* Total Shop Expense */}
+                                                            <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden">
+                                                                <div className="bg-slate-700 text-white px-3 py-2 font-black text-sm uppercase">Total Shop Expense</div>
+                                                                <div className="p-2 font-mono font-black text-lg text-slate-800">Rs.{Math.round(shopTotal)}</div>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="w-full text-left text-xs sm:text-sm">
+                                                                        <thead><tr className="border-b border-slate-200 bg-slate-100"><th className="p-2 font-black">Date &amp; Time &amp; User</th><th className="p-2 font-black">Expense Detail</th><th className="p-2 font-black text-right">Shop Expense</th></tr></thead>
+                                                                        <tbody>
+                                                                            {shopList.map((e) => (
+                                                                                <tr key={e.id} className="border-b border-slate-100">
+                                                                                    <td className="p-2">{(e.created_at || e.expense_date) + (e.user_name ? ' / ' + e.user_name : '')}</td>
+                                                                                    <td className="p-2">{e.category}{(e.notes ? ' - ' + e.notes : '')}</td>
+                                                                                    <td className="p-2 text-right font-bold text-rose-600">Rs.{Math.round(parseFloat(e.amount) || 0)}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <p className="text-base sm:text-lg md:text-xl font-black text-slate-700 uppercase tracking-wide">No Expenses Yet</p>
-                                                        <p className="text-xs sm:text-sm text-slate-500 mt-1 sm:mt-2">Expenses will appear here once you add them</p>
+                                                        {/* Total Expense (Grand Total) */}
+                                                        <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 rounded-xl p-4 border-2 border-orange-300">
+                                                            <div className="text-white/90 text-xs font-black uppercase">Total Expense</div>
+                                                            <div className="text-2xl sm:text-3xl font-black text-white font-mono">Rs.{Math.round(grandTotal)}</div>
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                                                        {expenseHistory.map((expense, expIdx) => {
-                                                            // Try to get job data from activeJobs if not in expense record
-                                                            const job = activeJobs.find(j => j.id === expense.jobId);
-                                                            const vehicleNo = expense.vehicleNo || job?.vehicleNo || 'N/A';
-                                                            const customerName = expense.customerName || job?.customerName || 'N/A';
-                                                            const mobile = expense.mobile || job?.mobile || 'N/A';
-                                                            
-                                                            return (
-                                                            <div key={expense.id} className="bg-white rounded-2xl sm:rounded-[25px] md:rounded-[30px] border-2 border-slate-200 shadow-xl hover:shadow-2xl transition-all overflow-hidden">
-                                                                {/* Customer Info Header */}
-                                                                <div className="bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 p-3 sm:p-4 md:p-5 border-b-2 border-slate-300">
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-blue-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Vehicle Number</p>
-                                                                            </div>
-                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{vehicleNo}</p>
-                                                                        </div>
-                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-emerald-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Customer Name</p>
-                                                                            </div>
-                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{customerName}</p>
-                                                                        </div>
-                                                                        <div className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 shadow-sm hover:shadow-md transition-all sm:col-span-2 lg:col-span-1">
-                                                                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                                                                                <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-purple-500 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                                                                                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                                <p className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-widest">Mobile Number</p>
-                                                                            </div>
-                                                                            <p className="text-xs sm:text-sm md:text-base font-black text-slate-900 ml-7 sm:ml-8 md:ml-10 truncate">{mobile}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                {/* Items List - Clean Table Style */}
-                                                                <div className="p-3 sm:p-4 md:p-6">
-                                                                    <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
-                                                                        {expense.items.map((item, idx) => (
-                                                                            <div key={idx} className="bg-gradient-to-r from-slate-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-4 border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all">
-                                                                                <div className="grid grid-cols-12 gap-2 sm:gap-3 md:gap-4 items-center">
-                                                                                    <div className="col-span-2 sm:col-span-1 flex justify-center">
-                                                                                        <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-gradient-to-br from-orange-400 to-rose-400 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-black text-xs sm:text-sm shadow-md">
-                                                                                            {idx + 1}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="col-span-10 sm:col-span-5">
-                                                                                        <p className="text-xs sm:text-sm font-black text-slate-900 uppercase mb-1 sm:mb-2 truncate">{item.name}</p>
-                                                                                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                                                                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                                                                                                Qty: {item.quantity}
-                                                                                            </span>
-                                                                                            <span className="text-[9px] sm:text-[10px] text-slate-600 font-bold bg-slate-200 px-2 sm:px-2.5 md:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                                                                                                Rate: Rs.{typeof item.price === 'number' ? item.price.toFixed(2) : (parseFloat(item.price) || 0).toFixed(2)}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="col-span-12 sm:col-span-6 text-left sm:text-right mt-2 sm:mt-0">
-                                                                                        <p className="text-sm sm:text-base md:text-lg font-black text-slate-900">Rs.{typeof item.subtotal === 'number' ? item.subtotal.toFixed(2) : (parseFloat(item.subtotal) || 0).toFixed(2)}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            );
-                                                        })}
-                                                        
-                                                        {/* Grand Total - All Expenses */}
-                                                        {expenseHistory.length > 0 && (
-                                                            <div className="mt-4 sm:mt-5 md:mt-6 pt-4 sm:pt-5 md:pt-6 border-t-2 sm:border-t-3 md:border-t-4 border-slate-400">
-                                                                <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 rounded-2xl sm:rounded-[25px] md:rounded-[30px] p-4 sm:p-5 md:p-6 border-2 sm:border-3 md:border-4 border-orange-300 shadow-2xl">
-                                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                                                                        <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center border-2 border-white/30 flex-shrink-0">
-                                                                                <svg className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                                                </svg>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-0.5 sm:mb-1">Grand Total</p>
-                                                                                <p className="text-xl sm:text-2xl md:text-3xl font-black text-white font-mono">
-                                                                                    Rs.{(expenseHistory && Array.isArray(expenseHistory) ? expenseHistory.reduce((sum, exp) => sum + (parseFloat(exp.subtotal) || 0), 0) : 0).toFixed(2)}
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="text-left sm:text-right">
-                                                                            <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-widest mb-0.5 sm:mb-1">Total Records</p>
-                                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">{expenseHistory.length}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                    );
+                                                })()}
                                             </div>
                                             
                                             {/* Footer */}
@@ -4523,6 +5870,1041 @@
                                                     className="w-full px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 md:py-4 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase hover:from-slate-800 hover:to-slate-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                                                 >
                                                     Close Report
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Shop Expenses Modal */}
+                                {showShopExpensesModal && (
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => setShowShopExpensesModal(false)}>
+                                        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border-2 border-slate-200" onClick={(e) => e.stopPropagation()}>
+                                            <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-r from-red-500 via-rose-500 to-pink-500 text-white">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <h2 className="text-lg sm:text-xl font-black uppercase">Shop Expenses</h2>
+                                                            <p className="text-xs opacity-90">Add and view shop expenses</p>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => setShowShopExpensesModal(false)} className="w-9 h-9 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center">
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-6 space-y-4">
+                                                {/* Add form */}
+                                                <div className="bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
+                                                    <p className="text-xs font-black text-slate-600 uppercase mb-3">Add Expense</p>
+                                                    <div className="grid gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Date</label>
+                                                            <input type="date" value={shopExpenseDate} onChange={(e) => setShopExpenseDate(e.target.value)}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Category / Description</label>
+                                                            <input type="text" placeholder="e.g. Tea, Supplies, Cleaning" value={shopExpenseForm.category} onChange={(e) => setShopExpenseForm(prev=> ({...prev, category: e.target.value}))}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Amount (Rs.)</label>
+                                                            <input type="number" min="0" step="0.01" placeholder="0" value={shopExpenseForm.amount} onChange={(e) => setShopExpenseForm(prev=> ({...prev, amount: e.target.value}))}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-600 mb-1">Notes (optional)</label>
+                                                            <textarea rows={2} placeholder="Optional notes" value={shopExpenseForm.notes} onChange={(e) => setShopExpenseForm(prev=> ({...prev, notes: e.target.value}))}
+                                                                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg text-slate-900 font-semibold resize-none" />
+                                                        </div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!shopExpenseForm.category || !shopExpenseForm.amount || parseFloat(shopExpenseForm.amount) <= 0) { alert('Please enter category and amount.'); return; }
+                                                                try {
+                                                                    const res = await fetch(API_ROUTES.shopExpenses.store, {
+                                                                        method: 'POST',
+                                                                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                                                                        body: JSON.stringify({
+                                                                            expense_date: shopExpenseDate,
+                                                                            category: shopExpenseForm.category,
+                                                                            amount: parseFloat(shopExpenseForm.amount),
+                                                                            notes: shopExpenseForm.notes || ''
+                                                                        })
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (data.success) {
+                                                                        setShopExpenseForm({ category: '', amount: '', notes: '' });
+                                                                        const r = await fetch(API_ROUTES.shopExpenses.index + '?date=' + encodeURIComponent(shopExpenseDate));
+                                                                        const d = await r.json();
+                                                                        if (d.success) setShopExpensesList(d.expenses || []);
+                                                                    } else { alert(data.message || 'Failed to add.'); }
+                                                                } catch (e) { alert('Error adding expense.'); }
+                                                            }}
+                                                            className="w-full py-2.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-xl font-black uppercase text-sm hover:from-red-600 hover:to-rose-600"
+                                                        >
+                                                            Add Expense
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {/* List */}
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <p className="text-xs font-black text-slate-600 uppercase">Expenses for {shopExpenseDate}</p>
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const r = await fetch(API_ROUTES.shopExpenses.index + '?date=' + encodeURIComponent(shopExpenseDate));
+                                                                    const d = await r.json();
+                                                                    if (d.success) setShopExpensesList(d.expenses || []);
+                                                                } catch (e) { setShopExpensesList([]); }
+                                                            }}
+                                                            className="text-xs font-bold text-blue-600 hover:underline"
+                                                        >
+                                                            Refresh
+                                                        </button>
+                                                    </div>
+                                                    {shopExpensesList.length === 0 ? (
+                                                        <p className="text-sm text-slate-500 py-4 text-center">No shop expenses for this date.</p>
+                                                    ) : (
+                                                        <ul className="space-y-2">
+                                                            {shopExpensesList.map((e) => (
+                                                                <li key={e.id} className="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200">
+                                                                    <div>
+                                                                        <span className="font-bold text-slate-900">{e.category}</span>
+                                                                        {e.notes ? <span className="block text-xs text-slate-500">{e.notes}</span> : null}
+                                                                    </div>
+                                                                    <span className="font-black text-rose-600">Rs.{Math.round(e.amount || 0)}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                    {shopExpensesList.length > 0 && (
+                                                        <p className="mt-2 text-sm font-black text-slate-700">Total: Rs.{Math.round(shopExpensesList.reduce((s,x)=> s + (parseFloat(x.amount)||0), 0))}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Cash Transfer Modal */}
+                                {showCashTransferModal && (
+                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-3 md:p-4" onClick={() => {
+                                        setShowCashTransferModal(false);
+                                        setTransferAmount('');
+                                        setSelectedTransferMethod(null);
+                                        setSelectedUserId(null);
+                                        setTransferNote('');
+                                    }}>
+                                        <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="p-3 sm:p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+                                                <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h2 className="text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter">Cash Transfer</h2>
+                                                        <p className="text-xs sm:text-sm opacity-90 mt-0.5 sm:mt-1">Transfer money to different accounts</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowCashTransferModal(false);
+                                                            setTransferAmount('');
+                                                            setSelectedTransferMethod(null);
+                                                        }}
+                                                        className="text-white hover:text-slate-200 transition-colors p-1.5 sm:p-2 flex-shrink-0"
+                                                    >
+                                                        <svg className="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Content */}
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                {(
+                                                    <>
+                                                        {/* Available Cash */}
+                                                        <div className="mb-4 sm:mb-5 bg-gradient-to-br from-yellow-50 to-yellow-100 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 border-yellow-200">
+                                                            <div className="text-xs sm:text-sm font-bold text-yellow-700 uppercase mb-1">Available Cash</div>
+                                                            <div className="text-2xl sm:text-3xl font-black text-yellow-600 font-mono">
+                                                                Rs.{stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Transfer Amount */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer Amount</label>
+                                                            <input
+                                                                type="number"
+                                                                value={transferAmount}
+                                                                onChange={(e) => setTransferAmount(e.target.value)}
+                                                                placeholder="Enter amount"
+                                                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-yellow-500 focus:outline-none font-mono"
+                                                                min="0"
+                                                                max={stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0}
+                                                            />
+                                                        </div>
+                                                        
+                                                        {/* Transfer Methods - Cash Methods */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Select Cash Transfer Method</label>
+                                                            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+                                                                {transferMethods.filter(method => {
+                                                                    // Show admin cash for ALL users (so they can transfer to admin)
+                                                                    // Admin cash should always be visible
+                                                                    return method.type === 'cash';
+                                                                }).map((method) => (
+                                                                    <button
+                                                                        key={method.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setSelectedTransferMethod(method.id);
+                                                                            setSelectedUserId(null); // Clear user selection when cash method is selected
+                                                                        }}
+                                                                        className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all relative ${
+                                                                            selectedTransferMethod === method.id
+                                                                                ? 'bg-yellow-500 text-white border-yellow-600 shadow-lg scale-105'
+                                                                                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="text-xl sm:text-2xl mb-1 sm:mb-2">{method.icon}</div>
+                                                                        <div className="text-[10px] sm:text-xs font-black uppercase mb-0.5">{method.name}</div>
+                                                                        {method.subtitle && (
+                                                                            <div className={`text-[8px] sm:text-[9px] font-bold mb-1 ${
+                                                                                selectedTransferMethod === method.id
+                                                                                    ? 'text-yellow-100'
+                                                                                    : 'text-slate-400'
+                                                                            }`}>
+                                                                                {method.subtitle}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className={`text-[9px] sm:text-[10px] font-bold mt-1 ${
+                                                                            selectedTransferMethod === method.id
+                                                                                ? 'text-yellow-100'
+                                                                                : 'text-slate-500'
+                                                                        }`}>
+                                                                            Balance: Rs.{method.balance || 0}
+                                                                        </div>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Divider */}
+                                                        <div className="mb-4 sm:mb-5 flex items-center gap-2">
+                                                            <div className="flex-1 border-t border-slate-300"></div>
+                                                            <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase">OR</span>
+                                                            <div className="flex-1 border-t border-slate-300"></div>
+                                                        </div>
+                                                        
+                                                        {/* Select User */}
+                                                        <div className="mb-4 sm:mb-5">
+                                                            <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Transfer to User</label>
+                                                            {branchUsers.length === 0 ? (
+                                                                <div className="text-center py-4 text-slate-500 text-sm bg-slate-50 rounded-xl border-2 border-slate-200">
+                                                                    No users found in your branch
+                                                                </div>
+                                                            ) : (
+                                                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                                    {branchUsers.map((user) => (
+                                                                        <button
+                                                                            key={user.id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedUserId(user.id);
+                                                                                setSelectedTransferMethod(null); // Clear cash method selection when user is selected
+                                                                            }}
+                                                                            className={`w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all text-left ${
+                                                                                selectedUserId === user.id
+                                                                                    ? 'bg-green-500 text-white border-green-600 shadow-lg'
+                                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            <div className="font-bold text-sm sm:text-base">{user.name}</div>
+                                                                            <div className={`text-xs sm:text-sm mt-1 ${
+                                                                                selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
+                                                                            }`}>
+                                                                                {user.email}
+                                                                            </div>
+                                                                            {user.phone && (
+                                                                                <div className={`text-xs mt-0.5 ${
+                                                                                    selectedUserId === user.id ? 'text-green-100' : 'text-slate-400'
+                                                                                }`}>
+                                                                                    {user.phone}
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* Transfer Note - Only show when user is selected */}
+                                                        {selectedUserId && (
+                                                            <div className="mb-4 sm:mb-5">
+                                                                <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2 sm:mb-3">Note (Optional)</label>
+                                                                <textarea
+                                                                    value={transferNote}
+                                                                    onChange={(e) => setTransferNote(e.target.value)}
+                                                                    placeholder="Add a note for this transfer..."
+                                                                    className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm text-slate-900 border-2 border-slate-300 rounded-lg sm:rounded-xl bg-white focus:border-green-500 focus:outline-none"
+                                                                    rows="2"
+                                                                    maxLength="500"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Footer */}
+                                            <div className="p-3 sm:p-4 md:p-6 border-t border-slate-200 bg-slate-50">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!transferAmount || parseFloat(transferAmount) <= 0) {
+                                                            alert('Please enter a valid transfer amount.');
+                                                            return;
+                                                        }
+                                                        
+                                                        const amount = parseFloat(transferAmount);
+                                                        const availableCash = stats && typeof stats.cashOnHand !== 'undefined' ? stats.cashOnHand : 0;
+                                                        
+                                                        if (amount > availableCash) {
+                                                            alert(`Insufficient cash. Available: Rs.${availableCash}`);
+                                                            return;
+                                                        }
+                                                        
+                                                        // Handle user transfer (if user is selected)
+                                                        if (selectedUserId) {
+                                                            try {
+                                                                const response = await fetch(API_ROUTES.payments.transferToUser, {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        to_user_id: selectedUserId,
+                                                                        amount: amount,
+                                                                        note: transferNote || null
+                                                                    })
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (!result.success) {
+                                                                    alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                    return;
+                                                                }
+                                                                
+                                                                // Refresh cash balance from database after transfer
+                                                                refreshCashBalance();
+                                                                
+                                                                const selectedUser = branchUsers.find(u => u.id === selectedUserId);
+                                                                alert(`Rs.${amount} transferred to ${selectedUser?.name || 'user'} successfully!`);
+                                                                
+                                                                setShowCashTransferModal(false);
+                                                                setTransferAmount('');
+                                                                setSelectedUserId(null);
+                                                                setTransferNote('');
+                                                                setSelectedTransferMethod(null);
+                                                            } catch (error) {
+                                                                console.error('Error transferring cash:', error);
+                                                                alert('Error transferring cash. Please try again.');
+                                                            }
+                                                            return;
+                                                        }
+                                                        
+                                                        // Handle cash transfer method (if cash method is selected)
+                                                        if (!selectedTransferMethod && !selectedUserId) {
+                                                            alert('Please select a cash transfer method or a user to transfer to.');
+                                                            return;
+                                                        }
+                                                        
+                                                        // Transfer cash to cash method
+                                                        if (selectedTransferMethod) {
+                                                            try {
+                                                                const selectedMethod = transferMethods.find(m => m.id === selectedTransferMethod);
+                                                                
+                                                                // If it's admin_cash, transfer to admin user
+                                                                if (selectedMethod?.id === 'admin_cash') {
+                                                                    // Transfer to admin user (to_user_id null means admin)
+                                                                    const response = await fetch(API_ROUTES.payments.transferToUser, {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                            'Accept': 'application/json'
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            to_user_id: null, // null means transfer to admin
+                                                                            amount: amount,
+                                                                            note: transferNote || `Cash transfer to Admin Cash`
+                                                                        })
+                                                                    });
+                                                                    
+                                                                    const result = await response.json();
+                                                                    
+                                                                    if (!result.success) {
+                                                                        alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                        return;
+                                                                    }
+                                                                    
+                                                                    // Refresh cash balance from database after transfer
+                                                                    refreshCashBalance();
+                                                                    
+                                                                    // Refresh admin cash balance
+                                                                    if (API_ROUTES.payments && API_ROUTES.payments.adminCashAccountBalance) {
+                                                                        fetch(API_ROUTES.payments.adminCashAccountBalance, {
+                                                                            headers: {
+                                                                                'Accept': 'application/json',
+                                                                                'X-Requested-With': 'XMLHttpRequest'
+                                                                            }
+                                                                        })
+                                                                            .then(res => res.json())
+                                                                            .then(balanceData => {
+                                                                                if (balanceData.success && balanceData.balance != null) {
+                                                                                    const adminCashBalance = parseFloat(balanceData.balance) || 0;
+                                                                                    setTransferMethods(prev => prev.map(method => 
+                                                                                        method.id === 'admin_cash' 
+                                                                                            ? { ...method, balance: adminCashBalance }
+                                                                                            : method
+                                                                                    ));
+                                                                                }
+                                                                            })
+                                                                            .catch(err => console.error('Error refreshing admin cash balance:', err));
+                                                                    }
+                                                                    
+                                                                    alert(`Rs.${amount} transferred to ${selectedMethod?.name || 'Admin Cash'} successfully!`);
+                                                                    
+                                                                    setShowCashTransferModal(false);
+                                                                    setTransferAmount('');
+                                                                    setSelectedTransferMethod(null);
+                                                                    setSelectedUserId(null);
+                                                                    setTransferNote('');
+                                                                    return;
+                                                                }
+                                                                
+                                                                // If it's a bank transfer (has bankId), save to database
+                                                                if (selectedMethod?.bankId) {
+                                                                    const response = await fetch(API_ROUTES.cashTransfers.store, {
+                                                                        method: 'POST',
+                                                                        headers: {
+                                                                            'Content-Type': 'application/json',
+                                                                            'X-CSRF-TOKEN': csrfToken,
+                                                                            'Accept': 'application/json'
+                                                                        },
+                                                                        body: JSON.stringify({
+                                                                            bank_id: selectedMethod.bankId,
+                                                                            amount: amount,
+                                                                            notes: `Cash transfer to ${selectedMethod.name}`
+                                                                        })
+                                                                    });
+                                                                    
+                                                                    const result = await response.json();
+                                                                    
+                                                                    if (!result.success) {
+                                                                        alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                        return;
+                                                                    }
+                                                                }
+                                                                
+                                                                // Refresh cash balance from database after transfer
+                                                                refreshCashBalance();
+                                                                
+                                                                // Update transfer method balance
+                                                                setTransferMethods(prev => prev.map(method => 
+                                                                    method.id === selectedTransferMethod
+                                                                        ? { ...method, balance: (method.balance || 0) + amount }
+                                                                        : method
+                                                                ));
+                                                                
+                                                                alert(`Rs.${amount} transferred to ${selectedMethod?.name || 'selected method'} successfully!`);
+                                                                
+                                                                setShowCashTransferModal(false);
+                                                                setTransferAmount('');
+                                                                setSelectedTransferMethod(null);
+                                                                setSelectedUserId(null);
+                                                                setTransferNote('');
+                                                            } catch (error) {
+                                                                console.error('Error transferring cash:', error);
+                                                                alert('Error transferring cash. Please try again.');
+                                                            }
+                                                            return;
+                                                        }
+                                                        
+                                                        // Handle bank transfer
+                                                        if (transferTab === 'bank' && selectedBankAccountId) {
+                                                            try {
+                                                                const selectedAccount = transferBankAccounts.find(a => a.id === selectedBankAccountId);
+                                                                
+                                                                const response = await fetch(API_ROUTES.cashTransfers.store, {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'X-CSRF-TOKEN': csrfToken,
+                                                                        'Accept': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        bank_account_id: selectedBankAccountId,
+                                                                        amount: amount,
+                                                                        notes: `Cash transfer to ${selectedAccount?.bankName || 'Bank Account'}`
+                                                                    })
+                                                                });
+                                                                
+                                                                const result = await response.json();
+                                                                
+                                                                if (!result.success) {
+                                                                    alert('Error transferring cash: ' + (result.message || 'Unknown error'));
+                                                                    return;
+                                                                }
+                                                                
+                                                                // Refresh cash balance from database after transfer
+                                                                refreshCashBalance();
+                                                                
+                                                                // Refresh bank accounts to update balance
+                                                                fetchBankAccounts();
+                                                                
+                                                                alert(result.message || `Rs.${amount} transferred to ${selectedAccount?.bankName || 'Bank Account'} successfully!`);
+                                                                
+                                                                setShowCashTransferModal(false);
+                                                                setTransferAmount('');
+                                                                setSelectedBankAccountId(null);
+                                                                setSelectedTransferMethod(null);
+                                                                setSelectedUserId(null);
+                                                                setTransferNote('');
+                                                            } catch (error) {
+                                                                console.error('Error transferring cash to bank:', error);
+                                                                alert('Error transferring cash to bank. Please try again.');
+                                                            }
+                                                            return;
+                                                        }
+                                                    }}
+                                                    className={`w-full px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black uppercase transition-all shadow-lg ${
+                                                        selectedUserId 
+                                                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
+                                                                : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white hover:from-yellow-600 hover:to-yellow-700'
+                                                    }`}
+                                                >
+                                                    {selectedUserId ? 'Transfer to User' : 'Transfer Cash'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Bank Transfer Modal - Dedicated */}
+                                {showBankTransferModal && (
+                                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => {
+                                        setShowBankTransferModal(false);
+                                        setShowAccountLedgerModal(false);
+                                        setEditingLedgerRow(null);
+                                        setSelectedBankAccountId(null);
+                                        setBankTransferAmount('');
+                                        setBankTransferNote('');
+                                        setShowBankAccountDropdown(false);
+                                    }}>
+                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                                            {/* Header */}
+                                            <div className="p-4 sm:p-5 bg-gradient-to-r from-purple-500 to-purple-600 text-white flex justify-between items-center flex-shrink-0">
+                                                <div>
+                                                    <h3 className="text-lg sm:text-xl font-black uppercase">Bank Transfer</h3>
+                                                    <p className="text-xs sm:text-sm opacity-90 mt-1">Transfer cash to bank account</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowBankTransferModal(false);
+                                                        setShowAccountLedgerModal(false);
+                                                        setSelectedBankAccountId(null);
+                                                        setBankTransferAmount('');
+                                                        setBankTransferNote('');
+                                                        setShowBankAccountDropdown(false);
+                                                    }}
+                                                    className="w-9 h-9 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <div className="p-4 sm:p-5 overflow-y-auto flex-1">
+                                                {/* Bank Account Balance - Same logic as header, with attached accounts list */}
+                                                <div className="mb-5 bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border-2 border-purple-200">
+                                                    <div className="text-xs sm:text-sm font-bold text-purple-700 uppercase mb-1">Bank Account Balance</div>
+                                                    <div
+                                                        className="text-2xl sm:text-3xl font-black text-purple-600 font-mono mb-2 cursor-pointer select-none active:bg-purple-100/50 rounded px-1 -mx-1"
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onDoubleClick={() => setShowBankBalanceHistoryModal(true)}
+                                                        onMouseDown={() => {
+                                                            bankBalanceHoldTimerRef.current = setTimeout(() => setShowBankBalanceHistoryModal(true), 600);
+                                                        }}
+                                                        onMouseUp={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onMouseLeave={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onTouchStart={() => {
+                                                            bankBalanceHoldTimerRef.current = setTimeout(() => setShowBankBalanceHistoryModal(true), 600);
+                                                        }}
+                                                        onTouchEnd={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onTouchCancel={() => { if (bankBalanceHoldTimerRef.current) clearTimeout(bankBalanceHoldTimerRef.current); bankBalanceHoldTimerRef.current = null; }}
+                                                        onContextMenu={(e) => e.preventDefault()}
+                                                    >
+                                                        Rs.{(() => {
+                                                            const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                            return Math.round(userBankBalance);
+                                                        })()}
+                                                    </div>
+                                                    <div className="text-[9px] text-purple-500 mb-1">Double-tap or hold to view history</div>
+                                                    <div className="text-[10px] sm:text-xs text-purple-600/90 space-y-1 border-t border-purple-200/60 pt-2 mt-2">
+                                                        <div className="font-semibold text-purple-700">Attached accounts:</div>
+                                                        {(bankAccounts || []).length > 0 ? (
+                                                            (bankAccounts || []).map((acc) => (
+                                                                <div
+                                                                    key={acc.id}
+                                                                    className="flex justify-between items-center gap-2 cursor-pointer select-none rounded px-1 -mx-1 hover:bg-purple-100/50 active:bg-purple-200/50 py-0.5"
+                                                                    onDoubleClick={() => {
+                                                                        const today = new Date().toISOString().slice(0, 10);
+                                                                        setShowAccountLedgerModal(true);
+                                                                        setAccountLedgerAccountId(acc.id);
+                                                                        setAccountLedgerFrom(today);
+                                                                        setAccountLedgerTo(today);
+                                                                        setAccountLedgerData(null);
+                                                                        setAccountLedgerLoading(true);
+                                                                        const baseUrl = API_ROUTES.bankAccounts.ledger ? (typeof API_ROUTES.bankAccounts.ledger === 'function' ? API_ROUTES.bankAccounts.ledger(acc.id) : API_ROUTES.bankAccounts.ledger + '/' + acc.id) : null;
+                                                                        if (baseUrl) {
+                                                                            const url = baseUrl + '?date_from=' + encodeURIComponent(today) + '&date_to=' + encodeURIComponent(today);
+                                                                            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                                                                .then(r => r.json())
+                                                                                .then(data => {
+                                                                                    if (data.success) {
+                                                                                        setAccountLedgerData(data);
+                                                                                    } else {
+                                                                                        setAccountLedgerData({ error: data.message || 'Failed to load ledger' });
+                                                                                    }
+                                                                                })
+                                                                                .catch(err => setAccountLedgerData({ error: 'Failed to load ledger' }))
+                                                                                .finally(() => setAccountLedgerLoading(false));
+                                                                        } else {
+                                                                            setAccountLedgerLoading(false);
+                                                                            setAccountLedgerData({ error: 'API not configured' });
+                                                                        }
+                                                                    }}
+                                                                    title="Double-click to view ledger"
+                                                                >
+                                                                    <span className="truncate">{(acc.bankName || 'Bank')}{(acc.accountTitle ? ' - ' + acc.accountTitle : '')}{(acc.accountNumber ? ' (' + acc.accountNumber + ')' : '')}</span>
+                                                                    <span className="font-mono font-bold whitespace-nowrap">Rs.{Math.round(parseFloat(acc.balance) || 0)}</span>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="text-purple-500 italic">No bank accounts linked</div>
+                                                        )}
+                                                        {(bankAccounts || []).length > 0 && (
+                                                            <div className="text-[9px] text-purple-500 mt-1">Double-click account to view ledger</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Bank Balance History Modal - on double-tap or hold */}
+                                                {showBankBalanceHistoryModal && (
+                                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setShowBankBalanceHistoryModal(false)}>
+                                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+                                                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 px-4 py-3 flex justify-between items-center">
+                                                                <h3 className="text-white font-bold text-sm uppercase">Balance History</h3>
+                                                                <button type="button" onClick={() => setShowBankBalanceHistoryModal(false)} className="text-white/90 hover:text-white p-1">
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                </button>
+                                                            </div>
+                                                            <div className="p-4 max-h-[60vh] overflow-y-auto">
+                                                                {branchBalanceHistoryLoading ? (
+                                                                    <div className="text-slate-500 text-sm py-4 text-center">Loading...</div>
+                                                                ) : (
+                                                                    <>
+                                                                        {(() => {
+                                                                            const accounts = branchBalanceHistoryAccounts || [];
+                                                                            const total = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                                            return (
+                                                                                <div className="text-lg font-black text-purple-700 font-mono mb-3">Total: Rs.{Math.round(total)}</div>
+                                                                            );
+                                                                        })()}
+                                                                        {(branchBalanceHistoryAccounts || []).length > 0 ? (
+                                                                            <div className="space-y-2">
+                                                                                {(branchBalanceHistoryAccounts || []).map((acc) => (
+                                                                                    <div key={acc.id} className="flex justify-between items-center gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <div className="font-semibold text-slate-800 text-sm truncate">{(acc.bankName || 'Bank')}</div>
+                                                                                            <div className="text-xs text-slate-500 truncate">{(acc.userName ? acc.userName + (acc.accountNumber ? ' (' + acc.accountNumber + ')' : '') : (acc.accountTitle || '') + (acc.accountNumber ? ' (' + acc.accountNumber + ')' : ''))}</div>
+                                                                                        </div>
+                                                                                        <span className="font-mono font-bold text-purple-600 whitespace-nowrap">Rs.{Math.round(parseFloat(acc.balance) || 0)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="text-slate-500 text-sm py-4 text-center">
+                                                                                No bank accounts in this branch.
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Account Ledger Modal - on double-click attached account */}
+                                                {showAccountLedgerModal && (
+                                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowAccountLedgerModal(false)}>
+                                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                                                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 px-4 py-3 flex justify-between items-center flex-shrink-0">
+                                                                <h3 className="text-white font-bold text-sm uppercase">Account Ledger</h3>
+                                                                <button type="button" onClick={() => setShowAccountLedgerModal(false)} className="text-white/90 hover:text-white p-1">
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                </button>
+                                                            </div>
+                                                            <div className="p-4 overflow-y-auto flex-1">
+                                                                {accountLedgerLoading ? (
+                                                                    <div className="py-8 text-center text-slate-500">Loading ledger...</div>
+                                                                ) : accountLedgerData && accountLedgerData.error ? (
+                                                                    <div className="py-8 text-center text-red-600">{accountLedgerData.error}</div>
+                                                                ) : accountLedgerData && accountLedgerData.account ? (
+                                                                    <>
+                                                                        <div className="mb-3 text-sm font-bold text-purple-700 truncate">{accountLedgerData.account.label}</div>
+                                                                        <div className="flex flex-wrap gap-2 mb-3">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <label className="text-xs font-semibold text-slate-600">From</label>
+                                                                                <input
+                                                                                    type="date"
+                                                                                    value={accountLedgerFrom}
+                                                                                    onChange={(e) => setAccountLedgerFrom(e.target.value)}
+                                                                                    className="text-xs px-2 py-1.5 border border-slate-300 rounded-lg"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <label className="text-xs font-semibold text-slate-600">To</label>
+                                                                                <input
+                                                                                    type="date"
+                                                                                    value={accountLedgerTo}
+                                                                                    onChange={(e) => setAccountLedgerTo(e.target.value)}
+                                                                                    className="text-xs px-2 py-1.5 border border-slate-300 rounded-lg"
+                                                                                />
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (!accountLedgerAccountId) return;
+                                                                                    setAccountLedgerLoading(true);
+                                                                                    const baseUrl = API_ROUTES.bankAccounts.ledger ? (typeof API_ROUTES.bankAccounts.ledger === 'function' ? API_ROUTES.bankAccounts.ledger(accountLedgerAccountId) : API_ROUTES.bankAccounts.ledger + '/' + accountLedgerAccountId) : null;
+                                                                                    if (baseUrl) {
+                                                                                        const url = baseUrl + '?date_from=' + encodeURIComponent(accountLedgerFrom) + '&date_to=' + encodeURIComponent(accountLedgerTo);
+                                                                                        fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                                                                            .then(r => r.json())
+                                                                                            .then(data => {
+                                                                                                if (data.success) setAccountLedgerData(data);
+                                                                                            })
+                                                                                            .finally(() => setAccountLedgerLoading(false));
+                                                                                    } else setAccountLedgerLoading(false);
+                                                                                }}
+                                                                                className="text-xs px-3 py-1.5 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700"
+                                                                            >
+                                                                                Apply
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="w-full text-xs sm:text-sm">
+                                                                                <thead>
+                                                                                    <tr className="border-b-2 border-purple-200">
+                                                                                        <th className="text-left py-2 px-1 font-bold text-slate-700">Date</th>
+                                                                                        <th className="text-left py-2 px-1 font-bold text-slate-700">Debit From</th>
+                                                                                        <th className="text-left py-2 px-1 font-bold text-slate-700">Credit To</th>
+                                                                                        <th className="text-right py-2 px-1 font-bold text-slate-700">Debit</th>
+                                                                                        <th className="text-right py-2 px-1 font-bold text-slate-700">Credit</th>
+                                                                                        <th className="text-right py-2 px-1 font-bold text-slate-700">Total</th>
+                                                                                        <th className="text-center py-2 px-1 font-bold text-slate-700 w-20">Actions</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                    {(accountLedgerData.ledger || []).map((row, i) => (
+                                                                                        <tr key={row.id || i} className="border-b border-slate-100 hover:bg-purple-50/50">
+                                                                                            <td className="py-1.5 px-1 text-slate-600">
+                                                                                                {row.description === 'Opening Balance' ? 'Opening' : (
+                                                                                                    <span><span className="block">{row.date}</span>{row.time ? <span className="block text-[10px] text-slate-500">{row.time}</span> : null}</span>
+                                                                                                )}
+                                                                                            </td>
+                                                                                            <td className="py-1.5 px-1 text-slate-700 text-xs min-w-[120px] max-w-[180px] break-words">{row.fromAccount || '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-slate-700 text-xs min-w-[120px] max-w-[180px] break-words">{row.toAccount || '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-right font-mono">{row.debit ? 'Rs.' + row.debit : '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-right font-mono text-green-700">{row.credit ? 'Rs.' + row.credit : '-'}</td>
+                                                                                            <td className="py-1.5 px-1 text-right font-mono font-bold text-purple-700">Rs.{row.total}</td>
+                                                                                            <td className="py-1.5 px-1 text-center">
+                                                                                                {row.id ? (
+                                                                                                    <div className="flex items-center justify-center gap-0.5">
+                                                                                                        <button type="button" onClick={() => setEditingLedgerRow(row)} className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Edit">
+                                                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                                                                        </button>
+                                                                                                        <button type="button" onClick={() => { if (confirm('Delete this transaction?')) { setAccountLedgerLoading(true); fetch(API_ROUTES.bankTransactions.destroy(row.id), { method: 'DELETE', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' } }).then(() => { const baseUrl = API_ROUTES.bankAccounts.ledger(accountLedgerAccountId); const url = baseUrl + '?date_from=' + encodeURIComponent(accountLedgerFrom) + '&date_to=' + encodeURIComponent(accountLedgerTo); return fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }); }).then(r => r.json()).then(d => { if (d.success) setAccountLedgerData(d); }).finally(() => setAccountLedgerLoading(false)); } }} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Delete">
+                                                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                ) : '-'}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Edit Ledger Transaction Modal */}
+                                                {editingLedgerRow && editingLedgerRow.id && (
+                                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4" onClick={() => setEditingLedgerRow(null)}>
+                                                        <div className="bg-white rounded-2xl shadow-2xl border-2 border-purple-200 w-full max-w-sm p-4" onClick={e => e.stopPropagation()}>
+                                                            <h4 className="font-bold text-purple-700 mb-3">Edit Transaction</h4>
+                                                            <form onSubmit={(e) => {
+                                                                e.preventDefault();
+                                                                const fd = new FormData(e.target);
+                                                                const data = { transaction_date: fd.get('ledger_edit_date'), type: fd.get('ledger_edit_type'), amount: fd.get('ledger_edit_amount'), description: fd.get('ledger_edit_desc') || '' };
+                                                                setAccountLedgerLoading(true);
+                                                                fetch(API_ROUTES.bankTransactions.update(editingLedgerRow.id), {
+                                                                    method: 'PUT',
+                                                                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '' },
+                                                                    body: JSON.stringify(data)
+                                                                }).then(r => r.json()).then(d => {
+                                                                    if (d.success) {
+                                                                        setEditingLedgerRow(null);
+                                                                        const baseUrl = API_ROUTES.bankAccounts.ledger(accountLedgerAccountId);
+                                                                        const url = baseUrl + '?date_from=' + encodeURIComponent(accountLedgerFrom) + '&date_to=' + encodeURIComponent(accountLedgerTo);
+                                                                        return fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                                                                    }
+                                                                }).then(r => r && r.json()).then(d => { if (d && d.success) setAccountLedgerData(d); }).finally(() => setAccountLedgerLoading(false));
+                                                            }}>
+                                                                <div className="space-y-2 mb-3">
+                                                                    <label className="block text-xs font-semibold">Date</label>
+                                                                    <input type="date" name="ledger_edit_date" defaultValue={editingLedgerRow.date} required className="w-full px-3 py-2 border rounded-lg text-sm" />
+                                                                    <label className="block text-xs font-semibold">Type</label>
+                                                                    <select name="ledger_edit_type" defaultValue={editingLedgerRow.type || 'debit'} required className="w-full px-3 py-2 border rounded-lg text-sm">
+                                                                        <option value="debit">Debit</option>
+                                                                        <option value="credit">Credit</option>
+                                                                    </select>
+                                                                    <label className="block text-xs font-semibold">Amount (Rs.)</label>
+                                                                    <input type="number" name="ledger_edit_amount" defaultValue={editingLedgerRow.amount} min="0.01" step="0.01" required className="w-full px-3 py-2 border rounded-lg text-sm" />
+                                                                    <label className="block text-xs font-semibold">Description (optional)</label>
+                                                                    <input type="text" name="ledger_edit_desc" defaultValue={editingLedgerRow.description || ''} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <button type="submit" className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-semibold text-sm">Save</button>
+                                                                    <button type="button" onClick={() => setEditingLedgerRow(null)} className="px-4 py-2 border rounded-lg text-sm">Cancel</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Transfer Amount */}
+                                                <div className="mb-5">
+                                                    <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer Amount</label>
+                                                    <input
+                                                        type="number"
+                                                        value={bankTransferAmount}
+                                                        onChange={(e) => {
+                                                            // Allow any input - no restrictions while typing
+                                                            setBankTransferAmount(e.target.value);
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            // Basic validation only - don't overwrite with cash balance (bank transfer uses bank balance)
+                                                            const val = parseFloat(e.target.value);
+                                                            if (isNaN(val)) {
+                                                                setBankTransferAmount('');
+                                                                return;
+                                                            }
+                                                            if (val < 0) {
+                                                                setBankTransferAmount('0');
+                                                            }
+                                                            // Don't cap to cash balance on blur - user may have typed valid bank transfer amount
+                                                        }}
+                                                        placeholder="Enter amount"
+                                                        className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none font-mono"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                
+                                                {/* Transfer To Bank Account */}
+                                                <div className="mb-5 relative bank-account-dropdown-container">
+                                                    <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Transfer To Bank Account</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowBankAccountDropdown(!showBankAccountDropdown)}
+                                                        className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-purple-500 focus:outline-none text-left bg-white flex items-center justify-between"
+                                                    >
+                                                        <span className="text-sm leading-relaxed flex items-center gap-3 flex-1 min-w-0">
+                                                            {selectedBankAccountId ? (() => {
+                                                                const selected = transferBankAccounts.find(acc => acc.id == selectedBankAccountId);
+                                                                return (
+                                                                    <>
+                                                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
+                                                                            {selected?.bankLogo ? (
+                                                                                <img src={bankLogoBaseUrl + '/' + selected.bankLogo} alt={selected?.bankName || ''} className="w-full h-full object-contain" />
+                                                                            ) : (
+                                                                                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <span className="block font-bold text-slate-800">{selected?.bankName || 'Bank Account'}{selected?.userName ? ' — ' + selected.userName : ''}</span>
+                                                                            <span className="block text-slate-700">{selected?.accountTitle || ''}</span>
+                                                                            <span className="block text-slate-600">{selected?.accountNumber || ''}</span>
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })() : (
+                                                                <>
+                                                                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                                                                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="block font-bold text-slate-800">Select Bank Account</span>
+                                                                        <span className="block text-slate-700 text-xs text-slate-500">All users' accounts</span>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </span>
+                                                        <svg className="w-5 h-5 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                                        </svg>
+                                                    </button>
+                                                    {showBankAccountDropdown && (
+                                                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-slate-300 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
+                                                            {transferBankAccounts.length === 0 ? (
+                                                                <div className="p-4 text-center text-slate-500 text-sm">No bank accounts found</div>
+                                                            ) : (
+                                                                transferBankAccounts.map((account) => (
+                                                                    <button
+                                                                        key={account.id}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setSelectedBankAccountId(account.id);
+                                                                            setShowBankAccountDropdown(false);
+                                                                        }}
+                                                                        className="w-full px-4 py-3 text-left border-b border-slate-100 hover:bg-purple-50 focus:bg-purple-50 focus:outline-none flex items-center gap-3"
+                                                                    >
+                                                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
+                                                                            {account.bankLogo ? (
+                                                                                <img src={bankLogoBaseUrl + '/' + account.bankLogo} alt={account.bankName || ''} className="w-full h-full object-contain" />
+                                                                            ) : (
+                                                                                <svg className="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <span className="block font-bold text-slate-800 text-sm">{account.bankName || 'Bank Account'}{account.userName ? ' — ' + account.userName + (account.isOwn ? ' (You)' : '') : ''}</span>
+                                                                            <span className="block text-slate-700 text-sm">{account.accountTitle || ''}</span>
+                                                                            <span className="block text-slate-600 text-sm">{account.accountNumber || ''}</span>
+                                                                        </div>
+                                                                    </button>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Transfer Note */}
+                                                <div className="mb-5">
+                                                    <label className="text-xs sm:text-sm font-black text-slate-900 uppercase block mb-2">Note (Optional)</label>
+                                                    <textarea
+                                                        value={bankTransferNote}
+                                                        onChange={(e) => setBankTransferNote(e.target.value)}
+                                                        rows="2"
+                                                        placeholder="Add a note about this transfer"
+                                                        className="w-full px-4 py-3 text-sm text-slate-900 border-2 border-slate-300 rounded-xl bg-white focus:border-purple-500 focus:outline-none resize-none"
+                                                    />
+                                                </div>
+                                                
+                                                {/* Transfer Button */}
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        const amount = parseFloat(bankTransferAmount);
+                                                        if (!amount || amount <= 0) {
+                                                            alert('Please enter a valid amount');
+                                                            return;
+                                                        }
+                                                        if (!selectedBankAccountId) {
+                                                            alert('Please select a bank account to transfer to');
+                                                            return;
+                                                        }
+                                                        
+                                                        // Validate against bank balance (bank-to-bank transfer, not cash)
+                                                        const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                        const maxBankBalance = branchBankBalance > 0 ? branchBankBalance : (stats && typeof stats.reportBankBalance !== 'undefined' ? stats.reportBankBalance : bankBalanceTotal || 0);
+                                                        if (amount > maxBankBalance) {
+                                                            alert(`Amount cannot exceed available bank balance (Rs.${Math.round(maxBankBalance)})`);
+                                                            return;
+                                                        }
+                                                        
+                                                        setBankTransferLoading(true);
+                                                        try {
+                                                            const res = await fetch(API_ROUTES.cashTransfers.store, {
+                                                                method: 'POST',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                    'X-CSRF-TOKEN': csrfToken || '',
+                                                                    'Accept': 'application/json'
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    bank_account_id: parseInt(selectedBankAccountId, 10) || selectedBankAccountId,
+                                                                    amount: amount,
+                                                                    notes: bankTransferNote || null
+                                                                })
+                                                            });
+                                                            let data;
+                                                            try {
+                                                                data = await res.json();
+                                                            } catch (parseErr) {
+                                                                console.error('Transfer response parse error:', parseErr);
+                                                                alert('Invalid server response. Please try again.');
+                                                                return;
+                                                            }
+                                                            if (data.success) {
+                                                                const selectedAccount = transferBankAccounts.find(acc => acc.id == selectedBankAccountId);
+                                                                const accountName = selectedAccount ? (selectedAccount.bankName || 'Bank Account') : 'Bank Account';
+                                                                alert(`Rs.${Math.round(amount)} transferred to ${accountName} successfully!`);
+                                                                setShowBankTransferModal(false);
+                                                                setShowAccountLedgerModal(false);
+                                                                setSelectedBankAccountId(null);
+                                                                setBankTransferAmount('');
+                                                                setBankTransferNote('');
+                                                                setShowBankAccountDropdown(false);
+                                                                if (typeof refreshCashBalance === 'function') refreshCashBalance();
+                                                                if (typeof fetchBankAccounts === 'function') fetchBankAccounts();
+                                                            } else {
+                                                                const errorMsg = data.message || data.error || (data.errors && typeof data.errors === 'object' ? Object.values(data.errors).flat().join(', ') : '') || 'Failed to transfer to bank';
+                                                                console.error('Transfer error:', data);
+                                                                alert('Error: ' + errorMsg);
+                                                            }
+                                                        } catch (e) {
+                                                            console.error('Error transferring to bank:', e);
+                                                            let errorMsg = 'Error transferring to bank. Please try again.';
+                                                            if (e.message) {
+                                                                errorMsg += '\n' + e.message;
+                                                            }
+                                                            alert(errorMsg);
+                                                        } finally {
+                                                            setBankTransferLoading(false);
+                                                        }
+                                                    }}
+                                                    disabled={bankTransferLoading || !selectedBankAccountId || !bankTransferAmount || parseFloat(bankTransferAmount) <= 0}
+                                                    className="w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-black uppercase transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {bankTransferLoading ? 'Transferring...' : 'Transfer to Bank'}
                                                 </button>
                                             </div>
                                         </div>
@@ -4555,19 +6937,43 @@
                                                                 COMPLETED JOBS
                                                             </h2>
                                                                 <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-2">
-                                                                    <input
-                                                                        type="date"
-                                                                        value={dateRangeStart}
-                                                                        onChange={(e) => setDateRangeStart(e.target.value)}
-                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
-                                                                    />
-                                                                    <span className="text-white/80 font-bold text-xs sm:text-sm">to</span>
-                                                                    <input
-                                                                        type="date"
-                                                                        value={dateRangeEnd}
-                                                                        onChange={(e) => setDateRangeEnd(e.target.value)}
-                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark]"
-                                                                    />
+                                                                    {(() => {
+                                                                        const formatDate = (dateString) => {
+                                                                            if (!dateString) return '';
+                                                                            const date = new Date(dateString + 'T00:00:00');
+                                                                            const day = date.getDate();
+                                                                            const month = date.toLocaleDateString('en-US', { month: 'short' });
+                                                                            const year = date.getFullYear();
+                                                                            return `${day} - ${month} - ${year}`;
+                                                                        };
+                                                                        return (
+                                                                            <>
+                                                                                <div className="relative w-32 sm:w-36 md:w-40">
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        value={dateRangeStart}
+                                                                                        onChange={(e) => setDateRangeStart(e.target.value)}
+                                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark] w-full opacity-0 absolute z-10 cursor-pointer"
+                                                                                    />
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold w-full pointer-events-none">
+                                                                                        {formatDate(dateRangeStart) || 'Select Date'}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span className="text-white/80 font-bold text-xs sm:text-sm">to</span>
+                                                                                <div className="relative w-32 sm:w-36 md:w-40">
+                                                                                    <input
+                                                                                        type="date"
+                                                                                        value={dateRangeEnd}
+                                                                                        onChange={(e) => setDateRangeEnd(e.target.value)}
+                                                                                        className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold focus:outline-none focus:ring-2 focus:ring-white/50 [color-scheme:dark] w-full opacity-0 absolute z-10 cursor-pointer"
+                                                                                    />
+                                                                                    <div className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1 sm:py-1.5 bg-white/25 backdrop-blur-xl border-2 border-white/50 rounded-lg sm:rounded-xl text-white font-semibold w-full pointer-events-none">
+                                                                                        {formatDate(dateRangeEnd) || 'Select Date'}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                         </div>
                                                     </div>
@@ -4588,7 +6994,10 @@
                                                 <div className="p-2 sm:p-4 md:p-5 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b-2 border-slate-200">
                                                     <div className="grid grid-cols-4 gap-1.5 sm:gap-2 md:gap-3 max-w-5xl mx-auto">
                                                         {/* Workers Card */}
-                                                        <div className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-orange-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden">
+                                                        <div 
+                                                            onClick={() => setShowWorkerFilterModal(true)}
+                                                            className="group relative bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-lg sm:rounded-xl md:rounded-2xl p-2 sm:p-3 md:p-4 shadow-lg border-2 border-orange-300/60 transform hover:scale-[1.02] transition-all duration-200 overflow-hidden cursor-pointer"
+                                                        >
                                                             <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl -mr-8 sm:-mr-10 md:-mr-12 -mt-8 sm:-mt-10 md:-mt-12"></div>
                                                             <div className="relative z-10">
                                                                 <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2 hidden sm:flex">
@@ -4612,6 +7021,11 @@
                                                                         return uniqueWorkers.size;
                                                                     })()}
                                                                 </p>
+                                                                {selectedWorkerFilter && (
+                                                                    <p className="text-[8px] sm:text-[9px] text-white/90 mt-1 truncate" title={selectedWorkerFilter}>
+                                                                        {selectedWorkerFilter}
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         
@@ -4628,7 +7042,7 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">REVENUE</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
-                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0).toFixed(2)}
+                                                                    Rs.{Math.round(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) : 0)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4667,7 +7081,7 @@
                                                                 </div>
                                                                 <p className="text-[7px] sm:text-[8px] md:text-[9px] font-black text-white/95 uppercase tracking-wider mb-0.5 sm:mb-1">AVG</p>
                                                                 <p className="text-xs sm:text-sm md:text-lg lg:text-xl font-black text-white font-mono">
-                                                                    Rs.{(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 ? (filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) / filteredCompletedJobs.length) : 0).toFixed(2)}
+                                                                    Rs.{Math.round(filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.length > 0 ? (filteredCompletedJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0) / filteredCompletedJobs.length) : 0)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -4696,10 +7110,14 @@
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">#</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Date/Time</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Vehicle</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Worker</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden sm:table-cell">Service</th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">
+                                                                            <div className="flex items-start justify-between gap-2">
+                                                                                <div>Worker</div>
+                                                                                <div className="text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider text-right flex-shrink-0">Amount</div>
+                                                                            </div>
+                                                                        </th>
+                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden sm:table-cell">Amount</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden md:table-cell">Worker</th>
-                                                                        <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Amount</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-left text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider hidden lg:table-cell">Commission</th>
                                                                         <th className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-wider">Actions</th>
                                                                     </tr>
@@ -4708,8 +7126,50 @@
                                                                     {filteredCompletedJobs && Array.isArray(filteredCompletedJobs) && filteredCompletedJobs.map((job, jobIdx) => {
                                                                         const startTime = job.startTime ? new Date(job.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
                                                                         const endTime = job.endTime ? new Date(job.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                                                                        const jobDate = job.endTime ? new Date(job.endTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+                                                                        // Format date as "DD MMM YYYY" (e.g., "20 Jan 2026")
+                                                                        const jobDate = job.endTime ? (() => {
+                                                                            const date = new Date(job.endTime);
+                                                                            const day = date.getDate();
+                                                                            const month = date.toLocaleDateString('en-US', { month: 'short' });
+                                                                            const year = date.getFullYear();
+                                                                            return `${day} ${month} ${year}`;
+                                                                        })() : 'N/A';
                                                                         const jobDateTime = jobDate !== 'N/A' ? `${jobDate} ${endTime}` : 'N/A';
+                                                                        
+                                                                        // Calculate duration
+                                                                        let durationText = 'N/A';
+                                                                        if (job.startTime && job.endTime) {
+                                                                            const start = new Date(job.startTime);
+                                                                            const end = new Date(job.endTime);
+                                                                            const diffMs = end - start;
+                                                                            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                                                                            const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                                                            
+                                                                            if (diffHours > 0 && diffMinutes > 0) {
+                                                                                durationText = `${diffHours}h ${diffMinutes}m`;
+                                                                            } else if (diffHours > 0) {
+                                                                                durationText = `${diffHours}h`;
+                                                                            } else if (diffMinutes > 0) {
+                                                                                durationText = `${diffMinutes}m`;
+                                                                            } else {
+                                                                                durationText = '0m';
+                                                                            }
+                                                                        } else if (job.durationSeconds) {
+                                                                            // Fallback to durationSeconds if available
+                                                                            const totalMinutes = Math.floor(job.durationSeconds / 60);
+                                                                            const hours = Math.floor(totalMinutes / 60);
+                                                                            const minutes = totalMinutes % 60;
+                                                                            
+                                                                            if (hours > 0 && minutes > 0) {
+                                                                                durationText = `${hours}h ${minutes}m`;
+                                                                            } else if (hours > 0) {
+                                                                                durationText = `${hours}h`;
+                                                                            } else if (minutes > 0) {
+                                                                                durationText = `${minutes}m`;
+                                                                            } else {
+                                                                                durationText = '0m';
+                                                                            }
+                                                                        }
                                                                         
                                                                         return (
                                                                             <tr key={job.id || jobIdx} className="hover:bg-blue-50/50 transition-colors group">
@@ -4721,6 +7181,7 @@
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{jobDate}</div>
                                                                                     <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-600 mt-0.5">{startTime} - {endTime}</div>
+                                                                                    <div className="text-[8px] sm:text-[9px] md:text-[10px] text-blue-600 font-semibold mt-0.5">⏱️ {durationText}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
                                                                                     <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.vehicleNo || job.vehicle_no || 'N/A'}</div>
@@ -4728,21 +7189,24 @@
                                                                                     {job.mobile && <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 mt-0.5 font-mono">{job.mobile}</div>}
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                                    <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-blue-600 mb-0.5">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
+                                                                                            <div className="text-[8px] sm:text-[9px] md:text-[10px] text-slate-500 mt-0.5">{userName || 'Guest'}</div>
+                                                                                        </div>
+                                                                                        <div className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono flex-shrink-0 text-right">
+                                                                                            {Math.round(Number(job.price) || 0) > 0 ? `Rs.${Math.round(Number(job.price) || 0)}` : ''}
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden sm:table-cell">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.serviceName || job.service_name || job.service || 'N/A'}</div>
-                                                                                </td>
-                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden md:table-cell">
-                                                                                    <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-slate-900">{job.workerName || job.worker_name || job.worker || 'N/A'}</div>
-                                                                                </td>
-                                                                                <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap">
-                                                                                    <div className="text-[10px] sm:text-[11px] md:text-[12px] font-black text-blue-600 font-mono">Rs.{(Number(job.price) || 0).toFixed(2)}</div>
+                                                                                    <div className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{Math.round(Number(job.price) || 0)}</div>
                                                                                 </td>
                                                                                 <td className="px-2 sm:px-3 py-2 sm:py-3 whitespace-nowrap hidden lg:table-cell">
                                                                                     {job.workerCommission > 0 ? (
                                                                                         <div>
-                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{(Number(job.commissionAmount) || 0).toFixed(2)}</div>
+                                                                                            <div className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-emerald-600 font-mono">Rs.{Math.round(Number(job.commissionAmount) || 0)}</div>
                                                                                             <div className="text-[8px] sm:text-[9px] text-slate-500">({job.workerCommission}%)</div>
                                                                                         </div>
                                                                                     ) : (
@@ -4872,6 +7336,271 @@
                                     </div>
                                 )}
                                 
+                                {/* Daily Report Modal - same design as Daily Report page (max-w-7xl, Select Range, Customer, Worker, Download PNG/PDF/WA, totals, table) */}
+                                {showDailyReportModal && (
+                                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto" onClick={() => setShowDailyReportModal(false)}>
+                                        <main className="max-w-7xl mx-auto p-4 sm:p-6 bg-slate-50 min-h-screen" onClick={(e) => e.stopPropagation()}>
+                                            {/* Top bar: title + close */}
+                                            <div className="flex items-center justify-between gap-4 mb-4 sm:mb-6">
+                                                <h1 className="text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-tight text-slate-900">Daily Report</h1>
+                                                <button
+                                                    onClick={() => setShowDailyReportModal(false)}
+                                                    className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-200 hover:bg-slate-300 rounded-xl flex items-center justify-center transition-colors flex-shrink-0"
+                                                    aria-label="Close daily report"
+                                                >
+                                                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Filters card - same as daily report page: Select Range, Customer (Vehicle), Worker, Download PNG / PDF / WhatsApp */}
+                                            <div className="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-4 sm:p-6 mb-4 sm:mb-6">
+                                                <div className="flex flex-wrap items-end gap-4">
+                                                    <div className="flex-1 min-w-[140px]">
+                                                        <label className="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Select Range</label>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <input
+                                                                type="date"
+                                                                value={dailyReportDate}
+                                                                onChange={(e) => setDailyReportDate(e.target.value)}
+                                                                className="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs"
+                                                            />
+                                                            <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">To</span>
+                                                            <input
+                                                                type="date"
+                                                                value={dailyReportDate}
+                                                                onChange={(e) => setDailyReportDate(e.target.value)}
+                                                                className="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-end gap-4 flex-1 flex-wrap">
+                                                        <div className="flex-1 min-w-[120px]">
+                                                            <label className="block text-sm font-bold text-slate-700 uppercase mb-2">Customer (Vehicle)</label>
+                                                            <select
+                                                                value={dailyReportCustomer}
+                                                                onChange={(e) => setDailyReportCustomer(e.target.value)}
+                                                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-sm"
+                                                            >
+                                                                <option value="">All</option>
+                                                                {dailyReportCustomers.map((c) => (
+                                                                    <option key={c.value} value={c.value}>{c.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="flex-1 min-w-[120px]">
+                                                            <label className="block text-sm font-black text-slate-700 uppercase mb-2 text-center">Worker</label>
+                                                            <select
+                                                                value={dailyReportWorker}
+                                                                onChange={(e) => setDailyReportWorker(e.target.value)}
+                                                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-sm"
+                                                            >
+                                                                <option value="">All</option>
+                                                                {dailyReportWorkers.map((w) => (
+                                                                    <option key={w.value} value={w.value}>{w.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-end gap-2 flex-wrap">
+                                                        <button
+                                                            type="button"
+                                                            onClick={loadDailyReport}
+                                                            className="px-5 py-2.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
+                                                        >
+                                                            Load
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (typeof html2canvas === 'undefined') {
+                                                                    alert('PNG download feature loading... Please wait a moment and try again.');
+                                                                    return;
+                                                                }
+                                                                const tableSection = document.querySelector('[data-daily-report-table]');
+                                                                if (!tableSection) {
+                                                                    alert('Report table not found. Please load the report first.');
+                                                                    return;
+                                                                }
+                                                                html2canvas(tableSection, {
+                                                                    scale: 1,
+                                                                    useCORS: true,
+                                                                    backgroundColor: '#ffffff',
+                                                                    logging: false
+                                                                }).then(canvas => {
+                                                                    const link = document.createElement('a');
+                                                                    link.download = 'daily-report-' + dailyReportDate + '.png';
+                                                                    link.href = canvas.toDataURL('image/png');
+                                                                    link.click();
+                                                                }).catch(err => {
+                                                                    console.error('PNG generation error:', err);
+                                                                    alert('Error generating PNG. Please try again.');
+                                                                });
+                                                            }}
+                                                            className="px-5 py-2.5 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                            <span className="hidden sm:inline">Download PNG</span>
+                                                            <span className="sm:hidden">PNG</span>
+                                                        </button>
+                                                        {dailyReportData && dailyReportData.totals && (
+                                                            <a
+                                                                href={API_ROUTES.jobs.dailyReportPdf + '?date=' + encodeURIComponent(dailyReportDate) + '&customer=' + encodeURIComponent(dailyReportCustomer || '') + '&worker=' + encodeURIComponent(dailyReportWorker || '')}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="px-5 py-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                <span className="hidden sm:inline">Download PDF</span>
+                                                                <span className="sm:hidden">PDF</span>
+                                                            </a>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (!dailyReportDate) {
+                                                                    alert('Please select a date first.');
+                                                                    return;
+                                                                }
+                                                                const pdfUrl = API_ROUTES.jobs.dailyReportPdf + '?date=' + encodeURIComponent(dailyReportDate) + '&customer=' + encodeURIComponent(dailyReportCustomer || '') + '&worker=' + encodeURIComponent(dailyReportWorker || '');
+                                                                const fullPdfUrl = window.location.origin + pdfUrl;
+                                                                const dateRange = dailyReportDate;
+                                                                const messageText = '📊 *Daily Jobs Report*\n\n' +
+                                                                    '📅 Date: ' + dateRange + '\n\n' +
+                                                                    '📄 PDF Report:\n' + fullPdfUrl + '\n\n' +
+                                                                    'Please click the link above to view the PDF report in your browser.';
+                                                                const whatsappNumber = '923350899908';
+                                                                const whatsappUrl = 'https://wa.me/' + whatsappNumber + '?text=' + encodeURIComponent(messageText);
+                                                                window.open(whatsappUrl, '_blank');
+                                                            }}
+                                                            className="px-5 py-2.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg text-xs sm:text-sm font-bold uppercase transition-all flex items-center gap-2 shadow-md"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                                            <span className="hidden sm:inline">Send WhatsApp</span>
+                                                            <span className="sm:hidden">WA</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Summary cards - same order as page: Total Vehicles, Total Workers, Cash on Hand, Bank Balance, Ref Expence, Commission */}
+                                            {dailyReportData && dailyReportData.totals && (
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-4 sm:mb-6">
+                                                    <div className="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Vehicles</p>
+                                                        <p className="text-base sm:text-lg font-black text-slate-900">{dailyReportData.totals.totalVehicles || 0}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Workers</p>
+                                                        <p className="text-base sm:text-lg font-black text-slate-900">{dailyReportData.totals.totalWorkers || 0}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg border-2 border-indigo-400 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-indigo-900 uppercase mb-1">Cash on Hand</p>
+                                                        <p className="text-base sm:text-lg font-black text-indigo-900">Rs.{dailyReportCashBalance}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg border-2 border-purple-400 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-purple-900 uppercase mb-1">Bank Balance</p>
+                                                        <p className="text-base sm:text-lg font-black text-purple-900">Rs.{dailyReportBankBalance}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-amber-800 uppercase mb-1">Ref Expence</p>
+                                                        <p className="text-base sm:text-lg font-black text-amber-800">Rs.{Math.round(dailyReportData.totals.totalDebit || 0)}</p>
+                                                    </div>
+                                                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-300 p-2.5 sm:p-3 shadow-sm">
+                                                        <p className="text-[9px] sm:text-[10px] font-bold text-emerald-800 uppercase mb-1">Commission</p>
+                                                        <p className="text-base sm:text-lg font-black text-emerald-800">Rs.{Math.round(dailyReportData.totals.totalCommission || 0)}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Content - Report Table */}
+                                            <div className="overflow-x-auto p-2 sm:p-4 bg-white rounded-2xl shadow-xl border-2 border-slate-200 mb-4" data-daily-report-table>
+                                                {!dailyReportData || !dailyReportData.rows || dailyReportData.rows.length === 0 ? (
+                                                    <div className="text-center py-6 sm:py-8 md:py-12 lg:py-16">
+                                                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 md:mb-6 shadow-lg">
+                                                            <svg className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-16 lg:h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                            </svg>
+                                                        </div>
+                                                        <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-black text-slate-800 uppercase mb-1 sm:mb-2">No Data Available</p>
+                                                        <p className="text-[10px] sm:text-xs md:text-sm text-slate-500 px-4">No jobs found for the selected date and filters</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                                                        <div className="overflow-x-auto -mx-1 sm:mx-0">
+                                                            <table className="w-full min-w-[600px] sm:min-w-[800px]">
+                                                                <thead className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
+                                                                    <tr>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Date & Time</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Vehicle</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Debit</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Credit</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Total</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Worker</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-left text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Bank</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">Commission</th>
+                                                                        <th className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">G. Total</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-200">
+                                                                    {dailyReportData.rows.map((row, idx) => {
+                                                                        const fmtNum = (n) => {
+                                                                            if (n === 0 || n === '-') return n === 0 ? '0' : '-';
+                                                                            return 'Rs.' + Math.round(Number(n) || 0);
+                                                                        };
+                                                                        const creditStr = (row.credit || 0) > 0 ? fmtNum(row.credit) : '-';
+                                                                        const gTotalStr = (row.gTotal != null && row.gTotal !== '') ? fmtNum(row.gTotal) : '-';
+                                                                        const totalStr = row.total != null ? fmtNum(row.total) : '-';
+                                                                        const expenseStr = (row.debit || 0) > 0 ? fmtNum(row.debit) : '-';
+                                                                        const commStr = (row.commission !== '-' && row.commission != null && (row.commission || 0) > 0) ? fmtNum(row.commission) : '-';
+                                                                        const rowClass = row.isOpening ? 'bg-slate-100 font-semibold' : 'hover:bg-slate-50';
+                                                                        return (
+                                                                            <tr key={idx} className={rowClass}>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-700 whitespace-nowrap">{row.dateTime || '-'}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm font-semibold text-slate-900 whitespace-nowrap">{row.vehicle || '-'}</td>
+                                                                                <td className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right whitespace-nowrap ${(row.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500'}`}>{expenseStr}</td>
+                                                                                <td className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right whitespace-nowrap ${(row.credit || 0) > 0 ? 'font-bold text-blue-600' : 'text-slate-500'}`}>{creditStr}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right font-bold text-slate-900 whitespace-nowrap">{totalStr}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-700 whitespace-nowrap">{row.worker || '-'}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-700 whitespace-nowrap">{row.bankName || '-'}</td>
+                                                                                <td className={`px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right whitespace-nowrap ${(row.commission !== '-' && (row.commission || 0) > 0) ? 'font-bold text-emerald-600' : 'text-slate-500'}`}>{commStr}</td>
+                                                                                <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right font-bold text-indigo-600 whitespace-nowrap">{gTotalStr}</td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                    {dailyReportData.totals && (
+                                                                        <tr className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                                                                            <td colSpan="2" className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-slate-900 uppercase whitespace-nowrap">Totals</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-amber-700 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.totalDebit || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-blue-600 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.totalCredit || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-slate-900 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.cashOnHand || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm whitespace-nowrap"></td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm whitespace-nowrap"></td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-emerald-600 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.totalCommission || 0)}</td>
+                                                                            <td className="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[10px] sm:text-xs md:text-sm text-right text-indigo-600 whitespace-nowrap">Rs.{Math.round(dailyReportData.totals.sumGtotal != null ? dailyReportData.totals.sumGtotal : ((dailyReportData.totals.cashOnHand || 0) - (dailyReportData.totals.totalCommission || 0)))}</td>
+                                                                        </tr>
+                                                                    )}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="pt-4 border-t-2 border-slate-200 flex justify-end">
+                                                <button
+                                                    onClick={() => setShowDailyReportModal(false)}
+                                                    className="px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white rounded-xl text-sm font-black uppercase transition-colors shadow-md"
+                                                >
+                                                    Close
+                                                </button>
+                                            </div>
+                                        </main>
+                                    </div>
+                                )}
+                                
                                 {/* Average Details Modal */}
                                 {showAvgDetailsModal && (() => {
                                     const totalJobs = filteredCompletedJobs && Array.isArray(filteredCompletedJobs) ? filteredCompletedJobs.length : 0;
@@ -4908,7 +7637,7 @@
                                                             <div className="space-y-2 sm:space-y-3">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs sm:text-sm font-bold text-slate-700">Total Amount:</span>
-                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">Rs.{totalAmount.toFixed(2)}</span>
+                                                                    <span className="text-sm sm:text-base font-black text-purple-600 font-mono">Rs.{Math.round(totalAmount)}</span>
                                                                 </div>
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs sm:text-sm font-bold text-slate-700">Total Jobs:</span>
@@ -4917,7 +7646,7 @@
                                                                 <div className="border-t-2 border-purple-300 pt-2 sm:pt-3 mt-2 sm:mt-3">
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-xs sm:text-sm font-bold text-slate-700">Average = Total Amount ÷ Total Jobs</span>
-                                                                        <span className="text-base sm:text-lg md:text-xl font-black text-purple-700 font-mono">Rs.{averageAmount.toFixed(2)}</span>
+                                                                        <span className="text-base sm:text-lg md:text-xl font-black text-purple-700 font-mono">Rs.{Math.round(averageAmount)}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -4941,7 +7670,7 @@
                                                                                 </div>
                                                                                 <div className="ml-3 flex-shrink-0">
                                                                                     <span className="text-sm sm:text-base font-black text-purple-600 font-mono">
-                                                                                        Rs.{(parseFloat(job.price) || 0).toFixed(2)}
+                                                                                        Rs.{Math.round(parseFloat(job.price) || 0)}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
@@ -4966,6 +7695,112 @@
                                         </div>
                                     );
                                 })()}
+
+                                {/* Worker Filter Modal */}
+                                {showWorkerFilterModal && (
+                                    <div className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[70] flex items-center justify-center p-2 sm:p-3 md:p-4">
+                                        <div className="bg-gradient-to-br from-white via-slate-50 to-white rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col border-2 sm:border-[4px] border-orange-300/60">
+                                            {/* Header */}
+                                            <div className="relative p-3 sm:p-4 md:p-5 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16"></div>
+                                                <div className="relative z-10 flex items-center justify-between">
+                                                    <div>
+                                                        <h2 className="text-base sm:text-lg md:text-xl font-black uppercase tracking-wider">Filter by Worker</h2>
+                                                        <p className="text-[10px] sm:text-xs text-white/90 mt-0.5">Select a worker to filter jobs</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setShowWorkerFilterModal(false)}
+                                                        className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 hover:bg-white/35 rounded-lg sm:rounded-xl flex items-center justify-center transition-all backdrop-blur-xl border-2 border-white/50 hover:scale-110 hover:rotate-90 shadow-lg"
+                                                        aria-label="Close worker filter modal"
+                                                    >
+                                                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Content */}
+                                            <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+                                                <div className="space-y-2 sm:space-y-3">
+                                                    {/* All Workers Option */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedWorkerFilter(null);
+                                                            setShowWorkerFilterModal(false);
+                                                        }}
+                                                        className={`w-full p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all text-left ${
+                                                            !selectedWorkerFilter 
+                                                                ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white border-orange-400 shadow-lg' 
+                                                                : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200 hover:border-orange-300'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm sm:text-base font-black">All Workers</span>
+                                                            {!selectedWorkerFilter && (
+                                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                    
+                                                    {/* Worker List */}
+                                                    {(() => {
+                                                        if (!completedJobs || !Array.isArray(completedJobs)) return null;
+                                                        const uniqueWorkers = new Set();
+                                                        completedJobs.forEach(job => {
+                                                            const workerName = job.workerName || job.worker_name || job.worker;
+                                                            if (workerName && workerName !== 'N/A' && workerName.trim() !== '') {
+                                                                uniqueWorkers.add(workerName.trim());
+                                                            }
+                                                        });
+                                                        const workersArray = Array.from(uniqueWorkers).sort();
+                                                        
+                                                        if (workersArray.length === 0) {
+                                                            return (
+                                                                <div className="text-center py-8 text-slate-500">
+                                                                    <p className="text-sm">No workers found</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        
+                                                        return workersArray.map((workerName, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    setSelectedWorkerFilter(workerName);
+                                                                    setShowWorkerFilterModal(false);
+                                                                }}
+                                                                className={`w-full p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 transition-all text-left ${
+                                                                    selectedWorkerFilter === workerName
+                                                                        ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white border-orange-400 shadow-lg' 
+                                                                        : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200 hover:border-orange-300'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2 sm:gap-3">
+                                                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/25 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                                            </svg>
+                                                                        </div>
+                                                                        <span className="text-sm sm:text-base font-black">{workerName}</span>
+                                                                    </div>
+                                                                    {selectedWorkerFilter === workerName && (
+                                                                        <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                        </svg>
+                                                                    )}
+                                                                </div>
+                                                            </button>
+                                                        ));
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                                 
                                 {/* Job Detail Modal with Print - Full Screen */}
                                 {selectedJobForDetail && (
@@ -5053,13 +7888,13 @@
                                                         </div>
                                                         <div className="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-blue-400">
                                                             <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Amount</p>
-                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
+                                                            <p className="text-lg sm:text-xl md:text-2xl font-black text-white">Rs.{Math.round(Number(selectedJobForDetail.price) || 0)}</p>
                                                         </div>
                                                         <div className="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-emerald-400">
                                                             <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase mb-1 sm:mb-2">Commission</p>
                                                             {selectedJobForDetail.workerCommission > 0 ? (
                                                                 <div>
-                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-lg sm:text-xl md:text-2xl font-black text-white font-mono">Rs.{Math.round(Number(selectedJobForDetail.commissionAmount) || 0)}</p>
                                                                     <p className="text-[9px] sm:text-[10px] md:text-xs text-white/80 mt-0.5 sm:mt-1">({selectedJobForDetail.workerCommission}%)</p>
                                                                 </div>
                                                             ) : (
@@ -5077,12 +7912,11 @@
                                                                     const item = selectedJobForDetail.inspection.inspectionItems[itemId];
                                                                     const itemNames = {
                                                                         'engine_oil': 'Engine Oil',
-                                                                        'gear_oil': 'Gear Oil',
+                                                                        'wiper_rubber': 'Wiper Rubber',
                                                                         'brake_oil': 'Brake Oil',
                                                                         'air_filter': 'Air Filter',
                                                                         'radiator_water': 'Radiator Water',
                                                                         'shower_water': 'Shower Water',
-                                                                        'power_oil': 'Power Oil',
                                                                         'horn': 'Horn',
                                                                         'head_lights': 'Head Lights',
                                                                         'indicator': 'Indicator',
@@ -5117,12 +7951,12 @@
                                                                             <p className="text-xs sm:text-sm font-black text-slate-900 truncate">{item.name}</p>
                                                                             <p className="text-[10px] sm:text-xs text-slate-500">Qty: {item.quantity} × Rs.{item.price}</p>
                                                                         </div>
-                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{(typeof (item.total || (item.quantity * item.price)) === 'number' ? (item.total || (item.quantity * item.price)) : parseFloat(item.total || (item.quantity * item.price) || 0)).toFixed(2)}</p>
+                                                                        <p className="text-xs sm:text-sm font-black text-orange-600 flex-shrink-0">Rs.{Math.round(typeof (item.total || (item.quantity * item.price)) === 'number' ? (item.total || (item.quantity * item.price)) : parseFloat(item.total || (item.quantity * item.price) || 0))}</p>
                                                                     </div>
                                                                 ))}
                                                                 <div className="bg-orange-200 p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg border-2 border-orange-300 flex justify-between items-center mt-2 sm:mt-3 md:mt-4">
                                                                     <p className="text-xs sm:text-sm font-black text-orange-900 uppercase">Total Expense</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-900">Rs.{Math.round(Number(selectedJobForDetail.expense?.totalAmount) || 0)}</p>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -5134,24 +7968,24 @@
                                                         <div className="space-y-2 sm:space-y-2.5 md:space-y-3">
                                                             <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                 <p className="text-xs sm:text-sm font-black text-slate-700">Total Amount:</p>
-                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{(Number(selectedJobForDetail.price) || 0).toFixed(2)}</p>
+                                                                <p className="text-sm sm:text-base md:text-lg font-black text-blue-600 font-mono">Rs.{Math.round(Number(selectedJobForDetail.price) || 0)}</p>
                                                             </div>
                                                             {selectedJobForDetail.workerCommission > 0 && (
                                                                 <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                     <p className="text-xs sm:text-sm font-black text-slate-700">Worker Commission ({selectedJobForDetail.workerCommission}%):</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{(Number(selectedJobForDetail.commissionAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-emerald-600 font-mono">Rs.{Math.round(Number(selectedJobForDetail.commissionAmount) || 0)}</p>
                                                                 </div>
                                                             )}
                                                             {selectedJobForDetail.expense && selectedJobForDetail.expense.totalAmount > 0 && (
                                                                 <div className="flex justify-between items-center bg-white p-2 sm:p-2.5 md:p-3 rounded-md sm:rounded-lg gap-2">
                                                                     <p className="text-xs sm:text-sm font-black text-slate-700">Total Expenses:</p>
-                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{(Number(selectedJobForDetail.expense?.totalAmount) || 0).toFixed(2)}</p>
+                                                                    <p className="text-sm sm:text-base md:text-lg font-black text-orange-600 font-mono">Rs.{Math.round(Number(selectedJobForDetail.expense?.totalAmount) || 0)}</p>
                                                                 </div>
                                                             )}
                                                             <div className="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-3 sm:p-3.5 md:p-4 rounded-md sm:rounded-lg mt-2 sm:mt-3 md:mt-4 gap-2">
                                                                 <p className="text-sm sm:text-base font-black text-white uppercase">Net Amount:</p>
                                                                 <p className="text-base sm:text-lg md:text-xl font-black text-white font-mono">
-                                                                    Rs.{(Number(selectedJobForDetail.price || 0) - Number(selectedJobForDetail.commissionAmount || 0) - Number(selectedJobForDetail.expense?.totalAmount || 0)).toFixed(2)}
+                                                                    Rs.{Math.round(Number(selectedJobForDetail.price || 0) - Number(selectedJobForDetail.commissionAmount || 0) - Number(selectedJobForDetail.expense?.totalAmount || 0))}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -5412,9 +8246,9 @@
                                                     onClick={() => {
                                                         setSelectedService(category);
                                                         setSelectedAdditionalPrices(new Set()); // Reset selections
-                                                            // Parse base price as number and format to 2 decimal places
+                                                        setServiceQuantity(1);
                                                             const basePrice = parseFloat(category.basePrice || category.base_price || 0) || 0;
-                                                            setFormData({ ...formData, price: basePrice.toFixed(2) });
+                                                            setFormData({ ...formData, price: Math.round(basePrice * 1) });
                                                         setView('entry');
                                                     }}
                                                 >
@@ -5520,15 +8354,23 @@
                                                         </div>
                                                         
                                                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-3 sm:pt-4 border-t border-slate-100 gap-2 sm:gap-2">
-                                                            <div className="flex items-center gap-2 order-2 sm:order-1">
+                                                            <div className="flex flex-col gap-0.5 order-2 sm:order-1">
                                                                 {job.worker && (
                                                                     <span className="text-[10px] sm:text-[11px] text-blue-600 font-bold truncate">
                                                                         👤 {job.worker}
                                                                     </span>
                                                                 )}
+                                                                <span className="text-[8px] sm:text-[9px] text-slate-500 truncate">
+                                                                    {userName || 'Guest'}
+                                                                </span>
                                                             </div>
                                                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
                                                                 {(() => {
+                                                                    const jobServiceForInspection = allServices.find(s => s.label === job.service);
+                                                                    const serviceRequiresInspection = jobServiceForInspection ? (jobServiceForInspection.inspection_compulsory !== false) : true;
+                                                                    // Check global toggle - if OFF, don't show inspection button
+                                                                    const inspectionCompulsoryForThisJob = inspectionCompulsoryToggle && serviceRequiresInspection;
+                                                                    if (!inspectionCompulsoryForThisJob) return null;
                                                                     const inspectionCompleted = completedInspections.has(job.id);
                                                                     const jobStarted = job.startTime && job.startTime !== null;
                                                                     const shouldBlink = jobStarted && !inspectionCompleted;
@@ -5538,10 +8380,19 @@
                                                                         setInspectionModalJobId(job.id);
                                                                         setInspectionData({});
                                                                     }}
-                                                                            className={`bg-purple-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-purple-600 transition-colors shadow-md flex-shrink-0 ${shouldBlink ? 'blink-animation' : ''}`}
+                                                                            className={`${inspectionCompleted ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-purple-500 hover:bg-purple-600'} text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-colors shadow-md flex-shrink-0 ${shouldBlink ? 'blink-animation' : ''}`}
                                                                 >
-                                                                            <span className="hidden sm:inline">INSPECTION</span>
-                                                                            <span className="sm:hidden">INSP</span>
+                                                                            {inspectionCompleted ? (
+                                                                                <>
+                                                                                    <span className="hidden sm:inline">INSPECTION COMPLETE</span>
+                                                                                    <span className="sm:hidden">INSP COMPLETE</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <span className="hidden sm:inline">INSPECTION PENDING</span>
+                                                                                    <span className="sm:hidden">INSP PENDING</span>
+                                                                                </>
+                                                                            )}
                                                                 </button>
                                                                     );
                                                                 })()}
@@ -5551,9 +8402,12 @@
                                                                         setExpenseItems({});
                                                                         setCustomExpenses([]);
                                                                     }}
-                                                                    className="bg-orange-500 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-md flex-shrink-0"
+                                                                    className={`${(job.expenseTotalAmount || 0) > 0 ? 'bg-rose-600 hover:bg-rose-700' : 'bg-orange-500 hover:bg-orange-600'} text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-colors shadow-md flex-shrink-0 flex flex-col items-center justify-center gap-0.5`}
                                                                 >
-                                                                    EXPENSE
+                                                                    <span>EXPENSE</span>
+                                                                    {(job.expenseTotalAmount || 0) > 0 && (
+                                                                        <span className="text-[7px] sm:text-[8px] font-mono opacity-95">Rs {Math.round(Number(job.expenseTotalAmount))}</span>
+                                                                    )}
                                                                 </button>
                                                                 <button
                                                                     onClick={() => {
@@ -5774,30 +8628,80 @@
                                     setMediaRecorder(null);
                                     setRecognition(null);
                                 }} className="space-y-4 sm:space-y-5 md:space-y-6">
-                                    <div className="p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] bg-slate-50 shadow-inner text-center">
-                                        <input
-                                            required
-                                            className="w-full bg-transparent p-1.5 sm:p-2 font-black uppercase text-2xl sm:text-3xl md:text-4xl text-center font-mono outline-none text-slate-900"
-                                            placeholder="ABC-123"
-                                            value={formData.vehicleNo}
-                                            onChange={(e) => {
-                                                let value = e.target.value.toUpperCase().replace(/\s/g, '-');
-                                                setFormData({ ...formData, vehicleNo: value });
-                                            }}
-                                        />
+                                    <div className="p-4 sm:p-5 md:p-6 rounded-2xl sm:rounded-[30px] md:rounded-[35px] bg-slate-50 shadow-inner text-center relative">
+                                        <div className="relative">
+                                            <input
+                                                required
+                                                className="w-full bg-transparent p-1.5 sm:p-2 font-black uppercase text-2xl sm:text-3xl md:text-4xl text-center font-mono outline-none text-slate-900"
+                                                placeholder="ABC-123"
+                                                value={formData.vehicleNo}
+                                                onChange={(e) => {
+                                                    let value = e.target.value.toUpperCase().replace(/\s/g, '-');
+                                                    setFormData({ ...formData, vehicleNo: value });
+                                                }}
+                                                onFocus={() => { if (plateSuggestions.length > 0) setShowPlateDropdown(true); }}
+                                                onBlur={() => { setTimeout(() => setShowPlateDropdown(false), 200); }}
+                                            />
+                                            {showPlateDropdown && plateSuggestions.length > 0 && (
+                                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                    {plateSuggestions.map((s, i) => (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            className="w-full text-left px-3 py-2.5 hover:bg-slate-100 border-b border-slate-100 last:border-0 font-mono text-sm"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                const vehicleNo = (s.vehicleNo || '').trim();
+                                                                const customerName = (s.customerName || '').trim();
+                                                                const mobile = (s.mobile || '').replace(/\D/g, '').slice(0, 11);
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    vehicleNo: vehicleNo || prev.vehicleNo,
+                                                                    customerName: customerName || prev.customerName,
+                                                                    mobile: mobile
+                                                                }));
+                                                                setShowPlateDropdown(false);
+                                                                const nameInput = customerNameInputRef.current || document.getElementById('customerNameInput');
+                                                                if (nameInput) {
+                                                                    nameInput.value = customerName;
+                                                                    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                                                }
+                                                            }}
+                                                        >
+                                                            <span className="font-black text-slate-800">{s.vehicleNo}</span>
+                                                            {(s.customerName || s.mobile) && (
+                                                                <span className="block text-[10px] text-slate-500 mt-0.5">{s.customerName || ''} {s.mobile ? ' • ' + s.mobile : ''}</span>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                         <p className="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 mt-1.5 sm:mt-2 tracking-widest">VEHICLE PLATE NUMBER</p>
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                if (formData.vehicleNo) {
-                                                    alert('Vehicle selected: ' + formData.vehicleNo);
-                                                } else {
-                                                    alert('Please enter vehicle plate number');
+                                                const v = (formData.vehicleNo || '').trim().toUpperCase();
+                                                if (!v) {
+                                                    alert('Please enter vehicle plate number first');
+                                                    return;
                                                 }
+                                                setVehicleHistoryLoading(true);
+                                                setShowVehicleHistoryModal(true);
+                                                const url = API_ROUTES.jobs.vehicleHistory + '?vehicle_no=' + encodeURIComponent(v);
+                                                fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                                                    .then(res => res.json())
+                                                    .then(data => {
+                                                        setVehicleHistoryLoading(false);
+                                                        if (data.success && data.jobs) setVehicleHistoryJobs(data.jobs);
+                                                        else setVehicleHistoryJobs([]);
+                                                    })
+                                                    .catch(() => { setVehicleHistoryLoading(false); setVehicleHistoryJobs([]); });
                                             }}
-                                            className="mt-3 sm:mt-4 bg-blue-600 text-white px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl sm:rounded-2xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-blue-700 transition-colors shadow-lg"
+                                            className="mt-3 sm:mt-4 bg-slate-700 text-white px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-xl sm:rounded-2xl font-black uppercase text-[9px] sm:text-[10px] tracking-widest hover:bg-slate-800 transition-colors shadow-lg"
                                         >
-                                            SELECT VEHICLE
+                                            Transaction history (last 2 months)
                                         </button>
                                     </div>
                                     
@@ -5808,6 +8712,8 @@
                                             </label>
                                             <div className="flex gap-1.5 sm:gap-2">
                                                 <input
+                                                    ref={customerNameInputRef}
+                                                    id="customerNameInput"
                                                     type="text"
                                                     className={`flex-1 bg-transparent font-bold text-xs outline-none border-2 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 ${
                                                         !formData.customerName && !audioBlob 
@@ -5815,10 +8721,11 @@
                                                             : 'border-slate-300 text-slate-900'
                                                     }`}
                                                     placeholder={audioBlob ? "Voice recorded (or enter name)" : "Enter customer name or use mic"}
-                                                    value={formData.customerName}
+                                                    value={formData.customerName || ''}
                                                     onChange={(e) => {
-                                                        setFormData({ ...formData, customerName: e.target.value });
-                                                        if (e.target.value.trim()) {
+                                                        const newValue = e.target.value;
+                                                        setFormData(prev => ({ ...prev, customerName: newValue }));
+                                                        if (newValue.trim()) {
                                                             setAudioBlob(null); // Clear voice if name is entered
                                                         }
                                                     }}
@@ -5833,9 +8740,42 @@
                                                                     mediaRecorder.stop();
                                                                 }
                                                                 if (recognition) {
-                                                                    recognition.stop();
+                                                                    try {
+                                                                        recognition.stop();
+                                                                    } catch (e) {
+                                                                        console.log('Error stopping recognition:', e);
+                                                                    }
                                                                 }
                                                                 setIsRecording(false);
+                                                                
+                                                                // Clear periodic check interval if exists
+                                                                if (window.transcriptCheckInterval) {
+                                                                    clearInterval(window.transcriptCheckInterval);
+                                                                    window.transcriptCheckInterval = null;
+                                                                }
+                                                                
+                                                                // Process transcript immediately when stopping (for mobile) - multiple attempts
+                                                                const processManualStop = (delay) => {
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log('✅ Manual stop - setting customer name:', customerName);
+                                                                            applyCustomerNameFromTranscript(customerName);
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
+                                                                            }
+                                                                        }
+                                                                    }, delay);
+                                                                };
+                                                                
+                                                                processManualStop(0);
+                                                                processManualStop(100);
+                                                                processManualStop(300);
+                                                                processManualStop(500);
+                                                                processManualStop(1000);
+                                                                processManualStop(2000);
                                                                 return;
                                                             }
                                                             
@@ -5887,86 +8827,143 @@
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // On mobile, check if we have transcript after recording stops
-                                                                // Sometimes recognition ends before recorder, so check transcript here too
-                                                                // Use ref to get the stored transcript (works across closures)
-                                                                setTimeout(() => {
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('✅ Setting customer name from transcript ref after recording stop:', customerName);
-                                                                        setFormData(prev => {
-                                                                            // Only update if not already set or if this is better
-                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
-                                                                                return { ...prev, customerName: customerName };
+                                                                // Apply transcript to customer name when recording stops – try immediately and with delays
+                                                                const processRecordingStop = (delay) => {
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log('✅ Recording stop - setting customer name:', customerName);
+                                                                            applyCustomerNameFromTranscript(customerName);
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
                                                                             }
-                                                                            return prev;
-                                                                        });
-                                                                        // Clear audio since we have text
-                                                                        setAudioBlob(null);
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
+                                                                            setAudioUrl(null);
                                                                         }
-                                                                        setAudioUrl(null);
-                                                                    }
-                                                                }, 500); // Small delay to ensure recognition has processed
+                                                                    }, delay);
+                                                                };
+                                                                processRecordingStop(0);
+                                                                processRecordingStop(300);
+                                                                processRecordingStop(500);
+                                                                processRecordingStop(1000);
+                                                                processRecordingStop(2000);
+                                                                processRecordingStop(3000);
                                                             };
                                                             
-                                                            // Clear transcript ref for new recording
+                                                            // Clear transcript ref and customer name input for new recording – pehle wala text clear ho jay
                                                             recognitionTranscriptRef.current = '';
+                                                            setSpeechNetworkError(false); // Reset network error on new recording
+                                                            // Clear customer name input so new recording overwrites old text
+                                                            setFormData(prev => ({ ...prev, customerName: '' }));
+                                                            const input = customerNameInputRef.current || document.getElementById('customerNameInput');
+                                                            if (input) {
+                                                                input.value = '';
+                                                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                                                input.dispatchEvent(new Event('change', { bubbles: true }));
+                                                            }
                                                             
                                                             // Start speech recognition for text
-                                                            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                                                            // Check for both standard and webkit prefixes (for iOS Safari)
+                                                            const SpeechRecognition = window.SpeechRecognition 
+                                                                || window.webkitSpeechRecognition 
+                                                                || null;
                                                             let recognitionInstance = null;
+                                                            
+                                                            // Detect mobile
+                                                            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                                            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
                                                             
                                                             if (SpeechRecognition) {
                                                                 recognitionInstance = new SpeechRecognition();
-                                                                recognitionInstance.lang = 'en-US';
-                                                                recognitionInstance.continuous = true; // Changed to true for mobile compatibility
-                                                                recognitionInstance.interimResults = true; // Changed to true to get results on mobile
+                                                                
+                                                                // Configure for better accuracy
+                                                                recognitionInstance.lang = 'en-US'; // English (US) for better name recognition
+                                                                recognitionInstance.continuous = true; // Keep listening
+                                                                recognitionInstance.interimResults = true; // Show interim but only use final for accuracy
+                                                                recognitionInstance.maxAlternatives = 3; // Get multiple alternatives, pick best
+                                                                
+                                                                // Mobile-specific optimizations
+                                                                if (isMobile) {
+                                                                    if (isIOS) {
+                                                                        recognitionInstance.lang = 'en-US';
+                                                                    }
+                                                                    console.log('📱 Mobile detected - using mobile-optimized speech recognition');
+                                                                }
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
-                                                                    let interimTranscript = '';
+                                                                    if (!event.results || event.results.length === 0) return;
+                                                                    // Use ONLY FINAL results for accuracy – interim results are less accurate
                                                                     let finalTranscript = '';
-                                                                    
-                                                                    // Process all results (mobile browsers may send multiple results)
-                                                                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                                                                        const transcript = event.results[i][0].transcript;
-                                                                        if (event.results[i].isFinal) {
-                                                                            finalTranscript += transcript + ' ';
-                                                                            // Store in ref for later use
-                                                                            recognitionTranscriptRef.current += transcript + ' ';
-                                                                        } else {
-                                                                            interimTranscript += transcript;
+                                                                    const finalParts = [];
+                                                                    for (let i = 0; i < event.results.length; i++) {
+                                                                        const r = event.results[i];
+                                                                        if (!r.isFinal) continue; // Skip interim – only use final for accuracy
+                                                                        // Use first alternative (most confident) from final results
+                                                                        let t = '';
+                                                                        if (r.length > 0 && r[0]) {
+                                                                            t = (r[0].transcript || r[0].transcriptText || '').trim();
+                                                                        } else if (r.transcript) {
+                                                                            t = String(r.transcript).trim();
+                                                                        }
+                                                                        if (t && finalParts[finalParts.length - 1] !== t) {
+                                                                            finalParts.push(t);
                                                                         }
                                                                     }
-                                                                    
-                                                                    // Update formData immediately for mobile browsers (they may not send final results)
-                                                                    if (finalTranscript.trim()) {
-                                                                        // Final result - use this
-                                                                        const customerName = finalTranscript.trim().toUpperCase();
-                                                                        console.log('✅ Final transcript:', customerName);
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
-                                                                        setAudioBlob(null); // Clear audio blob when we have text
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
-                                                                            setAudioUrl(null);
+                                                                    finalTranscript = finalParts.join(' ');
+                                                                    // Fallback: if no final yet, use last result's first alternative
+                                                                    if (!finalTranscript && event.results.length > 0) {
+                                                                        const last = event.results[event.results.length - 1];
+                                                                        if (last && last.length > 0 && last[0]) {
+                                                                            finalTranscript = (last[0].transcript || last[0].transcriptText || '').trim();
                                                                         }
-                                                                    } else if (interimTranscript.trim()) {
-                                                                        // Interim result - update for preview (mobile browsers)
-                                                                        const customerName = interimTranscript.trim().toUpperCase();
-                                                                        console.log('📝 Interim transcript:', customerName);
-                                                                        // Store interim in ref too (for mobile fallback)
-                                                                        recognitionTranscriptRef.current = customerName;
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
+                                                                    }
+                                                                    if (finalTranscript) {
+                                                                        // Clean transcript: remove extra spaces, normalize
+                                                                        finalTranscript = finalTranscript.replace(/\s+/g, ' ').trim();
+                                                                        // Store in ref
+                                                                        recognitionTranscriptRef.current = finalTranscript;
+                                                                        // Apply with small delay to let recognition finish processing
+                                                                        setTimeout(function() {
+                                                                            applyCustomerNameFromTranscript(finalTranscript);
+                                                                        }, 100);
+                                                                        // Clear audio when we have final transcript
+                                                                        const hasFinal = event.results.some(r => r.isFinal);
+                                                                        if (hasFinal) {
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
+                                                                            }
+                                                                        }
                                                                     }
                                                                 };
                                                                 
                                                                 recognitionInstance.onerror = (event) => {
-                                                                    console.error('Speech recognition error:', event.error);
-                                                                    // On mobile, some errors are not critical (like no-speech)
-                                                                    if (event.error === 'no-speech' || event.error === 'audio-capture') {
-                                                                        // Don't show alert for these - user might still be speaking
-                                                                        console.log('Speech recognition info:', event.error);
+                                                                    if (event.error === 'no-speech') {
+                                                                        console.log('⚠️ No speech detected yet - keep speaking');
+                                                                    } else if (event.error === 'network') {
+                                                                        console.warn('Speech recognition network error – needs internet. Type customer name manually.');
+                                                                        setSpeechNetworkError(true);
+                                                                        if (!window.__speechNetworkErrorShown) {
+                                                                            window.__speechNetworkErrorShown = true;
+                                                                            setTimeout(function() {
+                                                                                alert('⚠️ Speech-to-text needs internet connection.\n\nJo bhi mic mein bola jay, wo text mein auto-fill hone ke liye internet chahiye.\n\nAgar internet nahi hai to customer name manually type karein.\n\nAudio recording ho rahi hai, lekin text auto-fill nahi hoga.');
+                                                                                window.__speechNetworkErrorShown = false;
+                                                                            }, 300);
+                                                                        }
+                                                                    } else if (event.error === 'audio-capture') {
+                                                                        console.log('⚠️ Audio capture issue - check microphone');
+                                                                    } else if (event.error === 'not-allowed') {
+                                                                        alert('Microphone permission denied. Please allow microphone access in browser settings.');
+                                                                        setIsRecording(false);
+                                                                        if (recorder && recorder.state !== 'inactive') {
+                                                                            recorder.stop();
+                                                                        }
+                                                                        if (stream) {
+                                                                            stream.getTracks().forEach(track => track.stop());
+                                                                        }
+                                                                    } else if (event.error === 'aborted') {
+                                                                        console.log('Speech recognition aborted');
                                                                     } else {
                                                                         console.error('Speech recognition error:', event.error);
                                                                     }
@@ -5974,25 +8971,32 @@
                                                                 
                                                                 recognitionInstance.onend = () => {
                                                                     console.log('🎤 Speech recognition ended');
-                                                                    console.log('📝 Stored transcript:', recognitionTranscriptRef.current);
+                                                                    console.log('📝 Final stored transcript:', recognitionTranscriptRef.current);
                                                                     
-                                                                    // Use stored transcript from ref (works for mobile)
+                                                                // Process transcript with multiple attempts for mobile
+                                                                const processTranscript = () => {
                                                                     if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
                                                                         const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                        console.log('✅ Setting customer name from transcript ref:', customerName);
-                                                                        setFormData(prev => {
-                                                                            // Only update if not already set or if this is more complete
-                                                                            if (!prev.customerName || customerName.length > prev.customerName.length) {
-                                                                                return { ...prev, customerName: customerName };
-                                                                            }
-                                                                            return prev;
-                                                                        });
-                                                                        setAudioBlob(null); // Clear audio blob when we have text
+                                                                        console.log('✅ Processing transcript from onend:', customerName);
+                                                                        applyCustomerNameFromTranscript(customerName);
+                                                                        setAudioBlob(null);
                                                                         if (audioUrl) {
                                                                             URL.revokeObjectURL(audioUrl);
                                                                             setAudioUrl(null);
                                                                         }
+                                                                    } else {
+                                                                        console.log('⚠️ No transcript in ref when onend fired');
                                                                     }
+                                                                };
+                                                                
+                                                                processTranscript();
+                                                                setTimeout(processTranscript, 200);
+                                                                setTimeout(processTranscript, 500);
+                                                                setTimeout(processTranscript, 1000);
+                                                                setTimeout(processTranscript, 2000);
+                                                                setTimeout(processTranscript, 3000);
+                                                                setTimeout(processTranscript, 4000);
+                                                                setTimeout(processTranscript, 5000);
                                                                     
                                                                     // Stop audio recording when speech ends
                                                                     if (recorder && recorder.state !== 'inactive') {
@@ -6008,33 +9012,117 @@
                                                                     }
                                                                 };
                                                                 
-                                                                // Mobile browsers may need onstart event
-                                                                recognitionInstance.onstart = () => {
-                                                                    console.log('🎤 Speech recognition started');
-                                                                };
-                                                                
                                                                 // Mobile browsers may restart recognition automatically
                                                                 recognitionInstance.onnomatch = () => {
-                                                                    console.log('⚠️ No speech match found');
+                                                                    console.log('⚠️ No speech match found - try speaking again');
                                                                 };
+                                                                
+                                                                // Handle speech start event for mobile (clear transcript on new start)
+                                                                recognitionInstance.onstart = () => {
+                                                                    console.log('🎤 Speech recognition STARTED - onstart event fired');
+                                                                    console.log('📱 Recognition state:', recognitionInstance.state);
+                                                                    // Clear previous transcript when starting new recognition
+                                                                    recognitionTranscriptRef.current = '';
+                                                                    
+                                                                    // For mobile, add extra logging
+                                                                    if (isMobile) {
+                                                                        console.log('📱 Mobile: Speech recognition is now active');
+                                                                    }
+                                                                };
+                                                                
+                                                                // Add speechstart event (some mobile browsers use this)
+                                                                recognitionInstance.onspeechstart = () => {
+                                                                    console.log('🗣️ Speech STARTED - user is speaking');
+                                                                    // On mobile, when speech starts, ensure we're ready to capture
+                                                                    if (isMobile) {
+                                                                        console.log('📱 Mobile: Speech detected, ready to capture transcript');
+                                                                    }
+                                                                };
+                                                                
+                                                                // Add audiostart event
+                                                                recognitionInstance.onaudiostart = () => {
+                                                                    console.log('🎙️ Audio capture started');
+                                                                };
+                                                                
+                                                                // Add soundstart event (some browsers)
+                                                                if (recognitionInstance.onsoundstart) {
+                                                                    recognitionInstance.onsoundstart = () => {
+                                                                        console.log('🔊 Sound detected');
+                                                                    };
+                                                                }
                                                                 
                                                                 setRecognition(recognitionInstance);
                                                                 
-                                                                try {
-                                                                    recognitionInstance.start();
-                                                                    console.log('✅ Speech recognition started successfully');
-                                                                } catch (startError) {
-                                                                    console.error('Error starting speech recognition:', startError);
-                                                                    // On mobile, if recognition fails, still allow audio recording
-                                                                    // Don't show alert - just log it, audio will still record
-                                                                    console.log('⚠️ Voice recognition not available. Audio will be recorded only.');
-                                                                }
+                                                                // Start recognition with retry logic for mobile
+                                                                const startRecognition = (attempt = 1) => {
+                                                                    try {
+                                                                        recognitionInstance.start();
+                                                                        console.log(`✅ Speech recognition started (attempt ${attempt})`);
+                                                                        console.log(`📱 Recognition state:`, recognitionInstance.state);
+                                                                        console.log(`📱 Browser:`, navigator.userAgent);
+                                                                        
+                                                                        // For mobile, verify it actually started and check state multiple times
+                                                                        if (isMobile) {
+                                                                            // Check immediately
+                                                                            setTimeout(() => {
+                                                                                const state = recognitionInstance.state;
+                                                                                console.log(`📱 Recognition state after 500ms:`, state);
+                                                                                
+                                                                                if (state === 'stopped' && attempt < 3) {
+                                                                                    console.log('🔄 Recognition stopped unexpectedly, restarting...');
+                                                                                    startRecognition(attempt + 1);
+                                                                                } else if (state === 'listening') {
+                                                                                    console.log('✅ Recognition is actively listening - ready for speech');
+                                                                                } else if (state === 'starting') {
+                                                                                    console.log('⏳ Recognition is starting...');
+                                                                                }
+                                                                            }, 500);
+                                                                            
+                                                                            // Check after 1 second
+                                                                            setTimeout(() => {
+                                                                                const state = recognitionInstance.state;
+                                                                                console.log(`📱 Recognition state after 1s:`, state);
+                                                                                if (state === 'listening') {
+                                                                                    console.log('✅ Recognition confirmed listening');
+                                                                                }
+                                                                            }, 1000);
+                                                                            
+                                                                            // Check again after 2 seconds
+                                                                            setTimeout(() => {
+                                                                                if (recognitionInstance && recognitionInstance.state === 'stopped' && attempt < 3) {
+                                                                                    console.log('🔄 Recognition stopped after 2s, restarting...');
+                                                                                    startRecognition(attempt + 1);
+                                                                                }
+                                                                            }, 2000);
+                                                                        }
+                                                                    } catch (startError) {
+                                                                        console.error(`Error starting speech recognition (attempt ${attempt}):`, startError);
+                                                                        console.error(`Error details:`, startError.message, startError.name);
+                                                                        // Retry for mobile (up to 5 attempts for better success rate)
+                                                                        if (isMobile && attempt < 5) {
+                                                                            setTimeout(() => {
+                                                                                console.log(`🔄 Retrying recognition start (attempt ${attempt + 1})...`);
+                                                                                startRecognition(attempt + 1);
+                                                                            }, 1000 * attempt); // Exponential backoff
+                                                                        } else {
+                                                                            console.log('⚠️ Speech recognition could not be started after multiple attempts');
+                                                                            console.log('📱 This may be a browser limitation on mobile');
+                                                                            // Even if recognition fails, audio is still recording
+                                                                            console.log('📹 Audio recording will continue without speech-to-text');
+                                                                        }
+                                                                    }
+                                                                };
+                                                                
+                                                                startRecognition(1);
                                                             } else {
-                                                                console.log('⚠️ Speech recognition not supported - audio recording only');
-                                                                // Show helpful message on mobile
+                                                                console.log('⚠️ Speech recognition not supported in this browser');
                                                                 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                                                                 if (isMobile) {
-                                                                    console.log('📱 Mobile browser detected - speech recognition may not be available');
+                                                                    console.log('📱 Mobile browser - Web Speech API not available.');
+                                                                    console.log('📱 Browser:', navigator.userAgent);
+                                                                    // On mobile, if speech recognition is not available, we can't do speech-to-text
+                                                                    // But audio will still be recorded
+                                                                    alert('⚠️ Speech-to-text is not available on this mobile browser.\n\nAudio will be recorded, but you may need to type the customer name manually.\n\nFor best results, use Chrome or Firefox on Android.');
                                                                 }
                                                             }
                                                             
@@ -6043,38 +9131,112 @@
                                                             setMediaRecorder(recorder);
                                                             setIsRecording(true);
                                                             
-                                                            // Fallback: Auto stop after 8 seconds if speech doesn't end naturally (longer for mobile)
-                                                            const recordingTimeout = setTimeout(() => {
-                                                                console.log('⏱️ Recording timeout reached');
-                                                                if (recorder && recorder.state !== 'inactive') {
-                                                                    recorder.stop();
-                                                                }
-                                                                if (recognitionInstance && recognitionInstance.state !== 'inactive') {
+                                                            // Periodic transcript check for mobile (in case onresult doesn't fire properly)
+                                                            // This is CRITICAL for mobile browsers where onresult might not fire
+                                                            if (isMobile && recognitionInstance) {
+                                                                let checkCount = 0;
+                                                                let lastTranscript = '';
+                                                                window.transcriptCheckInterval = setInterval(() => {
+                                                                    checkCount++;
+                                                                    const currentTranscript = recognitionTranscriptRef.current || '';
+                                                                    console.log(`🔄 Periodic check #${checkCount} - transcript ref:`, currentTranscript);
+                                                                    console.log(`🔄 Recognition state:`, recognitionInstance ? recognitionInstance.state : 'null');
+                                                                    
+                                                                    // Check if we have transcript in ref
+                                                                    if (currentTranscript && currentTranscript.trim() && currentTranscript !== lastTranscript) {
+                                                                        const customerName = currentTranscript.trim().toUpperCase();
+                                                                        console.log('✅ Periodic check - found NEW transcript:', customerName);
+                                                                        lastTranscript = currentTranscript;
+                                                                        applyCustomerNameFromTranscript(customerName);
+                                                                    }
+                                                                    
+                                                                    // Also try to access recognition state and results directly (mobile workaround)
                                                                     try {
-                                                                        recognitionInstance.stop();
+                                                                        if (recognitionInstance) {
+                                                                            const state = recognitionInstance.state;
+                                                                            console.log(`📱 Recognition state: ${state}`);
+                                                                            
+                                                                            if (state === 'listening') {
+                                                                                // Recognition is active, but might not have fired onresult
+                                                                                console.log('🎤 Recognition is listening, waiting for results...');
+                                                                            } else if (state === 'stopped' && checkCount > 5) {
+                                                                                // Recognition stopped but we haven't got results yet
+                                                                                console.log('⚠️ Recognition stopped but no transcript yet');
+                                                                            }
+                                                                        }
+                                                                    } catch (e) {
+                                                                        // Ignore errors accessing state
+                                                                        console.log('Error accessing recognition state:', e);
+                                                                    }
+                                                                    
+                                                                    // Stop checking after 20 seconds
+                                                                    if (checkCount >= 40) { // 40 * 500ms = 20 seconds
+                                                                        clearInterval(window.transcriptCheckInterval);
+                                                                        window.transcriptCheckInterval = null;
+                                                                        console.log('⏱️ Periodic check stopped after 20 seconds');
+                                                                    }
+                                                                }, 500); // Check every 500ms for faster response on mobile
+                                                            }
+                                                            
+                                                            // Auto stop after 10 seconds
+                                                            const recordingTimeout = setTimeout(() => {
+                                                                console.log('⏱️ Recording timeout reached (10s)');
+                                                                
+                                                                // Stop recognition first
+                                                                if (recognitionInstance) {
+                                                                    try {
+                                                                        if (recognitionInstance.state !== 'inactive' && recognitionInstance.state !== 'stopped') {
+                                                                            recognitionInstance.stop();
+                                                                        }
                                                                     } catch (e) {
                                                                         console.log('Error stopping recognition:', e);
                                                                     }
                                                                 }
+                                                                
+                                                                // Stop recorder
+                                                                if (recorder && recorder.state !== 'inactive') {
+                                                                    recorder.stop();
+                                                                }
+                                                                
                                                                 setIsRecording(false);
                                                                 if (stream) {
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // Final check - if we have any transcript in ref, use it
-                                                                if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                    const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
-                                                                    console.log('✅ Final timeout check - setting customer name:', customerName);
-                                                                    if (customerName) {
-                                                                        setFormData(prev => ({ ...prev, customerName: customerName }));
-                                                                        setAudioBlob(null);
-                                                                        if (audioUrl) {
-                                                                            URL.revokeObjectURL(audioUrl);
-                                                                            setAudioUrl(null);
-                                                                        }
-                                                                    }
+                                                                // Clear periodic check interval if exists
+                                                                if (window.transcriptCheckInterval) {
+                                                                    clearInterval(window.transcriptCheckInterval);
+                                                                    window.transcriptCheckInterval = null;
                                                                 }
-                                                            }, 8000); // 8 seconds fallback (longer for mobile)
+                                                                
+                                                                // Process transcript with multiple attempts
+                                                                const processFinalTranscript = (delay) => {
+                                                                    setTimeout(() => {
+                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
+                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                            console.log(`✅ Timeout (${delay}ms) - setting customer name:`, customerName);
+                                                                            applyCustomerNameFromTranscript(customerName);
+                                                                            setAudioBlob(null);
+                                                                            if (audioUrl) {
+                                                                                URL.revokeObjectURL(audioUrl);
+                                                                                setAudioUrl(null);
+                                                                            }
+                                                                        } else {
+                                                                            console.log(`⚠️ No transcript found at ${delay}ms delay`);
+                                                                        }
+                                                                    }, delay);
+                                                                };
+                                                                
+                                                                // Try multiple times with increasing delays (more attempts for mobile)
+                                                                processFinalTranscript(0);
+                                                                processFinalTranscript(500);
+                                                                processFinalTranscript(1000);
+                                                                processFinalTranscript(1500);
+                                                                processFinalTranscript(2000);
+                                                                processFinalTranscript(3000);
+                                                                processFinalTranscript(4000);
+                                                                processFinalTranscript(5000);
+                                                            }, 10000); // 10 seconds
                                                             
                                                             // Store timeout ID to clear if speech ends early
                                                             window.currentRecordingTimeout = recordingTimeout;
@@ -6094,6 +9256,7 @@
                                                             ? 'bg-red-500 border-red-500 text-white animate-pulse' 
                                                             : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
                                                     }`}
+                                                    title={isRecording ? 'Click to stop recording' : 'Click to start voice recording'}
                                                 >
                                                     {isRecording ? '⏹️' : '🎤'}
                                                 </button>
@@ -6103,24 +9266,51 @@
                                                     ⚠️ Please enter customer name OR record voice (Required)
                                                 </p>
                                             )}
-                                            {audioBlob && (
+                                            {isRecording && (
                                                 <div className="mt-1.5 sm:mt-2">
-                                                    <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
-                                                        ✅ Voice recorded
-                                                        {!formData.customerName && (
-                                                            <span className="text-orange-600 ml-1">(Text not recognized - please type name manually)</span>
-                                                        )}
+                                                    <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1 animate-pulse">
+                                                        🎤 Listening... Speak now
                                                     </p>
+                                                    {speechNetworkError && (
+                                                        <p className="text-[8px] sm:text-[9px] text-red-600 font-bold mb-1">
+                                                            ⚠️ Internet connection needed for voice-to-text. Type name manually.
+                                                        </p>
+                                                    )}
+                                                    {!speechNetworkError && (
+                                                        <p className="text-[8px] text-slate-500">
+                                                            Voice-to-text needs internet. No internet? Type name manually.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {audioBlob && !formData.customerName && !isRecording && (
+                                                <div className="mt-1.5 sm:mt-2">
+                                                    {speechNetworkError ? (
+                                                        <>
+                                                            <p className="text-[8px] sm:text-[9px] text-red-600 font-bold mb-1">
+                                                                ⚠️ Internet connection issue – text auto-fill nahi hua
+                                                            </p>
+                                                            <p className="text-[8px] sm:text-[9px] text-slate-600 mb-1">
+                                                                Audio recorded hai, lekin customer name manually type karein
+                                                            </p>
+                                                        </>
+                                                    ) : (
+                                                        <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1">
+                                                            🎤 Processing voice... Please wait
+                                                        </p>
+                                                    )}
                                                     {audioUrl && (
                                                         <audio controls className="w-full h-7 sm:h-8" src={audioUrl}>
                                                             Your browser does not support audio playback.
                                                         </audio>
                                                     )}
-                                                    {!formData.customerName && (
-                                                        <p className="text-[8px] sm:text-[9px] text-orange-600 font-semibold mt-1">
-                                                            💡 Tip: On mobile, speech recognition may not work. Please type the customer name manually.
-                                                        </p>
-                                                    )}
+                                                </div>
+                                            )}
+                                            {formData.customerName && !isRecording && (
+                                                <div className="mt-1.5 sm:mt-2">
+                                                    <p className="text-[8px] sm:text-[9px] text-green-600 font-bold mb-1">
+                                                        ✅ Voice recognized: {formData.customerName}
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
@@ -6282,16 +9472,46 @@
                                                             Rs. {selectedService.basePrice || selectedService.base_price || 0}
                                                         </span>
                                                     </div>
+                                                    {/* Quantity dropdown: only for Per Foot services; base price × quantity = total */}
+                                                    {(selectedService.is_per_foot === true || selectedService.isPerFoot === true) && (
+                                                    <div className="mt-3 sm:mt-3.5 md:mt-4 pt-3 sm:pt-3.5 md:pt-4 border-t border-slate-200">
+                                                        <label className="block text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Quantity</label>
+                                                        <select
+                                                            value={serviceQuantity}
+                                                            onChange={(e) => {
+                                                                const q = parseInt(e.target.value, 10) || 1;
+                                                                setServiceQuantity(q);
+                                                                const basePrice = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
+                                                                let total = basePrice * q;
+                                                                selectedAdditionalPrices.forEach(selectedIndex => {
+                                                                    const additionalPricesArray = selectedService.additionalPrices || selectedService.additional_prices || [];
+                                                                    const ap = additionalPricesArray[selectedIndex];
+                                                                    if (ap && ap.amount) total += parseFloat(ap.amount || 0) || 0;
+                                                                });
+                                                                setFormData(prev => ({ ...prev, price: Math.round(total) }));
+                                                            }}
+                                                            className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-none rounded-xl bg-slate-100 focus:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold text-slate-900"
+                                                        >
+                                                            {Array.from({ length: 1000 }, (_, i) => i + 1).map((n) => (
+                                                                <option key={n} value={n}>{n}</option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="mt-1.5 sm:mt-2 text-[10px] sm:text-xs font-bold text-slate-600">
+                                                            Total: Rs. {Math.round((parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0) * serviceQuantity)}
+                                                        </p>
+                                                    </div>
+                                                    )}
                                                 </div>
                                                 
                                                 {/* Additional Prices (Selectable) */}
-                                                {selectedService.additionalPrices && selectedService.additionalPrices.length > 0 && (
+                                                {((selectedService.additionalPrices && Array.isArray(selectedService.additionalPrices) && selectedService.additionalPrices.length > 0) || 
+                                                  (selectedService.additional_prices && Array.isArray(selectedService.additional_prices) && selectedService.additional_prices.length > 0)) && (
                                                     <div className="space-y-2 sm:space-y-2.5 md:space-y-3 mb-3 sm:mb-3.5 md:mb-4">
                                                         <p className="text-[9px] sm:text-[10px] font-black text-slate-700 uppercase mb-2 sm:mb-2.5 md:mb-3 tracking-wider flex items-center gap-1.5 sm:gap-2">
                                                             <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-600 rounded-full flex-shrink-0"></span>
                                                             Additional Services (Optional)
                                                         </p>
-                                                        {selectedService.additionalPrices.map((additionalPrice, index) => {
+                                                        {(selectedService.additionalPrices || selectedService.additional_prices || []).map((additionalPrice, index) => {
                                                             const isSelected = selectedAdditionalPrices.has(index);
                                                             return (
                                                                 <label 
@@ -6342,15 +9562,18 @@
                                                                             }
                                                                             setSelectedAdditionalPrices(newSelected);
                                                                             
-                                                                            // Update total price - parse all values as numbers
-                                                                            let total = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
+                                                                            // Update total price: per-foot ? (base × quantity) + additional : base + additional
+                                                                            const basePrice = parseFloat(selectedService.basePrice || selectedService.base_price || 0) || 0;
+                                                                            const isPerFoot = selectedService.is_per_foot === true || selectedService.isPerFoot === true;
+                                                                            let total = isPerFoot ? basePrice * serviceQuantity : basePrice;
                                                                             newSelected.forEach(selectedIndex => {
-                                                                                const ap = selectedService.additionalPrices[selectedIndex];
+                                                                                const additionalPricesArray = selectedService.additionalPrices || selectedService.additional_prices || [];
+                                                                                const ap = additionalPricesArray[selectedIndex];
                                                                                 if (ap && ap.amount) {
                                                                                     total += parseFloat(ap.amount || 0) || 0;
                                                                                 }
                                                                             });
-                                                                            setFormData({ ...formData, price: total.toFixed(2) });
+                                                                            setFormData(prev => ({ ...prev, price: Math.round(total) }));
                                                                         }}
                                                                         className="sr-only"
                                                                     />
@@ -6387,20 +9610,86 @@
                         )}
                     </main>
                     
+                    {/* Vehicle history modal (last 2 months) */}
+                    {showVehicleHistoryModal && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowVehicleHistoryModal(false)}>
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border-2 border-slate-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                                    <h3 className="text-lg font-black uppercase text-slate-800">Transaction history (last 2 months) – {formData.vehicleNo || ''}</h3>
+                                    <button type="button" onClick={() => setShowVehicleHistoryModal(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-600">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <div className="p-4 overflow-y-auto flex-1">
+                                    {vehicleHistoryLoading ? (
+                                        <p className="text-center text-slate-500 font-bold py-8">Loading...</p>
+                                    ) : !vehicleHistoryJobs || vehicleHistoryJobs.length === 0 ? (
+                                        <p className="text-center text-slate-500 font-bold py-8">No transactions in last 2 months</p>
+                                    ) : (
+                                        <ul className="space-y-2">
+                                            {vehicleHistoryJobs.map((job) => (
+                                                <li key={job.id} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <div>
+                                                            <span className="font-black text-slate-800">{job.serviceName || 'N/A'}</span>
+                                                            <p className="text-[10px] text-slate-500 mt-0.5">{job.endTime ? new Date(job.endTime).toLocaleString() : (job.createdAt ? new Date(job.createdAt).toLocaleString() : '')} • {job.workerName || 'N/A'}</p>
+                                                        </div>
+                                                        <span className="font-mono font-bold text-emerald-600">Rs.{Math.round(job.price || 0)}</span>
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-400 mt-1">{job.customerName || ''} {job.mobile ? ' • ' + job.mobile : ''}</p>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
                     {/* Bottom Nav */}
                     <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-slate-100 flex justify-around p-3 sm:p-4 md:p-5 z-40 rounded-t-2xl sm:rounded-t-[30px] md:rounded-t-[40px] shadow-2xl">
-                        <button 
-                            onClick={() => setView('dashboard')} 
-                            className={`p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl transition-all ${view === 'dashboard' ? 'bg-slate-950 text-white shadow-xl -translate-y-1 sm:-translate-y-2' : 'text-slate-300'}`}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                window.location.href = '{{ route("attendance") }}';
+                            }}
+                            className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
+                            title="Mark Attendance"
+                            aria-label="Mark employee attendance"
                         >
-                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                             </svg>
+                            <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Attendance</span>
                         </button>
-                        <button className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300">
-                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                let rateListUrl = API_ROUTES.services && API_ROUTES.services.rateList ? API_ROUTES.services.rateList : '';
+                                if (!rateListUrl) return;
+                                if (rateListUrl.startsWith('/')) rateListUrl = window.location.origin + rateListUrl;
+                                rateListUrl += (rateListUrl.indexOf('?') >= 0 ? '&' : '?') + 'return_url=' + encodeURIComponent(window.location.href);
+                                window.open(rateListUrl, '_blank');
+                            }}
+                            className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
+                            title="View Rate List"
+                        >
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
+                            <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Price List</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { window.location.href = '{{ route("car.wash.completed-jobs") }}'; }}
+                            className="p-3 sm:p-3.5 md:p-4 rounded-2xl sm:rounded-[25px] md:rounded-3xl text-slate-300 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5"
+                            title="View Completed Jobs"
+                            aria-label="View completed jobs"
+                        >
+                            <svg className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-[10px] sm:text-xs font-bold uppercase whitespace-nowrap">Completed</span>
                         </button>
                     </nav>
                 </div>
@@ -6446,6 +9735,24 @@
             // DOM is already ready
             setTimeout(initApp, 100); // Small delay to ensure Babel is ready
         }
+        
+        // Remove Bootstrap modal backdrop – pehle se maujood aur naye dono ko remove karein
+        function removeModalBackdrop() {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(function(backdrop) {
+                backdrop.remove();
+            });
+        }
+        // Remove immediately and on DOM ready
+        removeModalBackdrop();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', removeModalBackdrop);
+        }
+        // Watch for new backdrops being added
+        const observer = new MutationObserver(function(mutations) {
+            removeModalBackdrop();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     </script>
     
     <!-- Settings Dropdown JavaScript -->
@@ -6509,24 +9816,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             const settingsDropdown = document.getElementById('settingsDropdown');
             
-            // Handle Add New Category button click - Use event delegation with capture
+            // Handle Add New Category button click - Redirect to services page
             document.addEventListener('click', function(e) {
                 const addNewCategoryBtn = document.getElementById('addNewCategoryBtn');
                 if (addNewCategoryBtn && (e.target === addNewCategoryBtn || addNewCategoryBtn.contains(e.target))) {
-                    if (e.preventDefault) e.preventDefault();
-                    if (e.stopPropagation) e.stopPropagation();
-                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-                    console.log('Add New Service button clicked');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Add New Service button clicked - Redirecting to services page');
                     
                     // Close dropdown first
                     if (settingsDropdown) {
                         settingsDropdown.classList.remove('show');
                     }
                     
-                    // Open modal after a short delay to ensure dropdown closes smoothly
-                    setTimeout(function() {
-                        openCategoryModal();
-                    }, 150);
+                    // Redirect to services page
+                    window.location.href = '{{ route("car.wash.services") }}';
                     return false;
                 }
             }, true); // Capture phase - fires before bubble phase
@@ -6613,14 +9917,13 @@
                     });
                 }
                 
-                // Handle Add Expense button click
+                // Handle Shop Expenses button click (legacy dropdown)
                 const addExpenseBtn = document.getElementById('addExpenseBtn');
                 if (addExpenseBtn) {
                     addExpenseBtn.addEventListener('click', function(e) {
                         e.preventDefault();
                         settingsDropdown.classList.remove('show');
-                        // Add expense functionality - can be implemented later
-                        alert('Add Expense feature coming soon!');
+                        window.dispatchEvent(new Event('openShopExpensesModal'));
                     });
                 }
                 

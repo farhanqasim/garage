@@ -26,8 +26,10 @@
                 </li>
             </ul>
             <div class="page-btn">
+                @can('add_category')
                 <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
                         class="ti ti-circle-plus me-1"></i>Add Category</a>
+                @endcan
             </div>
         </div>
         <!-- /product list -->
@@ -101,10 +103,13 @@
                                     </td>
                                     <td class="action-table-data">
                                         <div class="edit-delete-action">
+                                            @can('update_category')
                                             <a class="me-2 p-2" href="#" data-bs-toggle="modal"
                                                 data-bs-target="#edit-category{{ $item->id }}">
                                                 <i data-feather="edit" class="feather-edit"></i>
                                             </a>
+                                            @endcan
+                                            @can('delete_category')
                                             <a href="javascript:void(0)"
                                                 onclick="confirmDelete('delete-form-{{ $item->id }}')"
                                                 class="p-2">
@@ -118,6 +123,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                             </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>

@@ -16,6 +16,11 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Warehouse;
 use App\Models\WarehouseItem;
+use App\Models\Payment;
+use App\Models\PaymentMethod;
+use App\Models\BankAccount;
+use App\Models\SalePayment;
+use App\Models\CustomerCar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +30,19 @@ class SalesController extends Controller
 {
     public function all_sales()
     {
-        return view('admin.sales.index');
+        $sales = Sale::with(['customer', 'user', 'payments'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return view('admin.sales.index', compact('sales'));
+    }
+    
+    public function create_sale_new(){
+        $customers = Customer::with('customerCars')->orderBy('created_at', 'desc')->get();
+        $branches = \App\Models\Branch::where('status', 'active')->get();
+        $units = \App\Models\Unit::all();
+        $suppliers = \App\Models\Supplier::orderBy('created_at', 'desc')->get();
+        return view('admin.sales.create-new', compact('customers', 'branches', 'units', 'suppliers'));
     }
     
     public function create_sale(){
@@ -45,6 +62,76 @@ class SalesController extends Controller
         }
         
         return view('admin.sales.create', compact('customers', 'purchaseData'));
+    }
+
+    /**
+     * Get next estimate number
+     */
+    public function getNextEstimateNumber()
+    {
+        $branchId = session('selected_branch_id');
+        
+        if (!$branchId) {
+            return response()->json(['error' => 'Branch not selected'], 400);
+        }
+        
+        // Get the last estimate number for this branch
+        $lastEstimate = Sale::where('branch_id', $branchId)
+            ->where('status', 'estimate')
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        $nextNumber = 0; // Start from 00000
+        if ($lastEstimate) {
+            // Extract number from reference if it exists, otherwise use ID
+            if ($lastEstimate->reference && preg_match('/EST\s*#?\s*(\d+)/i', $lastEstimate->reference, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            } else {
+                // Count estimates for this branch (start from 0, so count gives next number)
+                $nextNumber = Sale::where('branch_id', $branchId)
+                    ->where('status', 'estimate')
+                    ->count();
+            }
+        }
+        
+        return response()->json([
+            'number' => str_pad($nextNumber, 5, '0', STR_PAD_LEFT)
+        ]);
+    }
+
+    /**
+     * Get next sale order number
+     */
+    public function getNextSaleOrderNumber()
+    {
+        $branchId = session('selected_branch_id');
+        
+        if (!$branchId) {
+            return response()->json(['error' => 'Branch not selected'], 400);
+        }
+        
+        // Get the last sale order number for this branch
+        $lastSaleOrder = Sale::where('branch_id', $branchId)
+            ->where('status', 'sale_order')
+            ->orderBy('id', 'desc')
+            ->first();
+        
+        $nextNumber = 0; // Start from 00000
+        if ($lastSaleOrder) {
+            // Extract number from reference if it exists
+            if ($lastSaleOrder->reference && preg_match('/SO\s*#?\s*(\d+)/i', $lastSaleOrder->reference, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            } else {
+                // Count sale orders for this branch (start from 0, so count gives next number)
+                $nextNumber = Sale::where('branch_id', $branchId)
+                    ->where('status', 'sale_order')
+                    ->count();
+            }
+        }
+        
+        return response()->json([
+            'number' => str_pad($nextNumber, 5, '0', STR_PAD_LEFT)
+        ]);
     }
 
     /**
@@ -120,7 +207,7 @@ class SalesController extends Controller
     }
 
     /**
-     * Search items in warehouse - Only returns items that are in the selected branch's warehouse
+     * Search items directly from items table - No warehouse or branch filtering
      * Includes stock quantity, price calculations, and sales prices
      */
     public function ajaxSearch(Request $request)
@@ -128,242 +215,183 @@ class SalesController extends Controller
         $search = $request->input('q', '');
         $results = [];
         
-        // Get selected branch ID (required)
-        $branchId = $request->input('branch_id') ?? session('selected_branch_id');
-        
-        if (!$branchId) {
-            return response()->json([
-                'error' => 'Please select a branch first'
-            ], 400);
-        }
-        
-        // Get warehouse for the selected branch
-        $warehouse = \App\Models\Warehouse::where('branch_id', $branchId)->first();
-        
-        if (!$warehouse) {
-            return response()->json([
-                'error' => 'No warehouse found for selected branch'
-            ], 404);
-        }
-        
-        // Get all item IDs that are in this warehouse
-        $warehouseItemIds = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
-            ->pluck('item_id')
-            ->toArray();
-        
-        if (empty($warehouseItemIds)) {
-            return response()->json([]);
-        }
-        
         // Load all relationships for efficient searching and display
         $query = Item::with([
             'partnumber_item',
-            'category',
-            'subcategory',
-            'product_item',
-            'company_item',
             'vehical_item.manutacturer_vehical',
             'vehical_item.model_vehical',
+            'category',
+            'subcategory',
+            'unit_item', // Load unit relationship to get unit name
+            'product_item', // Product name
+            'company_item', // Company
+            'quality_item', // Quality
+            'technology_item', // Technology
+            'grade_item', // Grade
+            'volt_item', // Volt
+            'cca_item', // CCA
+            'group_item', // Group
+            'made_in_item', // Made In
+            'level_item', // Level
+            'plate_item', // Plate (for battery)
+            'amphors_item', // Amperes (for battery)
             'vehical_item.engine_vehical',
             'vehical_item.country_vehical',
-            'plate_item',
-            'amphors_item',
             'lineitems_item',
             'mileage_item',
-            'volt_item',
-            'cca_item',
             'minus_pool_item',
-            'technology_item',
-            'grade_item',
             'farmula_item',
-            'quality_item',
-            'unit_item',
             'services_item',
             'warrenty_item',
-            'group_item',
-            'made_in_item',
-            'level_item',
-        ])->whereIn('id', $warehouseItemIds); // Only items in warehouse
+        ])->where('is_active', 1);
 
-        // Comprehensive text search - Search ALL fields based on actual Item model relationships
+        // Multi-term search: space-separated words = AND filter (each term must match somewhere in item)
+        // If search is empty, show all active items (YouTube style - show all when no query)
         $search = trim($request->input('q', ''));
-        // If search query provided, filter items; otherwise show all items in warehouse
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
+        $terms = $search !== '' ? array_values(array_filter(preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY))) : [];
+        
+        // Only apply search filters if there are search terms
+        if (!empty($terms)) {
+        foreach ($terms as $term) {
+            $query->where(function ($q) use ($term) {
                 // ========== PRIMARY PRODUCT IDENTIFICATION ==========
-                // Product Name Fields (Most Important)
-                $q->where('bar_code', 'LIKE', "%{$search}%")
-                  ->orWhere('pro_dis', 'LIKE', "%{$search}%")
-                  ->orWhere('short_disc', 'LIKE', "%{$search}%")
-                  ->orWhere('serial_number', 'LIKE', "%{$search}%")
-                  ->orWhere('p_brochure', 'LIKE', "%{$search}%");
-                
-                // ========== CATEGORY SEARCH ==========
-                $q->orWhereHas('category', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->where('bar_code', 'LIKE', "%{$term}%")
+                  ->orWhere('pro_dis', 'LIKE', "%{$term}%")
+                  ->orWhere('short_disc', 'LIKE', "%{$term}%")
+                  ->orWhere('serial_number', 'LIKE', "%{$term}%")
+                  ->orWhere('p_brochure', 'LIKE', "%{$term}%");
+                // ========== CATEGORY / PART NUMBER ==========
+                $q->orWhereHas('category', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('subcategory', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // ========== PART NUMBER SEARCH ==========
-                $q->orWhereHas('partnumber_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // ========== VEHICLE RELATED SEARCH ==========
-                $q->orWhereHas('vehical_item', function ($subQ) use ($search) {
-                    $subQ->where('year_from', 'LIKE', "%{$search}%")
-                  ->orWhere('year_to', 'LIKE', "%{$search}%")
-                  ->orWhere('car_manufactured_country', 'LIKE', "%{$search}%");
-            })
-                ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('subcategory', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 })
-                ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                })
-                ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                })
-                ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                ->orWhereHas('partnumber_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // ========== PRODUCT TYPE AND IDENTIFICATION ==========
-                $q->orWhere('type', 'LIKE', "%{$search}%")
-                  ->orWhere('p_id', 'LIKE', "%{$search}%");
-                
-                // ========== RELATIONSHIP BASED SEARCHES (Using actual relationships) ==========
-                // Product
-                $q->orWhereHas('product_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Company
-                $q->orWhereHas('company_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Plate/Platos
-                $q->orWhereHas('plate_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Amphors
-                $q->orWhereHas('amphors_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Line Items
-                $q->orWhereHas('lineitems_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Mileage
-                $q->orWhereHas('mileage_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // ========== BATTERY/PRODUCT SPECIFICATIONS ==========
-                // Volt (via relationship)
-                $q->orWhereHas('volt_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // CCA (via relationship)
-                $q->orWhereHas('cca_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Minus Pool Direction (via relationship - only minus_pool_direction exists in DB)
-                $q->orWhereHas('minus_pool_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Technology (via relationship)
-                $q->orWhereHas('technology_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Grade (via relationship)
-                $q->orWhereHas('grade_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Formula/Farmula (via relationship)
-                $q->orWhereHas('farmula_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Battery Size (direct field)
-                $q->orWhere('battery_size', 'LIKE', "%{$search}%");
-                
-                // ========== LOCATION AND BUSINESS FIELDS ==========
-                // Business Location (only bussiness_location exists in DB, not business_location)
-                $q->orWhere('bussiness_location', 'LIKE', "%{$search}%");
-                
-                // Quality (via relationship)
-                $q->orWhereHas('quality_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Stock Levels
-                $q->orWhere('l_stock', 'LIKE', "%{$search}%")
-                  ->orWhere('m_stock', 'LIKE', "%{$search}%");
-                
-                // ========== UNIT AND PACKAGING ==========
-                // Unit (via relationship)
-                $q->orWhereHas('unit_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
-                });
-                
-                // Direct packaging fields
-                $q->orWhere('packing', 'LIKE', "%{$search}%")
-                  ->orWhere('scale', 'LIKE', "%{$search}%")
-                  ->orWhere('weight_unit', 'LIKE', "%{$search}%");
-                
-                // Numeric fields (convert to string for search)
-                if (is_numeric($search)) {
-                    $q->orWhere('filling', 'LIKE', "%{$search}%")
-                      ->orWhere('weight_for_delivery', 'LIKE', "%{$search}%")
-                      ->orWhere('packing_purchase_rate', 'LIKE', "%{$search}%");
+                // ========== VEHICLE RELATED ==========
+                if (is_numeric($term)) {
+                    $q->orWhere('vehical_id', $term);
                 }
-                
-                // ========== STORAGE AND SUPPLIER ==========
-                $q->orWhere('rack', 'LIKE', "%{$search}%")
-                  ->orWhere('supplier', 'LIKE', "%{$search}%");
-                
-                // Date field (search as string)
-                $q->orWhere('update_date', 'LIKE', "%{$search}%");
-                
-                // ========== ADDITIONAL PRODUCT INFORMATION ==========
-                // Services (via relationship)
-                $q->orWhereHas('services_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->orWhereHas('vehical_item', function ($subQ) use ($term) {
+                    $subQ->where('year_from', 'LIKE', "%{$term}%")
+                      ->orWhere('year_to', 'LIKE', "%{$term}%")
+                      ->orWhere('car_manufactured_country', 'LIKE', "%{$term}%")
+                      ->orWhere('id', 'LIKE', "%{$term}%")
+                      ->orWhere('v_part_number_id', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('vehical_item.engine_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('vehical_item.country_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('vehical_item.manutacturer_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('vehical_item.model_vehical', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 });
-                
-                // Warranty (via relationship)
-                $q->orWhereHas('warrenty_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                // ========== PRODUCT / COMPANY / PLATE / AMPHORS / LINE / MILEAGE ==========
+                $q->orWhere('type', 'LIKE', "%{$term}%")->orWhere('p_id', 'LIKE', "%{$term}%");
+                $q->orWhereHas('product_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('company_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('plate_item', function ($subQ) use ($term) {
+                    // Strip "pl", "PL", "pl ", "PL " from the end of the term for plates search
+                    $plateTerm = preg_replace('/\s*(pl|PL)\s*$/i', '', $term);
+                    $subQ->where('name', 'LIKE', "%{$plateTerm}%");
+                })
+                ->orWhereHas('amphors_item', function ($subQ) use ($term) {
+                    // Strip "ah", "AH", "ah ", "AH " from the end of the term for amperes search
+                    $amperesTerm = preg_replace('/\s*(ah|AH)\s*$/i', '', $term);
+                    $subQ->where('name', 'LIKE', "%{$amperesTerm}%");
+                })
+                ->orWhereHas('lineitems_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('mileage_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // Group (only gorup exists in DB, not group)
-                $q->orWhereHas('group_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                // ========== BATTERY SPECS ==========
+                $q->orWhereHas('volt_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('cca_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('minus_pool_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('technology_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('grade_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('farmula_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhere('battery_size', 'LIKE', "%{$term}%");
+                // ========== LOCATION / QUALITY / STOCK / UNIT / PACKAGING ==========
+                $q->orWhere('bussiness_location', 'LIKE', "%{$term}%");
+                $q->orWhereHas('quality_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // Made In (via relationship)
-                $q->orWhereHas('made_in_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->orWhere('l_stock', 'LIKE', "%{$term}%")->orWhere('m_stock', 'LIKE', "%{$term}%");
+                $q->orWhereHas('unit_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
-                
-                // Level (via relationship)
-                $q->orWhereHas('level_item', function ($subQ) use ($search) {
-                    $subQ->where('name', 'LIKE', "%{$search}%");
+                $q->orWhere('packing', 'LIKE', "%{$term}%")
+                  ->orWhere('scale', 'LIKE', "%{$term}%")
+                  ->orWhere('weight_unit', 'LIKE', "%{$term}%")
+                  ->orWhere('filling', 'LIKE', "%{$term}%")
+                  ->orWhere('weight_for_delivery', 'LIKE', "%{$term}%")
+                  ->orWhere('packing_purchase_rate', 'LIKE', "%{$term}%")
+                  ->orWhere('total_price', 'LIKE', "%{$term}%")
+                  ->orWhere('price_per_unit', 'LIKE', "%{$term}%")
+                  ->orWhere('sale_price', 'LIKE', "%{$term}%")
+                  ->orWhere('on_hand', 'LIKE', "%{$term}%")
+                  ->orWhere('rack', 'LIKE', "%{$term}%")
+                  ->orWhere('supplier', 'LIKE', "%{$term}%");
+                if (is_numeric($term)) {
+                    $numericValue = (float)$term;
+                    $q->orWhere('filling', $numericValue)
+                      ->orWhere('weight_for_delivery', $numericValue)
+                      ->orWhere('packing_purchase_rate', $numericValue)
+                      ->orWhere('total_price', $numericValue)
+                      ->orWhere('price_per_unit', $numericValue)
+                      ->orWhere('sale_price', $numericValue)
+                      ->orWhere('on_hand', (int)$numericValue);
+                }
+                if (strlen($term) >= 4) {
+                    $q->orWhere('update_date', 'LIKE', "%{$term}%");
+                }
+                $q->orWhereHas('services_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('warrenty_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('group_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('made_in_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
+                })
+                ->orWhereHas('level_item', function ($subQ) use ($term) {
+                    $subQ->where('name', 'LIKE', "%{$term}%");
                 });
             });
         }
+        } // End of if (!empty($terms))
 
         // Filter by category
         if ($request->has('category_id') && $request->category_id) {
@@ -439,30 +467,25 @@ class SalesController extends Controller
             $query->where('sale_price', '<=', $request->max_price);
         }
 
+        // Order by: if search exists, relevance; otherwise by most recent
+        if (empty($terms)) {
+            $query->orderBy('created_at', 'desc');
+        } else {
+            // When searching, order by relevance (items with matches in important fields first)
+            $query->orderBy('updated_at', 'desc');
+        }
+        
         // Limit results
         $limit = $request->input('limit', 50);
         $items = $query->limit($limit)->get();
 
-        // Build results with warehouse stock, quantity, and price calculations
+        // Return items directly from items table (no warehouse filtering)
         foreach ($items as $item) {
-            // Get warehouse item details for this item
-            $warehouseItem = \App\Models\WarehouseItem::where('warehouse_id', $warehouse->id)
-                ->where('item_id', $item->id)
-                ->first();
-            
-            if (!$warehouseItem) {
-                continue; // Skip if not in warehouse
-            }
-            
-            // Calculate quantities
-            $warehouseQuantity = floatval($warehouseItem->quantity ?? 0);
-            $availableQuantity = floatval($warehouseItem->available_quantity ?? 0);
-            $reservedQuantity = floatval($warehouseItem->reserved_quantity ?? 0);
-            
             // Get packing size for carton/loose calculation
             $packingSize = floatval($item->packing ?? 1);
-            $cartons = floor($warehouseQuantity / $packingSize);
-            $loose = fmod($warehouseQuantity, $packingSize);
+            $onHand = floatval($item->on_hand ?? 0);
+            $cartons = floor($onHand / $packingSize);
+            $loose = fmod($onHand, $packingSize);
             
             // Price calculations
             $salePrice = floatval($item->sale_price ?? 0);
@@ -471,8 +494,8 @@ class SalesController extends Controller
             $pricePerUnit = floatval($item->price_per_unit ?? 0);
             
             // Calculate price per unit if total price is given
-            if ($totalPrice > 0 && $warehouseQuantity > 0) {
-                $calculatedPricePerUnit = $totalPrice / $warehouseQuantity;
+            if ($totalPrice > 0 && $onHand > 0) {
+                $calculatedPricePerUnit = $totalPrice / $onHand;
             } elseif ($pricePerUnit > 0) {
                 $calculatedPricePerUnit = $pricePerUnit;
             } elseif ($packingPurchaseRate > 0 && $packingSize > 0) {
@@ -481,37 +504,17 @@ class SalesController extends Controller
                 $calculatedPricePerUnit = $salePrice > 0 ? $salePrice : 0;
             }
             
-            // Calculate total cost based on warehouse quantity
-            $totalCost = $calculatedPricePerUnit * $warehouseQuantity;
+            // Calculate total cost based on on_hand quantity
+            $totalCost = $calculatedPricePerUnit * $onHand;
             
-            // Build item name
-            $itemName = $item->short_disc ?? $item->pro_dis ?? '';
-            if (empty($itemName) && $item->partnumber_item) {
-                $itemName = $item->partnumber_item->name ?? '';
-            }
-            if (empty($itemName)) {
-                $itemName = $item->bar_code;
-            }
-            
-            // Add manufacturer and model if available
-            if ($item->vehical_item && $item->vehical_item->manutacturer_vehical) {
-                $itemName .= ' - ' . $item->vehical_item->manutacturer_vehical->name;
-            }
-            if ($item->vehical_item && $item->vehical_item->model_vehical) {
-                $itemName .= ' ' . $item->vehical_item->model_vehical->name;
-            }
-            
-                $results[] = [
-                    'type' => 'item',
-                    'id' => $item->id,
-                    'warehouse_id' => $warehouse->id,
-                    'warehouse_name' => $warehouse->warehouse_name,
-                'warehouse_code' => $warehouse->warehouse_code,
+            $results[] = [
+                'type' => 'item',
+                'id' => $item->id,
                 'item' => $item,
-                // Stock and Quantity Information
-                'warehouse_quantity' => $warehouseQuantity,
-                'available_quantity' => $availableQuantity,
-                'reserved_quantity' => $reservedQuantity,
+                // Stock and Quantity Information (from items table)
+                'warehouse_quantity' => $onHand,
+                'available_quantity' => $onHand,
+                'reserved_quantity' => 0,
                 'cartons' => $cartons,
                 'loose' => $loose,
                 'packing_size' => $packingSize,
@@ -523,15 +526,14 @@ class SalesController extends Controller
                 'calculated_price_per_unit' => round($calculatedPricePerUnit, 2),
                 'total_cost' => round($totalCost, 2),
                 // Item Details
-                'item_name' => $itemName,
                 'bar_code' => $item->bar_code,
                 'serial_number' => $item->serial_number,
-                'unit' => $item->unit ?? 'Unit',
-                'category_name' => $item->category ? $item->category->name : null,
-                'part_number' => $item->partnumber_item ? $item->partnumber_item->name : null,
+                'unit' => ($item->unit_item && ($item->unit_item->name || $item->unit_item->short_name)) 
+                    ? ($item->unit_item->name || $item->unit_item->short_name) 
+                    : ($item->unit ?? 'Unit'),
             ];
         }
-        
+
         return response()->json($results);
     }
     
@@ -704,6 +706,18 @@ class SalesController extends Controller
                 'shipping' => 'nullable|numeric|min:0',
                 'reference' => 'nullable|string|max:255',
                 'status' => 'nullable|string',
+                'payment_method_id' => 'nullable|exists:payment_methods,id',
+                'bank_account_id' => 'nullable|exists:bank_accounts,id',
+                'payment_amount' => 'nullable|numeric|min:0',
+                'payment_date' => 'nullable|date',
+                'payment_transaction_id' => 'nullable|string|max:255',
+                'payment_notes' => 'nullable|string',
+                'vehicles' => 'nullable|array',
+                'vehicles.*.customer_id' => 'required|exists:customers,id',
+                'vehicles.*.plate_number' => 'required|string|max:255',
+                'vehicles.*.make' => 'required|string|max:255',
+                'vehicles.*.model' => 'required|string|max:255',
+                'vehicles.*.year' => 'required|string|max:4',
             ]);
         } catch (ValidationException $e) {
             if ($request->ajax() || $request->wantsJson()) {
@@ -772,6 +786,23 @@ class SalesController extends Controller
                 'user_id' => auth()->id(),
             ]);
 
+            // Check if any item has supplier selected (zero stock items)
+            $hasSupplierItems = false;
+            foreach ($request->items as $itemData) {
+                $supplierId = $itemData['supplier_id'] ?? null;
+                $isZeroStock = isset($itemData['is_zero_stock']) && $itemData['is_zero_stock'] == true;
+                if ($supplierId && $isZeroStock) {
+                    $hasSupplierItems = true;
+                    break;
+                }
+            }
+            
+            // Set status to pending if supplier items exist
+            if ($hasSupplierItems) {
+                $sale->status = 'pending';
+                $sale->save();
+            }
+            
             foreach ($request->items as $itemData) {
                 SaleItem::create([
                     'sale_id' => $sale->id,
@@ -787,6 +818,14 @@ class SalesController extends Controller
                 ]);
 
                 $saleQuantity = floatval($itemData['quantity']);
+                $supplierId = $itemData['supplier_id'] ?? null;
+                $isZeroStock = isset($itemData['is_zero_stock']) && $itemData['is_zero_stock'] == true;
+                
+                // Skip stock update if supplier is selected and stock was 0
+                if ($supplierId && $isZeroStock) {
+                    continue; // Don't update stock for this item
+                }
+                
                 $warehouseItem = WarehouseItem::lockForUpdate()
                     ->where('warehouse_id', $warehouse->id)
                     ->where('item_id', $itemData['item_id'])
@@ -803,6 +842,67 @@ class SalesController extends Controller
                 if ($item) {
                     $item->on_hand = max(0, ($item->on_hand ?? 0) - $saleQuantity);
                     $item->save();
+                }
+            }
+
+            // Create payment if provided
+            if ($request->filled('payment_method_id') && $request->payment_amount > 0) {
+                $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+                $paymentAmount = floatval($request->payment_amount);
+                
+                // Validate bank account if required
+                if ($paymentMethod->requires_bank_account && !$request->bank_account_id) {
+                    throw new \Exception('Bank account is required for this payment method.');
+                }
+                
+                $payment = Payment::create([
+                    'user_id' => auth()->id(),
+                    'customer_id' => $request->customer_id,
+                    'payment_method_id' => $request->payment_method_id,
+                    'bank_account_id' => $request->bank_account_id ?? null,
+                    'amount' => $paymentAmount,
+                    'currency' => 'PKR',
+                    'direction' => 'in', // Incoming payment for sale
+                    'payment_date' => $request->payment_date ?? $request->sale_date,
+                    'transaction_id' => $request->payment_transaction_id ?? null,
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'notes' => $request->payment_notes ?? "Payment for Sale #{$sale->id}",
+                ]);
+                
+                // Link payment to sale
+                SalePayment::create([
+                    'sale_id' => $sale->id,
+                    'payment_id' => $payment->id,
+                    'allocated_amount' => $paymentAmount,
+                ]);
+            }
+
+            // Save vehicles to customer_cars table
+            if ($request->filled('vehicles') && is_array($request->vehicles)) {
+                foreach ($request->vehicles as $vehicleData) {
+                    // Check if vehicle with same plate number already exists for this customer
+                    $existingVehicle = CustomerCar::where('customer_id', $vehicleData['customer_id'])
+                        ->where('plate_number', $vehicleData['plate_number'])
+                        ->first();
+                    
+                    if ($existingVehicle) {
+                        // Update existing vehicle
+                        $existingVehicle->update([
+                            'make' => $vehicleData['make'],
+                            'model' => $vehicleData['model'],
+                            'year' => $vehicleData['year'],
+                        ]);
+                    } else {
+                        // Create new vehicle
+                        CustomerCar::create([
+                            'customer_id' => $vehicleData['customer_id'],
+                            'plate_number' => $vehicleData['plate_number'],
+                            'make' => $vehicleData['make'],
+                            'model' => $vehicleData['model'],
+                            'year' => $vehicleData['year'],
+                        ]);
+                    }
                 }
             }
 
@@ -840,6 +940,284 @@ class SalesController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Show sale details
+     */
+    public function show($id)
+    {
+        $sale = Sale::with(['customer', 'branch', 'user', 'saleItems.item.partnumber_item', 'saleItems.item.category', 'payments.paymentMethod', 'payments.bankAccount.bank'])
+            ->findOrFail($id);
+        
+        return view('admin.sales.show', compact('sale'));
+    }
+
+    /**
+     * Get sale data for editing
+     */
+    public function edit($id)
+    {
+        $sale = Sale::with(['customer', 'branch', 'saleItems.item.partnumber_item', 'saleItems.item.category'])->findOrFail($id);
+        $customers = Customer::orderBy('created_at', 'desc')->get();
+        $branches = \App\Models\Branch::where('status', 'active')->get();
+        
+        return view('admin.sales.edit', compact('sale', 'customers', 'branches'));
+    }
+
+    /**
+     * Update sale
+     */
+    public function update(Request $request, $id)
+    {
+        $sale = Sale::findOrFail($id);
+        
+        try {
+            $validated = $request->validate([
+                'customer_id' => 'required|exists:customers,id',
+                'branch_id' => 'required|exists:branches,id',
+                'sale_date' => 'required|date',
+                'reference' => 'nullable|string|max:255',
+                'status' => 'nullable|string',
+                'discount' => 'nullable|numeric|min:0',
+                'order_tax' => 'nullable|numeric|min:0',
+                'shipping' => 'nullable|numeric|min:0',
+            ]);
+
+            $sale->update($validated);
+            
+            // Recalculate grand total
+            $itemsTotal = $sale->saleItems->sum('total');
+            $grandTotal = $itemsTotal + ($request->order_tax ?? 0) - ($request->discount ?? 0) + ($request->shipping ?? 0);
+            $sale->update(['grand_total' => $grandTotal]);
+
+            return redirect()->route('all_sales')
+                ->with('success', 'Sale updated successfully!');
+
+        } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 422);
+            }
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete sale
+     */
+    public function destroy($id)
+    {
+        $sale = Sale::with('saleItems')->findOrFail($id);
+        
+        DB::beginTransaction();
+        try {
+            // Restore stock
+            $warehouse = Warehouse::where('branch_id', $sale->branch_id)->first();
+            if ($warehouse) {
+                foreach ($sale->saleItems as $saleItem) {
+                    $warehouseItem = WarehouseItem::where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $saleItem->item_id)
+                        ->first();
+                    
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity += $saleItem->quantity;
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    }
+                    
+                    // Restore item on_hand
+                    $item = Item::find($saleItem->item_id);
+                    if ($item) {
+                        $item->on_hand = ($item->on_hand ?? 0) + $saleItem->quantity;
+                        $item->save();
+                    }
+                }
+            }
+            
+            // Delete payments
+            SalePayment::where('sale_id', $sale->id)->delete();
+            
+            // Delete sale items
+            $sale->saleItems()->delete();
+            
+            // Delete sale
+            $sale->delete();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Sale deleted successfully!'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting sale: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download PDF
+     */
+    public function pdf($id)
+    {
+        $sale = Sale::with(['customer', 'branch', 'user', 'saleItems.item.partnumber_item', 'saleItems.item.category'])->findOrFail($id);
+        
+        // Logo handling
+        $logoUrl = setting_value('logo') ?: asset('assets/img/logo.svg');
+        $logoData = null;
+        if ($logoPath = setting_value('logo')) {
+            $fullPath = str_replace(url('/'), public_path(), $logoPath);
+            if (file_exists($fullPath)) {
+                $logoData = 'data:image/' . pathinfo($fullPath, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($fullPath));
+            }
+        }
+        
+        $data = [
+            'sale' => $sale,
+            'logoData' => $logoData,
+            'logoUrl' => $logoUrl,
+            'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+            'address' => setting_value('address', ''),
+            'city' => setting_value('city', ''),
+            'state' => setting_value('state', ''),
+            'zip' => setting_value('zip', ''),
+            'country' => setting_value('country', ''),
+        ];
+        
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.sales.pdf', $data)
+                  ->setPaper('a4', 'portrait')
+                  ->setOptions([
+                      'isHtml5ParserEnabled' => true,
+                      'isRemoteEnabled' => true,
+                      'defaultFont' => 'DejaVu Sans',
+                  ]);
+        
+        return $pdf->download('Sale-' . ($sale->reference ?? $sale->id) . '.pdf');
+    }
+
+    /**
+     * Get payments for a sale
+     */
+    public function getPayments($id)
+    {
+        $sale = Sale::with(['payments.paymentMethod', 'payments.bankAccount.bank'])->findOrFail($id);
+        $totalPaid = $sale->total_paid;
+        $discount = $sale->discount ?? 0;
+        // If discount is given and no payment, treat discount as payment
+        if ($discount > 0 && $totalPaid == 0) {
+            $due = max(0, $sale->grand_total - $discount);
+        } else {
+            $due = max(0, $sale->grand_total - $totalPaid);
+        }
+        $payments = $sale->payments;
+        
+        return view('admin.sales.payments', compact('sale', 'payments', 'totalPaid', 'due', 'discount'));
+    }
+
+    /**
+     * Show create payment form
+     */
+    public function showCreatePayment($id)
+    {
+        $sale = Sale::findOrFail($id);
+        $totalPaid = $sale->total_paid;
+        $discount = $sale->discount ?? 0;
+        // If discount is given and no payment, treat discount as payment
+        if ($discount > 0 && $totalPaid == 0) {
+            $remaining = max(0, $sale->grand_total - $discount);
+        } else {
+            $remaining = max(0, $sale->grand_total - $totalPaid);
+        }
+        
+        return view('admin.sales.create-payment', compact('sale', 'totalPaid', 'remaining', 'discount'));
+    }
+
+    /**
+     * Create payment for a sale
+     */
+    public function createPayment(Request $request, $id)
+    {
+        $sale = Sale::findOrFail($id);
+        
+        $request->validate([
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'payment_amount' => 'required|numeric|min:0.01',
+            'payment_date' => 'required|date',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'payment_transaction_id' => 'nullable|string|max:255',
+            'payment_notes' => 'nullable|string',
+        ]);
+        
+        $paymentAmount = floatval($request->payment_amount);
+        $discount = $sale->discount ?? 0;
+        // Calculate remaining considering discount as payment if no payment made
+        if ($discount > 0 && $sale->total_paid == 0) {
+            $remaining = max(0, $sale->grand_total - $discount);
+        } else {
+            $remaining = max(0, $sale->grand_total - $sale->total_paid);
+        }
+        
+        if ($paymentAmount > $remaining) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Payment amount cannot exceed remaining amount (Rs ' . number_format($remaining, 2) . ')');
+        }
+        
+        DB::beginTransaction();
+        try {
+            $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
+            
+            if ($paymentMethod->requires_bank_account && !$request->bank_account_id) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Bank account is required for this payment method.');
+            }
+            
+            $payment = Payment::create([
+                'user_id' => auth()->id(),
+                'customer_id' => $sale->customer_id,
+                'payment_method_id' => $request->payment_method_id,
+                'bank_account_id' => $request->bank_account_id ?? null,
+                'amount' => $paymentAmount,
+                'currency' => 'PKR',
+                'direction' => 'in',
+                'payment_date' => $request->payment_date,
+                'transaction_id' => $request->payment_transaction_id ?? null,
+                'status' => 'paid',
+                'paid_at' => now(),
+                'notes' => $request->payment_notes ?? "Payment for Sale #{$sale->id}",
+            ]);
+            
+            SalePayment::create([
+                'sale_id' => $sale->id,
+                'payment_id' => $payment->id,
+                'allocated_amount' => $paymentAmount,
+            ]);
+            
+            DB::commit();
+            
+            return redirect()->route('sales.payments', $sale->id)
+                ->with('success', 'Payment created successfully!');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Error creating payment: ' . $e->getMessage());
         }
     }
 }

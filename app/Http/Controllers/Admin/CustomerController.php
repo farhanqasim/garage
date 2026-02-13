@@ -76,6 +76,15 @@ class CustomerController extends Controller
         return redirect()->back()->with('success', 'Customer Added Successfully');
     }
 
+    public function getCustomerForEdit($id)
+    {
+        $customer = Customer::findOrFail($id);
+        return response()->json([
+            'success' => true,
+            'customer' => $customer
+        ]);
+    }
+
     public function customer_update(Request $request, Customer $customer)
     {
         $plainPassword = $request->password ? $request->password : null;

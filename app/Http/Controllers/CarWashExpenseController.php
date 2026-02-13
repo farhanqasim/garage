@@ -6,9 +6,60 @@ use Illuminate\Http\Request;
 use App\Models\CarWashExpense;
 use App\Models\CarWashJob;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Traits\HasBranchAccess;
 
 class CarWashExpenseController extends Controller
 {
+    use HasBranchAccess;
+    
+    /**
+     * List job expenses for a date range. Query: from, to (YYYY-MM-DD; default today).
+     * Returns completed jobs with expenses where end_time date is between from and to.
+     */
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+        $from = $request->get('from', now()->format('Y-m-d'));
+        $to = $request->get('to', now()->format('Y-m-d'));
+
+        $query = CarWashJob::query();
+        $this->applyBranchFilter($query, 'branch_id', $user);
+        $jobs = $query->completed()
+            ->whereNotNull('end_time')
+            ->whereDate('end_time', '>=', $from)
+            ->whereDate('end_time', '<=', $to)
+            ->with(['expense', 'user'])
+            ->orderBy('end_time', 'desc')
+            ->get();
+
+        $list = [];
+        foreach ($jobs as $job) {
+            $exp = $job->expense;
+            if (!$exp) continue;
+            $items = is_array($exp->expense_items) ? $exp->expense_items : [];
+            $subtotal = (float) ($exp->total_amount ?? 0);
+            $list[] = [
+                'jobId' => $job->id,
+                'dateTime' => $job->end_time ? $job->end_time->format('Y-m-d H:i') : null,
+                'vehicleNo' => $job->vehicle_no,
+                'customerName' => $job->customer_name,
+                'mobile' => $job->mobile,
+                'workerName' => $job->worker_name,
+                'userName' => $job->user ? $job->user->name : null,
+                'items' => $items,
+                'subtotal' => $subtotal,
+            ];
+        }
+
+        $total = collect($list)->sum('subtotal');
+
+        return response()->json([
+            'success' => true,
+            'expenses' => $list,
+            'total' => round($total, 2),
+        ]);
+    }
+
     /**
      * Store or update expense for a job
      */
@@ -21,16 +72,15 @@ class CarWashExpenseController extends Controller
 
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
 
-        // Check permission
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to add expense for this job'
             ], 403);
         }
 
+        $branchId = $this->getUserBranchId($user);
         // Update or create expense
         $expense = CarWashExpense::updateOrCreate(
             ['job_id' => $jobId],
@@ -60,10 +110,8 @@ class CarWashExpenseController extends Controller
     {
         $job = CarWashJob::findOrFail($jobId);
         $user = Auth::user();
-        $branchId = $user->branches ? $user->branches->id : null;
 
-        // Check permission
-        if ($job->branch_id !== null && $job->branch_id !== $branchId) {
+        if (!$this->canAccessJobBranch($job, $user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to view this expense'

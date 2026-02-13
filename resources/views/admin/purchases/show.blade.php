@@ -76,8 +76,8 @@
                 </div>
             </div>
             
-            <div class="row border-bottom mb-3">
-                <div class="col-md-5">
+            <div class="row border-bottom mb-3" style="display: flex; flex-wrap: nowrap;">
+                <div style="flex: 1; padding-right: 15px;">
                     <p class="text-dark mb-2 fw-semibold">From</p>
                     <div>
                         <h4 class="mb-1">{{ $companyName }}</h4>
@@ -94,7 +94,7 @@
                         <p>Phone : <span class="text-dark">{{ $helpline }}</span></p>
                     </div>
                 </div>
-                <div class="col-md-5">
+                <div style="flex: 1; padding-left: 15px; padding-right: 15px; border-left: 1px solid #dee2e6;">
                     <p class="text-dark mb-2 fw-semibold">To</p>
                     <div>
                         <h4 class="mb-1">{{ $purchase->supplier->names[0] ?? 'N/A' }}</h4>
@@ -113,7 +113,7 @@
                         @endif
                     </div>
                 </div>
-                <div class="col-md-2">
+                <div style="flex: 0 0 150px; padding-left: 15px; border-left: 1px solid #dee2e6;">
                     <div class="mb-3">
                         <p class="text-title mb-2 fw-medium">Payment Status</p>
                         <span class="bg-success text-white fs-10 px-1 rounded">
@@ -177,44 +177,74 @@
             </div>
             
             <div class="row border-bottom mb-3">
-                <div class="col-md-5 ms-auto mb-3">
-                    <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                        <p class="mb-0">Sub Total</p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->subtotal, 2) }}</p>
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center border-bottom mb-2" style="display: flex; flex-wrap: nowrap;">
+                        <div style="flex: 1; text-align: center; padding: 10px; border-right: 1px solid #dee2e6;">
+                            <p class="mb-1">Sub Total</p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->subtotal, 2) }}</p>
+                        </div>
+                        @if($purchase->discount > 0)
+                        <div style="flex: 1; text-align: center; padding: 10px; border-right: 1px solid #dee2e6;">
+                            <p class="mb-1">Discount 
+                                @php
+                                    $discountPercent = $purchase->subtotal > 0 ? ($purchase->discount / $purchase->subtotal) * 100 : 0;
+                                @endphp
+                                ({{ number_format($discountPercent, 2) }}%)
+                            </p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->discount, 2) }}</p>
+                        </div>
+                        @else
+                        <div style="flex: 1; text-align: center; padding: 10px; border-right: 1px solid #dee2e6;">
+                            @if($purchase->order_tax > 0)
+                            <p class="mb-1">VAT 
+                                @php
+                                    $taxPercent = $purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0;
+                                @endphp
+                                ({{ number_format($taxPercent, 2) }}%)
+                            </p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->order_tax, 2) }}</p>
+                            @elseif($purchase->shipping > 0)
+                            <p class="mb-1">Shipping</p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->shipping, 2) }}</p>
+                            @else
+                            <p class="mb-0">-</p>
+                            @endif
+                        </div>
+                        @endif
+                        <div style="flex: 1; text-align: center; padding: 10px;">
+                            <p class="mb-1">Total Amount</p>
+                            <p class="text-dark fw-medium mb-0" style="font-weight: 600;">Rs {{ number_format($purchase->grand_total, 2) }}</p>
+                        </div>
                     </div>
-                    @if($purchase->discount > 0)
-                    <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                        <p class="mb-0">Discount 
-                            @php
-                                $discountPercent = $purchase->subtotal > 0 ? ($purchase->discount / $purchase->subtotal) * 100 : 0;
-                            @endphp
-                            ({{ number_format($discountPercent, 2) }}%)
-                        </p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->discount, 2) }}</p>
+                    @if($purchase->order_tax > 0 && $purchase->discount > 0)
+                    <div class="d-flex justify-content-between align-items-center mb-2" style="display: flex; flex-wrap: nowrap;">
+                        <div style="flex: 1; text-align: center; padding: 10px; border-right: 1px solid #dee2e6;">
+                            <p class="mb-1">VAT 
+                                @php
+                                    $taxPercent = $purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0;
+                                @endphp
+                                ({{ number_format($taxPercent, 2) }}%)
+                            </p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->order_tax, 2) }}</p>
+                        </div>
+                        <div style="flex: 1; text-align: center; padding: 10px;">
+                            @if($purchase->shipping > 0)
+                            <p class="mb-1">Shipping</p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->shipping, 2) }}</p>
+                            @else
+                            <p class="mb-0">-</p>
+                            @endif
+                        </div>
+                    </div>
+                    @elseif($purchase->shipping > 0 && $purchase->discount == 0 && $purchase->order_tax == 0)
+                    <div class="d-flex justify-content-center align-items-center mb-2">
+                        <div style="text-align: center; padding: 10px;">
+                            <p class="mb-1">Shipping</p>
+                            <p class="text-dark fw-medium mb-0">Rs {{ number_format($purchase->shipping, 2) }}</p>
+                        </div>
                     </div>
                     @endif
-                    @if($purchase->order_tax > 0)
-                    <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                        <p class="mb-0">VAT 
-                            @php
-                                $taxPercent = $purchase->subtotal > 0 ? ($purchase->order_tax / $purchase->subtotal) * 100 : 0;
-                            @endphp
-                            ({{ number_format($taxPercent, 2) }}%)
-                        </p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->order_tax, 2) }}</p>
-                    </div>
-                    @endif
-                    @if($purchase->shipping > 0)
-                    <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                        <p class="mb-0">Shipping</p>
-                        <p class="text-dark fw-medium mb-2">Rs {{ number_format($purchase->shipping, 2) }}</p>
-                    </div>
-                    @endif
-                    <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                        <h5>Total Amount</h5>
-                        <h5>Rs {{ number_format($purchase->grand_total, 2) }}</h5>
-                    </div>
-                    <p class="fs-12">
+                    <p class="fs-12 text-center mt-2">
                         Amount in Words : <span class="text-dark">
                             @php
                                 $amount = (int)$purchase->grand_total;
@@ -317,6 +347,7 @@
             left: 0;
             top: 0;
             width: 100%;
+            font-size: 11px !important;
         }
         
         .page-header,
@@ -330,15 +361,146 @@
         .card {
             border: none !important;
             box-shadow: none !important;
+            margin: 0 !important;
         }
         
         .card-body {
-            padding: 20px !important;
+            padding: 10px !important;
         }
         
+        /* Reduce logo size */
+        .card-body img[alt="logo"] {
+            width: 80px !important;
+            height: auto !important;
+        }
+        
+        /* Compact header */
+        .row.justify-content-between {
+            margin-bottom: 8px !important;
+        }
+        
+        .row.justify-content-between h5 {
+            font-size: 14px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        .row.justify-content-between p {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        /* Compact from/to section */
+        .row.border-bottom {
+            margin-bottom: 8px !important;
+            padding-bottom: 8px !important;
+        }
+        
+        .row.border-bottom h4 {
+            font-size: 13px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        .row.border-bottom p {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        /* Compact table */
+        .table {
+            font-size: 10px !important;
+            margin-bottom: 8px !important;
+        }
+        
+        .table th {
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+        }
+        
+        .table td {
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+        }
+        
+        .table h6 {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        .table small {
+            font-size: 8px !important;
+        }
+        
+        /* Compact totals section */
+        .row.border-bottom.mb-3:last-of-type {
+            margin-bottom: 8px !important;
+        }
+        
+        .row.border-bottom.mb-3 p {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        .row.border-bottom.mb-3 h5 {
+            font-size: 12px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        /* Compact terms and signature */
+        .row.align-items-center {
+            margin-bottom: 8px !important;
+        }
+        
+        .row.align-items-center h6 {
+            font-size: 11px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        .row.align-items-center p {
+            font-size: 9px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        .row.align-items-center img {
+            max-height: 50px !important;
+        }
+        
+        /* Compact footer */
+        .text-center {
+            margin-top: 8px !important;
+        }
+        
+        .text-center img {
+            width: 80px !important;
+        }
+        
+        .text-center p {
+            font-size: 9px !important;
+            margin-bottom: 2px !important;
+        }
+        
+        /* Remove unnecessary spacing */
+        .mb-3 {
+            margin-bottom: 8px !important;
+        }
+        
+        .mb-2 {
+            margin-bottom: 4px !important;
+        }
+        
+        .mb-1 {
+            margin-bottom: 2px !important;
+        }
+        
+        /* Compact page margins */
         @page {
-            margin: 15mm;
+            margin: 8mm !important;
             size: A4;
+        }
+        
+        /* Ensure everything fits */
+        .card-body {
+            max-height: 100vh;
+            overflow: visible !important;
         }
     }
 </style>

@@ -11,6 +11,7 @@ class Purchase extends Model
 
     protected $fillable = [
         'invoice_no',
+        'is_purchase_order',
         'supplier_id',
         'branch_id',
         'purchase_date',
@@ -25,6 +26,7 @@ class Purchase extends Model
     ];
 
     protected $casts = [
+        'is_purchase_order' => 'boolean',
         'purchase_date' => 'date',
         'subtotal' => 'decimal:2',
         'order_tax' => 'decimal:2',
@@ -46,5 +48,27 @@ class Purchase extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function payments()
+    {
+        return $this->belongsToMany(Payment::class, 'purchase_payments')
+                    ->withPivot('allocated_amount')
+                    ->withTimestamps();
+    }
+
+    public function getTotalPaidAttribute()
+    {
+        return $this->payments()->sum('purchase_payments.allocated_amount');
+    }
+
+    public function getRemainingAmountAttribute()
+    {
+        return $this->grand_total - $this->total_paid;
+    }
+
+    public function getIsFullyPaidAttribute()
+    {
+        return $this->remaining_amount <= 0;
     }
 }

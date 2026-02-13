@@ -127,13 +127,13 @@
                     </div>
                     <div class="print-amount print-card bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-xl border-2 border-blue-400">
                         <p class="text-xs font-black text-white/90 uppercase mb-2">Amount</p>
-                        <p class="text-2xl font-black text-white">Rs.{{ number_format($jobData['price'] ?? 0, 2) }}</p>
+                        <p class="text-2xl font-black text-white">Rs.{{ number_format($jobData['price'] ?? 0, 0) }}</p>
                     </div>
                     <div class="print-commission print-card bg-gradient-to-br from-emerald-500 to-green-600 p-4 rounded-xl border-2 border-emerald-400">
                         <p class="text-xs font-black text-white/90 uppercase mb-2">Commission</p>
                         @if(($jobData['workerCommission'] ?? 0) > 0)
                             <div>
-                                <p class="text-2xl font-black text-white font-mono">Rs.{{ number_format($jobData['commissionAmount'] ?? 0, 2) }}</p>
+                                <p class="text-2xl font-black text-white font-mono">Rs.{{ number_format($jobData['commissionAmount'] ?? 0, 0) }}</p>
                                 <p class="text-xs text-white/80 mt-1">({{ $jobData['workerCommission'] }}%)</p>
                             </div>
                         @else
@@ -191,15 +191,15 @@
                                 <div class="bg-white p-3 rounded-lg border border-orange-200 flex justify-between items-center">
                                     <div>
                                         <p class="text-sm font-black text-slate-900">{{ $item['name'] ?? 'N/A' }}</p>
-                                        <p class="text-xs text-slate-500">Qty: {{ $item['quantity'] ?? 0 }} × Rs.{{ number_format($item['price'] ?? 0, 2) }}</p>
+                                        <p class="text-xs text-slate-500">Qty: {{ $item['quantity'] ?? 0 }} × Rs.{{ number_format($item['price'] ?? 0, 0) }}</p>
                                     </div>
-                                    <p class="text-sm font-black text-orange-600">Rs.{{ number_format($item['total'] ?? (($item['quantity'] ?? 0) * ($item['price'] ?? 0)), 2) }}</p>
+                                    <p class="text-sm font-black text-orange-600">Rs.{{ number_format($item['total'] ?? (($item['quantity'] ?? 0) * ($item['price'] ?? 0)), 0) }}</p>
                                 </div>
                             @endif
                         @endforeach
                         <div class="bg-orange-200 p-3 rounded-lg border-2 border-orange-300 flex justify-between items-center mt-4">
                             <p class="text-sm font-black text-orange-900 uppercase">Total Expense</p>
-                            <p class="text-lg font-black text-orange-900">Rs.{{ number_format($jobData['expense']['totalAmount'] ?? 0, 2) }}</p>
+                            <p class="text-lg font-black text-orange-900">Rs.{{ number_format($jobData['expense']['totalAmount'] ?? 0, 0) }}</p>
                         </div>
                     </div>
                 </div>
@@ -211,24 +211,24 @@
                     <div class="space-y-3">
                         <div class="flex justify-between items-center bg-white p-3 rounded-lg">
                             <p class="text-sm font-black text-slate-700">Total Amount:</p>
-                            <p class="text-lg font-black text-blue-600 font-mono">Rs.{{ number_format($jobData['price'] ?? 0, 2) }}</p>
+                            <p class="text-lg font-black text-blue-600 font-mono">Rs.{{ number_format($jobData['price'] ?? 0, 0) }}</p>
                         </div>
                         @if(($jobData['workerCommission'] ?? 0) > 0)
                             <div class="flex justify-between items-center bg-white p-3 rounded-lg">
                                 <p class="text-sm font-black text-slate-700">Worker Commission ({{ $jobData['workerCommission'] }}%):</p>
-                                <p class="text-lg font-black text-emerald-600 font-mono">Rs.{{ number_format($jobData['commissionAmount'] ?? 0, 2) }}</p>
+                                <p class="text-lg font-black text-emerald-600 font-mono">Rs.{{ number_format($jobData['commissionAmount'] ?? 0, 0) }}</p>
                             </div>
                         @endif
                         @if(isset($jobData['expense']['totalAmount']) && $jobData['expense']['totalAmount'] > 0)
                             <div class="flex justify-between items-center bg-white p-3 rounded-lg">
                                 <p class="text-sm font-black text-slate-700">Total Expenses:</p>
-                                <p class="text-lg font-black text-orange-600 font-mono">Rs.{{ number_format($jobData['expense']['totalAmount'], 2) }}</p>
+                                <p class="text-lg font-black text-orange-600 font-mono">Rs.{{ number_format($jobData['expense']['totalAmount'], 0) }}</p>
                             </div>
                         @endif
                         <div class="flex justify-between items-center bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-lg mt-4">
                             <p class="text-base font-black text-white uppercase">Net Amount:</p>
                             <p class="text-xl font-black text-white font-mono">
-                                Rs.{{ number_format(($jobData['price'] ?? 0) - ($jobData['commissionAmount'] ?? 0) - ($jobData['expense']['totalAmount'] ?? 0), 2) }}
+                                Rs.{{ number_format(($jobData['price'] ?? 0) - ($jobData['commissionAmount'] ?? 0) - ($jobData['expense']['totalAmount'] ?? 0), 0) }}
                             </p>
                         </div>
                     </div>
