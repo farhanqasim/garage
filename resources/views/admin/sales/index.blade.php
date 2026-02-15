@@ -32,7 +32,7 @@
         </ul>
         <div class="page-btn">
             @can('add_sales')
-            <a href="{{ route('create.sale') }}" class="btn btn-primary" ><i
+            <a href="{{ route('create.sale.new') }}" class="btn btn-primary" ><i
                     class="ti ti-circle-plus me-1"></i>Add Sales</a>
             @endcan
         </div>

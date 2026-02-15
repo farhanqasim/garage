@@ -60,8 +60,11 @@
                                 @endif
                             </td>
                             <td>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 flex-wrap">
                                     @can('view_warehouse')
+                                    <a href="{{ route('warehouses.edit', $warehouse->id) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                        <i class="ti ti-pencil"></i> Edit
+                                    </a>
                                     <a href="{{ route('warehouses.show', $warehouse->id) }}" class="btn btn-sm btn-primary" title="View">
                                         <i class="ti ti-eye"></i> View
                                     </a>

@@ -459,7 +459,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-bold mb-2">QUANTITY</label>
                         <select id="item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="1">Qty</option>
+                            <option value="">-</option>
                             <option value="0.5">0.5</option>
                             <option value="1">1</option>
                             <option value="1.5">1.5</option>
@@ -518,17 +518,14 @@
                             <div class="col-6">
                                 <select id="warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
                                     <option value="">-</option>
-                                    <option value="7">7</option>
-                                    <option value="15">15</option>
-                                    <option value="30">30</option>
-                                    <option value="60">60</option>
-                                    <option value="90">90</option>
-                                    <option value="180">180</option>
-                                    <option value="365">365</option>
+                                    @for($i = 1; $i <= 30; $i++)
+                                        <option value="{{ $i }}">{{ $i }}</option>
+                                    @endfor
                                 </select>
                             </div>
                             <div class="col-6">
                                 <select id="warranty-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="">-</option>
                                     <option value="Days">Days</option>
                                     <option value="Weeks">Weeks</option>
                                     <option value="Months">Months</option>
@@ -1162,11 +1159,11 @@ $(document).ready(function() {
         $('#item-search').val('');
         $('#selected-item-id').val('');
         $('#selected-warehouse-id').val('');
-        $('#item-quantity').val('1');
+        $('#item-quantity').val('');
         $('#item-unit').val('Unit');
         $('#item-rate').val('0');
         $('#warranty-value').val('');
-        $('#warranty-unit').val('Days');
+        $('#warranty-unit').val('');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
@@ -1637,12 +1634,12 @@ $(document).ready(function() {
     function resetItemModal() {
         $('#selected-item-id').val('');
         $('#item-search').val('');
-        $('#item-quantity').val('1');
+        $('#item-quantity').val('');
         $('#item-quantity-input').val('1').hide();
         $('#item-unit').val('Can');
         $('#item-rate').val('0');
         $('#warranty-value').val('');
-        $('#warranty-unit').val('Days');
+        $('#warranty-unit').val('');
         $('#item-discount').val('0');
         $('#discount-type').val('amount');
         $('#item-tax').val('0');

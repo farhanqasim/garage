@@ -14,6 +14,7 @@ class PurchaseCart extends Model
         'branch_id',
         'supplier_id',
         'item_id',
+        'warehouse_id',
         'quantity',
         'unit',
         'rate',
@@ -50,5 +51,10 @@ class PurchaseCart extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 }
