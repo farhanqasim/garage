@@ -99,6 +99,11 @@ Route::middleware('auth')->group(function () {
      
 // Normal user dashboard
 Route::get('/home', [HomeController::class, 'index'])->name('home');
+Route::get('/task-reminder', [\App\Http\Controllers\TaskReminderController::class, 'index'])->name('task.reminder')->middleware('auth');
+Route::post('/task-reminder', [\App\Http\Controllers\TaskReminderController::class, 'store'])->name('task.reminder.store')->middleware('auth');
+Route::post('/task-reminder/{id}/response', [\App\Http\Controllers\TaskReminderController::class, 'addResponse'])->name('task.reminder.response')->middleware('auth');
+Route::post('/task-reminder/{id}/complete', [\App\Http\Controllers\TaskReminderController::class, 'complete'])->name('task.reminder.complete')->middleware('auth');
+Route::delete('/task-reminder/{id}', [\App\Http\Controllers\TaskReminderController::class, 'destroy'])->name('task.reminder.destroy')->middleware('auth');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
 Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
 Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
@@ -610,11 +615,21 @@ Route::post('/item/delete-single-from-array', [ItemController::class, 'deleteSin
 // Supliers
 Route::get('all/suppliers',[SupplierController::class,'all_suppliers'])->name('all_suppliers');
 
-// sales
+// sales — specific routes MUST come before sales/{id} so "next-estimate-number" is not matched as id
 Route::get('all/sales',[SalesController::class,'all_sales'])->name('all_sales');
 Route::get('create/sale',[SalesController::class,'create_sale'])->name('create.sale');
 Route::get('create/sale/new',[SalesController::class,'create_sale_new'])->name('create.sale.new');
 Route::post('create/sale',[SalesController::class,'store'])->name('sales.store');
+Route::get('/sales/next-invoice-number', [SalesController::class, 'getNextInvoiceNumber'])
+    ->name('sales.next.invoice.number');
+Route::get('/sales/next-estimate-number', [SalesController::class, 'getNextEstimateNumber'])
+    ->name('sales.next.estimate.number');
+Route::get('/sales/next-sale-order-number', [SalesController::class, 'getNextSaleOrderNumber'])
+    ->name('sales.next.sale.order.number');
+Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
+    ->name('sales.items.ajax.search');
+Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])
+    ->name('sales.filter.options');
 Route::get('sales/{id}',[SalesController::class,'show'])->name('sales.show');
 Route::get('sales/{id}/edit',[SalesController::class,'edit'])->name('sales.edit');
 Route::put('sales/{id}',[SalesController::class,'update'])->name('sales.update');
@@ -623,17 +638,10 @@ Route::get('sales/{id}/pdf',[SalesController::class,'pdf'])->name('sales.downloa
 Route::get('sales/{id}/payments',[SalesController::class,'getPayments'])->name('sales.payments');
 Route::get('sales/{id}/payments/create',[SalesController::class,'showCreatePayment'])->name('sales.payments.create');
 Route::post('sales/{id}/payments',[SalesController::class,'createPayment'])->name('sales.payments.store');
-Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
-    ->name('sales.items.ajax.search');
-Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])
-    ->name('sales.filter.options');
-Route::get('/sales/next-estimate-number', [SalesController::class, 'getNextEstimateNumber'])
-    ->name('sales.next.estimate.number');
-Route::get('/sales/next-sale-order-number', [SalesController::class, 'getNextSaleOrderNumber'])
-    ->name('sales.next.sale.order.number');
 Route::get('sales/items/{id}',[SalesController::class,'getItemDetails'])->name('sales.items.details');
 Route::get('sales/items/{id}/stock-status',[SalesController::class,'getItemStockStatus'])->name('sales.items.stock.status');
 Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemPurchaseHistory'])->name('sales.items.purchase.history');
+Route::get('sales/items/{id}/sale-history',[SalesController::class,'getItemSaleHistory'])->name('sales.items.sale.history');
 
 // purchases
 Route::get('all/purchases',[PurchaseController::class,'all_purchases'])->name('all_purchases');
@@ -666,7 +674,11 @@ Route::get('warehouses',[WarehouseController::class,'index'])->name('warehouses.
 Route::get('warehouses/create',[WarehouseController::class,'create'])->name('warehouses.create')->middleware('auth');
 Route::post('warehouses',[WarehouseController::class,'store'])->name('warehouses.store')->middleware('auth');
 Route::get('warehouses/by-branch/{branchId}',[WarehouseController::class,'getByBranch'])->name('warehouses.by.branch')->middleware('auth');
+Route::get('warehouses/list-by-branch/{branchId}',[WarehouseController::class,'listByBranch'])->name('warehouses.list.by.branch')->middleware('auth');
+Route::get('warehouses/next-code',[WarehouseController::class,'nextCode'])->name('warehouses.next-code')->middleware('auth');
 Route::get('warehouses/{id}',[WarehouseController::class,'show'])->name('warehouses.show')->middleware('auth');
+Route::get('warehouses/{id}/edit',[WarehouseController::class,'edit'])->name('warehouses.edit')->middleware('auth');
+Route::put('warehouses/{id}',[WarehouseController::class,'update'])->name('warehouses.update')->middleware('auth');
 Route::get('warehouses/{id}/add-item',[WarehouseController::class,'addItem'])->name('warehouses.add-item')->middleware('auth');
 Route::post('warehouses/{id}/items',[WarehouseController::class,'storeItem'])->name('warehouses.store-item')->middleware('auth');
 Route::put('warehouses/{warehouseId}/items/{itemId}',[WarehouseController::class,'updateStock'])->name('warehouses.update-stock')->middleware('auth');

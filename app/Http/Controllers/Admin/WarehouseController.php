@@ -20,22 +20,35 @@ class WarehouseController extends Controller
     {
         $user = Auth::user();
         
-        // Get branches that don't have a warehouse yet
+        // Show all active branches in dropdown
         if ($user->role === 'admin') {
             $branches = Branch::where('status', 'active')
-                ->whereDoesntHave('warehouse')
                 ->orderBy('branch_name', 'asc')
                 ->get();
         } else {
-            // Users can only create warehouse for their branch
             $branchId = session('selected_branch_id');
-            $branches = Branch::where('id', $branchId)
-                ->where('status', 'active')
-                ->whereDoesntHave('warehouse')
+            $branches = Branch::where('status', 'active')
+                ->when($branchId, function ($q) use ($branchId) {
+                    $q->where('id', $branchId);
+                })
+                ->orderBy('branch_name', 'asc')
                 ->get();
         }
 
         return view('admin.warehouses.create', compact('branches'));
+    }
+
+    /**
+     * Return next available warehouse code for auto-generate button (JSON).
+     */
+    public function nextCode()
+    {
+        $count = Warehouse::count();
+        do {
+            $count++;
+            $code = 'WH-' . str_pad((string) $count, 3, '0', STR_PAD_LEFT);
+        } while (Warehouse::where('warehouse_code', $code)->exists());
+        return response()->json(['code' => $code]);
     }
 
     /**
@@ -46,7 +59,7 @@ class WarehouseController extends Controller
         $user = Auth::user();
         
         $request->validate([
-            'branch_id' => 'required|exists:branches,id|unique:warehouses,branch_id',
+            'branch_id' => 'required|exists:branches,id',
             'warehouse_name' => 'required|string|max:255',
             'warehouse_code' => 'nullable|string|max:255|unique:warehouses,warehouse_code',
             'address' => 'nullable|string',
@@ -60,27 +73,19 @@ class WarehouseController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Check if branch already has warehouse
-        $existingWarehouse = Warehouse::where('branch_id', $request->branch_id)->first();
-        if ($existingWarehouse) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'This branch already has a warehouse.');
-        }
-
         // Check access for non-admin users
         if ($user->role !== 'admin' && $request->branch_id != session('selected_branch_id')) {
             abort(403, 'Unauthorized access.');
         }
 
-        // Auto-generate warehouse code if not provided
-        $warehouseCode = $request->warehouse_code;
-        if (!$warehouseCode) {
-            $warehouseCode = 'WH-' . strtoupper(Str::random(6));
-            // Ensure uniqueness
-            while (Warehouse::where('warehouse_code', $warehouseCode)->exists()) {
-                $warehouseCode = 'WH-' . strtoupper(Str::random(6));
-            }
+        // Auto-generate warehouse code if not provided (sequential: WH-001, WH-002, ...)
+        $warehouseCode = trim((string) $request->warehouse_code);
+        if ($warehouseCode === '') {
+            $count = Warehouse::count();
+            do {
+                $count++;
+                $warehouseCode = 'WH-' . str_pad((string) $count, 3, '0', STR_PAD_LEFT);
+            } while (Warehouse::where('warehouse_code', $warehouseCode)->exists());
         }
 
         $warehouse = Warehouse::create([
@@ -103,7 +108,7 @@ class WarehouseController extends Controller
     }
 
     /**
-     * Get warehouse by branch ID
+     * Get warehouse by branch ID (single - first warehouse)
      */
     public function getByBranch($branchId)
     {
@@ -124,6 +129,17 @@ class WarehouseController extends Controller
     }
 
     /**
+     * List all warehouses for a branch (for dropdowns)
+     */
+    public function listByBranch($branchId)
+    {
+        $warehouses = Warehouse::where('branch_id', $branchId)
+            ->orderBy('id', 'asc')
+            ->get(['id', 'warehouse_name', 'warehouse_code']);
+        return response()->json($warehouses);
+    }
+
+    /**
      * Display list of warehouses (branch-specific for users)
      */
     public function index()
@@ -131,8 +147,10 @@ class WarehouseController extends Controller
         $user = Auth::user();
         
         if ($user->role === 'admin') {
-            // Admin can see all warehouses
-            $warehouses = Warehouse::with(['branch', 'items'])->paginate(20);
+            // Admin can see all warehouses (sequence by id)
+            $warehouses = Warehouse::with(['branch', 'items'])
+                ->orderBy('id', 'asc')
+                ->paginate(20);
         } else {
             // User can only see their branch warehouse
             $branchId = session('selected_branch_id');
@@ -143,6 +161,7 @@ class WarehouseController extends Controller
             
             $warehouses = Warehouse::where('branch_id', $branchId)
                 ->with(['branch', 'items'])
+                ->orderBy('id', 'asc')
                 ->paginate(20);
         }
 
@@ -168,6 +187,81 @@ class WarehouseController extends Controller
             ->paginate(50);
 
         return view('admin.warehouses.show', compact('warehouse', 'items'));
+    }
+
+    /**
+     * Show form to edit warehouse
+     */
+    public function edit($id)
+    {
+        $user = Auth::user();
+        $warehouse = Warehouse::with('branch')->findOrFail($id);
+
+        if ($user->role !== 'admin' && $warehouse->branch_id != session('selected_branch_id')) {
+            abort(403, 'Unauthorized access to this warehouse.');
+        }
+
+        if ($user->role === 'admin') {
+            $branches = Branch::where('status', 'active')->orderBy('branch_name', 'asc')->get();
+        } else {
+            $branchId = session('selected_branch_id');
+            $branches = Branch::where('status', 'active')
+                ->when($branchId, fn($q) => $q->where('id', $branchId))
+                ->orderBy('branch_name', 'asc')
+                ->get();
+        }
+
+        return view('admin.warehouses.edit', compact('warehouse', 'branches'));
+    }
+
+    /**
+     * Update warehouse
+     */
+    public function update(Request $request, $id)
+    {
+        $user = Auth::user();
+        $warehouse = Warehouse::findOrFail($id);
+
+        if ($user->role !== 'admin' && $warehouse->branch_id != session('selected_branch_id')) {
+            abort(403, 'Unauthorized access to this warehouse.');
+        }
+
+        $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+            'warehouse_name' => 'required|string|max:255',
+            'warehouse_code' => 'nullable|string|max:255|unique:warehouses,warehouse_code,' . $id,
+            'address' => 'nullable|string',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'country' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'manager_name' => 'nullable|string|max:255',
+            'status' => 'required|in:active,inactive',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($user->role !== 'admin' && (int) $request->branch_id !== (int) session('selected_branch_id')) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $warehouse->update([
+            'branch_id' => $request->branch_id,
+            'warehouse_name' => $request->warehouse_name,
+            'warehouse_code' => trim((string) $request->warehouse_code) ?: $warehouse->warehouse_code,
+            'address' => $request->address,
+            'city' => $request->city,
+            'state' => $request->state,
+            'country' => $request->country ?? 'Pakistan',
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'manager_name' => $request->manager_name,
+            'status' => $request->status,
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->route('warehouses.show', $warehouse->id)
+            ->with('success', 'Warehouse updated successfully.');
     }
 
     /**

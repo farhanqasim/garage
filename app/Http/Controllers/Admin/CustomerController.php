@@ -73,6 +73,9 @@ class CustomerController extends Controller
             Mail::to($customer->email)->send(new WelcomeCustomerMail($customer->email, $plainPassword));
         }
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'customer' => $customer, 'message' => 'Customer added successfully']);
+        }
         return redirect()->back()->with('success', 'Customer Added Successfully');
     }
 
