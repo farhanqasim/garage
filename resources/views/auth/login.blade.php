@@ -602,10 +602,10 @@
                                                         branchInfoMsg.classList.remove('text-danger', 'text-success');
                                                         branchInfoMsg.classList.add('text-info');
                                                         
-                                                        // Auto-select if branch_id provided
+                                                        // Auto-select if branch_id provided; open dropdown only if user ne abhi select nahi kiya
                                                         if (data.branch_id) {
                                                             branchSelect.value = data.branch_id;
-                                                        } else {
+                                                        } else if (!branchSelect.value) {
                                                             focusAndOpenBranchDropdown();
                                                         }
                                                     } else if (data.branch_id && data.branch_required) {

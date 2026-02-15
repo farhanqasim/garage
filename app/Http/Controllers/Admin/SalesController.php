@@ -21,6 +21,7 @@ use App\Models\PaymentMethod;
 use App\Models\BankAccount;
 use App\Models\SalePayment;
 use App\Models\CustomerCar;
+use App\Models\VehicalType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -296,6 +297,26 @@ class SalesController extends Controller
                 ->orWhereHas('vehical_item.vehical_part_number', function ($subQ) use ($term) {
                     $subQ->where('name', 'LIKE', "%{$term}%")->orWhere('id', 'LIKE', "%{$term}%");
                 });
+                // ========== MULTIPLE CONNECTED VEHICLES (vehical_ids) ==========
+                $matchingVehicleIds = VehicalType::where('status', 'active')
+                    ->where(function ($vq) use ($term) {
+                        $vq->whereHas('manutacturer_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                          ->orWhereHas('model_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                          ->orWhereHas('engine_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                          ->orWhereHas('country_vehical', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                          ->orWhereHas('vehical_part_number', fn($m) => $m->where('name', 'LIKE', "%{$term}%"))
+                          ->orWhere('year_from', 'LIKE', "%{$term}%")
+                          ->orWhere('year_to', 'LIKE', "%{$term}%");
+                    })
+                    ->pluck('id')
+                    ->toArray();
+                if (!empty($matchingVehicleIds)) {
+                    $q->orWhere(function ($jsonQ) use ($matchingVehicleIds) {
+                        foreach ($matchingVehicleIds as $vid) {
+                            $jsonQ->orWhereJsonContains('vehical_ids', $vid);
+                        }
+                    });
+                }
                 // ========== PRODUCT / COMPANY / PLATE / AMPHORS / LINE / MILEAGE ==========
                 $q->orWhere('type', 'LIKE', "%{$term}%")->orWhere('p_id', 'LIKE', "%{$term}%");
                 $q->orWhereHas('product_item', function ($subQ) use ($term) {

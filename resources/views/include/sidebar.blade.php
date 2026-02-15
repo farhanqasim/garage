@@ -102,7 +102,7 @@
                         <li><a href="{{ route('all.items') }}"><i data-feather="box"></i><span>Items</span></a></li>
                         @endcanany
                         @canany(['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'])
-                        <li><a href="{{ route('all.items.create') }}"><i
+                        <li><a href="{{ route('all.items.create.new') }}"><i
                                     class="ti ti-table-plus fs-16 me-2"></i><span>Create Item</span></a></li>
                         @endcanany
                         @can('view_category')
@@ -116,10 +116,24 @@
                 @endcanany
 
                 {{-- Items Parts & Role Permissions --}}
-                @canany(['view_car_wash_services', 'view_role'])
+                @canany(['view_car_wash_services', 'view_role', 'view_items', 'view_parts', 'view_battery', 'view_scrap', 'view_filters', 'view_break_pad', 'view_oil', 'view_services'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Items Parts</h6>
                     <ul>
+                        @canany(['view_items', 'view_parts', 'view_battery', 'view_scrap', 'view_filters', 'view_break_pad', 'view_oil', 'view_services'])
+                        <li class="submenu">
+                            <a href="javascript:void(0);"><i class="ti ti-list-details fs-16 me-2"></i><span>Item Type Data</span><span class="menu-arrow"></span></a>
+                            <ul>
+                                @canany(['view_items', 'view_parts']) <li><a href="{{ route('item-type-data.index', 'parts') }}">Parts</a></li> @endcanany
+                                @canany(['view_items', 'view_battery']) <li><a href="{{ route('item-type-data.index', 'battery') }}">Battery</a></li> @endcanany
+                                @canany(['view_items', 'view_scrap']) <li><a href="{{ route('item-type-data.index', 'scrap') }}">Scrap</a></li> @endcanany
+                                @canany(['view_items', 'view_filters']) <li><a href="{{ route('item-type-data.index', 'filters') }}">Filters</a></li> @endcanany
+                                @canany(['view_items', 'view_break_pad']) <li><a href="{{ route('item-type-data.index', 'breakpad') }}">Break Pad</a></li> @endcanany
+                                @canany(['view_items', 'view_oil']) <li><a href="{{ route('item-type-data.index', 'oil') }}">Oil</a></li> @endcanany
+                                @canany(['view_items', 'view_services']) <li><a href="{{ route('item-type-data.index', 'services') }}">Services</a></li> @endcanany
+                            </ul>
+                        </li>
+                        @endcanany
                         @can('view_car_wash_services')
                         <li class="submenu">
                             <a href="javascript:void(0);"><i class="ti ti-layout-grid fs-16 me-2"></i><span>Item
@@ -179,29 +193,17 @@
                 </li>
                 @endcanany
 
-                {{-- Branches --}}
+                {{-- Branches & Employees (Banks jaisa: ek hi link, add page ke andar) --}}
                 @canany(['view_branch', 'view_user', 'add_user'])
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Branches</h6>
                     <ul>
                         @can('view_branch')
-                        <li><a href="{{ route('all.branches') }}">
-                                <i class="ti ti-stack-3 fs-16 me-2"></i>
-                                <span>Branches</span></a>
-                        </li>
+                        <li><a href="{{ route('all.branches') }}"><i class="ti ti-stack-3 fs-16 me-2"></i><span>Branches</span></a></li>
                         @endcan
-                        @can('view_user')
-                        <li><a href="{{ route('all.users') }}">
-                                <i class="ti ti-users fs-16 me-2"></i>
-                                <span>Employees</span></a>
-                        </li>
-                        @endcan
-                        @can('add_user')
-                        <li><a href="{{ route('all.users') }}?add=1">
-                                <i class="ti ti-user-plus fs-16 me-2"></i>
-                                <span>Add New Employee</span></a>
-                        </li>
-                        @endcan
+                        @canany(['view_user', 'add_user'])
+                        <li><a href="{{ route('all.users') }}"><i class="ti ti-users fs-16 me-2"></i><span>Employees</span></a></li>
+                        @endcanany
                     </ul>
                 </li>
                 @endcanany

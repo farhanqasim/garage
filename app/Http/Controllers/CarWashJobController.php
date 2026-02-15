@@ -682,25 +682,28 @@ class CarWashJobController extends Controller
             ], 400);
         }
 
-        // Get all users from same branch (including admin accounts) — show all users' bank accounts including own
+        // Same branch ke doosre users (login user exclude) — dropdown mein sirf inhi ke accounts
         $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
             $query->where('branch_id', $branchId)
             ->orWhereHas('assignedBranches', function($q) use ($branchId) {
                 $q->where('branch_id', $branchId);
             });
         })
+        ->where('id', '!=', $user->id)
         ->pluck('id');
         
-        // Also include admin users (role = 'admin')
+        // Admin users (role = 'admin') bhi allow — unke accounts par transfer ho sake
         $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id');
-        $allUserIds = $branchUserIds->merge($adminUserIds)->unique();
+        $userIdsForTransfer = $branchUserIds->merge($adminUserIds)->unique()->filter(function ($id) use ($user) {
+            return (int) $id !== (int) $user->id;
+        })->values();
 
         $query = BankAccount::with(['bank', 'user:id,name'])
             ->whereIn('account_type', ['bank', 'cash'])
             ->where(function ($q) {
                 $q->where('status', true)->orWhereNull('status');
             })
-            ->whereIn('user_id', $allUserIds);
+            ->whereIn('user_id', $userIdsForTransfer);
 
         $accounts = $query->orderBy('account_title')
             ->get()
@@ -726,6 +729,68 @@ class CarWashJobController extends Controller
                     'userName' => $ownerName,
                     'isOwn' => $isOwn,
                     'bankLogo' => $bankLogo,
+                ];
+            });
+
+        return response()->json(['success' => true, 'bankAccounts' => $accounts]);
+    }
+
+    /**
+     * Balance History: usi branch ke saare users (login + doosre) ke bank/cash accounts + balance.
+     * Total = in sab ka sum; list = saare accounts.
+     */
+    public function bankAccountsBranchBalanceHistory(Request $request)
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        if (!$branchId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No branch found for user',
+                'bankAccounts' => []
+            ], 400);
+        }
+
+        // Usi branch ke saare users (login + doosre) + admin
+        $branchUserIds = \App\Models\User::where(function($query) use ($branchId) {
+            $query->where('branch_id', $branchId)
+                ->orWhereHas('assignedBranches', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+        })->pluck('id');
+        $adminUserIds = \App\Models\User::where('role', 'admin')->pluck('id');
+        $allUserIds = $branchUserIds->merge($adminUserIds)->unique();
+
+        $query = BankAccount::with(['bank', 'user:id,name'])
+            ->whereIn('account_type', ['bank', 'cash'])
+            ->where(function ($q) {
+                $q->where('status', true)->orWhereNull('status');
+            })
+            ->whereIn('user_id', $allUserIds);
+
+        $accounts = $query->orderBy('account_title')
+            ->get()
+            ->map(function ($a) use ($user) {
+                $bankName = $a->bank ? $a->bank->name : 'N/A';
+                $title = $a->account_title ?? '';
+                $num = $a->account_number ?? '';
+                $label = trim($bankName . ($title ? ' - ' . $title : '') . ($num ? ' (' . $num . ')' : ''));
+                if ($label === '' || (!$title && !$num)) {
+                    $label = $bankName . ' — Account #' . $a->id;
+                }
+                $ownerName = $a->user ? $a->user->name : '';
+                $isOwn = ($a->user_id == $user->id);
+                return [
+                    'id' => $a->id,
+                    'bank_id' => $a->bank_id,
+                    'bankName' => $bankName,
+                    'accountTitle' => $title,
+                    'accountNumber' => $num,
+                    'displayLabel' => $label,
+                    'balance' => (float) $a->current_balance,
+                    'userName' => $ownerName,
+                    'isOwn' => $isOwn,
                 ];
             });
 

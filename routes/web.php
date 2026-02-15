@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ItemController;
+use App\Http\Controllers\Admin\ItemTypeDataController;
 use App\Http\Controllers\Admin\LineitemController;
 use App\Http\Controllers\Admin\MileageController;
 use App\Http\Controllers\Admin\PackingController;
@@ -182,6 +183,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/banks', [BankController::class, 'index'])->name('banks.index');
     Route::get('/bank-accounts', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsIndex'])->name('bank-accounts.index');
     Route::get('/bank-accounts/for-transfer', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsForTransfer'])->name('bank-accounts.for-transfer');
+    Route::get('/bank-accounts/branch-balance-history', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountsBranchBalanceHistory'])->name('bank-accounts.branch-balance-history');
     Route::get('/bank-accounts/{id}/ledger', [\App\Http\Controllers\CarWashJobController::class, 'bankAccountLedger'])->name('bank-accounts.ledger');
     Route::put('/bank-transactions/{id}', [\App\Http\Controllers\CarWashJobController::class, 'updateBankTransaction'])->name('bank-transactions.update');
     Route::delete('/bank-transactions/{id}', [\App\Http\Controllers\CarWashJobController::class, 'destroyBankTransaction'])->name('bank-transactions.destroy');
@@ -446,6 +448,9 @@ Route::get('/item/{id}/generate-specification-pdf', [ItemController::class, 'gen
 Route::get('/admin/categories/{id}/subcategories', [ItemController::class, 'getSubcategories'])
     ->name('categories.subcategories');
 
+// Item Type Data - dropdown management by type (Parts, Battery, Scrap, etc.)
+Route::get('/admin/item-type-data/{type}', [ItemTypeDataController::class, 'index'])->name('item-type-data.index');
+
 
 
 Route::post('/add-car-company', [ItemController::class, 'storeCompany'])
@@ -508,12 +513,25 @@ Route::get('/show/minuspool/{id}', [AddInputController::class, 'show_minuspool']
 Route::put('/update/minuspool/{id}', [AddInputController::class, 'update_minuspool'])->name('update.minuspool');
 Route::delete('/destory/minuspool/{id}', [AddInputController::class, 'destory_minuspool'])->name('destory.minuspool');
 
+Route::post('/post/polethickness', [AddInputController::class, 'post_polethickness'])->name('post.polethickness');
+Route::get('/show/polethickness/{id}', [AddInputController::class, 'show_polethickness'])->name('show.polethickness');
+Route::put('/update/polethickness/{id}', [AddInputController::class, 'update_polethickness'])->name('update.polethickness');
+Route::delete('/destory/polethickness/{id}', [AddInputController::class, 'destory_polethickness'])->name('destory.polethickness');
 
+Route::post('/post/pooldirection', [AddInputController::class, 'post_pooldirection'])->name('post.pooldirection');
+Route::get('/show/pooldirection/{id}', [AddInputController::class, 'show_pooldirection'])->name('show.pooldirection');
+Route::put('/update/pooldirection/{id}', [AddInputController::class, 'update_pooldirection'])->name('update.pooldirection');
+Route::delete('/destory/pooldirection/{id}', [AddInputController::class, 'destory_pooldirection'])->name('destory.pooldirection');
 
 Route::post('/post/technology', [AddInputController::class, 'post_technology'])->name('post.technology');
 Route::get('/show/technology/{id}', [AddInputController::class, 'show_technology'])->name('show.technology');
 Route::put('/update/technology/{id}', [AddInputController::class, 'update_technology'])->name('update.technology');
 Route::delete('/destory/technology/{id}', [AddInputController::class, 'destory_technology'])->name('destory.technology');
+
+Route::post('/post/battery-size', [AddInputController::class, 'post_battery_size'])->name('post.battery.size');
+Route::get('/show/battery-size/{id}', [AddInputController::class, 'show_battery_size'])->name('show.battery.size');
+Route::put('/update/battery-size/{id}', [AddInputController::class, 'update_battery_size'])->name('update.battery.size');
+Route::delete('/destory/battery-size/{id}', [AddInputController::class, 'destory_battery_size'])->name('destory.battery.size');
 
 Route::post('/post/grade', [AddInputController::class, 'post_grade'])->name('post.grade');
 Route::get('/show/grade/{id}', [AddInputController::class, 'show_grade'])->name('show.grade');

@@ -905,7 +905,7 @@ function confirmDelete(formId, customMessage = null) {
   @if (session('success'))
       @php
           $referer = request()->header('referer');
-          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit') || request()->is('all/items/create') || request()->is('item/edit/*');
+          $isCreateEditPage = request()->is('admin/item/create') || request()->is('admin/item/*/edit') || request()->is('all/items/create*') || request()->is('item/edit/*');
           $showSuccess = !$isCreateEditPage;
           if ($isCreateEditPage) {
               $currentUrl = request()->url();

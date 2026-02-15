@@ -10,6 +10,7 @@ use App\Models\Brand;
 use App\Models\Grade;
 use App\Models\Scale;
 use App\Models\Amphor;
+use App\Models\BatterySize;
 use App\Models\Platos;
 use App\Models\CarName;
 use App\Models\Company;
@@ -23,6 +24,8 @@ use App\Models\Category;
 use App\Models\EngineCc;
 use App\Models\LineItem;
 use App\Models\Minuspool;
+use App\Models\PoleThickness;
+use App\Models\PoolDirection;
 use App\Models\CarCompany;
 use App\Models\CarCountry;
 use App\Models\PartNumber;
@@ -157,7 +160,7 @@ class ItemController extends Controller
     }
 
 
-    public function items_create()
+    public function items_create($hideVehicleTable = false)
     {
         $addPerms = ['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'];
         if (!auth()->check()) {
@@ -202,6 +205,8 @@ class ItemController extends Controller
         $volts      = Volt::where('status', 'active')->get();
         $ccas      = Cca::where('status', 'active')->get();
         $minspols      = Minuspool::where('status', 'active')->get();
+        $poleThicknesses = PoleThickness::where('status', 'active')->get();
+        $poolDirections = PoolDirection::where('status', 'active')->get();
         $technologies      = Technology::where('status', 'active')->get();
         $grades      = Grade::where('status', 'active')->get();
         $brands      = Brand::where('status', 'active')->get();
@@ -218,7 +223,8 @@ class ItemController extends Controller
         // Optimize: Limit to prevent timeout - load only 5 latest items with relationships
         // Don't use select() to avoid column name issues - just limit the query
         $latestItems = Item::with([
-            'item_user:id,name',
+            'item_user:id,name,branch_id',
+            'item_user.branch:id,branch_name',
             'product_item:id,name',
             'category:id,name',
             'partnumber_item:id,name',
@@ -286,12 +292,14 @@ class ItemController extends Controller
 
         $made_ins      = MadeIn::where('status', 'active')->get();
         $levels      = Level::where('status', 'active')->get();
+        $batterySizes = BatterySize::where('status', 'active')->orderBy('name')->get();
 
         // Permission-based allowed item types (jo permission active ho)
         $typePermMap = ['parts' => 'add_parts', 'filters' => 'add_filters', 'breakpad' => 'add_break_pad', 'oil' => 'add_oil', 'battery' => 'add_battery', 'scrap' => 'add_scrap', 'services' => 'add_services'];
         $allowedItemTypes = collect($typePermMap)->filter(fn ($perm) => auth()->user()->can($perm) || auth()->user()->can('add_items'))->keys()->values()->all();
 
         return view('admin.item.create', compact(
+            'hideVehicleTable',
             'platos',
             'amphors',
             'lineitems',
@@ -311,6 +319,8 @@ class ItemController extends Controller
             'volts',
             'ccas',
             'minspols',
+            'poleThicknesses',
+            'poolDirections',
             'technologies',
             'grades',
             'brands',
@@ -327,90 +337,17 @@ class ItemController extends Controller
             'groups',
             'made_ins',
             'levels',
+            'batterySizes',
             'allowedItemTypes'
         ));
     }
 
+    /**
+     * Clone of items_create - same create form at /all/items/create/new
+     */
     public function items_create_new()
     {
-        // Ensure user is authenticated
-        if (!auth()->check()) {
-            return redirect('/')->with('error', 'Please login to continue.');
-        }
-        
-        $platos      = Platos::where('status', 'active')->get();
-        $amphors     = Amphor::where('status', 'active')->get();
-        $lineitems   = LineItem::where('status', 'active')->get();
-        $Companies   = Company::where('status', 'active')->get();
-        $Categories = Category::whereNull('parent_id')
-            ->where('status', 'active')
-            ->with('children')
-            ->get();
-        $packings    = Packing::where('status', 'active')->get();
-        $scales      = Scale::where('status', 'active')->get();
-        $milleages   = Mileage::where('status', 'active')->get();
-        $item_types  = Producttype::where('status', 'active')->get();
-        $items = collect([]);
-        $units = Unit::with('baseUnits')->orderBy('name')->get();
-        $carCompanies     = CarCompany::orderBy('name')->get();
-        $carNames         = CarName::orderBy('name')->get();
-        $carModels        = CarModel::orderBy('name')->get();
-        $carCountries     = CarCountry::orderBy('name')->get();
-        $carManufacturers = CarManufacturer::orderBy('name')->get();
-        $volts      = Volt::where('status', 'active')->get();
-        $ccas      = Cca::where('status', 'active')->get();
-        $minspols      = Minuspool::where('status', 'active')->get();
-        $technologies      = Technology::where('status', 'active')->get();
-        $grades      = Grade::where('status', 'active')->get();
-        $brands      = Brand::where('status', 'active')->get();
-        $formulas      = Formula::where('status', 'active')->get();
-        $product      = Product::where('status', 'active')->get();
-        $qualities      = Quality::where('status', 'active')->get();
-        $partnumbers      = PartNumber::select('id', 'name', 'type')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
-        $engineccs      = EngineCc::where('status', 'active')->get();
-        $services      = Services::where('status', 'active')->get();
-        $warrenties      = Warrenty::where('status', 'active')->get();
-        $groups      = Group::where('status', 'active')->get();
-        $made_ins      = MadeIn::where('status', 'active')->get();
-        $levels      = Level::where('status', 'active')->get();
-
-        return view('admin.item.create-new', compact(
-            'platos',
-            'amphors',
-            'lineitems',
-            'Companies',
-            'Categories',
-            'packings',
-            'scales',
-            'milleages',
-            'item_types',
-            'items',
-            'carCompanies',
-            'carNames',
-            'carModels',
-            'carCountries',
-            'carManufacturers',
-            'volts',
-            'ccas',
-            'minspols',
-            'technologies',
-            'grades',
-            'brands',
-            'formulas',
-            'product',
-            'qualities',
-            'partnumbers',
-            'engineccs',
-            'units',
-            'services',
-            'warrenties',
-            'groups',
-            'made_ins',
-            'levels'
-        ));
+        return $this->items_create(true);
     }
 
     public function getSubcategories($id)
@@ -453,12 +390,14 @@ class ItemController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'subcategory_id' => 'nullable|exists:categories,id',
             'p_brochure' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
-            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
             'volt' => 'nullable|string',
             'cca' => 'nullable|string',
             'minus_pole_direction' => 'nullable|string',
             'minus_pool_direction' => 'nullable|string', // Keep both for backward compatibility
+            'pole_thickness_id' => 'nullable|exists:pole_thicknesses,id',
+            'pool_direction_id' => 'nullable|exists:pool_directions,id',
             'technology' => 'nullable|string',
             'grade' => 'nullable|string',
             'services' => 'nullable|string',
@@ -466,6 +405,7 @@ class ItemController extends Controller
             'farmula' => 'nullable|string', // Keep both for backward compatibility
             'serial_number' => 'nullable|string',
             'battery_size' => 'nullable|string',
+            'battery_size_id' => 'nullable|exists:battery_sizes,id',
             'business_location' => 'nullable|string',
             'bussiness_location' => 'nullable|string', // Keep both for backward compatibility
             'quality_id' => 'nullable|string',
@@ -595,109 +535,59 @@ class ItemController extends Controller
                 $data['farmula'] = $data['formulas'];
                 unset($data['formulas']);
             }
+            if (!empty($data['battery_size_id'])) {
+                $data['battery_size'] = BatterySize::find($data['battery_size_id'])->name;
+                unset($data['battery_size_id']);
+            }
             
             /* ============================
-            ✅ Handle Vehicle IDs Array - Create Multiple Items
+            ✅ Handle Vehicle IDs Array - One Item, Multiple Vehicles (in items.vehical_ids)
             ============================ */
-            // Get vehicle IDs array
             $vehicleIds = [];
             if (isset($data['vehical_id']) && is_array($data['vehical_id'])) {
-                // Filter out null/empty values
-                $vehicleIds = array_filter($data['vehical_id'], function($id) {
-                    return !empty($id) && is_numeric($id);
-                });
-                $vehicleIds = array_map('intval', $vehicleIds); // Convert to integers
+                $vehicleIds = array_values(array_filter(array_map('intval', $data['vehical_id'])));
             } elseif (isset($data['vehical_id']) && !empty($data['vehical_id']) && is_numeric($data['vehical_id'])) {
-                // Single vehicle ID
                 $vehicleIds = [(int) $data['vehical_id']];
             }
             
-            // Remove vehical_id from data (we'll add it per item)
             unset($data['vehical_id']);
+            $data['vehical_ids'] = $vehicleIds;
+            $data['vehical_id'] = $vehicleIds[0] ?? null;
             
-            // Store original bar_code
-            $originalBarCode = $data['bar_code'] ?? '';
+            /* Create ONE item */
+            $item = Item::create($data);
             
-            /* ============================
-            ✅ Create Items - One per Vehicle
-            ============================ */
-            $createdItems = [];
-            
-            if (count($vehicleIds) > 0) {
-                // Create one item per vehicle
-                foreach ($vehicleIds as $index => $vehicleId) {
-                    // Clone data for each item
-                    $itemData = $data;
-                    
-                    // Add vehicle ID
-                    $itemData['vehical_id'] = $vehicleId;
-                    
-                    // Make bar_code unique for each vehicle item
-                    if ($index > 0) {
-                        // For additional items, append vehicle ID to make bar_code unique
-                        $itemData['bar_code'] = $originalBarCode . '-' . $vehicleId;
-                    }
-                    
-                    // Create item
-                    $item = Item::create($itemData);
-                    $createdItems[] = $item;
-                }
-            } else {
-                // No vehicles selected, create single item without vehicle
-                $item = Item::create($data);
-                $createdItems[] = $item;
-            }
-            
-            // Log after creation
-            Log::info('Items created successfully', [
-                'count' => count($createdItems),
-                'item_ids' => array_map(function($item) { return $item->id; }, $createdItems),
-                'vehicle_ids' => $vehicleIds
-            ]);
-            
-            // Use first created item for response
-            $item = $createdItems[0];
+            Log::info('Item created successfully', ['item_id' => $item->id, 'vehicle_ids' => $vehicleIds]);
 
             DB::commit();
 
-            /* ============================
-            ✅ Redirects
-            ============================ */
-            // Prepare success message
-            $itemCount = count($createdItems);
             $vehicleCount = count($vehicleIds);
-            if ($itemCount > 1) {
-                $successMessage = $itemCount . ' items created successfully (one for each selected vehicle)!';
-            } elseif ($vehicleCount > 0) {
-                $successMessage = 'Item created successfully with vehicle!';
-            } else {
-                $successMessage = 'Item created successfully!';
-            }
+            $successMessage = $vehicleCount > 0 
+                ? 'Item created successfully with ' . $vehicleCount . ' vehicle(s)!' 
+                : 'Item created successfully!';
             
             // Return JSON response for AJAX requests
             if ($request->ajax() || $request->wantsJson()) {
                 if ($request->action === 'save_new') {
-                    Log::info('Items created (Save & New)', ['count' => $itemCount, 'item_ids' => array_map(function($i) { return $i->id; }, $createdItems)]);
                     return response()->json([
                         'success' => true,
                         'message' => $successMessage,
-                        'items_count' => $itemCount,
-                        'redirect' => route('all.items.create')
+                        'items_count' => 1,
+                        'redirect' => route('all.items.create.new')
                     ]);
                 }
                 
-                Log::info('Items created (Save)', ['count' => $itemCount, 'item_ids' => array_map(function($i) { return $i->id; }, $createdItems)]);
                 return response()->json([
                     'success' => true,
                     'message' => $successMessage,
-                    'items_count' => $itemCount
+                    'items_count' => 1
                 ]);
             }
             
             // Regular redirect for non-AJAX requests
             if ($request->action === 'save_new') {
                 Log::info('Item created (Save & New)', ['item_id' => $item->id]);
-                return redirect()->route('all.items.create')
+                return redirect()->route('all.items.create.new')
                     ->with('success', 'Item created successfully!');
             }
 
@@ -811,6 +701,7 @@ class ItemController extends Controller
         $engineccs      = EngineCc::where('status', 'active')->get();
         $latestItems = Item::with([
             'item_user',
+            'item_user.branch',
             'product_item',
             'category',
             'partnumber_item',
@@ -822,6 +713,7 @@ class ItemController extends Controller
         $warrenties      = Warrenty::where('status', 'active')->get();
         $made_ins      = MadeIn::where('status', 'active')->get();
         $levels      = Level::where('status', 'active')->get();
+        $batterySizes = BatterySize::where('status', 'active')->orderBy('name')->get();
         // Get latest 5 vehicles - each record already has all year ranges in years JSON column
         $Vehis = VehicalType::with([
             'manutacturer_vehical',
@@ -864,6 +756,7 @@ class ItemController extends Controller
             'item',
             'platos',
             'amphors',
+            'batterySizes',
             'lineitems',
             'Companies',
             'Categories',
@@ -911,7 +804,8 @@ class ItemController extends Controller
             'bar_code' => 'required|unique:items,bar_code,' . $item->id,
             'user_id' => 'nullable|exists:users,id',
             'p_id' => 'nullable|string|max:255',
-            'vehical_id' => 'nullable|string',
+            'vehical_id' => 'nullable',
+            'vehical_id.*' => 'nullable|integer|exists:vehical_types,id',
             'total_price' => 'nullable',
             'price_per_unit' => 'nullable',
             'on_hand' => 'nullable',
@@ -927,8 +821,8 @@ class ItemController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'subcategory_id' => 'nullable|exists:categories,id',
             'p_brochure' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif',
-            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
             'volt' => 'nullable|string',
             'cca' => 'nullable|string',
             'minus_pole_direction' => 'nullable|string',
@@ -1063,6 +957,26 @@ class ItemController extends Controller
                 $data['farmula'] = $data['formulas'];
                 unset($data['formulas']);
             }
+            if (!empty($data['battery_size_id'])) {
+                $data['battery_size'] = BatterySize::find($data['battery_size_id'])->name;
+                unset($data['battery_size_id']);
+            }
+
+            /* ============================
+            ✅ Handle Multiple Vehicles (save to items.vehical_ids)
+            ============================ */
+            $vehicleIds = [];
+            if ($request->has('vehical_id')) {
+                $raw = $request->input('vehical_id');
+                if (is_array($raw)) {
+                    $vehicleIds = array_values(array_filter(array_map('intval', $raw)));
+                } elseif (is_numeric($raw) && $raw) {
+                    $vehicleIds = [(int) $raw];
+                }
+            }
+            unset($data['vehical_id']);
+            $data['vehical_ids'] = $vehicleIds;
+            $data['vehical_id'] = $vehicleIds[0] ?? null;
 
             // === Track who updated and when ===
             // Only set if columns exist (migration has been run)
@@ -1373,7 +1287,8 @@ class ItemController extends Controller
     public function getItemsByType($type, Request $request)
     {
         $query = Item::with([
-            'item_user', 
+            'item_user',
+            'item_user.branch',
             'product_item', 
             'category',
             'partnumber_item',
@@ -1402,6 +1317,7 @@ class ItemController extends Controller
                     'bar_code' => $item->bar_code,
                     'barcode_image' => $item->barcode_image,
                     'user_name' => $item->item_user->name ?? '-',
+                    'branch_name' => $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '-',
                     'product_name' => $item->product_item->name ?? '-',
                     'type' => $item->type,
                     'is_active' => $item->is_active,

@@ -12,10 +12,13 @@ use App\Models\Level;
 use App\Models\MadeIn;
 use App\Models\Minuspool;
 use App\Models\PartNumber;
+use App\Models\PoleThickness;
+use App\Models\PoolDirection;
 use App\Models\Product;
 use App\Models\Quality;
 use App\Models\Services;
 use App\Models\Technology;
+use App\Models\BatterySize;
 use App\Models\VehicalType;
 use App\Models\Volt;
 use App\Models\Warrenty;
@@ -148,7 +151,79 @@ class AddInputController extends Controller
         ]);
     }
 
+    // Pole Thickness
+    public function post_polethickness(Request $request)
+    {
+        $poleThickness = PoleThickness::create(['name' => $request->name]);
+        return response()->json([
+            'success' => true,
+            'id' => $poleThickness->id,
+            'name' => $poleThickness->name
+        ]);
+    }
 
+    public function show_polethickness($id)
+    {
+        return response()->json(PoleThickness::findOrFail($id));
+    }
+
+    public function update_polethickness(Request $request, $id)
+    {
+        $poleThickness = PoleThickness::findOrFail($id);
+        $poleThickness->update(['name' => $request->name]);
+        return response()->json([
+            'success' => true,
+            'id' => $poleThickness->id,
+            'name' => $poleThickness->name,
+            'message' => "Pole Thickness updated successfully"
+        ]);
+    }
+
+    public function destory_polethickness($id)
+    {
+        PoleThickness::findOrFail($id)->delete();
+        return response()->json([
+            'success' => true,
+            'message' => "Pole Thickness deleted successfully"
+        ]);
+    }
+
+    // Pool Direction
+    public function post_pooldirection(Request $request)
+    {
+        $poolDirection = PoolDirection::create(['name' => $request->name]);
+        return response()->json([
+            'success' => true,
+            'id' => $poolDirection->id,
+            'name' => $poolDirection->name
+        ]);
+    }
+
+    public function show_pooldirection($id)
+    {
+        return response()->json(PoolDirection::findOrFail($id));
+    }
+
+    public function update_pooldirection(Request $request, $id)
+    {
+        $poolDirection = PoolDirection::findOrFail($id);
+        $poolDirection->update(['name' => $request->name]);
+        return response()->json([
+            'success' => true,
+            'id' => $poolDirection->id,
+            'name' => $poolDirection->name,
+            'message' => "Pool Direction updated successfully"
+        ]);
+    }
+
+    public function destory_pooldirection($id)
+    {
+        PoolDirection::findOrFail($id)->delete();
+        return response()->json([
+            'success' => true,
+            'message' => "Pool Direction deleted successfully"
+        ]);
+    }
 
     public function post_technology(Request $request)
     {
@@ -192,7 +267,62 @@ class AddInputController extends Controller
         ]);
     }
 
+    public function post_battery_size(Request $request)
+    {
+        $data = ['name' => $request->name];
+        if ($request->filled('height')) {
+            $data['height'] = $request->height;
+        }
+        if ($request->filled('width')) {
+            $data['width'] = $request->width;
+        }
+        if ($request->filled('length')) {
+            $data['length'] = $request->length;
+        }
+        $batterySize = BatterySize::create($data);
+        return response()->json([
+            'success' => true,
+            'id' => $batterySize->id,
+            'name' => $batterySize->name,
+            'height' => $batterySize->height,
+            'width' => $batterySize->width,
+            'length' => $batterySize->length
+        ]);
+    }
 
+    public function show_battery_size($id)
+    {
+        return response()->json(BatterySize::findOrFail($id));
+    }
+
+    public function update_battery_size(Request $request, $id)
+    {
+        $batterySize = BatterySize::findOrFail($id);
+        $batterySize->update([
+            'name' => $request->name,
+            'height' => $request->filled('height') ? $request->height : $batterySize->height,
+            'width' => $request->filled('width') ? $request->width : $batterySize->width,
+            'length' => $request->filled('length') ? $request->length : $batterySize->length,
+        ]);
+        return response()->json([
+            'success' => true,
+            'id' => $batterySize->id,
+            'name' => $batterySize->name,
+            'height' => $batterySize->height,
+            'width' => $batterySize->width,
+            'length' => $batterySize->length,
+            'message' => "Battery Size updated successfully"
+        ]);
+    }
+
+    public function destory_battery_size($id)
+    {
+        BatterySize::findOrFail($id)->delete();
+        return response()->json([
+            'success' => true,
+            'message' => "Battery Size deleted successfully"
+        ]);
+    }
 
     public function post_grade(Request $request)
     {
@@ -982,12 +1112,28 @@ class AddInputController extends Controller
     public function update_service(Request $request, $id)
     {
         $service = Services::findOrFail($id);
-        $service->update(['name' => $request->name]);
+        $data = ['name' => $request->filled('name') ? $request->name : $service->name];
+        if ($request->has('details') && is_array($request->details)) {
+            $data['details'] = array_values(array_map(function ($d) {
+                if (is_array($d)) {
+                    return [
+                        'text' => trim($d['text'] ?? $d['label'] ?? ''),
+                        'price' => isset($d['price']) ? (is_numeric($d['price']) ? (float) $d['price'] : trim((string) $d['price'])) : ''
+                    ];
+                }
+                return ['text' => trim((string) $d), 'price' => ''];
+            }, array_filter($request->details, function ($d) {
+                $t = is_array($d) ? ($d['text'] ?? $d['label'] ?? '') : $d;
+                return trim((string) $t) !== '';
+            })));
+        }
+        $service->update($data);
 
         return response()->json([
             'success' => true,
             'id' => $service->id,
             'name' => $service->name,
+            'details' => $service->details ?? [],
             'message' => "Service Update Successfully"
         ]);
     }

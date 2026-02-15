@@ -11,8 +11,10 @@ use Spatie\Permission\Models\Role;
 class UserController extends Controller
 {
     public function all_users(){
+      // Role-wise sequence: manager → employee → salesman → purchaser → user
       $users = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser', 'employee'])
                      ->with(['assignedBranches', 'roles'])
+                     ->orderByRaw("CASE role WHEN 'manager' THEN 1 WHEN 'employee' THEN 2 WHEN 'salesman' THEN 3 WHEN 'purchaser' THEN 4 WHEN 'user' THEN 5 ELSE 6 END")
                      ->paginate(10);
       $branches = Branch::all();
       $spatieRoles = Role::where('name', '!=', 'Super Admin')->orderBy('name')->get();

@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Edit Product')
 @section('content')
+@php $editingItem = $item; @endphp
 @push('styles')
 <style>
     input[type="text"],
@@ -309,28 +310,36 @@
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
                                     <label for="category_parts">Category:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
-                                            name="category_id" id="category_parts">
-                                            <option value="">Select Category</option>
-                                            @foreach ($Categories as $category)
-                                            <option value="{{ $category->id }}"
-                                                {{ ($item->category_id ?? old('category_id')) == $category->id ? 'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Category"
-                                            data-fetch-route="{{ route('show.category', ':id') }}"
-                                            data-update-route="{{ route('update.category', ':id') }}"
-                                            data-delete-route="{{ route('destory.category', ':id') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="edit"></i>
-                                        </button>
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="flex-grow-1">
+                                            <div class="input-group inputswidth">
+                                                <select
+                                                    class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
+                                                    name="category_id" id="category_parts">
+                                                    <option value="">Select Category</option>
+                                                    @foreach ($Categories as $category)
+                                                    <option value="{{ $category->id }}"
+                                                        data-image="{{ $category->image ? asset($category->image) : '' }}"
+                                                        {{ ($item->category_id ?? old('category_id')) == $category->id ? 'selected' : '' }}>
+                                                        {{ $category->name }}
+                                                    </option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="button" class="btn btn-secondary open-universal-modal"
+                                                    data-mode="edit" data-title="Edit Category"
+                                                    data-fetch-route="{{ route('show.category', ':id') }}"
+                                                    data-update-route="{{ route('update.category', ':id') }}"
+                                                    data-delete-route="{{ route('destory.category', ':id') }}"
+                                                    data-target-select=".category-select" data-has-image="1">
+                                                    <i data-feather="edit"></i>
+                                                </button>
+                                            </div>
+                                            @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div id="categoryImageDisplay" class="flex-shrink-0" style="display:none;">
+                                            <img id="categoryImageImg" src="" alt="Category" class="rounded border" style="width:60px;height:60px;object-fit:cover;">
+                                        </div>
                                     </div>
-                                    @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Business Location -->
                                 <div class="col-md-4 d-none">
@@ -825,6 +834,13 @@
                                     @error('services')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
+                                    <button type="button" class="btn btn-outline-primary btn-sm mt-2 open-service-details-modal" id="addServiceDetailsBtn" disabled title="Select a service first">
+                                        <i data-feather="plus" class="me-1" style="width:14px;height:14px;"></i> Add Detail
+                                    </button>
+                                    <div class="mt-3" id="serviceDetailsDisplay" style="display:none;">
+                                        <label class="form-label small text-muted mb-1">Service details:</label>
+                                        <div class="small border rounded p-2 bg-light" id="serviceDetailsDisplayList"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1108,15 +1124,13 @@
                                         @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
 
-                                <div class="col-md-4 mt-3">
+                                <div class="col-md-4 mt-3 d-none">
                                     <label for="vehical_id">Vehicle Type:</label>
                                     <div class="input-group inputswidth">
-                                        <select class="form-control searchable-select @error('vehical_id') is-invalid @enderror"
-                                            name="vehical_id" id="vehical_id">
+                                        <select class="form-control searchable-select" name="vehical_id" id="vehical_id">
                                             <option value="">Select Vehicle Type</option>
                                             @foreach ($Vehicals as $vehicle)
-                                            <option value="{{ $vehicle->id }}"
-                                                {{ old('vehical_id', $item->vehical_id ?? '') == $vehicle->id ? 'selected' : '' }}>
+                                            <option value="{{ $vehicle->id }}">
                                                 {{ $vehicle->manutacturer_vehical->name??'-' }}
                                                 {{ $vehicle->model_vehical->name??'-' }}
                                                 {{ $vehicle->engine_vehical->name??'-' }}
@@ -1124,12 +1138,28 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                    @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 {{-- PART NUMBER SELECT --}}
 
-                                {{-- VEHICLE TABLE --}}
-                                <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                {{-- ASSOCIATED VEHICLES - Same as create/new: list + Add Vehicle modal --}}
+                                <div class="col-md-12 mt-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    <div class="card border">
+                                        <div class="card-header py-2">
+                                            <h6 class="mb-0"><i class="ti ti-car me-1"></i> Associated Vehicles</h6>
+                                            <small class="text-muted">Add vehicles this item fits. Part Number must be selected first.</small>
+                                        </div>
+                                        <div class="card-body py-3">
+                                            <button type="button" class="btn btn-primary btn-sm" id="openItemVehicleModalEdit" data-bs-toggle="modal" data-bs-target="#itemVehicleAddModalEdit">
+                                                <i class="ti ti-plus me-1"></i> Add Vehicle
+                                            </button>
+                                            <div id="itemVehiclesListEdit" class="mt-3"></div>
+                                            <div id="itemVehiclesHiddenInputsEdit"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- VEHICLE TABLE - Hidden: Edit uses Associated Vehicles (create/new style) only --}}
+                                <div class="col-md-12 d-none" x-show="false" x-data>
                                     <div class="table-responsive mt-4" style="max-height:250px;overflow-x:auto;overflow-y:auto;background-color:#ffffff;">
                                         <table class="table table-bordered" id="vehicleTable" style="background-color:#ffffff;">
                                             <thead class="table-dark">
@@ -1258,11 +1288,12 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
+                                                @php $itemVehicleIds = $item->vehical_ids ?? []; @endphp
                                                 @foreach ($Vehis as $car)
                                                 <tr data-part="{{ $car->v_part_number_id??'' }}">
                                                     <td style="text-align: center;">
-                                                        <input type="checkbox" class="vehicle-checkbox" 
-                                                            data-vehicle-id="{{ $car->id ?? '' }}"
+                                                        <input type="checkbox" class="vehicle-checkbox" data-vehicle-id="{{ $car->id ?? '' }}"
+                                                            {{ in_array($car->id ?? 0, $itemVehicleIds) ? 'checked' : '' }}
                                                             data-part="{{ $car->v_part_number_id??'' }}"
                                                             data-manufacturer="{{ $car->car_manufacturer }}"
                                                             data-model="{{ $car->car_model_name }}"
@@ -1386,7 +1417,8 @@
                     <tr>
                         <th>Product Image</th>
                         <th>Item Details</th>
-                        <th>User Name</th>
+                        <th>User & Branch</th>
+                        <th>View</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -1402,30 +1434,31 @@
                         </td>
                         <td>  
                             <div class="small">
-                                <div> {{ $item->partnumber_item->name ?? '-' }}</div>
+                                <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                @if($item->product_item)
+                                <div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>
+                                @endif
                                 <div> {{ $item->category->name ?? '-' }}</div>
                                 <div> {{ $item->company_item->name ?? '-' }}</div>
                                 <div> {{ $item->quality_item->name ?? '-' }}</div>
                             </div>
                         </td>
-                        <td>{{ $item->item_user->name??'-' }}</td>
+                        <td>
+                            <div>{{ $item->item_user->name ?? '-' }}</div>
+                            <div class="small text-muted">{{ $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '-' }}</div>
+                        </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('item.show',$item->id) }}">
+                                <i data-feather="eye" class="me-1"></i> View
+                            </a>
+                        </td>
                         <td>
                             <div class="dropdown">
                                 <button class="btn btn-primary  dropdown-toggle" type="button"
                                     data-bs-toggle="dropdown">
                                     Actions
                                 </button>
-                                <ul class="dropdown-menu">
-                                    {{-- <li>
-                                        <a class="dropdown-item" href="">
-                                            <i data-feather="tag" class="me-1"></i> Lable
-                                        </a>
-                                    </li> --}}
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('item.show',$item->id) }}">
-                                            <i data-feather="eye" class="me-1"></i> View
-                                        </a>
-                                    </li>
+                                <ul class="dropdown-menu dropdown-menu-end">
                                     <li>
                                         <a class="dropdown-item" href="{{ route('item.edit',$item->id) }}">
                                             <i data-feather="edit" class="me-1"></i> Edit
@@ -1433,7 +1466,7 @@
                                     </li>
                                     <li>
                                         <a href="javascript:void(0)"
-                                            onclick="confirmDelete('delete-form-{{ $item->id }}')" class="p-2">
+                                            onclick="confirmDelete('delete-form-{{ $item->id }}')" class="dropdown-item">
                                             <i data-feather="trash-2" class="feather-trash-2"></i> Delete
                                         </a>
                                         <!-- Hidden delete form -->
@@ -1444,26 +1477,6 @@
                                             @method('DELETE')
                                         </form>
                                     </li>
-                                    <hr>
-                                    {{-- <li>
-                                        <a class="dropdown-item" href="#">
-                                            <i data-feather="package" class="me-1"></i> Add or Edit Open Stock
-                                        </a>
-                                    </li> --}}
-
-                                    {{-- <li>
-                                        <a class="dropdown-item" href="#">
-                                            <i data-feather="clock" class="me-1"></i> Product Stock History
-                                        </a>
-                                    </li> --}}
-
-
-                                    <li>
-                                        <a class="dropdown-item text-primary"
-                                            href="{{ route('item.duplicate', $item->id) }}">
-                                            <i data-feather="copy" class="me-1"></i> Duplicate
-                                        </a>
-                                    </li>
 
                                 </ul>
                             </div>
@@ -1471,7 +1484,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="text-center">No items found.</td>
+                        <td colspan="5" class="text-center">No items found.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -1811,6 +1824,180 @@
     </div>
 </div>
 
+{{-- Add Vehicle Modal for Edit - Same as create/new (AJAX save, no redirect/refresh) --}}
+<div class="modal fade" id="itemVehicleAddModalEdit" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="ti ti-car me-2"></i>Add Vehicle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="itemVehicleAddFormEdit" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="v_part_number_id" id="itemVehiclePartNumberEdit" value="">
+                    <div class="mb-3">
+                        <label class="form-label">Make <span class="text-danger">*</span></label>
+                        <select class="form-select item-vehicle-manufacturer-edit" name="car_manufacturer" required>
+                            <option value="">— Select —</option>
+                            @foreach ($carManufacturers as $m)
+                            <option value="{{ $m->id }}">{{ $m->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Model <span class="text-danger">*</span></label>
+                        <select class="form-select item-vehicle-model-edit" name="car_model_name" required>
+                            <option value="">— Select —</option>
+                            @foreach ($carModels as $m)
+                            <option value="{{ $m->id }}">{{ $m->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Year From <span class="text-danger">*</span></label>
+                            <select class="form-select item-vehicle-year-from-edit" name="year_from[]" required>
+                                <option value="">From</option>
+                                @for($y = 1900; $y <= 2100; $y++)
+                                <option value="{{ $y }}">{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Year To <span class="text-danger">*</span></label>
+                            <select class="form-select item-vehicle-year-to-edit" name="year_to[]" required>
+                                <option value="">To</option>
+                                @for($y = 1900; $y <= 2100; $y++)
+                                <option value="{{ $y }}">{{ $y }}</option>
+                                @endfor
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Engine CC</label>
+                        <select class="form-select item-vehicle-engine-edit" name="engine_cc">
+                            <option value="">— Select —</option>
+                            @foreach ($engineccs as $e)
+                            <option value="{{ $e->id }}">{{ $e->name }} CC</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Country</label>
+                        <select class="form-select item-vehicle-country-edit" name="car_manufactured_country">
+                            <option value="">— Select —</option>
+                            @foreach ($carCountries as $c)
+                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="itemVehicleAddFormEdit" class="btn btn-primary" id="itemVehicleAddBtnEdit">Add Vehicle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Year Range Selector Modal (same as Create Item) -->
+<div class="modal fade" id="yearRangeModal" tabindex="-1" aria-labelledby="yearRangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="yearRangeModalLabel">Select Year Range</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="filterYearRangesContainer">
+                    <div class="filter-year-range-item mb-2">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <label class="form-label small">From Year</label>
+                                <select class="form-control filter-year-from">
+                                    <option value="">Select Year</option>
+                                    @php
+                                        $currentYear = date('Y');
+                                        for($year = $currentYear; $year >= 1980; $year--) {
+                                            echo '<option value="' . $year . '">' . $year . '</option>';
+                                        }
+                                    @endphp
+                                </select>
+                                <div class="invalid-feedback" style="display: none; font-size: 10px;">From Year cannot be greater than To Year</div>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small">To Year</label>
+                                <select class="form-control filter-year-to">
+                                    <option value="">Select Year</option>
+                                    @php
+                                        $currentYear = date('Y');
+                                        for($year = $currentYear; $year >= 1980; $year--) {
+                                            echo '<option value="' . $year . '">' . $year . '</option>';
+                                        }
+                                    @endphp
+                                </select>
+                                <div class="invalid-feedback" style="display: none; font-size: 10px;">To Year cannot be less than From Year</div>
+                            </div>
+                            <div class="col-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger btn-sm removeFilterYearRange" style="display: none;">X</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm mt-2" id="addMoreFilterYearRange">
+                    <i data-feather="plus" style="width: 14px; height: 14px;"></i>
+                    Add More Year Range
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyYearRangeFilter">Apply Filter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Service Details Modal - Add kia kia kaam shamil hai -->
+    <div class="modal fade" id="serviceDetailsModal" tabindex="-1" aria-labelledby="serviceDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="serviceDetailsModalLabel">Service Details - <span id="serviceDetailsServiceName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="service_details_modal_id" value="">
+                    <p class="text-muted small mb-3">Is service mein kia kia kaam shamil hai - Add/Edit details below</p>
+                    <div class="mb-3">
+                        <label class="form-label">Add new detail</label>
+                        <div class="row g-2 align-items-end">
+                            <div class="col">
+                                <input type="text" class="form-control" id="service_detail_new_input" placeholder="e.g. Oil Change, Filter Replacement">
+                            </div>
+                            <div class="col-auto" style="min-width: 120px;">
+                                <label class="form-label small mb-0">Price</label>
+                                <input type="number" class="form-control" id="service_detail_new_price" placeholder="0" min="0" step="0.01">
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-primary" id="serviceDetailAddBtn">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Details list</label>
+                        <ul class="list-group" id="serviceDetailsList"></ul>
+                        <p class="text-muted small mt-2 mb-0" id="serviceDetailsEmpty" style="display:none;">No details added yet. Add above.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="serviceDetailsModalSave">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Universal Modal -->
     <div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -3794,6 +3981,156 @@ function md5(string) {
             deleteRoute = null;
         });
 
+        // =========================
+        // SERVICE DETAILS MODAL - Add kia kia kaam shamil hai
+        // =========================
+        function updateServiceDetailsBtnStateEdit() {
+            const val = $('#Services_scrap').val();
+            const $btn = $('#addServiceDetailsBtn');
+            if (val) {
+                $btn.prop('disabled', false).attr('title', 'Add details for selected service');
+                loadServiceDetailsDisplayEdit(val);
+            } else {
+                $btn.prop('disabled', true).attr('title', 'Select a service first');
+                $('#serviceDetailsDisplay').hide();
+            }
+        }
+        function loadServiceDetailsDisplayEdit(serviceId) {
+            if (!serviceId) return;
+            $.get('{{ url("show/service") }}/' + serviceId, function(res) {
+                const raw = Array.isArray(res.details) ? res.details : [];
+                const $box = $('#serviceDetailsDisplay');
+                const $list = $('#serviceDetailsDisplayList');
+                if (raw.length === 0) {
+                    $list.html('<span class="text-muted">No details added yet. Click Add Detail to add.</span>');
+                } else {
+                    const html = raw.map(function(d, i) {
+                        const t = (d.text || d.label || d || '');
+                        const p = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
+                        const item = p ? t + ' <span class="badge bg-success ms-1">' + p + '</span>' : t;
+                        return '<div class="py-1">' + (i + 1) + '. ' + item + '</div>';
+                    }).join('');
+                    $list.html(html);
+                }
+                $box.show();
+            }).fail(function() {
+                $('#serviceDetailsDisplay').hide();
+            });
+        }
+        updateServiceDetailsBtnStateEdit();
+        $(document).on('change select2:select', '#Services_scrap', updateServiceDetailsBtnStateEdit);
+        let serviceDetailsTempEdit = [];
+        $(document).on('click', '.open-service-details-modal', function() {
+            const id = $('#Services_scrap').val();
+            const name = $('#Services_scrap option:selected').text();
+            if (!id || !name) {
+                toastr.warning('Please select a service first');
+                return;
+            }
+            $('#service_details_modal_id').val(id);
+            $('#serviceDetailsServiceName').text(name);
+            $('#service_detail_new_input').val('');
+            $('#service_detail_new_price').val('');
+            $.get('{{ url("show/service") }}/' + id, function(res) {
+                const raw = Array.isArray(res.details) ? res.details : [];
+                serviceDetailsTempEdit = raw.map(function(d) {
+                    return typeof d === 'object' && d !== null ? { text: (d.text || d.label || ''), price: (d.price ?? '') } : { text: String(d), price: '' };
+                });
+                renderServiceDetailsListEdit();
+                $('#serviceDetailsModal').modal('show');
+                setTimeout(function() { $('#service_detail_new_input').focus(); }, 300);
+            });
+        });
+        function renderServiceDetailsListEdit() {
+            const $list = $('#serviceDetailsList');
+            const $empty = $('#serviceDetailsEmpty');
+            $list.empty();
+            if (serviceDetailsTempEdit.length === 0) {
+                $empty.show();
+            } else {
+                $empty.hide();
+                serviceDetailsTempEdit.forEach(function(d, i) {
+                    const text = (d.text || d.label || d || '');
+                    const priceVal = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
+                    const priceHtml = priceVal ? ' <span class="badge bg-success ms-2">' + priceVal + '</span>' : '';
+                    $list.append('<li class="list-group-item d-flex justify-content-between align-items-center"><span>' + text + priceHtml + '</span><button type="button" class="btn btn-sm btn-outline-danger remove-service-detail-edit" data-idx="' + i + '"><i data-feather="trash-2" style="width:14px;height:14px;"></i></button></li>');
+                });
+                if (typeof feather !== 'undefined') feather.replace();
+            }
+        }
+        $(document).on('click', '#serviceDetailAddBtn', function() {
+            const v = $('#service_detail_new_input').val().trim();
+            if (!v) return;
+            const priceVal = $('#service_detail_new_price').val().trim();
+            serviceDetailsTempEdit.push({ text: v, price: priceVal ? priceVal : '' });
+            $('#service_detail_new_input').val('');
+            $('#service_detail_new_price').val('');
+            $('#service_detail_new_input').focus();
+            renderServiceDetailsListEdit();
+        });
+        $(document).on('keypress', '#service_detail_new_input', function(e) {
+            if (e.which === 13) { e.preventDefault(); $('#serviceDetailAddBtn').click(); }
+        });
+        $(document).on('click', '.remove-service-detail-edit', function() {
+            const i = parseInt($(this).data('idx'), 10);
+            serviceDetailsTempEdit.splice(i, 1);
+            renderServiceDetailsListEdit();
+        });
+        $('#serviceDetailsModalSave').on('click', function() {
+            const id = $('#service_details_modal_id').val();
+            if (!id) return;
+            $.ajax({
+                url: '{{ url("update/service") }}/' + id,
+                method: 'POST',
+                data: {
+                    _token: $('input[name="_token"]').val(),
+                    _method: 'PUT',
+                    name: $('#Services_scrap option:selected').text(),
+                    details: serviceDetailsTempEdit
+                },
+                success: function(res) {
+                    $('#serviceDetailsModal').modal('hide');
+                    loadServiceDetailsDisplayEdit(id);
+                    if (typeof playSaveSound === 'function') playSaveSound();
+                    toastr.success('Service details saved successfully');
+                },
+                error: function(xhr) {
+                    const res = xhr.responseJSON;
+                    toastr.error(res && res.message ? res.message : 'Failed to save');
+                }
+            });
+        });
+
+        // Category image display
+        function updateCategoryImageDisplayEdit() {
+            const $catSelect = $('#category_parts');
+            const catId = $catSelect.val();
+            const $opt = $catSelect.find('option:selected');
+            const imgSrc = $opt.length ? ($opt.data('image') || $opt.attr('data-image') || '') : '';
+            const $box = $('#categoryImageDisplay');
+            const $img = $('#categoryImageImg');
+            if (imgSrc) {
+                $img.attr('src', imgSrc).attr('alt', $opt.text());
+                $box.show();
+            } else if (catId) {
+                $.get('{{ url("show/category") }}/' + catId, function(res) {
+                    const raw = res.image ? String(res.image) : '';
+                    const src = raw ? (raw.startsWith('http') ? raw : '{{ url("/") }}/' + raw.replace(/^\/+/, '')) : '';
+                    if (src) {
+                        $opt.attr('data-image', src);
+                        $img.attr('src', src).attr('alt', res.name);
+                        $box.show();
+                    } else {
+                        $box.hide();
+                    }
+                }).fail(function() { $box.hide(); });
+            } else {
+                $box.hide();
+            }
+        }
+        $(document).on('change', '#category_parts', updateCategoryImageDisplayEdit);
+        updateCategoryImageDisplayEdit();
+
         // Dynamic Subcategory Load (if applicable)
         $(document).on('change', 'select.category-select', function() {
             const subSelect = $('#subcategory');
@@ -4282,28 +4619,27 @@ function md5(string) {
         if (items.length === 0) {
             tbody.append(`
                 <tr>
-                    <td colspan="4" class="text-center">No items found for this type.</td>
+                    <td colspan="5" class="text-center">No items found for this type.</td>
                 </tr>
             `);
             return;
         }
 
-        const duplicateRouteBase = '{{ route("item.duplicate", ":id") }}';
-        
         items.forEach(function(item) {
             const csrfToken = $('input[name="_token"]').val();
             
-            // Build item details HTML
+            // Build item details HTML - Product Name first, then Part Number
+            const productName = item.product_name && item.product_name !== '-' ? item.product_name : (item.part_number || '-');
+            const partNumberLine = (item.product_name && item.product_name !== '-') ? `<div class="text-muted">${item.part_number || '-'}</div>` : '';
             const itemDetails = `
                 <div class="small">
-                    <div> ${item.part_number || '-'}</div>
-                    <div> ${item.category_name || '-'}</div>
-                    <div> ${item.company_name || '-'}</div>
-                    <div> ${item.quality_name || '-'}</div>
+                    <div class="fw-semibold">${productName}</div>
+                    ${partNumberLine}
+                    <div>${item.category_name || '-'}</div>
+                    <div>${item.company_name || '-'}</div>
+                    <div>${item.quality_name || '-'}</div>
                 </div>
             `;
-
-            const duplicateUrl = duplicateRouteBase.replace(':id', item.id);
 
             const row = `
                 <tr>
@@ -4316,18 +4652,21 @@ function md5(string) {
                     <td>
                         ${itemDetails}
                     </td>
-                    <td>${item.user_name}</td>
+                    <td>
+                        <div>${item.user_name}</div>
+                        <div class="small text-muted">${item.branch_name || '-'}</div>
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary" href="${item.show_url}">
+                            <i data-feather="eye" class="me-1"></i> View
+                        </a>
+                    </td>
                     <td>
                         <div class="dropdown">
                             <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 Actions
                             </button>
-                            <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item" href="${item.show_url}">
-                                        <i data-feather="eye" class="me-1"></i> View
-                                    </a>
-                                </li>
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
                                     <a class="dropdown-item" href="${item.edit_url}">
                                         <i data-feather="edit" class="me-1"></i> Edit
@@ -4335,7 +4674,7 @@ function md5(string) {
                                 </li>
                                 <li>
                                     <a href="javascript:void(0)" onclick="confirmDelete('delete-form-${item.id}')"
-                                        class="p-2">
+                                        class="dropdown-item">
                                         <i data-feather="trash-2" class="feather-trash-2"></i> Delete
                                     </a>
                                     <form id="delete-form-${item.id}"
@@ -4344,12 +4683,6 @@ function md5(string) {
                                         <input type="hidden" name="_token" value="${csrfToken}">
                                         <input type="hidden" name="_method" value="DELETE">
                                     </form>
-                                </li>
-                                <hr>
-                                <li>
-                                    <a class="dropdown-item text-primary" href="${duplicateUrl}">
-                                        <i data-feather="copy" class="me-1"></i> Duplicate
-                                    </a>
                                 </li>
                             </ul>
                         </div>
@@ -4603,6 +4936,134 @@ function md5(string) {
         toastr.success('All filters cleared successfully.');
     });
 
+    // Year Range Modal - open same as Create Item
+    $(document).on('click', '.open-year-range-modal', function() {
+        $('#yearRangeModal').modal('show');
+    });
+
+    function updateYearRangeDisplay() {
+        let displayBox = $('#selectedYearRangesDisplay');
+        let allRanges = displayBox.data('all-ranges') || [];
+        let showAll = displayBox.attr('data-show-all') === 'true';
+        if (allRanges.length === 0) {
+            displayBox.html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
+            return;
+        }
+        let rangesToShow = showAll ? allRanges : allRanges.slice(0, 2);
+        let html = '<div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">';
+        rangesToShow.forEach(function(range) {
+            html += '<span class="badge" style="background-color: #7DD3FC; color: #0C4A6E; padding: 4px 8px; border-radius: 4px; font-size: 10px;">' + range + '</span>';
+        });
+        if (!showAll && allRanges.length > 2) {
+            html += '<span class="badge bg-secondary" style="padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer;">+' + (allRanges.length - 2) + ' more</span>';
+        }
+        html += '</div>';
+        displayBox.html(html);
+    }
+
+    $(document).on('click', '#selectedYearRangesDisplay', function(e) {
+        let displayBox = $(this);
+        let allRanges = displayBox.data('all-ranges') || [];
+        if (allRanges.length > 2) {
+            let showAll = displayBox.attr('data-show-all') === 'true';
+            displayBox.attr('data-show-all', showAll ? 'false' : 'true');
+            updateYearRangeDisplay();
+        }
+    });
+
+    function updateFilterYearRangeRemoveButtons() {
+        let ranges = $('#filterYearRangesContainer .filter-year-range-item');
+        ranges.each(function(index) {
+            let removeBtn = $(this).find('.removeFilterYearRange');
+            if (ranges.length > 1) removeBtn.show(); else removeBtn.hide();
+        });
+    }
+
+    $(document).on('click', '#addMoreFilterYearRange', function() {
+        let container = $('#filterYearRangesContainer');
+        let newRange = $('<div class="filter-year-range-item mb-2"></div>');
+        let yearOptions = '';
+        let currentYear = new Date().getFullYear();
+        for (let year = currentYear; year >= 1980; year--) yearOptions += '<option value="' + year + '">' + year + '</option>';
+        newRange.html('<div class="row g-2"><div class="col-5"><label class="form-label small">From Year</label><select class="form-control filter-year-from"><option value="">Select Year</option>' + yearOptions + '</select><div class="invalid-feedback" style="display:none;font-size:10px;">From Year cannot be greater than To Year</div></div><div class="col-5"><label class="form-label small">To Year</label><select class="form-control filter-year-to"><option value="">Select Year</option>' + yearOptions + '</select><div class="invalid-feedback" style="display:none;font-size:10px;">To Year cannot be less than From Year</div></div><div class="col-2 d-flex align-items-end"><button type="button" class="btn btn-danger btn-sm removeFilterYearRange">X</button></div></div></div>');
+        container.append(newRange);
+        updateFilterYearRangeRemoveButtons();
+        attachYearRangeValidation(newRange);
+        if (typeof feather !== 'undefined') feather.replace();
+    });
+
+    function attachYearRangeValidation($container) {
+        var $fromSelect = $container.find('.filter-year-from');
+        var $toSelect = $container.find('.filter-year-to');
+        var $fromError = $fromSelect.next('.invalid-feedback');
+        var $toError = $toSelect.next('.invalid-feedback');
+        $fromSelect.off('change').on('change', function() {
+            var fromYear = $(this).val(), toYear = $toSelect.val();
+            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
+                $(this).addClass('is-invalid'); $fromError.show(); $toSelect.addClass('is-invalid'); $toError.show();
+            } else {
+                $(this).removeClass('is-invalid'); $fromError.hide();
+                if (!toYear || parseInt(fromYear) <= parseInt(toYear)) { $toSelect.removeClass('is-invalid'); $toError.hide(); }
+            }
+        });
+        $toSelect.off('change').on('change', function() {
+            var fromYear = $fromSelect.val(), toYear = $(this).val();
+            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
+                $(this).addClass('is-invalid'); $toError.show(); $fromSelect.addClass('is-invalid'); $fromError.show();
+            } else {
+                $(this).removeClass('is-invalid'); $toError.hide();
+                if (!fromYear || parseInt(fromYear) <= parseInt(toYear)) { $fromSelect.removeClass('is-invalid'); $fromError.hide(); }
+            }
+        });
+    }
+
+    $(document).on('click', '.removeFilterYearRange', function() {
+        $(this).closest('.filter-year-range-item').remove();
+        updateFilterYearRangeRemoveButtons();
+    });
+
+    $(document).on('click', '#applyYearRangeFilter', function() {
+        $('#filterYearRangesContainer .filter-year-range-item').each(function() {
+            var $fromSelect = $(this).find('.filter-year-from');
+            var $toSelect = $(this).find('.filter-year-to');
+            var fromYear = $fromSelect.val(), toYear = $toSelect.val();
+            if (fromYear && toYear && parseInt(fromYear) > parseInt(toYear)) {
+                $fromSelect.val(toYear); $toSelect.val(fromYear);
+                $fromSelect.removeClass('is-invalid'); $toSelect.removeClass('is-invalid');
+                $fromSelect.next('.invalid-feedback').hide(); $toSelect.next('.invalid-feedback').hide();
+            }
+        });
+        var filterRanges = [], displayRanges = [];
+        $('#filterYearRangesContainer .filter-year-range-item').each(function() {
+            var fromYear = $(this).find('.filter-year-from').val();
+            var toYear = $(this).find('.filter-year-to').val();
+            if (fromYear || toYear) {
+                var from = fromYear ? parseInt(fromYear) : 1980;
+                var to = toYear ? parseInt(toYear) : new Date().getFullYear();
+                filterRanges.push({ from: from, to: to });
+                displayRanges.push(from === to ? from.toString() : from + '-' + to);
+            }
+        });
+        var displayBox = $('#selectedYearRangesDisplay');
+        displayBox.data('all-ranges', displayRanges);
+        displayBox.attr('data-show-all', 'false');
+        if (displayRanges.length > 0) updateYearRangeDisplay(); else displayBox.html('<div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>');
+        $('#yearRangeModal').modal('hide');
+        filterVehicleTable();
+    });
+
+    $('#yearRangeModal').on('hidden.bs.modal', function() {
+        var yearOptions = '';
+        for (var y = new Date().getFullYear(); y >= 1980; y--) yearOptions += '<option value="' + y + '">' + y + '</option>';
+        var $newRange = $('<div class="filter-year-range-item mb-2"><div class="row g-2"><div class="col-5"><label class="form-label small">From Year</label><select class="form-control filter-year-from"><option value="">Select Year</option>' + yearOptions + '</select><div class="invalid-feedback" style="display:none;font-size:10px;">From Year cannot be greater than To Year</div></div><div class="col-5"><label class="form-label small">To Year</label><select class="form-control filter-year-to"><option value="">Select Year</option>' + yearOptions + '</select><div class="invalid-feedback" style="display:none;font-size:10px;">To Year cannot be less than From Year</div></div><div class="col-2 d-flex align-items-end"><button type="button" class="btn btn-danger btn-sm removeFilterYearRange" style="display:none;">X</button></div></div></div></div>');
+        $('#filterYearRangesContainer').html($newRange);
+        attachYearRangeValidation($newRange);
+    });
+
+    $('#yearRangeModal').on('shown.bs.modal', function() {
+        $('#filterYearRangesContainer .filter-year-range-item').each(function() { attachYearRangeValidation($(this)); });
+    });
+
     // Select All Vehicles Checkbox
     $(document).on('change', '#selectAllVehicles', function() {
         const isChecked = $(this).is(':checked');
@@ -4762,7 +5223,7 @@ function md5(string) {
                                 let newRow = `
                                     <tr data-part="${group.v_part_number_id}">
                                         <td style="text-align: center;">
-                                            <input type="checkbox" class="vehicle-checkbox" 
+                                            <input type="checkbox" class="vehicle-checkbox" name="vehical_id[]" value="${group.id || ''}"
                                                 data-vehicle-id="${group.id || ''}"
                                                 data-part="${group.v_part_number_id}"
                                                 data-manufacturer="${group.car_manufacturer}"
@@ -4850,5 +5311,130 @@ function md5(string) {
             filterVehicleTable();
         }
     });
+
+    // Associated Vehicles (same as create/new) - Initialize from item's vehical_ids
+    if ($('#openItemVehicleModalEdit').length && $('#itemVehicleAddModalEdit').length) {
+        let itemVehicleIdsEdit = @json($editingItem->vehical_ids ?? []);
+        let itemVehicleDetailsEdit = @json(($editingItem->vehical_items() ?? collect())->mapWithKeys(function($v) {
+            $make = optional($v->manutacturer_vehical)->name ?? '-';
+            $model = optional($v->model_vehical)->name ?? '-';
+            $yr = ($v->year_from && $v->year_to) ? ($v->year_from == $v->year_to ? $v->year_from : $v->year_from . '-' . $v->year_to) : '-';
+            return [$v->id => $make . ' / ' . $model . ' / ' . $yr];
+        })->toArray());
+
+        $(document).on('click', '[data-bs-target="#itemVehicleAddModalEdit"]', function(e) {
+            let outsidePart = $('#part_number_id').val();
+            if (!outsidePart || outsidePart === '' || outsidePart === null) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof toastr !== 'undefined') toastr.warning('Please select Part Number first.');
+                $('#part_number_id').addClass('is-invalid').focus();
+                return false;
+            }
+        });
+
+        $('#itemVehicleAddModalEdit').on('show.bs.modal', function(e) {
+            let outsidePart = $('#part_number_id').val();
+            if (!outsidePart || outsidePart === '') {
+                e.preventDefault();
+                if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
+                $('#part_number_id').addClass('is-invalid').focus();
+                return;
+            }
+            document.getElementById('itemVehicleAddFormEdit')?.reset();
+            $('#itemVehiclePartNumberEdit').val(outsidePart);
+        });
+
+        $('#itemVehicleAddFormEdit').off('submit').on('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!$('#itemVehicleAddModalEdit').hasClass('show')) return false;
+            let outsidePart = $('#part_number_id').val();
+            if (!outsidePart || outsidePart === '') {
+                if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
+                $('#part_number_id').addClass('is-invalid').focus();
+                return false;
+            }
+            $('#itemVehiclePartNumberEdit').val(outsidePart);
+            $('#part_number_id').removeClass('is-invalid');
+            let form = this;
+            let $btn = $('#itemVehicleAddBtnEdit');
+            $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Adding...');
+            let formData = new FormData(form);
+            formData.set('v_part_number_id', outsidePart);
+            $.ajax({
+                url: '{{ route("post.product_vehical") }}',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function(res) {
+                    if (!res) { if (typeof toastr !== 'undefined') toastr.error('No response from server'); return; }
+                    if (res.errors && res.errors.length > 0) {
+                        res.errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); });
+                        return;
+                    }
+                    if (res.duplicate_years && res.duplicate_years.length > 0) {
+                        if (typeof toastr !== 'undefined') toastr.warning('Already exists for year(s): ' + res.duplicate_years.join(', '));
+                        return;
+                    }
+                    if (res.success && res.vehicles && res.vehicles.length > 0) {
+                        res.vehicles.forEach(function(v) {
+                            if (itemVehicleIdsEdit.indexOf(v.id) === -1) {
+                                itemVehicleIdsEdit.push(v.id);
+                                var make = v.manutacturer_vehical?.name || '-';
+                                var model = v.model_vehical?.name || '-';
+                                var yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
+                                itemVehicleDetailsEdit[v.id] = make + ' / ' + model + ' / ' + yr;
+                            }
+                        });
+                        updateItemVehiclesDisplayEdit();
+                        bootstrap.Modal.getInstance(document.getElementById('itemVehicleAddModalEdit'))?.hide();
+                        if (typeof toastr !== 'undefined') toastr.success(res.message || 'Vehicle saved successfully!');
+                        if (typeof playSaveSound === 'function') playSaveSound();
+                    } else if (res.message && $('#itemVehicleAddModalEdit').hasClass('show')) {
+                        if (typeof toastr !== 'undefined') toastr.info(res.message);
+                    }
+                },
+                error: function(xhr) {
+                    var msg = xhr.responseJSON?.message || 'Failed to add vehicle.';
+                    var errors = xhr.responseJSON?.errors;
+                    if (errors && Array.isArray(errors) && errors.length) {
+                        errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); else alert(err); });
+                    } else {
+                        if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+                    }
+                },
+                complete: function() { $btn.prop('disabled', false).html('Add Vehicle'); }
+            });
+            return false;
+        });
+
+        function updateItemVehiclesDisplayEdit() {
+            var $list = $('#itemVehiclesListEdit');
+            var $hidden = $('#itemVehiclesHiddenInputsEdit');
+            $hidden.empty();
+            if (itemVehicleIdsEdit.length === 0) {
+                $list.html('<p class="text-muted small mb-0">No vehicles added yet.</p>');
+                return;
+            }
+            var html = '<div class="list-group list-group-flush">';
+            itemVehicleIdsEdit.forEach(function(id, idx) {
+                $hidden.append('<input type="hidden" name="vehical_id[]" value="' + id + '">');
+                var label = itemVehicleDetailsEdit[id] || 'Vehicle #' + (idx + 1);
+                html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="' + id + '"><span class="small">' + label + '</span><button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle-edit" data-id="' + id + '"><i class="ti ti-trash"></i></button></div>';
+            });
+            html += '</div>';
+            $list.html(html);
+            $('.remove-item-vehicle-edit').off('click').on('click', function() {
+                var id = parseInt($(this).data('id'));
+                itemVehicleIdsEdit = itemVehicleIdsEdit.filter(function(x) { return x !== id; });
+                delete itemVehicleDetailsEdit[id];
+                updateItemVehiclesDisplayEdit();
+            });
+        }
+        updateItemVehiclesDisplayEdit();
+    }
 </script>
 @endpush

@@ -43,6 +43,17 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
         $this->middleware('auth')->only('logout');
     }
+
+    /**
+     * Attempt to log the user in. Always use "remember" so login keeps for 1 day, 1 month, or until user logs out.
+     */
+    protected function attemptLogin(Request $request)
+    {
+        return $this->guard()->attempt(
+            $this->credentials($request),
+            true // always remember — user jab tak khud logout na kare tab tak login rahega
+        );
+    }
     
     /**
      * Show the application's login form.
@@ -707,7 +718,7 @@ class LoginController extends Controller
         }
 
         // Login the user
-        Auth::login($user, $request->has('remember'));
+        Auth::login($user, true); // always remember — login keep until user logs out
 
         // Handle branch selection (same logic as regular login)
         if ($user->role === 'user' && $request->branch_id) {
@@ -769,7 +780,7 @@ class LoginController extends Controller
         }
 
         // Login the user
-        Auth::login($user, $request->has('remember'));
+        Auth::login($user, true); // always remember — login keep until user logs out
 
         // Handle branch selection (same logic as regular login)
         if ($user->role === 'user' && $request->branch_id) {

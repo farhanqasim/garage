@@ -3,32 +3,26 @@
 @section('content')
     <div class="content">
         <div class="page-header">
-            <div class="add-item d-flex">
+            <div class="add-item d-flex align-items-center">
                 <div class="page-title">
-                    <h2 class="fw-bold">All Employees</h2>
+                    <h2 class="fw-bold mb-0 d-flex align-items-center">
+                        <span class="title-icon bg-soft-primary rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px;"><i class="ti ti-users text-primary"></i></span>
+                        Employees
+                    </h2>
+                    <p class="text-muted small mb-0 mt-1">Manage employees and add new team members</p>
                 </div>
             </div>
             <ul class="table-top-head">
-                <li>
-                 <a data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf"><img
-                            src="{{ asset('assets/img/icons/pdf.svg') }}" alt="img"></a>
-                </li>
-                <li>
-                    <a data-bs-toggle="tooltip" data-bs-placement="top" title="Excel"><img
-                            src="{{ asset('assets/img/icons/excel.svg') }}" alt="img"></a>
-                </li>
-                <li>
-                    <a data-bs-toggle="tooltip" data-bs-placement="top" title="Refresh"><i class="ti ti-refresh"></i></a>
-                </li>
-                <li>
-                    <a data-bs-toggle="tooltip" data-bs-placement="top" title="Collapse" id="collapse-header"><i
-                            class="ti ti-chevron-up"></i></a>
-                </li>
+                <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf"><img src="{{ asset('assets/img/icons/pdf.svg') }}" alt="img"></a></li>
+                <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Excel"><img src="{{ asset('assets/img/icons/excel.svg') }}" alt="img"></a></li>
+                <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Refresh" onclick="window.location.reload();"><i class="ti ti-refresh"></i></a></li>
+                <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Collapse" id="collapse-header"><i class="ti ti-chevron-up"></i></a></li>
             </ul>
             <div class="page-btn">
                 @can('add_user')
-                <a href="" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#add-category"><i
-                        class="ti ti-circle-plus me-1"></i>Add</a>
+                <a href="" class="btn btn-primary d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#add-category">
+                    <i class="ti ti-user-plus me-1"></i>Add New Employee
+                </a>
                 @endcan
             </div>
         </div>
@@ -62,13 +56,10 @@
                         <thead class="thead-primary">
                             <tr>
                                 <th>#</th>
-                                <th>Employee Name</th>
                                 <th>Profile Image</th>
+                                <th>Employee Name</th>
                                 <th>Role</th>
-                                <th>Branche Name</th>
-                                <th>Branche Code</th>
-                                <th>Email</th>
-                                <th>Phone</th>
+                                <th>Branch</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -77,13 +68,17 @@
                         @forelse ($users as $key => $user)
                             <tr>
                                 <td>{{ $key + 1 }}</td>
-                                <td>{{ $user->name }}</td>
                                 <td>
                                     @if ($user->profile_img)
                                     <img src={{ asset($user->profile_img) }} class="rounded" width='50px' height="50px" alt="">
                                     @else
                                        <img src={{ asset('assets/img/profiles/avator1.jpg') }}  class="rounded" width='50px' height="50px" alt="">
                                     @endif
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ $user->name }}</div>
+                                    <div class="text-muted small">{{ $user->email }}</div>
+                                    <div class="text-muted small">{{ $user->phone ?? 'N/A' }}</div>
                                 </td>
                                 <td>
                                   @if ($user->role)
@@ -102,39 +97,17 @@
                                   @endif
                                 </td>
                                 <td>
-                                    @if($user->branch_id)
-                                        @php
-                                            $branch = \App\Models\Branch::find($user->branch_id);
-                                        @endphp
-                                        @if($branch)
-                                            <strong>{{ $branch->branch_name }}</strong>
-                                        @else
-                                            <span class="text-muted">No Branch</span>
-                                        @endif
-                                    @elseif($user->assignedBranches->count() > 0)
-                                        <strong>{{ $user->assignedBranches->first()->branch_name }}</strong>
+                                    @php
+                                        $branch = $user->branch_id ? \App\Models\Branch::find($user->branch_id) : ($user->assignedBranches->count() > 0 ? $user->assignedBranches->first() : null);
+                                    @endphp
+                                    @if($branch)
+                                        <div class="fw-bold">{{ $branch->branch_name }}</div>
+                                        <div class="text-muted small">{{ $branch->branch_code }}</div>
                                     @else
-                                        <span class="text-muted">No Branch</span>
+                                        <div class="text-muted">No Branch</div>
+                                        <div class="text-muted small">N/A</div>
                                     @endif
                                 </td>
-                                <td>
-                                    @if($user->branch_id)
-                                        @php
-                                            $branch = \App\Models\Branch::find($user->branch_id);
-                                        @endphp
-                                        @if($branch)
-                                            <span>{{ $branch->branch_code }}</span>
-                                        @else
-                                            <span class="text-muted">N/A</span>
-                                        @endif
-                                    @elseif($user->assignedBranches->count() > 0)
-                                        <span>{{ $user->assignedBranches->first()->branch_code }}</span>
-                                    @else
-                                        <span class="text-muted">N/A</span>
-                                    @endif
-                                </td>
-                                    <td>{{ $user->email }}</td>
-                                    <td>{{ $user->phone ?? 'N/A' }}</td>
                                 <td>
                                     @if ($user->status === 'active')
                                         <span class="badge bg-success">Active</span>

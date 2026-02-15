@@ -288,11 +288,15 @@ class UnitController extends Controller
             if ($baseUnits->count() > 0) {
                 // Create separate entry for each base unit conversion
                 foreach ($baseUnits as $baseUnit) {
+                    $multiplier = (float) $baseUnit->pivot->multiplier;
+                    $displayMultiplier = $multiplier == (int) $multiplier
+                        ? (string) (int) $multiplier
+                        : rtrim(rtrim(sprintf('%.4f', $multiplier), '0'), '.');
                     $formattedUnits[] = [
                         'id' => $unit->id,
                         'name' => $unit->name,
                         'short_name' => $unit->short_name,
-                        'display_text' => $unit->name . ' (' . $unit->short_name . ') - ' . $baseUnit->pivot->multiplier . ' ' . $baseUnit->name,
+                        'display_text' => $unit->name . ' (' . $unit->short_name . ') - ' . $displayMultiplier . ' ' . $baseUnit->name,
                         'base_unit_id' => $baseUnit->id,
                         'base_unit_name' => $baseUnit->name,
                         'base_unit_short_name' => $baseUnit->short_name,
