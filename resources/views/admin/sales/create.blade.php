@@ -75,14 +75,14 @@
                                     <p class="invoice-date" id="currentDateTime">{{ date('d/m/Y, h:i:s A') }}</p>
                                     <div class="d-flex flex-row align-items-center" style="gap: 10px; align-items: center;">
                                         <p class="invoice-number" id="sales-number" style="margin-bottom: 0;">INV #{{ str_pad(1, 5, '0', STR_PAD_LEFT) }}</p>
-                                        <div class="custom-3step-switch switch-sale" id="estimateSwitch" style="position: relative; width: 80px; height: 30px; border-radius: 15px; cursor: pointer; transition: all 0.3s ease; margin-top: 0;">
-                                            <div class="switch-slider switch-position-0" style="position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 3px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-                                            <div class="switch-indicators" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; pointer-events: none;">
+                                        <button type="button" class="custom-3step-switch switch-sale" id="estimateSwitch" onclick="if(typeof doEstimateSwitchCycle==='function') doEstimateSwitchCycle(); return false;" style="position: relative; width: 80px; height: 30px; border-radius: 15px; cursor: pointer; transition: all 0.3s ease; margin-top: 0; border: none; padding: 0; outline: none; background: #2563eb;">
+                                            <span class="switch-slider switch-position-0" style="position: absolute; width: 24px; height: 24px; background: white; border-radius: 50%; top: 3px; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none;"></span>
+                                            <span class="switch-indicators" style="position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-around; align-items: center; pointer-events: none; left: 0; top: 0;">
                                                 <span style="font-size: 8px; color: rgba(255,255,255,0.5);">S</span>
                                                 <span style="font-size: 8px; color: rgba(255,255,255,0.5);">E</span>
                                                 <span style="font-size: 8px; color: rgba(255,255,255,0.5);">O</span>
-                                            </div>
-                                        </div>
+                                            </span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -586,7 +586,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-bold mb-2">QUANTITY</label>
                         <select id="sales-item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="1">Qty</option>
+                            <option value="">-</option>
                             <option value="0.5">0.5</option>
                             <option value="1">1</option>
                             <option value="1.5">1.5</option>
@@ -645,17 +645,14 @@
                             <div class="col-6">
                                 <select id="sales-warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
                                     <option value="">-</option>
-                                    <option value="7">7</option>
-                                    <option value="15">15</option>
-                                    <option value="30">30</option>
-                                    <option value="60">60</option>
-                                    <option value="90">90</option>
-                                    <option value="180">180</option>
-                                    <option value="365">365</option>
+                                    @for($i = 1; $i <= 30; $i++)
+                                        <option value="{{ $i }}">{{ $i }}</option>
+                                    @endfor
                                 </select>
                             </div>
                             <div class="col-6">
                                 <select id="sales-warranty-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="">-</option>
                                     <option value="Days">Days</option>
                                     <option value="Weeks">Weeks</option>
                                     <option value="Months">Months</option>
@@ -1032,6 +1029,7 @@
     }
     
     /* 3-Step Switch Styles */
+    button#estimateSwitch,
     .custom-3step-switch {
         position: relative;
         width: 80px;
@@ -1040,6 +1038,13 @@
         border-radius: 15px;
         cursor: pointer;
         transition: all 0.3s ease;
+        border: none !important;
+        padding: 0 !important;
+        outline: none;
+    }
+    button#estimateSwitch:focus {
+        outline: none;
+        box-shadow: none;
     }
     
     .custom-3step-switch.switch-sale {
@@ -1063,6 +1068,7 @@
         top: 3px;
         transition: all 0.3s ease;
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        pointer-events: none; /* let clicks pass to parent #estimateSwitch */
     }
     
     .switch-slider.switch-position-0 {
@@ -1721,36 +1727,48 @@ $(document).ready(function() {
         $('#currentDateTime').text(`${day}/${month}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`);
     }
     
-    // Store original invoice number and current state
-    let originalInvoiceNumber = $('#sales-number').text();
+    // Store original invoice number and current state (set after DOM ready)
+    let originalInvoiceNumber = '';
     let currentState = 0; // 0 = Sale, 1 = Estimate, 2 = Sale Order
     let originalEstimateNumber = null;
     let originalSaleOrderNumber = null;
     
-    // Initialize slider position and icon box color
-    $('#estimateSwitch').find('.switch-slider').addClass('switch-position-0');
-    $('#estimateSwitch').addClass('switch-sale');
-    $('#status-icon-box').addClass('bg-primary');
-    // Initialize invoice number color to blue and switch background
-    $('#sales-number').css({'color': '#2563eb', 'margin-bottom': '0'});
-    $('#estimateSwitch').css('background', '#2563eb');
-    $('#add-vehicle-btn').css('color', '#2563eb'); // Initialize vehicle button color to blue
-    $('#add-item-modal .modal-title').css('color', '#2563eb'); // Initialize modal title color to blue
-    $('#add-new-item-btn').css('background', '#2563eb'); // Initialize ADD SALE ITEM button color to blue
-    $('#save-sale-btn').attr('style', 'background: #2563eb !important; border-color: #2563eb !important;'); // Initialize Save Sale button color to blue
-    $('#branch-name-title').css('color', '#2563eb'); // Initialize branch name title color to blue
+    $(function() {
+        var $switch = $('#estimateSwitch');
+        if (!$switch.length) return;
+        $switch.find('.switch-slider').addClass('switch-position-0');
+        $switch.addClass('switch-sale');
+        $('#status-icon-box').addClass('bg-primary');
+        $('#sales-number').css({'color': '#2563eb', 'margin-bottom': '0'});
+        $switch.css('background', '#2563eb');
+        $('#add-vehicle-btn').css('color', '#2563eb');
+        $('#add-item-modal .modal-title').css('color', '#2563eb');
+        $('#add-new-item-btn').css('background', '#2563eb');
+        $('#save-sale-btn').attr('style', 'background: #2563eb !important; border-color: #2563eb !important;');
+        $('#branch-name-title').css('color', '#2563eb');
+        // Load next INV number (separate series) when branch is selected
+        if ($('#salesBranchId').val()) {
+            $.get('{{ route("sales.next.invoice.number") }}').then(function(response) {
+                if (response.number != null) {
+                    $('#sales-number').text('INV #' + response.number);
+                    originalInvoiceNumber = 'INV #' + response.number;
+                } else {
+                    originalInvoiceNumber = $('#sales-number').text();
+                }
+            }).fail(function() { originalInvoiceNumber = $('#sales-number').text(); });
+        } else {
+            originalInvoiceNumber = $('#sales-number').text();
+        }
+    });
     
-    // Handle 3-in-1 Switch Toggle (Sale -> Estimate -> Sale Order -> Sale)
-    $('#estimateSwitch').on('click', function(e) {
-        e.preventDefault();
-        
+    // Global fallback so S/E/O switch works even if jQuery binding fails (called by onclick + delegated handler)
+    window.doEstimateSwitchCycle = function() {
+        if (typeof $ === 'undefined') return;
         const salesNumber = $('#sales-number');
         const pageTitle = $('.page-title h4');
         const switchLabel = $('#switch-label');
-        const slider = $(this).find('.switch-slider');
+        const slider = $('#estimateSwitch').find('.switch-slider');
         const iconBox = $('#status-icon-box');
-        
-        // Cycle through states: 0 -> 1 -> 2 -> 0
         currentState = (currentState + 1) % 3;
         
         if (currentState === 0) {
@@ -1769,19 +1787,36 @@ $(document).ready(function() {
             $('#cash-received-section').show(); // Show cash received section for Sale
             $('#bank-received-section').show(); // Show bank received section for Sale
             
-            // Restore original invoice number or show INV #
-            if (originalInvoiceNumber && originalInvoiceNumber.includes('INV #')) {
-                salesNumber.text(originalInvoiceNumber);
-            } else {
-                const currentNumber = salesNumber.text().match(/\d+/);
-                salesNumber.text('INV #' + (currentNumber ? currentNumber[0] : '00001'));
-            }
+            // Fetch next INV number (separate series) from server
+            $.ajax({
+                url: '{{ route("sales.next.invoice.number") }}',
+                method: 'GET',
+                success: function(response) {
+                    if (response.number != null) {
+                        salesNumber.text('INV #' + response.number);
+                        originalInvoiceNumber = 'INV #' + response.number;
+                    } else if (originalInvoiceNumber && originalInvoiceNumber.includes('INV #')) {
+                        salesNumber.text(originalInvoiceNumber);
+                    } else {
+                        salesNumber.text('INV #00001');
+                    }
+                    salesNumber.css('color', '#2563eb');
+                },
+                error: function() {
+                    if (originalInvoiceNumber && originalInvoiceNumber.includes('INV #')) {
+                        salesNumber.text(originalInvoiceNumber);
+                    } else {
+                        salesNumber.text('INV #00001');
+                    }
+                    salesNumber.css('color', '#2563eb');
+                }
+            });
             
             switchLabel.text('SALE');
             pageTitle.text('Create Sales');
             // Update switch - Position 0, Blue color
             slider.removeClass('switch-position-1 switch-position-2').addClass('switch-position-0');
-            $(this).removeClass('switch-estimate switch-sale-order').addClass('switch-sale');
+            $('#estimateSwitch').removeClass('switch-estimate switch-sale-order').addClass('switch-sale');
             // Update icon box color - Blue
             iconBox.removeClass('bg-warning bg-success').addClass('bg-primary');
             
@@ -1843,7 +1878,7 @@ $(document).ready(function() {
             pageTitle.text('Create Estimate');
             // Update switch - Position 1, Yellow color
             slider.removeClass('switch-position-0 switch-position-2').addClass('switch-position-1');
-            $(this).removeClass('switch-sale switch-sale-order').addClass('switch-estimate');
+            $('#estimateSwitch').removeClass('switch-sale switch-sale-order').addClass('switch-estimate');
             // Update icon box color - Yellow
             iconBox.removeClass('bg-primary bg-success').addClass('bg-warning');
             
@@ -1900,10 +1935,16 @@ $(document).ready(function() {
             pageTitle.text('Create Sale Order');
             // Update switch - Position 2, Green color
             slider.removeClass('switch-position-0 switch-position-1').addClass('switch-position-2');
-            $(this).removeClass('switch-sale switch-estimate').addClass('switch-sale-order');
+            $('#estimateSwitch').removeClass('switch-sale switch-estimate').addClass('switch-sale-order');
             // Update icon box color - Green
             iconBox.removeClass('bg-primary bg-warning').addClass('bg-success');
         }
+    };
+
+    $(document).on('click', '#estimateSwitch', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.doEstimateSwitchCycle === 'function') window.doEstimateSwitchCycle();
     });
     
     // Load warehouse info on page load if branch is already selected
@@ -2673,11 +2714,11 @@ $(document).ready(function() {
         $('#item-search').val('');
         $('#selected-item-id').val('');
         $('#selected-warehouse-id').val('');
-        $('#sales-item-quantity').val('1');
+        $('#sales-item-quantity').val('');
         $('#sales-item-unit').val('Can');
         $('#sales-item-rate').val('0');
         $('#sales-warranty-value').val('');
-        $('#sales-warranty-unit').val('Days');
+        $('#sales-warranty-unit').val('');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
@@ -4288,12 +4329,12 @@ $(document).ready(function() {
     function resetItemModal() {
         $('#selected-item-id').val('');
         $('#item-search').val('');
-        $('#sales-item-quantity').val('1');
+        $('#sales-item-quantity').val('');
         $('#sales-item-quantity-input').val('1').hide();
         $('#sales-item-unit').val('Can');
         $('#sales-item-rate').val('0');
         $('#sales-warranty-value').val('');
-        $('#sales-warranty-unit').val('Days');
+        $('#sales-warranty-unit').val('');
         $('#item-discount').val('0');
         $('#discount-type').val('amount');
         $('#item-tax').val('0');

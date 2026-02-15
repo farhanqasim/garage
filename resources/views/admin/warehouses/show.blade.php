@@ -13,6 +13,9 @@
             <a href="{{ route('warehouses.index') }}" class="btn btn-secondary">
                 <i class="ti ti-arrow-left me-1"></i> Back
             </a>
+            <a href="{{ route('warehouses.edit', $warehouse->id) }}" class="btn btn-outline-primary">
+                <i class="ti ti-pencil me-1"></i> Edit
+            </a>
             <a href="{{ route('warehouses.add-item', $warehouse->id) }}" class="btn btn-primary">
                 <i class="ti ti-plus me-1"></i> Add Item
             </a>

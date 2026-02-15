@@ -71,10 +71,7 @@
                                         <span id="currentDateTime">{{ date('d/m/Y, h:i:s A') }}</span>
                                     </div>
                                     <div class="d-flex align-items-center justify-content-end gap-2" style="flex-wrap: wrap;">
-                                        @php
-                                            $nextSaleNum = str_pad((\App\Models\Sale::max('id') ?? 0) + 1, 5, '0', STR_PAD_LEFT);
-                                        @endphp
-                                        <span class="text-primary fw-bold" style="font-size: 18px;" id="sales-number">INV #{{ $nextSaleNum }}</span>
+                                        <span class="text-primary fw-bold" style="font-size: 18px;" id="sales-number">INV #00001</span>
                                         <!-- S/E/O Toggle Switch -->
                                         <div class="d-inline-block position-relative" style="vertical-align: middle;">
                                             <div class="switch-container" style="position: relative; width: 80px; height: 30px; background: #2563eb; border-radius: 15px; cursor: pointer; transition: all 0.3s ease;" id="estimate-order-toggle">
@@ -112,41 +109,10 @@
                         <!-- Customer Information (Like Screenshot Design) -->
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">PARTY NAME</label>
-                                <div class="input-group">
-                                    <select name="party_name_search" id="party_name_search" class="form-control select2-party-name-search" style="border-radius: 6px 0 0 6px;">
-                                        <option value="">SEARCH PARTY NAME...</option>
-                                        @foreach($customers as $customer)
-                                            @php
-                                                $customerName = $customer->names[0] ?? 'N/A';
-                                                $displayText = $customerName;
-                                                if($customer->company) {
-                                                    $displayText .= ' - ' . $customer->company;
-                                                }
-                                                if(!empty($customer->phones[0])) {
-                                                    $displayText .= ' - ' . $customer->phones[0];
-                                                }
-                                            @endphp
-                                            <option value="{{ $customer->id }}" 
-                                                    data-customer-id="{{ $customer->id }}"
-                                                    data-name="{{ $customer->names[0] ?? '' }}" 
-                                                    data-phone="{{ $customer->phones[0] ?? '' }}"
-                                                    data-company="{{ $customer->company ?? '' }}"
-                                                    data-address="{{ $customer->address ?? '' }}"
-                                                    data-area="{{ $customer->area ?? '' }}">
-                                                {{ $displayText }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" class="btn btn-outline-primary" id="edit-party-btn" style="border-radius: 0 6px 6px 0; border-left: 0;" title="Edit Customer">
-                                        <i class="ti ti-edit"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">PARTY NAME / VEHICLE #</label>
-                                <select name="customer_id" id="customer_id" class="form-control select2-customer-search @error('customer_id') is-invalid @enderror" required style="border-radius: 6px;">
-                                    <option value="" selected>SEARCH PARTY NAME / VEHICLE #...</option>
+                                <div class="input-group">
+                                    <select name="customer_id" id="customer_id" class="form-control select2-customer-search @error('customer_id') is-invalid @enderror" required style="border-radius: 6px 0 0 6px;">
+                                        <option value="" selected>SEARCH PARTY NAME / VEHICLE #...</option>
                                     @foreach($customers as $customer)
                                         @php
                                             $customerName = $customer->names[0] ?? 'N/A';
@@ -191,11 +157,15 @@
                                             @endforeach
                                         @endif
                                     @endforeach
-                                </select>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="edit-party-btn" style="border-radius: 0 6px 6px 0; border-left: 0;" title="Edit Customer">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                </div>
                                     @error('customer_id')
                                         <div class="text-danger small">{{ $message }}</div>
                                     @enderror
-                                </div>
+                            </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">MOBILE NO.</label>
                                 <div class="input-group">
@@ -224,19 +194,15 @@
                                 </div>
                         
                         <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">ADDRESS</label>
                                 <input type="text" id="customer_address" name="customer_address" class="form-control" placeholder="Shop/House #" style="border-radius: 6px;">
                             </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">AREA</label>
                                 <input type="text" id="customer_area" name="customer_area" class="form-control" placeholder="Location/City" style="border-radius: 6px;">
-                                </div>
                             </div>
-                            
-                            <!-- Reference (Optional) -->
-                            <div class="row mb-4">
-                                <div class="col-md-6">
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">REFERENCE</label>
                                 <input type="text" name="reference" id="reference" class="form-control" placeholder="Enter reference number" style="border-radius: 6px;">
                             </div>
@@ -244,6 +210,14 @@
                         
                         <!-- Items Summary Section (Like Screenshot) -->
                         <div class="mb-4">
+                            <!-- Quick Barcode Scan (above items list) -->
+                            <div class="d-flex align-items-center gap-2 mb-3 p-2 rounded" style="background: #f8f9fa; border: 1px solid #dee2e6;">
+                                <i class="ti ti-barcode ms-2" style="font-size: 1.25rem; color: #2563eb;"></i>
+                                <input type="text" id="quick-barcode-input" class="form-control" placeholder="USB barcode scanner or type here, then Enter..." style="border-radius: 8px; border: 1px solid #dee2e6;" autocomplete="off">
+                                <button type="button" class="btn btn-outline-primary flex-shrink-0" id="quick-scan-camera-btn" title="Open camera to scan">
+                                    <i class="ti ti-scan"></i> Scan
+                                </button>
+                            </div>
                             <div id="items-summary-container" class="text-center py-5" style="background: #fff; border-radius: 8px; min-height: 200px; border: 1px dashed #dee2e6;">
                                 <div id="empty-items-state">
                                     <p class="text-muted mb-0" style="font-size: 16px;">No items added yet...</p>
@@ -287,7 +261,7 @@
                                     <span class="fw-bold text-success">DISCOUNT (MANUAL EDIT)</span>
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="text-success fw-bold">Rs</span>
-                                        <input type="number" name="discount" id="discount" class="form-control" step="0.01" min="0" value="0" style="width: 120px; text-align: right; border: none; background: transparent; font-weight: bold; color: #0d9488;">
+                                        <input type="number" name="discount" id="discount" class="form-control discount-amount-input" step="1" min="0" value="0" style="width: 140px; text-align: right; border: 1px solid #a3e4d7; background: #fff; font-weight: bold; font-size: 1.25rem; color: #0d9488;">
                                     </div>
                                 </div>
                                 
@@ -295,6 +269,40 @@
                                 <div class="d-flex justify-content-between align-items-center p-3 mb-3 rounded" style="background: #dbeafe; border: 1px solid #93c5fd;">
                                     <span class="fw-bold text-primary">NET PAYABLE</span>
                                     <span class="fw-bold text-primary" id="net-payable" style="font-size: 18px;">Rs 0</span>
+                                </div>
+
+                                <!-- CASH RECEIVED - Below NET PAYABLE (photo + add more) -->
+                                <div class="mt-3 p-3 rounded" id="cash-received-block" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                    <h6 class="fw-bold mb-3 text-primary"><i class="ti ti-cash me-1"></i>CASH RECEIVED</h6>
+                                    <div id="cash-received-entries">
+                                        <div class="cash-received-row mb-3 p-3 rounded position-relative" style="background: #fff; border: 1px solid #e2e8f0;">
+                                            <button type="button" class="btn btn-sm btn-outline-danger cash-row-close position-absolute" style="top: 8px; right: 8px;" title="Remove"><i class="ti ti-x"></i></button>
+                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                                <label class="form-label fw-bold mb-0">Amount (Rs)</label>
+                                                <input type="number" name="cash_received[]" class="form-control cash-amount-input" step="1" min="0" value="0" style="width: 140px; text-align: right;" placeholder="0">
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <button type="button" class="btn btn-sm btn-outline-primary attach-cash-photo-btn"><i class="ti ti-camera me-1"></i>Attach Photo</button>
+                                                <input type="file" class="d-none cash-photo-input" accept="image/*" name="cash_photos[]">
+                                                <div class="cash-photo-preview d-flex align-items-center d-none">
+                                                    <img class="img-thumbnail cash-photo-img" style="max-width: 100px; max-height: 100px; object-fit: cover;">
+                                                    <button type="button" class="btn btn-sm btn-danger ms-2 remove-cash-photo"><i class="ti ti-x"></i></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-primary w-100" id="add-more-cash-received-btn" style="background: #dbeafe; color: #2563eb; border: 1px solid #93c5fd;">
+                                        <i class="ti ti-plus me-1"></i>+ ADD MORE CASH
+                                    </button>
+                                </div>
+
+                                <!-- BANK RECEIVED - Cash block jaisa design, modal se multiple payments -->
+                                <div class="mt-3 p-3 rounded" id="bank-received-block" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                    <h6 class="fw-bold mb-3" style="color: #9333ea;"><i class="ti ti-building-bank me-1"></i>BANK RECEIVED</h6>
+                                    <div id="bank-payments-list" class="mb-3"></div>
+                                    <button type="button" class="btn btn-primary w-100" id="add-bank-below-btn" style="background: #f3e8ff; color: #9333ea; border: 1px solid #c084fc;">
+                                        <i class="ti ti-plus me-1"></i>+ ADD BANK PAYMENT
+                                    </button>
                                 </div>
                                     </div>
                                 </div>
@@ -334,8 +342,8 @@
                                 <div class="card" style="border: 1px solid #dee2e6;">
                                     <div class="card-body">
                                         <h6 class="fw-bold mb-3">BANK RECEIVED</h6>
-                                        <button type="button" class="btn w-100" id="add-bank-payment-btn" style="background: #f3e8ff; color: #9333ea; border: 1px solid #c084fc;">
-                                            <i class="ti ti-building-bank me-1"></i>ADD BANK PAYMENT
+                                        <button type="button" class="btn btn-primary w-100" id="add-bank-payment-btn" style="background: #f3e8ff; color: #9333ea; border: 1px solid #c084fc;">
+                                            <i class="ti ti-plus me-1"></i>+ ADD BANK PAYMENT
                                         </button>
                                     </div>
                                 </div>
@@ -375,7 +383,7 @@
                         <div class="mb-4 p-3 rounded" style="background: #1e3a8a; color: white;">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                    <h5 class="mb-0 fw-bold">TOTAL FINAL BALANCE</h5>
+                                    <h5 class="mb-0 fw-bold" style="color: #fff; font-weight: 700;">TOTAL FINAL BALANCE</h5>
                                     <p class="mb-0" style="font-size: 14px; opacity: 0.9;" id="items-count">0 Items Listed</p>
                                         </div>
                                         <div class="text-end">
@@ -482,6 +490,7 @@
                         <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
                             <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
                             <div id="item-search-stock" class="text-center mt-1" style="font-size: 0.75rem; font-weight: 600;"></div>
+                            <div id="item-search-warehouse" class="text-center mt-0 d-none" style="font-size: 0.65rem; color: #6c757d;"></div>
                         </div>
                     </div>
                     <input type="hidden" id="selected-item-id">
@@ -494,11 +503,8 @@
                         <label class="form-label fw-bold mb-0">
                             <i class="ti ti-settings me-2"></i>STOCK STATUS
                         </label>
-                        <small class="text-muted" style="cursor: pointer;" id="stock-status-toggle">
-                            DOUBLE-CLICK TO EXPAND
-                        </small>
                     </div>
-                    <div id="stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto; display: none;">
+                    <div id="stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto;">
                         <div id="stock-status-list">
                             <p class="text-muted mb-0 small text-center">Loading stock status...</p>
                         </div>
@@ -510,28 +516,10 @@
                     <div class="col-md-6">
                         <label class="form-label fw-bold mb-2">QUANTITY</label>
                         <select id="item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="1" selected>1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="10">10</option>
-                            <option value="15">15</option>
-                            <option value="20">20</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="150">150</option>
-                            <option value="200">200</option>
-                            <option value="250">250</option>
-                            <option value="300">300</option>
-                            <option value="400">400</option>
-                            <option value="500">500</option>
-                            <option value="600">600</option>
-                            <option value="700">700</option>
-                            <option value="800">800</option>
-                            <option value="900">900</option>
-                            <option value="1000">1000</option>
+                            <option value="">-</option>
+                            @for($i = 1; $i <= 1000; $i++)
+                                <option value="{{ $i }}">{{ $i }}</option>
+                            @endfor
                         </select>
                         <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="1" step="1" placeholder="Or enter custom quantity (whole numbers only)" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
                         <small class="text-muted" style="font-size: 11px;">Select or enter whole number quantity</small>
@@ -539,6 +527,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-bold mb-2">UNIT</label>
                         <select id="item-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <option value="">-</option>
                             @if(isset($units) && $units->count() > 0)
                                 @foreach($units as $unit)
                                     <option value="{{ $unit->name ?? $unit->short_name }}">{{ $unit->name ?? $unit->short_name }}</option>
@@ -562,7 +551,7 @@
                         <label class="form-label fw-bold mb-2">SALE RATE</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light">Rs</span>
-                            <input type="number" id="item-rate" class="form-control" value="0" step="0.01" min="0" placeholder="0" style="background-color: #f8f9fa; border-radius: 8px;">
+                            <input type="number" id="item-rate" class="form-control" value="0" step="1" min="0" placeholder="0" style="background-color: #f8f9fa; border-radius: 8px;">
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -571,24 +560,14 @@
                             <div class="col-6">
                                 <select id="warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
                                     <option value="">-</option>
-                                    <option value="1">1</option>
-                                    <option value="3">3</option>
-                                    <option value="6">6</option>
-                                    <option value="7">7</option>
-                                    <option value="12">12</option>
-                                    <option value="15">15</option>
-                                    <option value="18">18</option>
-                                    <option value="24">24</option>
-                                    <option value="30">30</option>
-                                    <option value="36">36</option>
-                                    <option value="60">60</option>
-                                    <option value="90">90</option>
-                                    <option value="180">180</option>
-                                    <option value="365">365</option>
+                                    @for($i = 1; $i <= 30; $i++)
+                                        <option value="{{ $i }}">{{ $i }}</option>
+                                    @endfor
                                 </select>
                             </div>
                             <div class="col-6">
                                 <select id="warranty-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
+                                    <option value="">-</option>
                                     <option value="Days">Days</option>
                                     <option value="Weeks">Weeks</option>
                                     <option value="Months">Months</option>
@@ -614,6 +593,19 @@
                     </div>
                     <div id="customer-history-content" class="p-3 customer-history-box" style="min-height: 80px; max-height: 200px; overflow-y: auto;">
                         <p class="text-muted mb-0 small text-center">Select item to view customer history</p>
+                    </div>
+                </div>
+
+                <!-- Last 5 Purchase History (below customer history) -->
+                <div class="mb-3" id="purchase-history-section">
+                    <label class="form-label fw-bold mb-2 d-flex align-items-center">
+                        <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff;">
+                            <i class="ti ti-shopping-cart" style="font-size: 12px;"></i>
+                        </span>
+                        LAST 5 PURCHASE HISTORY
+                    </label>
+                    <div id="purchase-history-content" class="p-3 customer-history-box" style="min-height: 60px; max-height: 180px; overflow-y: auto;">
+                        <p class="text-muted mb-0 small text-center">Select item to view purchase history</p>
                     </div>
                 </div>
 
@@ -670,6 +662,21 @@
                 <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
                     CONFIRM SELECTION
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add New Item (Create) Modal - loads item create page in iframe -->
+<div class="modal fade" id="add-new-item-modal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 95%; height: 90vh;">
+        <div class="modal-content" style="height: 90vh; border-radius: 12px;">
+            <div class="modal-header border-bottom py-3">
+                <h5 class="modal-title fw-bold"><i class="ti ti-plus me-2"></i>Add New Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0" style="height: calc(90vh - 120px);">
+                <iframe id="add-new-item-iframe" src="about:blank" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
         </div>
     </div>
@@ -734,12 +741,12 @@
                 <button type="button" class="btn-close" id="close-camera-scan-btn" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-3">
-                <div id="camera-barcode-reader" style="width: 100%; min-height: 240px; border-radius: 8px; overflow: hidden; background: #000;"></div>
-                <p class="small text-muted mb-0 mt-2 text-center">Point camera at barcode</p>
-                </div>
-                </div>
-                    </div>
-                    </div>
+                <div id="camera-barcode-reader" style="width: 100%; height: 280px; border-radius: 8px; overflow: hidden; background: #000;"></div>
+                <p class="small text-muted mb-0 mt-2 text-center">Point camera at barcode or QR code</p>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Delivery Entry Modal -->
 <div class="modal fade" id="delivery-modal" tabindex="-1" aria-hidden="true">
@@ -884,6 +891,19 @@
 
 @push('styles')
 <style>
+    /* Hide up/down arrow buttons on cash amount number input */
+    .cash-amount-input::-webkit-outer-spin-button,
+    .cash-amount-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .cash-amount-input {
+        -moz-appearance: textfield;
+    }
+    /* Edit Customer: name – pehla word capital baaki small, font chota */
+    .edit-name-display .name-first-word { font-size: 0.875rem; font-weight: 600; color: #212529; }
+    .edit-name-display .name-rest { font-size: 0.875rem; color: #212529; font-weight: 400; }
+    .edit-name-display:empty::before { content: attr(data-placeholder); color: #6c757d; }
     .filter-chip {
         background: #fff;
         border: 1px solid #ddd;
@@ -1074,19 +1094,23 @@ $(document).ready(function() {
     // Search functionality is already implemented in the #item-search input within #add-item-modal
 
     // Edit button handlers - open customer edit modal
-    $('#edit-party-btn, #edit-mobile-btn').on('click', function() {
-        const customerId = $('#customer_id').val() || $('#party_name_search').val();
+    $(document).on('click', '#edit-party-btn, #edit-mobile-btn', function() {
+        let customerId = $('#customer_id').val();
+        if (!customerId && $('#customer_mobile').length) {
+            const selected = $('#customer_mobile').find('option:selected');
+            if (selected.length && selected.val()) {
+                customerId = selected.data('customer-id');
+            }
+        }
         if (!customerId) {
             Swal.fire({
                 icon: 'warning',
                 title: 'No Customer Selected',
-                text: 'Please select a customer first before editing.',
+                text: 'Please select a customer first (by name or mobile) before editing.',
                 confirmButtonText: 'OK'
             });
             return;
         }
-        
-        // Load customer data and open edit modal
         loadCustomerForEdit(customerId);
     });
     
@@ -1101,9 +1125,10 @@ $(document).ready(function() {
             }
         });
         
-        // Fetch customer data via AJAX
+        // Fetch customer data via AJAX (Laravel route for correct base URL)
+        const editDataUrl = '{{ route("customers.edit.data", ["id" => "__ID__"]) }}'.replace('__ID__', encodeURIComponent(customerId));
         $.ajax({
-            url: '/admin/customers/' + customerId + '/edit-data',
+            url: editDataUrl,
             method: 'GET',
             success: function(response) {
                 Swal.close();
@@ -1141,18 +1166,44 @@ $(document).ready(function() {
         });
     }
     
+    // Helpers for name display: first word large + capital (pehla lafaz capital), rest small
+    function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function capitaliseFirstWord(w) {
+        if (!w) return '';
+        const s = String(w).trim();
+        return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    }
+    // Name format: Pehla word Capital, baaki small (e.g. Bilal ahmed khan)
+    function nameWithFirstWordCapital(text) {
+        if (!text || !String(text).trim()) return '';
+        const t = String(text).trim();
+        const i = t.indexOf(' ');
+        if (i === -1) return capitaliseFirstWord(t);
+        const rest = t.slice(i + 1).toLowerCase();
+        return capitaliseFirstWord(t.slice(0, i)) + (rest ? ' ' + rest : '');
+    }
+    function formatNameFirstWordLarge(text) {
+        if (!text || !String(text).trim()) return '';
+        const t = String(text).trim();
+        const i = t.indexOf(' ');
+        if (i === -1) return '<span class="name-first-word">' + escapeHtml(capitaliseFirstWord(t)) + '</span>';
+        const firstWord = capitaliseFirstWord(t.slice(0, i));
+        const rest = t.slice(i + 1).toLowerCase();
+        return '<span class="name-first-word">' + escapeHtml(firstWord) + '</span> <span class="name-rest">' + escapeHtml(rest) + '</span>';
+    }
+    function getDisplayText(el) { return (el && (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim()) || ''; }
+
+    // Base URL for form actions (avoids "Not Found" when app is in subfolder e.g. /trader/public)
+    const customersUpdateUrlTemplate = '{{ url(route("customers.update", ["customer" => "__ID__"])) }}';
     // Function to populate edit modal with customer data
     function populateEditModal(customer) {
-        // Update form action URL with customer ID
-        const customerId = $('#customer_id').val() || $('#party_name_search').val();
-        $('#editCustomerForm').attr('action', '/customers/' + customerId);
+        // Update form action URL with customer ID (use full URL so submit works in subfolder)
+        const customerId = $('#customer_id').val();
+        $('#editCustomerForm').attr('action', customersUpdateUrlTemplate.replace('__ID__', customerId));
         
-        // Populate form fields
-        if (customer.names && Array.isArray(customer.names) && customer.names.length > 0) {
-            $('#edit_customer_names').val(customer.names[0] || '');
-        } else if (customer.names) {
-            $('#edit_customer_names').val(customer.names || '');
-        }
+        const firstName = (customer.names && Array.isArray(customer.names) && customer.names.length > 0) ? (customer.names[0] || '') : (customer.names || '');
+        $('#edit_customer_names').val(firstName);
+        $('#edit_customer_names_display').html(formatNameFirstWordLarge(firstName));
         
         if (customer.phones && Array.isArray(customer.phones) && customer.phones.length > 0) {
             $('#edit_customer_phones').val(customer.phones[0] || '');
@@ -1165,17 +1216,25 @@ $(document).ready(function() {
         $('#edit_customer_address').val(customer.address || '');
         $('#edit_customer_area').val(customer.area || '');
         
-        // Display existing profile image if available
+        // Display existing profile image below (preview neeche)
         if (customer.profile_img) {
             const imgUrl = customer.profile_img.startsWith('http') ? customer.profile_img : '/' + customer.profile_img;
             $('#edit_profile_img_display').attr('src', imgUrl);
             $('#edit_profile_img_preview').show();
+        } else {
+            $('#edit_profile_img_preview').hide();
         }
         
-        // Display existing visiting doc if available
+        // Display existing visiting doc below (preview neeche)
+        $('#edit_visiting_doc_preview').empty();
         if (customer.visiting_doc) {
             const docUrl = customer.visiting_doc.startsWith('http') ? customer.visiting_doc : '/' + customer.visiting_doc;
-            $('#edit_visiting_doc_preview').html('<a href="' + docUrl + '" target="_blank" class="btn btn-sm btn-outline-primary">View Current Document</a>').show();
+            const isImg = /\.(jpe?g|png|gif|webp)$/i.test(docUrl) || customer.visiting_doc.toLowerCase().indexOf('image') !== -1;
+            if (isImg) {
+                $('#edit_visiting_doc_preview').html('<img src="' + docUrl + '" alt="Document" class="img-fluid rounded" style="max-height: 180px;">').show();
+            } else {
+                $('#edit_visiting_doc_preview').html('<a href="' + docUrl + '" target="_blank" class="btn btn-sm btn-outline-primary">View Current Document</a>').show();
+            }
         }
         
         // Clear existing additional name/phone fields and add them
@@ -1189,22 +1248,23 @@ $(document).ready(function() {
         updateRemoveButtons();
     }
     
-    // Function to add more name & phone fields
+    // Function to add more name & phone fields (name: first word large, rest small)
     function addNamePhoneField(name = '', phone = '') {
         const fieldHtml = `
             <div class="row g-3 mb-3 align-items-end name-phone-row">
                 <div class="col-md-6">
-                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Name <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <input type="text" name="names[]" class="form-control" placeholder="Enter name" value="${name}" required>
+                        <input type="hidden" name="names[]" class="edit-name-hidden">
+                        <div contenteditable="true" class="form-control edit-name-display" data-placeholder="Enter name" style="min-height: 38px; font-size: 0.875rem;">${formatNameFirstWordLarge(name) || ''}</div>
                         <button type="button" class="btn btn-danger remove-row">
                             <i class="ti ti-trash"></i>
                         </button>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">WhatsApp Number</label>
-                    <input type="text" name="phones[]" class="form-control" placeholder="Enter phone number" value="${phone}">
+                    <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">WhatsApp Number</label>
+                    <input type="text" name="phones[]" class="form-control" placeholder="Enter phone number" value="${phone || ''}">
                 </div>
             </div>
         `;
@@ -1235,42 +1295,53 @@ $(document).ready(function() {
         $(this).closest('.name-phone-row').remove();
         updateRemoveButtons();
     });
+    // Edit name display: typing/backspace normal rakhne ke liye input pe sirf sync, format sirf blur pe
+    $(document).on('input', '.edit-name-display', function() {
+        const text = getDisplayText(this);
+        $(this).siblings('.edit-name-hidden').val(text);
+    });
+    $(document).on('blur', '.edit-name-display', function() {
+        const text = getDisplayText(this);
+        const normalised = nameWithFirstWordCapital(text);
+        $(this).siblings('.edit-name-hidden').val(normalised);
+        $(this).html(formatNameFirstWordLarge(text));
+    });
+    $('#editCustomerForm').on('submit', function() {
+        $('#edit_namePhoneContainer .edit-name-display').each(function() {
+            const text = getDisplayText(this);
+            $(this).siblings('.edit-name-hidden').val(nameWithFirstWordCapital(text));
+        });
+    });
     
-    // Handle profile image preview
+    // Handle profile image preview – photo neeche show
     $('#edit_profile_img').on('change', function(e) {
         const file = e.target.files[0];
-        if (file) {
+        $('#edit_profile_img_preview').hide();
+        if (file && file.type.indexOf('image/') === 0) {
             const reader = new FileReader();
-            reader.onload = function(e) {
-                $('#edit_profile_img_display').attr('src', e.target.result);
+            reader.onload = function(ev) {
+                $('#edit_profile_img_display').attr('src', ev.target.result);
                 $('#edit_profile_img_preview').show();
             };
             reader.readAsDataURL(file);
         }
     });
-    
-    // Party name search handler - auto-fill customer_id and other fields
-    $('#party_name_search').on('change select2:select', function() {
-        const selected = $(this).find('option:selected');
-        const customerId = selected.data('customer-id') || $(this).val();
-        const name = selected.data('name') || '';
-        const phone = selected.data('phone') || '';
-        const address = selected.data('address') || '';
-        const area = selected.data('area') || '';
-        
-        if (customerId) {
-            // Update customer_id dropdown
-            $('#customer_id').val(customerId).trigger('change.select2');
-            
-            // Update mobile dropdown if it's a select
-            if (phone && $('#customer_mobile').is('select')) {
-                $('#customer_mobile').val(phone).trigger('change.select2');
-                $('#customer_mobile_hidden').val(phone);
-            } else if (phone) {
-                $('#customer_mobile').val(phone);
+
+    // Handle visiting document preview – image ho to neeche photo, warna document name
+    $('#edit_visiting_doc').on('change', function(e) {
+        const file = e.target.files[0];
+        const $preview = $('#edit_visiting_doc_preview');
+        $preview.empty();
+        if (file) {
+            if (file.type.indexOf('image/') === 0) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    $preview.html('<img src="' + ev.target.result + '" alt="Document" class="img-fluid rounded" style="max-height: 180px;">').show();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                $preview.html('<span class="text-muted small">Document selected: ' + (file.name || '') + '</span>').show();
             }
-            $('#customer_address').val(address);
-            $('#customer_area').val(area);
         }
     });
     
@@ -1283,11 +1354,6 @@ $(document).ready(function() {
         const address = selected.data('address') || '';
         const area = selected.data('area') || '';
         const customerId = $(this).val();
-        
-        // Update party name search if customer_id is changed
-        if (customerId) {
-            $('#party_name_search').val(customerId).trigger('change.select2');
-        }
         
         // Update mobile dropdown if it's a select
         if (phone && $('#customer_mobile').is('select')) {
@@ -1383,11 +1449,14 @@ $(document).ready(function() {
             method: 'GET',
             success: function(warehouse) {
                 if (warehouse && !warehouse.error) {
-                    $('#warehouseName').text(warehouse.warehouse_name + (warehouse.warehouse_code ? ' (' + warehouse.warehouse_code + ')' : ''));
+                    var whDisplay = warehouse.warehouse_name + (warehouse.warehouse_code ? ' (' + warehouse.warehouse_code + ')' : '');
+                    $('#warehouseName').text(whDisplay);
                     $('#warehouseItemsCount').text(warehouse.items_count || 0);
                     $('#branchWarehouseInfo').show();
+                    $('body').data('currentWarehouseName', whDisplay);
                 } else {
                     $('#branchWarehouseInfo').hide();
+                    $('body').removeData('currentWarehouseName');
                     Swal.fire({
                         icon: 'warning',
                         title: 'No Warehouse',
@@ -1451,6 +1520,74 @@ $(document).ready(function() {
         $('#add-item-modal').modal('show');
     });
 
+    // Open item create page in modal when "Add New Item" is clicked from search no-results
+    $(document).on('click', '.btn-open-add-item-modal', function(e) {
+        e.preventDefault();
+        const url = $(this).data('create-url');
+        if (url) {
+            $('#add-new-item-iframe').attr('src', url);
+            $('#add-item-modal').modal('hide');
+            $('#add-new-item-modal').modal('show');
+        }
+    });
+    $('#add-new-item-modal').on('hidden.bs.modal', function() {
+        $('#add-new-item-iframe').attr('src', 'about:blank');
+        $('#item-search').trigger('input');
+    });
+
+    // Quick barcode scan (above items list): open Add Item modal and run barcode search
+    function openAddItemModalForQuickScan(barcodeOrCamera) {
+        const branchId = $('#salesBranchId').val();
+        if (!branchId) {
+            Swal.fire({ icon: 'warning', title: 'Branch Required', text: 'Please select a branch first before adding items.', confirmButtonText: 'OK' });
+            return;
+        }
+        currentEntryType = 'sale';
+        $('#add-item-modal-title').html('<i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS');
+        if (barcodeOrCamera === 'camera') {
+            openCameraAfterQuickScan = true;
+        } else {
+            pendingQuickBarcode = (barcodeOrCamera || '').trim();
+        }
+        $('#add-item-modal').modal('show');
+    }
+    // Support physical USB barcode scanner: scanner sends keys fast then Enter; read value after a short delay so full barcode is captured
+    $('#quick-barcode-input').on('keydown', function(e) {
+        if (e.which !== 13) return;
+        e.preventDefault();
+        var $input = $(this);
+        setTimeout(function() {
+            const barcode = $input.val().trim();
+            if (barcode.length >= 2) openAddItemModalForQuickScan(barcode);
+            $input.val('');
+        }, 50);
+    });
+    var quickBarcodeInputTimeout = null;
+    $('#quick-barcode-input').on('input', function() {
+        const barcode = $(this).val().trim();
+        clearTimeout(quickBarcodeInputTimeout);
+        if (barcode.length >= 3) {
+            quickBarcodeInputTimeout = setTimeout(function() { openAddItemModalForQuickScan(barcode); }, 400);
+        }
+    });
+    // Scan button: open camera only (no Add Item modal). After scan, Add Item modal will open with barcode.
+    var cameraOpenedFromQuickScan = false;
+    $('#quick-scan-camera-btn').on('click', function() {
+        var branchId = $('#salesBranchId').val();
+        if (!branchId) {
+            Swal.fire({ icon: 'warning', title: 'Branch Required', text: 'Please select a branch first.', confirmButtonText: 'OK' });
+            return;
+        }
+        cameraOpenedFromQuickScan = true;
+        if (typeof Html5Qrcode === 'undefined') {
+            alert('Camera scanner library not loaded.');
+            cameraOpenedFromQuickScan = false;
+            return;
+        }
+        $('#camera-barcode-reader').empty().css({ width: '100%', minHeight: '240px' });
+        $('#camera-barcode-modal').modal('show');
+    });
+
     // Handle "Scrap In" button - same modal as Add Item (like Smart Invoice Scrap In)
     // Handle "Claim Return" button - same modal as Add Item (like Smart Invoice Claim)
     $('#claim-receive-btn').on('click', function(e) {
@@ -1492,6 +1629,11 @@ $(document).ready(function() {
         $('#add-item-modal').modal('show');
     });
 
+    // Reset quantity dropdown to empty (options 1–1000 are in HTML)
+    function resetItemQuantitySelect() {
+        $('#item-quantity').val('');
+    }
+
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
         const branchId = $('#salesBranchId').val();
@@ -1500,12 +1642,13 @@ $(document).ready(function() {
         $('#item-search').val('');
         $('#selected-item-id').val('');
         $('#selected-warehouse-id').val('');
-        $('#item-quantity').val('1');
-        $('#item-unit').val('Unit');
+        resetItemQuantitySelect();
+        $('#item-unit').val('');
         $('#item-rate').val('0');
         $('#warranty-value').val('');
-        $('#warranty-unit').val('Days');
+        $('#warranty-unit').val('');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
+        $('#purchase-history-content').html('<p class="text-muted mb-0 small">Select item to view purchase history</p>');
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
@@ -1514,6 +1657,7 @@ $(document).ready(function() {
         $('#item-search-image-preview').addClass('d-none');
         $('#item-search-image').attr('src', '');
         $('#item-search-stock').html('');
+        $('#item-search-warehouse').text($('body').data('currentWarehouseName') || '');
         // Hide selected item details display
         $('#selected-item-details-display').addClass('d-none');
         $('#selected-item-details-line1').html('');
@@ -1521,11 +1665,21 @@ $(document).ready(function() {
         $('#selected-item-details-line3').html('');
     });
         
-    // Focus on search input when modal is fully shown
+    // Focus on search input when modal is fully shown (and handle quick barcode from main page)
+    var pendingQuickBarcode = null;
+    var openCameraAfterQuickScan = false;
     $('#add-item-modal').on('shown.bs.modal', function() {
-        // Focus on search input after modal animation completes
         setTimeout(function() {
-            $('#item-search').focus();
+            if (pendingQuickBarcode) {
+                runBarcodeSearch(pendingQuickBarcode);
+                pendingQuickBarcode = null;
+                $('#quick-barcode-input').val('');
+            } else if (openCameraAfterQuickScan) {
+                openCameraAfterQuickScan = false;
+                $('#camera-barcode-modal').modal('show');
+            } else {
+                $('#item-search').focus();
+            }
         }, 100);
     });
     
@@ -1546,7 +1700,7 @@ $(document).ready(function() {
         $.ajax({
             url: "{{ route('sales.items.ajax.search') }}",
             method: 'GET',
-            data: { q: barcode, branch_id: branchId, limit: 15 },
+            data: { q: barcode, branch_id: branchId, limit: 15, for_sale: 1 },
             success: function(results) {
                 const itemResults = results.filter(function(r) { return r.type === 'item'; });
                 if (itemResults.length === 1) {
@@ -1554,14 +1708,14 @@ $(document).ready(function() {
                     const item = result.item;
                     const itemId = item.id;
                     const itemName = (item.short_disc && item.short_disc.toLowerCase().indexOf('lorem') === -1) ? item.short_disc : ((item.pro_dis && item.pro_dis.toLowerCase().indexOf('lorem') === -1) ? item.pro_dis : (item.bar_code || (item.partnumber_item ? item.partnumber_item.name : '') || 'Item #' + item.id));
-                    const itemRate = item.packing_purchase_rate || item.total_price || 0;
+                    const itemRate = (result.sale_price > 0 ? result.sale_price : (result.calculated_price_per_unit > 0 ? result.calculated_price_per_unit : (item.sale_price > 0 ? item.sale_price : (item.packing_purchase_rate || item.total_price || 0))));
                     const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) ? (item.unit_item.name || item.unit_item.short_name) : 'Unit';
                     const warehouseId = result.warehouse_id || '';
                     
                     $('#item-search').val(itemName);
                     $('#selected-item-id').val(itemId);
                     $('#item-unit').val(unit);
-                    $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                    $('#item-rate').val(Math.round(parseFloat(itemRate) || 0));
                     $('#item-search-results').hide();
                     $('#barcode-scan-input').val('');
                     
@@ -1569,7 +1723,7 @@ $(document).ready(function() {
                         url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
                 method: 'GET',
                 success: function(response) {
-                            $('#item-rate').val(parseFloat(response.total_price || response.rate || itemRate).toFixed(2));
+                            $('#item-rate').val(Math.round(parseFloat(response.sale_price || response.rate || response.total_price || itemRate) || 0));
                             if (response.unit) $('#item-unit').val(response.unit);
                             if (response.warehouse_id || warehouseId) $('#selected-warehouse-id').val(response.warehouse_id || warehouseId);
                             
@@ -1605,10 +1759,12 @@ $(document).ready(function() {
                             
                             loadItemStockStatus(itemId);
                             loadCustomerHistory(itemId);
+                loadPurchaseHistory(itemId);
                 },
                 error: function() {
                             loadItemStockStatus(itemId);
                             loadCustomerHistory(itemId);
+                loadPurchaseHistory(itemId);
                         }
                     });
                     $('#stock-status-section').show();
@@ -1694,30 +1850,52 @@ $(document).ready(function() {
     
     // Start camera only after modal is visible (so reader div has real dimensions)
     $('#camera-barcode-modal').on('shown.bs.modal', function() {
-        if (cameraBarcodeScanner) return;
+        // Clear any previous instance so we always start fresh
+        if (cameraBarcodeScanner) {
+            try { stopCameraScanner(); } catch (e) {}
+            cameraBarcodeScanner = null;
+        }
         var startScan = function() {
             if (cameraBarcodeScanner) return;
             var readerEl = document.getElementById('camera-barcode-reader');
-            if (!readerEl || readerEl.offsetWidth < 100) return;
+            if (!readerEl) return;
+            var w = readerEl.offsetWidth, h = readerEl.offsetHeight;
+            if (w < 50 || h < 50) {
+                setTimeout(startScan, 200);
+                return;
+            }
             cameraBarcodeScanner = new Html5Qrcode('camera-barcode-reader');
-            var config = { fps: 12 };
-            cameraBarcodeScanner.start(
-                { facingMode: 'environment' },
-                config,
-                function(decodedText) {
-                    if (!decodedText) return;
-                    stopCameraScanner();
-                    $('#camera-barcode-modal').modal('hide');
-                    runBarcodeSearch(decodedText);
-                },
-                function() {}
-            ).catch(function(err) {
-                cameraBarcodeScanner = null;
+            // Scan area: wider box for barcodes, enough height for QR
+            var config = { fps: 15, qrbox: function(vw, vh) { return { width: Math.min(300, vw), height: Math.min(140, Math.floor(vh * 0.5)) }; } };
+            if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+                config.formatsToSupport = [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39];
+            }
+            function onScanSuccess(decodedText) {
+                if (!decodedText) return;
+                stopCameraScanner();
                 $('#camera-barcode-modal').modal('hide');
-                alert('Camera access failed. Allow camera permission or use barcode input.');
+                if (typeof cameraOpenedFromQuickScan !== 'undefined' && cameraOpenedFromQuickScan) {
+                    cameraOpenedFromQuickScan = false;
+                    openAddItemModalForQuickScan(decodedText);
+                } else {
+                    runBarcodeSearch(decodedText);
+                }
+            }
+            function onScanError() {}
+            var cameraConfig = { facingMode: 'environment' };
+            cameraBarcodeScanner.start(cameraConfig, config, onScanSuccess, onScanError).catch(function(err) {
+                // Desktop often has no "environment" camera; try default camera
+                cameraConfig = {};
+                cameraBarcodeScanner.start(cameraConfig, config, onScanSuccess, onScanError).catch(function(err2) {
+                    cameraBarcodeScanner = null;
+                    $('#camera-barcode-modal').modal('hide');
+                    var msg = (err2 && err2.message) ? err2.message : (err && err.message) ? err.message : 'Camera failed.';
+                    if (msg.indexOf('NotAllowedError') !== -1 || msg.indexOf('Permission') !== -1) msg = 'Camera permission denied. Allow camera in browser settings.';
+                    alert(msg);
+                });
             });
         };
-        setTimeout(startScan, 350);
+        setTimeout(startScan, 450);
     });
     
     $('#camera-barcode-modal').on('hidden.bs.modal', function() {
@@ -1768,20 +1946,25 @@ $(document).ready(function() {
                 data: {
                     q: query,
                     branch_id: branchId,
-                    limit: 15  // Show more results for better UX
+                    limit: 15,
+                    for_sale: 1  // Sale hisaab: only items with sale price
                 },
                 success: function(results) {
-                    if (results.length === 0) {
-                        const escapedQuery = query.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                        resultsDiv.html(`
-                            <div class="p-5 text-center">
-                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);">
-                                    <i class="ti ti-search-off fs-32" style="color: #667eea;"></i>
-                                </div>
-                                <p class="fw-600 text-dark mb-1">No items found</p>
-                                <p class="text-muted small mb-0">Try: code + space + vehicle or keyword. e.g. 53495878 Toyota</p>
+                    const hasItemResults = results.some(function(r) { return r.type === 'item'; });
+                    const noItemsHtml = `
+                        <div class="p-4 text-center">
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%);">
+                                <i class="ti ti-search-off fs-32" style="color: #667eea;"></i>
                             </div>
-                        `);
+                            <p class="fw-600 text-dark mb-1">No items found</p>
+                            <p class="text-muted small mb-2">Try: code + space + vehicle or keyword. e.g. 53495878 Toyota</p>
+                            <a href="#" class="btn btn-primary btn-sm fw-bold btn-open-add-item-modal" data-create-url="{{ url(route('all.items.create')) }}" style="border-radius: 8px;">
+                                <i class="ti ti-plus me-1"></i>Add New Item
+                            </a>
+                        </div>
+                    `;
+                    if (results.length === 0 || !hasItemResults) {
+                        resultsDiv.html(noItemsHtml);
                     } else {
                 let html = '';
                         results.forEach(function(result) {
@@ -1920,8 +2103,9 @@ $(document).ready(function() {
                     const plate = item.plate_item ? item.plate_item.name : '';
                     const amperes = item.amphors_item ? item.amphors_item.name : '';
                                 const stock = item.on_hand || 0;
-                                const rate = item.packing_purchase_rate || item.total_price || 0;
-                    const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name)) 
+                                // Sale price in results: prefer API sale_price / calculated_price_per_unit, then item.sale_price
+                                const rate = (result.sale_price > 0 ? result.sale_price : (result.calculated_price_per_unit > 0 ? result.calculated_price_per_unit : (item.sale_price > 0 ? item.sale_price : (item.packing_purchase_rate || item.total_price || 0))));
+                                    const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name))
                         ? (item.unit_item.name || item.unit_item.short_name) 
                                     : 'Unit';
                     
@@ -2161,6 +2345,7 @@ $(document).ready(function() {
             // Set input value: Use first line text (the black text from search result)
             $('#item-search').val(itemFirstLine);
         $('#selected-item-id').val(itemId);
+            $('#item-quantity').val('1');
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
             
@@ -2225,9 +2410,10 @@ $(document).ready(function() {
                 url: '{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId),
                 method: 'GET',
                 success: function(response) {
-                    // Use total_price if available, otherwise use rate (packing_purchase_rate)
-                    const itemRate = response.total_price || response.rate || itemRate || 0;
-                    $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                    // Prefer sale_price for sales; then rate (from API), total_price, or row rate
+                    const itemRate = response.sale_price || response.rate || response.total_price || 0;
+                    $('#item-rate').val(Math.round(parseFloat(itemRate) || 0));
+                    $('#item-quantity').val('1');
                     
                     // Auto-set unit from item's saved unit
                     if (response.unit) {
@@ -2276,7 +2462,7 @@ $(document).ready(function() {
                         $('#warranty-unit').val(response.warranty_unit);
                     } else {
                         $('#warranty-value').val('');
-                        $('#warranty-unit').val('Days');
+                        $('#warranty-unit').val('');
                     }
                     
                     // Load stock status to show warehouse options and auto-select
@@ -2284,10 +2470,11 @@ $(document).ready(function() {
             
                     // Load purchase history
             loadCustomerHistory(itemId);
+                loadPurchaseHistory(itemId);
                 },
                 error: function() {
                     // Fallback to basic data if API fails
-                    $('#item-rate').val(parseFloat(itemRate || 0).toFixed(2));
+                    $('#item-rate').val(Math.round(parseFloat(itemRate || 0)));
                     // Use unit from search result if available
                     if (itemUnit) {
                         $('#item-unit').val(itemUnit);
@@ -2297,6 +2484,7 @@ $(document).ready(function() {
                     }
                     loadItemStockStatus(itemId);
                     loadCustomerHistory(itemId);
+                loadPurchaseHistory(itemId);
                 }
             });
         }
@@ -2305,6 +2493,7 @@ $(document).ready(function() {
     // Load stock status for selected item
     function loadItemStockStatus(itemId) {
         $('#stock-status-section').show();
+        $('#stock-status-content').show();
         $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">Loading stock status...</p>');
         
         $.ajax({
@@ -2318,15 +2507,16 @@ $(document).ready(function() {
                 
                 let html = '';
                 stockData.forEach(function(stock) {
+                    var unitLabel = (stock.unit || 'Unit').trim();
+                    var qty = parseFloat(stock.quantity) || 0;
+                    var qtyText = (Number.isInteger(qty) ? qty : qty.toFixed(2)) + ' ' + unitLabel;
                     if (stock.type === 'branch') {
                         // Branch total
                         html += `
                             <div class="p-2 mb-1 border-bottom stock-branch-item" style="background-color: #fff;">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="fw-bold">${stock.display}</div>
-                                    <div class="text-muted">
-                                        <span class="fw-bold">${stock.cartons}C</span> | <span class="fw-bold">${stock.loose}L</span>
-                                    </div>
+                                    <div class="text-muted"><span class="fw-bold">${qtyText}</span></div>
                                 </div>
                             </div>
                         `;
@@ -2344,7 +2534,7 @@ $(document).ready(function() {
                                         <span class="${isSelected ? 'text-white' : ''}">${stock.display}</span>
                                     </div>
                                     <div class="${isSelected ? 'text-white' : 'text-muted'}">
-                                        <span class="fw-bold">${stock.cartons} C</span> | <span class="fw-bold">${stock.loose} L</span>
+                                        <span class="fw-bold">${qtyText}</span>
                                     </div>
                                 </div>
                             </div>
@@ -2359,11 +2549,6 @@ $(document).ready(function() {
             }
         });
     }
-    
-    // Toggle stock status expand/collapse
-    $('#stock-status-toggle').on('dblclick', function() {
-        $('#stock-status-content').slideToggle();
-    });
     
     // Select warehouse from stock status
     $(document).on('click', '.stock-warehouse-item', function() {
@@ -2398,9 +2583,10 @@ $(document).ready(function() {
                 $('#selected-item-id').val(response.id);
                 $('#item-search').val(response.name);
                 
-                // Set rate - use total_price if available, otherwise use rate
-                const itemRate = response.total_price || response.rate || 0;
-                $('#item-rate').val(parseFloat(itemRate).toFixed(2));
+                // Set rate - prefer sale_price for sales
+                const itemRate = response.sale_price || response.rate || response.total_price || 0;
+                $('#item-rate').val(Math.round(parseFloat(itemRate) || 0));
+                $('#item-quantity').val('1');
                 
                 // Set unit from item
                 $('#item-unit').val(response.unit || 'Unit');
@@ -2452,7 +2638,7 @@ $(document).ready(function() {
                     $('#warranty-unit').val(response.warranty_unit);
                 } else {
                     $('#warranty-value').val('');
-                    $('#warranty-unit').val('Days');
+                    $('#warranty-unit').val('');
                 }
                 
                 // Load stock status to show warehouse options
@@ -2460,84 +2646,65 @@ $(document).ready(function() {
                 
                 // Load customer history for this item
                 loadCustomerHistory(itemId);
+                loadPurchaseHistory(itemId);
                 
                 $('#search-results').hide();
             }
         });
     }
 
-    // Load purchase history for selected item (from database)
+    // Load last 5 sale price history for selected item
     let lastPurchaseRate = 0;
     function loadCustomerHistory(itemId) {
         $('#customer-history-content').html(`
             <div class="text-center py-2">
                 <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                <span class="text-muted small">Loading purchase history...</span>
-                    </div>
-                `);
+                <span class="text-muted small">Loading sale history...</span>
+            </div>
+        `);
         $('#hold-rate-link').hide();
-        
-            $.ajax({
-            url: '{{ route("purchases.items.purchase.history", ":id") }}'.replace(':id', itemId),
+
+        $.ajax({
+            url: '{{ route("sales.items.sale.history", ":id") }}'.replace(':id', itemId),
             method: 'GET',
             success: function(data) {
-                if (data.total_purchases === 0) {
+                if (!data.history || data.history.length === 0) {
                     $('#customer-history-content').html(`
                         <div class="text-center py-2">
                             <i class="ti ti-history-off text-muted fs-24 mb-1" style="display: block;"></i>
-                            <p class="text-muted mb-0 small">No purchase history for this item</p>
+                            <p class="text-muted mb-0 small">No sale history for this item</p>
                         </div>
                     `);
                     $('#hold-rate-link').hide();
-                        return;
+                    return;
                 }
-                
-                // Store last purchase rate for "Hold Rate" button
-                lastPurchaseRate = data.last_purchase ? data.last_purchase.rate : 0;
-                
-                // Build history HTML
-                let html = `
-                    <div class="purchase-history-summary mb-2 pb-2" style="border-bottom: 1px solid #e0e0e0;">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="fw-bold text-dark">Total Purchases: ${data.total_purchases}</span>
-                            <span class="badge bg-primary">${data.total_quantity} ${data.last_purchase ? data.last_purchase.unit : 'Units'}</span>
-                                    </div>
-                        <div class="d-flex justify-content-between small">
-                            <span><i class="ti ti-trending-down text-success me-1"></i>Min: Rs ${parseFloat(data.min_rate).toLocaleString()}</span>
-                            <span><i class="ti ti-chart-line text-primary me-1"></i>Avg: Rs ${parseFloat(data.avg_rate).toLocaleString()}</span>
-                            <span><i class="ti ti-trending-up text-danger me-1"></i>Max: Rs ${parseFloat(data.max_rate).toLocaleString()}</span>
-                                    </div>
-                    </div>
-                `;
-                
-                // Show last few purchases
-                html += '<div class="purchase-history-list small">';
-                data.history.slice(0, 5).forEach(function(purchase) {
-                    const daysAgo = purchase.days_ago === 0 ? 'Today' : (purchase.days_ago === 1 ? '1 day ago' : purchase.days_ago + ' days ago');
+
+                lastPurchaseRate = data.history[0] ? data.history[0].rate : 0;
+
+                let html = `<div class="fw-bold text-dark mb-2 pb-1" style="border-bottom: 1px solid #e0e0e0;"><i class="ti ti-receipt me-1"></i>Last 5 Sale Price History</div><div class="sale-history-list small">`;
+                data.history.forEach(function(sale) {
+                    const daysAgo = sale.days_ago === 0 ? 'Today' : (sale.days_ago === 1 ? '1 day ago' : sale.days_ago + ' days ago');
+                    const custName = (sale.customer_name || 'Walk-in').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const dateTime = sale.sale_date_time || sale.sale_date || '';
                     html += `
-                        <div class="d-flex justify-content-between align-items-center py-1 purchase-history-item" style="border-bottom: 1px dashed #eee; cursor: pointer;" data-rate="${purchase.rate}">
+                        <div class="d-flex justify-content-between align-items-center py-1 sale-history-item" style="border-bottom: 1px dashed #eee; cursor: pointer;" data-rate="${sale.rate}">
                             <div>
-                                <span class="fw-500">${purchase.supplier_name}</span>
-                                <span class="text-muted ms-1">(${purchase.quantity} ${purchase.unit})</span>
-                                </div>
-                                <div class="text-end">
-                                <span class="fw-bold text-primary">Rs ${parseFloat(purchase.rate).toLocaleString()}</span>
-                                <span class="text-muted small d-block">${daysAgo}</span>
+                                <div class="fw-500">${custName} <span class="text-muted">(${sale.quantity} ${sale.unit})</span></div>
+                                <div class="text-muted" style="font-size: 0.75rem;">${dateTime ? dateTime + ' · ' : ''}${daysAgo}</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary">Rs ${parseFloat(sale.rate).toLocaleString()}</span>
                             </div>
                         </div>
                     `;
-                    });
+                });
                 html += '</div>';
-                
-                if (data.history.length > 5) {
-                    html += `<div class="text-center mt-2"><small class="text-muted">+ ${data.history.length - 5} more purchases</small></div>`;
-                }
-                
+
                 $('#customer-history-content').html(html);
                 $('#hold-rate-link').show();
-                },
-                error: function(xhr) {
-                console.error('Error loading purchase history:', xhr);
+            },
+            error: function(xhr) {
+                console.error('Error loading sale history:', xhr);
                 $('#customer-history-content').html(`
                     <div class="text-center py-2">
                         <i class="ti ti-alert-circle text-danger fs-24 mb-1" style="display: block;"></i>
@@ -2548,12 +2715,63 @@ $(document).ready(function() {
         });
     }
     
-    // Click on history item to apply that rate
-    $(document).on('click', '.purchase-history-item', function() {
+    // Load last 5 purchase history for selected item (below customer/sale history)
+    function loadPurchaseHistory(itemId) {
+        $('#purchase-history-content').html(`
+            <div class="text-center py-2">
+                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                <span class="text-muted small">Loading purchase history...</span>
+            </div>
+        `);
+        $.ajax({
+            url: '{{ route("purchases.items.purchase.history", ":id") }}'.replace(':id', itemId),
+            method: 'GET',
+            success: function(data) {
+                if (!data.history || data.history.length === 0) {
+                    $('#purchase-history-content').html(`
+                        <div class="text-center py-2">
+                            <i class="ti ti-shopping-cart-off text-muted fs-24 mb-1" style="display: block;"></i>
+                            <p class="text-muted mb-0 small">No purchase history for this item</p>
+                        </div>
+                    `);
+                    return;
+                }
+                let html = '<div class="small">';
+                data.history.slice(0, 5).forEach(function(purchase) {
+                    const daysAgo = purchase.days_ago === 0 ? 'Today' : (purchase.days_ago === 1 ? '1 day ago' : purchase.days_ago + ' days ago');
+                    const name = (purchase.supplier_name || 'N/A').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const dateTime = purchase.created_at || purchase.purchase_date || '';
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center py-1 purchase-history-item" style="border-bottom: 1px dashed #eee; cursor: pointer;" data-rate="${purchase.rate}">
+                            <div>
+                                <div class="fw-500">${name} <span class="text-muted">(${purchase.quantity} ${purchase.unit})</span></div>
+                                <div class="text-muted" style="font-size: 0.75rem;">${dateTime ? dateTime + ' · ' : ''}${daysAgo}</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary">Rs ${parseFloat(purchase.rate).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                $('#purchase-history-content').html(html);
+            },
+            error: function() {
+                $('#purchase-history-content').html(`
+                    <div class="text-center py-2">
+                        <i class="ti ti-alert-circle text-danger fs-24 mb-1" style="display: block;"></i>
+                        <p class="text-danger mb-0 small">Error loading purchase history</p>
+                    </div>
+                `);
+            }
+        });
+    }
+
+    // Click on sale/purchase history item to apply that rate
+    $(document).on('click', '.sale-history-item, .purchase-history-item', function() {
         const rate = $(this).data('rate');
         if (rate) {
-            $('#item-rate').val(parseFloat(rate).toFixed(2));
-            // Visual feedback
+            $('#item-rate').val(Math.round(parseFloat(rate) || 0));
             $(this).addClass('bg-success bg-opacity-10');
             setTimeout(() => $(this).removeClass('bg-success bg-opacity-10'), 500);
         }
@@ -2562,7 +2780,7 @@ $(document).ready(function() {
     // Hold rate to apply (uses last purchase rate)
     $('#hold-rate-link').on('click', function() {
         if (lastPurchaseRate > 0) {
-            $('#item-rate').val(parseFloat(lastPurchaseRate).toFixed(2));
+            $('#item-rate').val(Math.round(parseFloat(lastPurchaseRate) || 0));
         }
     });
 
@@ -2574,17 +2792,21 @@ $(document).ready(function() {
         }
     });
 
-    // Quantity dropdown change - show custom input if needed
     $('#item-quantity').on('change', function() {
-        // Custom input is shown via other means if needed
-            $('#item-quantity-input').hide();
+        $('#item-quantity-input').hide();
     });
 
     // Use custom quantity input if provided
     $('#item-quantity-input').on('input', function() {
-        const customQty = $(this).val();
+        const customQty = parseInt($(this).val(), 10);
         if (customQty && customQty > 0) {
-            $('#item-quantity').val(customQty);
+            const $sel = $('#item-quantity');
+            if (customQty > 1000 && !$sel.find('option[value="1001"]').length) {
+                for (let i = 1001; i <= 2000; i++) {
+                    $sel.append($('<option></option>').val(i).text(i));
+                }
+            }
+            $sel.val(String(customQty));
         }
     });
 
@@ -2761,16 +2983,17 @@ $(document).ready(function() {
     function resetItemModal() {
         $('#selected-item-id').val('');
         $('#item-search').val('');
-        $('#item-quantity').val('1');
+        resetItemQuantitySelect();
         $('#item-quantity-input').val('1').hide();
-        $('#item-unit').val('Can');
+        $('#item-unit').val('');
         $('#item-rate').val('0');
         $('#warranty-value').val('');
-        $('#warranty-unit').val('Days');
+        $('#warranty-unit').val('');
         $('#item-discount').val('0');
         $('#discount-type').val('amount');
         $('#item-tax').val('0');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to see history</p>');
+        $('#purchase-history-content').html('<p class="text-muted mb-0 small">Select item to view purchase history</p>');
         $('#hold-rate-link').hide();
         $('#search-results').hide();
         $('#supplier-selection-section').hide();
@@ -2804,9 +3027,9 @@ $(document).ready(function() {
         const netPayable = grandTotal;
 
         // Update displays
-        $('#gross-amount').text('Rs ' + parseFloat(grossTotal).toFixed(2));
-        $('#net-payable').text('Rs ' + parseFloat(netPayable).toFixed(2));
-        $('#total-final-balance').text(parseFloat(netPayable).toFixed(2));
+        $('#gross-amount').text('Rs ' + Math.round(parseFloat(grossTotal)));
+        $('#net-payable').text('Rs ' + Math.round(parseFloat(netPayable)));
+        $('#total-final-balance').text(Math.round(parseFloat(netPayable)));
         $('#items-count').text(salesItems.length + ' Items Listed');
         
         // Show/hide payment section based on items
@@ -2837,6 +3060,152 @@ $(document).ready(function() {
         // Don't update remaining_amount here - it shows supplier balance instead
         // Remaining amount calculation is kept for internal use if needed
     }
+    
+    // ----- Cash Received (below NET PAYABLE): Add more, Attach photo, Remove photo, Close row -----
+    function updateCashRowCloseButtons() {
+        const rows = $('#cash-received-entries .cash-received-row');
+        rows.find('.cash-row-close').toggle(rows.length > 1);
+    }
+    updateCashRowCloseButtons();
+    $(document).on('click', '#add-more-cash-received-btn', function() {
+        const firstRow = $('#cash-received-entries .cash-received-row').first();
+        if (!firstRow.length) return;
+        const clone = firstRow.clone();
+        clone.find('.cash-amount-input').val(0);
+        clone.find('.cash-photo-input').val('');
+        clone.find('.cash-photo-preview').addClass('d-none').find('img').attr('src', '');
+        $('#cash-received-entries').append(clone);
+        updateCashRowCloseButtons();
+    });
+    $(document).on('click', '.cash-row-close', function() {
+        const rows = $('#cash-received-entries .cash-received-row');
+        if (rows.length <= 1) return;
+        $(this).closest('.cash-received-row').remove();
+        updateCashRowCloseButtons();
+    });
+    $(document).on('click', '.attach-cash-photo-btn', function() {
+        $(this).closest('.cash-received-row').find('.cash-photo-input').click();
+    });
+    $(document).on('change', '.cash-photo-input', function() {
+        const row = $(this).closest('.cash-received-row');
+        const file = this.files && this.files[0];
+        const preview = row.find('.cash-photo-preview');
+        const img = row.find('.cash-photo-img');
+        if (file && file.type.indexOf('image') === 0) {
+            const reader = new FileReader();
+            reader.onload = function(e) { img.attr('src', e.target.result); preview.removeClass('d-none'); };
+            reader.readAsDataURL(file);
+        } else { preview.addClass('d-none'); img.attr('src', ''); }
+    });
+    $(document).on('click', '.remove-cash-photo', function() {
+        const row = $(this).closest('.cash-received-row');
+        row.find('.cash-photo-input').val('');
+        row.find('.cash-photo-preview').addClass('d-none').find('.cash-photo-img').attr('src', '');
+    });
+    // Cash amount: on focus clear 0; on blur if empty set 0
+    $(document).on('focus', '.cash-amount-input', function() {
+        const $el = $(this);
+        if ($el.val() === '0' || $el.val() === '0.00') $el.val('');
+    });
+    $(document).on('blur', '.cash-amount-input', function() {
+        const $el = $(this);
+        if ($el.val() === '' || $el.val() === null) $el.val('0');
+    });
+    // Discount input: on focus clear 0, on blur set 0 if empty
+    $('#discount').on('focus', function() {
+        const $el = $(this);
+        if ($el.val() === '0' || $el.val() === '0.00') $el.val('');
+    }).on('blur', function() {
+        const $el = $(this);
+        if ($el.val() === '' || $el.val() === null) $el.val('0');
+    });
+    
+    // Bank Received: ADD BANK PAYMENT opens modal for multiple payments
+    $('#add-bank-below-btn, #add-bank-payment-btn').on('click', function() {
+        $('#bank_modal_amount').val('0');
+        $('#bank_modal_reference').val('');
+        $('#bank_modal_photo').val('');
+        $('#bank_modal_photo_name').text('');
+        $('#bank_modal_photo_preview').hide().find('#bank_modal_photo_preview_img').attr('src', '');
+        $('#addBankPaymentModal').modal('show');
+    });
+    $('#addBankPaymentModal').on('shown.bs.modal', function() {
+        var $amt = $('#bank_modal_amount');
+        $amt.focus();
+        if ($amt.val() === '0' || $amt.val() === '0.00') $amt.val('');
+    });
+    $('#bank_modal_amount').on('focus', function() {
+        if ($(this).val() === '0' || $(this).val() === '0.00') $(this).val('');
+    }).on('blur', function() {
+        if ($(this).val() === '' || $(this).val() === null) $(this).val('0');
+    });
+    $('#bank_modal_photo_btn').on('click', function() { $('#bank_modal_photo').click(); });
+    $('#bank_modal_photo').on('change', function() {
+        const file = this.files && this.files[0];
+        if (file && file.type.indexOf('image') === 0) {
+            $('#bank_modal_photo_name').text(file.name);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#bank_modal_photo_preview_img').attr('src', e.target.result);
+                $('#bank_modal_photo_preview').show();
+            };
+            reader.readAsDataURL(file);
+        } else {
+            $('#bank_modal_photo_name').text('');
+            $('#bank_modal_photo_preview').hide();
+        }
+    });
+    $('#bank_modal_add_btn').on('click', function() {
+        const amount = $('#bank_modal_amount').val().trim();
+        const amtNum = parseFloat(amount) || 0;
+        const reference = $('#bank_modal_reference').val().trim();
+        if (amtNum <= 0) {
+            alert('Please enter amount (Rs) greater than 0.');
+            return;
+        }
+        const fileInput = document.getElementById('bank_modal_photo');
+        const hasFile = fileInput.files && fileInput.files[0];
+        const file = hasFile ? fileInput.files[0] : null;
+        const index = $('#bank-payments-list .bank-payment-row').length;
+        const row = $('<div class="bank-payment-row mb-3 p-3 rounded position-relative d-flex flex-wrap gap-3 align-items-start" style="background: #fff; border: 1px solid #e2e8f0;"></div>');
+        row.html(
+            '<div class="bank-row-photo-preview flex-shrink-0" style="display: none;"><img class="img-thumbnail" style="max-width: 100px; max-height: 100px; object-fit: cover;" alt="Bank receipt"></div>' +
+            '<div class="bank-row-details flex-grow-1" style="min-width: 0;">' +
+            '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">' +
+            '<label class="form-label fw-bold mb-0">Amount (Rs)</label>' +
+            '<span class="fw-bold" style="color: #9333ea; font-size: 1rem;">Rs ' + (amtNum % 1 === 0 ? amtNum : amtNum.toFixed(2)) + '</span>' +
+            '</div>' +
+            (reference ? '<div class="mb-2"><span class="text-muted small">Ref: ' + $('<div>').text(reference).html() + '</span></div>' : '') +
+            '<div class="d-flex align-items-center justify-content-end flex-wrap gap-2">' +
+            '<button type="button" class="btn btn-sm btn-outline-danger bank-remove-payment"><i class="ti ti-x me-1"></i>Remove</button>' +
+            '</div>' +
+            '</div>'
+        );
+        row.append('<input type="hidden" name="bank_received_amount[]" value="' + amtNum + '">');
+        row.append('<input type="hidden" name="bank_reference[]" value="' + $('<div>').text(reference).html() + '">');
+        if (hasFile) {
+            $(fileInput).attr('name', 'bank_photo[]').attr('id', 'bank_photo_' + index).addClass('d-none');
+            row.append(fileInput);
+            var newInput = $('<input type="file" id="bank_modal_photo" class="d-none" accept="image/*">');
+            $('#bank_modal_photo_btn').after(newInput);
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                row.find('.bank-row-photo-preview img').attr('src', e.target.result);
+                row.find('.bank-row-photo-preview').show();
+            };
+            reader.readAsDataURL(file);
+        }
+        $('#bank-payments-list').append(row);
+        $('#addBankPaymentModal').modal('hide');
+        $('#bank_modal_amount').val('0');
+        $('#bank_modal_reference').val('');
+        $('#bank_modal_photo').val('');
+        $('#bank_modal_photo_name').text('');
+        $('#bank_modal_photo_preview').hide().find('#bank_modal_photo_preview_img').attr('src', '');
+    });
+    $(document).on('click', '.bank-remove-payment', function() {
+        $(this).closest('.bank-payment-row').remove();
+    });
     
     // Fill full amount button
     $('#fillFullAmount').on('click', function() {
@@ -3211,35 +3580,18 @@ $(document).ready(function() {
         });
     }
     
-    // Initialize Select2 for party name search (only party names)
-    if ($('#party_name_search').length && !$('#party_name_search').hasClass('select2-hidden-accessible')) {
-        $('#party_name_search').select2({
-            placeholder: 'SEARCH PARTY NAME...',
-            allowClear: true,
-            width: '100%',
-            minimumResultsForSearch: 0, // Always show search box
-            language: {
-                noResults: function() {
-                    return "No party name found";
-                },
-                searching: function() {
-                    return "Searching...";
-                }
-            }
-        });
-    }
-    
-    // Initialize Select2 for mobile number dropdown
+    // Initialize Select2 for mobile number dropdown (with "Add New Customer" when no results)
     if ($('#customer_mobile').length && $('#customer_mobile').is('select') && !$('#customer_mobile').hasClass('select2-hidden-accessible')) {
         $('#customer_mobile').select2({
             placeholder: 'Search Mobile Number...',
             allowClear: true,
             width: '100%',
-            minimumResultsForSearch: 0, // Always show search box
+            minimumResultsForSearch: 0,
             dropdownParent: $('#customer_mobile').parent(),
+            escapeMarkup: function(m) { return m; },
             language: {
                 noResults: function() {
-                    return "No mobile number found";
+                    return '<span class="js-add-new-customer-trigger" style="cursor:pointer;display:block;padding:10px 12px;color:#0d6efd;font-weight:600;"><i class="ti ti-plus me-1"></i>Add New Customer</span>';
                 },
                 searching: function() {
                     return "Searching...";
@@ -3247,6 +3599,44 @@ $(document).ready(function() {
             }
         });
     }
+    // When "Add New Customer" is clicked in mobile dropdown: close dropdown and open full Add Customer modal
+    $(document).on('click', '.js-add-new-customer-trigger', function() {
+        $('#customer_mobile').select2('close');
+        $('#addCustomerModal').modal('show');
+    });
+    // Full Add Customer form (#customerForm inside #addCustomerModal) - submit via AJAX then reload
+    $(document).on('submit', '#addCustomerModal #customerForm', function(e) {
+        e.preventDefault();
+        const $form = $(this);
+        const $btn = $form.find('button[type="submit"]');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Adding...');
+        $.ajax({
+            url: $form.attr('action') || '{{ route("customers.store") }}',
+            method: 'POST',
+            data: new FormData(this),
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            success: function() {
+                $('#addCustomerModal').modal('hide');
+                $form[0].reset();
+                $btn.prop('disabled', false).html('Add Customer');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'success', title: 'Customer added', text: 'You can now select them from the dropdown.', confirmButtonText: 'OK' }).then(function() { location.reload(); });
+                } else { location.reload(); }
+            },
+            error: function(xhr) {
+                $btn.prop('disabled', false).html('Add Customer');
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) || (xhr.responseJSON && xhr.responseJSON.errors && JSON.stringify(xhr.responseJSON.errors)) || 'Failed to add customer.';
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonText: 'OK' });
+                else alert(msg);
+            }
+        });
+    });
     
     // 3-in-One Toggle Switch Handler (S/E/O)
     // Position 1 (left, 3px) = Sale (S) - Blue (#2563eb)
@@ -3264,16 +3654,11 @@ $(document).ready(function() {
         $toggle.css('background', '#2563eb');
         $('#sale-status').val('pending');
         
-        // Ensure sales number shows INV #
+        // Fetch next INV number (separate series) from server
         const $salesNumber = $('#sales-number');
-        const currentNumber = $salesNumber.text();
-        if (currentNumber.includes('EST #')) {
-            $salesNumber.text(currentNumber.replace('EST #', 'INV #'));
-        } else if (currentNumber.includes('SO #')) {
-            $salesNumber.text(currentNumber.replace('SO #', 'INV #'));
-        } else if (currentNumber.includes('SALE #')) {
-            $salesNumber.text(currentNumber.replace('SALE #', 'INV #'));
-        }
+        $.get('{{ route("sales.next.invoice.number") }}').then(function(r) {
+            if (r.number != null) $salesNumber.text('INV #' + r.number);
+        }).fail(function() { $salesNumber.text('INV #00001'); });
         
         // Update page title and button
         if ($('#page-title-text').length) {
@@ -3290,9 +3675,14 @@ $(document).ready(function() {
         }
     }
     
-    // Initialize on page load
+    // Initialize on page load: set INV number from server if branch selected
     $(document).ready(function() {
         initializeToggleToSale();
+        if ($('#salesBranchId').val()) {
+            $.get('{{ route("sales.next.invoice.number") }}').then(function(r) {
+                if (r.number != null) $('#sales-number').text('INV #' + r.number);
+            });
+        }
     });
     
     $('#estimate-order-toggle').on('click', function() {
@@ -3302,71 +3692,43 @@ $(document).ready(function() {
         const $salesNumber = $('#sales-number');
         
         if (toggleState === 0) {
-            // Position 1: Sale (S) - left position (blue)
+            // Position 1: Sale (S) - left position (blue) — separate INV series
             $slider.css('left', '3px');
             $toggle.css('background', '#2563eb');
             $('#sale-status').val('pending');
-            
-            // Convert to Sale/Invoice
-            const currentNumber = $salesNumber.text();
-            if (currentNumber.includes('EST #')) {
-                $salesNumber.text(currentNumber.replace('EST #', 'INV #'));
-            } else if (currentNumber.includes('SO #')) {
-                $salesNumber.text(currentNumber.replace('SO #', 'INV #'));
-            } else if (currentNumber.includes('SALE #')) {
-                $salesNumber.text(currentNumber.replace('SALE #', 'INV #'));
-            }
+            $('input[name="status"]').val('pending');
+            $.get('{{ route("sales.next.invoice.number") }}').then(function(r) {
+                if (r.number != null) $salesNumber.text('INV #' + r.number);
+            }).fail(function() { $salesNumber.text('INV #00001'); });
             $('#page-title-text').text('Create Sales');
             $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Sale');
-            
-            // Show payment section if items are added
-            if (salesItems.length > 0) {
-                $('#payment-section').show();
-            }
+            if (salesItems.length > 0) $('#payment-section').show();
             
         } else if (toggleState === 1) {
-            // Position 2: Estimate (E) - middle position (yellow)
-            $slider.css('left', '28px'); // Middle position (80px width / 3 ≈ 28px)
+            // Position 2: Estimate (E) - middle position (yellow) — separate EST series
+            $slider.css('left', '28px');
             $toggle.css('background', '#ffc107');
             $('#sale-status').val('estimate');
-            
-            // Convert to Estimate
-            const currentNumber = $salesNumber.text();
-            if (currentNumber.includes('INV #')) {
-                $salesNumber.text(currentNumber.replace('INV #', 'EST #'));
-            } else if (currentNumber.includes('SO #')) {
-                $salesNumber.text(currentNumber.replace('SO #', 'EST #'));
-            } else if (currentNumber.includes('SALE #')) {
-                $salesNumber.text(currentNumber.replace('SALE #', 'EST #'));
-            }
+            $('input[name="status"]').val('estimate');
+            $.get('{{ route("sales.next.estimate.number") }}').then(function(r) {
+                if (r.number != null) $salesNumber.text('EST #' + r.number);
+            }).fail(function() { $salesNumber.text('EST #00001'); });
             $('#page-title-text').text('Create Estimate');
             $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Estimate');
-            
-            // Hide payment section for estimates
             $('#payment-section').hide();
             
         } else if (toggleState === 2) {
-            // Position 3: Order (O) - right position (green)
-            $slider.css('left', '53px'); // Right position (80px width - 24px slider - 3px margin = 53px)
+            // Position 3: Order (O) - right position (green) — separate SO series
+            $slider.css('left', '53px');
             $toggle.css('background', '#198754');
-            $('#sale-status').val('pending');
-            
-            // Convert to Sale Order
-            const currentNumber = $salesNumber.text();
-            if (currentNumber.includes('INV #')) {
-                $salesNumber.text(currentNumber.replace('INV #', 'SO #'));
-            } else if (currentNumber.includes('EST #')) {
-                $salesNumber.text(currentNumber.replace('EST #', 'SO #'));
-            } else if (currentNumber.includes('SALE #')) {
-                $salesNumber.text(currentNumber.replace('SALE #', 'SO #'));
-            }
+            $('#sale-status').val('sale_order');
+            $('input[name="status"]').val('sale_order');
+            $.get('{{ route("sales.next.sale.order.number") }}').then(function(r) {
+                if (r.number != null) $salesNumber.text('SO #' + r.number);
+            }).fail(function() { $salesNumber.text('SO #00001'); });
             $('#page-title-text').text('Create Sale Order');
             $('#submit-sale-btn').html('<i class="ti ti-check me-1"></i> Save Sale Order');
-            
-            // Show payment section if items are added
-            if (salesItems.length > 0) {
-                $('#payment-section').show();
-            }
+            if (salesItems.length > 0) $('#payment-section').show();
         }
         
         console.log('Toggle switched to:', toggleState === 0 ? 'Sale (S)' : toggleState === 1 ? 'Estimate (E)' : 'Order (O)');
@@ -3914,6 +4276,60 @@ $(document).ready(function() {
 </script>
 @endpush
 
+{{-- Add Bank Payment Modal (multiple bank payments) --}}
+<div class="modal fade" id="addBankPaymentModal" tabindex="-1" aria-labelledby="addBankPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: #faf5ff; border-bottom: 1px solid #e9d5ff;">
+                <h5 class="modal-title fw-bold" id="addBankPaymentModalLabel" style="color: #9333ea;"><i class="ti ti-building-bank me-1"></i>Add Bank Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold" style="font-size: 12px; color: #6b7280;">AMOUNT (Rs)</label>
+                    <input type="number" id="bank_modal_amount" class="form-control" step="1" min="0" value="0" placeholder="0" style="border-radius: 6px; text-align: right;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold" style="font-size: 12px; color: #6b7280;">REFERENCE NUMBER</label>
+                    <input type="text" id="bank_modal_reference" class="form-control" placeholder="Enter reference / transaction ID" style="border-radius: 6px;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold" style="font-size: 12px; color: #6b7280;">ATTACH PHOTO</label>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="bank_modal_photo_btn">
+                            <i class="ti ti-camera me-1"></i>Choose Photo
+                        </button>
+                        <input type="file" id="bank_modal_photo" class="d-none" accept="image/*">
+                        <span id="bank_modal_photo_name" class="text-muted small"></span>
+                    </div>
+                    <div id="bank_modal_photo_preview" class="mt-2" style="display: none;">
+                        <img id="bank_modal_photo_preview_img" src="" alt="Preview" class="img-thumbnail" style="max-width: 120px; max-height: 120px; object-fit: cover;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="bank_modal_add_btn" style="background: #9333ea; border-color: #9333ea;">
+                    <i class="ti ti-plus me-1"></i>Add Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Full Add Customer Modal (from mobile dropdown "Add New Customer" - same as customers page) --}}
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="addCustomerModalLabel">Add Customer</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            @include('admin.customers.modals.create-customer-form')
+        </div>
+    </div>
+</div>
+
 {{-- Customer Edit Modal --}}
 <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-labelledby="editCustomerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -3929,23 +4345,25 @@ $(document).ready(function() {
                     <div class="row g-3 p-3">
                         <!-- Visiting Document -->
                         <div class="col-md-6">
-                            <label for="edit_visiting_doc" class="form-label">Visiting Document</label>
-                            <div class="position-relative">
-                                <input type="file" name="visiting_doc" id="edit_visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                            <label for="edit_visiting_doc" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Visiting Document</label>
+                            <input type="file" name="visiting_doc" id="edit_visiting_doc" accept=".pdf,.doc,.docx,image/*" class="form-control">
+                            <small class="form-text text-muted d-block mb-1">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
+                            <div class="mt-2 p-2 border rounded bg-light" style="min-height: 60px;">
+                                <small class="text-muted d-block mb-1" style="font-size: 10px;">Preview</small>
+                                <div id="edit_visiting_doc_preview" class="edit-file-preview"></div>
                             </div>
-                            <small class="form-text text-muted">Upload visiting card or document (PDF, DOC, DOCX, or image).</small>
-                            <div id="edit_visiting_doc_preview" style="display: none; margin-top: 10px;"></div>
                         </div>
 
                         <!-- Profile Image -->
                         <div class="col-md-6">
-                            <label for="edit_profile_img" class="form-label">Profile Image</label>
-                            <div class="position-relative">
-                                <input type="file" name="profile_img" id="edit_profile_img" accept="image/*" class="form-control">
-                            </div>
-                            <small class="form-text text-muted">Click to upload profile image</small>
-                            <div id="edit_profile_img_preview" style="display: none; margin-top: 10px;">
-                                <img id="edit_profile_img_display" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px;">
+                            <label for="edit_profile_img" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Profile Image</label>
+                            <input type="file" name="profile_img" id="edit_profile_img" accept="image/*" class="form-control">
+                            <small class="form-text text-muted d-block mb-1">Click to upload profile image</small>
+                            <div class="mt-2 p-2 border rounded bg-light" style="min-height: 60px;">
+                                <small class="text-muted d-block mb-1" style="font-size: 10px;">Preview</small>
+                                <div id="edit_profile_img_preview" class="edit-file-preview" style="display: none;">
+                                    <img id="edit_profile_img_display" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 180px;">
+                                </div>
                             </div>
                         </div>
 
@@ -3954,16 +4372,17 @@ $(document).ready(function() {
                             <div id="edit_namePhoneContainer">
                                 <div class="row g-3 mb-3 align-items-end name-phone-row">
                                     <div class="col-md-6">
-                                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Name <span class="text-danger">*</span></label>
                                         <div class="input-group">
-                                            <input type="text" name="names[]" id="edit_customer_names" class="form-control" placeholder="Enter name" required>
+                                            <input type="hidden" name="names[]" id="edit_customer_names" class="edit-name-hidden" required>
+                                            <div contenteditable="true" class="form-control edit-name-display" id="edit_customer_names_display" data-placeholder="Enter name" style="min-height: 38px; font-size: 0.875rem;"></div>
                                             <button type="button" class="btn btn-danger remove-row" style="display:none;">
                                                 <i class="ti ti-trash"></i>
                                             </button>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">WhatsApp Number</label>
+                                        <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">WhatsApp Number</label>
                                         <input type="text" name="phones[]" id="edit_customer_phones" class="form-control" placeholder="Enter phone number" required>
                                     </div>
                                 </div>
@@ -3975,25 +4394,25 @@ $(document).ready(function() {
 
                         <!-- Company -->
                         <div class="col-md-6">
-                            <label for="edit_customer_company" class="form-label">Company</label>
+                            <label for="edit_customer_company" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Company</label>
                             <input type="text" name="company" id="edit_customer_company" class="form-control">
                         </div>
 
                         <!-- Email -->
                         <div class="col-md-6">
-                            <label for="edit_customer_email" class="form-label">Email</label>
+                            <label for="edit_customer_email" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Email</label>
                             <input type="email" name="email" id="edit_customer_email" class="form-control">
                         </div>
 
                         <!-- Address -->
                         <div class="col-md-6">
-                            <label for="edit_customer_address" class="form-label">Address</label>
+                            <label for="edit_customer_address" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Address</label>
                             <input type="text" name="address" id="edit_customer_address" class="form-control">
                         </div>
 
                         <!-- Area -->
                         <div class="col-md-6">
-                            <label for="edit_customer_area" class="form-label">Area</label>
+                            <label for="edit_customer_area" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Area</label>
                             <input type="text" name="area" id="edit_customer_area" class="form-control">
                         </div>
                     </div>

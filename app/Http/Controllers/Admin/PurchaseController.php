@@ -88,7 +88,7 @@ class PurchaseController extends Controller
     public function getPurchaseCart(Request $request)
     {
         $userId = auth()->id();
-        $rows = PurchaseCart::with('item')
+        $rows = PurchaseCart::with(['item', 'warehouse'])
             ->where('user_id', $userId)
             ->orderBy('id')
             ->get();
@@ -104,8 +104,13 @@ class PurchaseController extends Controller
                 $supplierId = $row->supplier_id;
             }
             $itemName = $row->item ? ($row->item->short_disc ?? $row->item->pro_dis ?? $row->item->bar_code ?? 'Item #' . $row->item_id) : 'Item #' . $row->item_id;
+            $warehouseName = $row->warehouse
+                ? ($row->warehouse->warehouse_name . ($row->warehouse->warehouse_code ? ' (' . $row->warehouse->warehouse_code . ')' : ''))
+                : null;
             $items[] = [
                 'item_id' => $row->item_id,
+                'warehouse_id' => $row->warehouse_id,
+                'warehouse_name' => $warehouseName,
                 'name' => $itemName,
                 'quantity' => (float) $row->quantity,
                 'unit' => $row->unit,
@@ -144,6 +149,7 @@ class PurchaseController extends Controller
             'supplier_id' => 'nullable|exists:suppliers,id',
             'items' => 'nullable|array',
             'items.*.item_id' => 'required|exists:items,id',
+            'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
             'items.*.name' => 'nullable|string',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit' => 'nullable|string',
@@ -167,6 +173,7 @@ class PurchaseController extends Controller
                 'branch_id' => $branchId,
                 'supplier_id' => $supplierId,
                 'item_id' => $it['item_id'],
+                'warehouse_id' => $it['warehouse_id'] ?? null,
                 'quantity' => $it['quantity'],
                 'unit' => $it['unit'] ?? null,
                 'rate' => $it['rate'],
@@ -245,6 +252,7 @@ class PurchaseController extends Controller
                 'status' => 'required|in:received,pending,ordered',
                 'items' => 'required|array|min:1',
                 'items.*.item_id' => 'required|exists:items,id',
+                'items.*.warehouse_id' => 'required|exists:warehouses,id',
                 'items.*.quantity' => 'required|numeric|min:0.01',
                 'items.*.rate' => 'required|numeric|min:0',
                 'items.*.unit' => 'nullable|string',
@@ -260,18 +268,6 @@ class PurchaseController extends Controller
                 ], 422);
             }
             return redirect()->back()->withInput()->withErrors($e->errors());
-        }
-
-        $warehouse = Warehouse::where('branch_id', $request->branch_id)->first();
-        if (!$warehouse) {
-            $errorMessage = 'Warehouse not found for selected branch.';
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage
-                ], 422);
-            }
-            return redirect()->back()->withInput()->with('error', $errorMessage);
         }
 
         DB::beginTransaction();
@@ -355,23 +351,27 @@ class PurchaseController extends Controller
                     'total_cost' => $totalCost,
                 ]);
 
-                $warehouseItem = WarehouseItem::lockForUpdate()
-                    ->where('warehouse_id', $warehouse->id)
-                    ->where('item_id', $item['item_id'])
-                    ->first();
+                $warehouseId = (int) ($item['warehouse_id'] ?? 0);
+                $warehouse = $warehouseId ? Warehouse::find($warehouseId) : null;
+                if ($warehouse) {
+                    $warehouseItem = WarehouseItem::lockForUpdate()
+                        ->where('warehouse_id', $warehouse->id)
+                        ->where('item_id', $item['item_id'])
+                        ->first();
 
-                if ($warehouseItem) {
-                    $warehouseItem->quantity += $quantity;
-                    $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
-                    $warehouseItem->save();
-                } else {
-                    WarehouseItem::create([
-                        'warehouse_id' => $warehouse->id,
-                        'item_id' => $item['item_id'],
-                        'quantity' => $quantity,
-                        'reserved_quantity' => 0,
-                        'available_quantity' => $quantity,
-                    ]);
+                    if ($warehouseItem) {
+                        $warehouseItem->quantity += $quantity;
+                        $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
+                        $warehouseItem->save();
+                    } else {
+                        WarehouseItem::create([
+                            'warehouse_id' => $warehouse->id,
+                            'item_id' => $item['item_id'],
+                            'quantity' => $quantity,
+                            'reserved_quantity' => 0,
+                            'available_quantity' => $quantity,
+                        ]);
+                    }
                 }
 
                 $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
@@ -862,10 +862,12 @@ class PurchaseController extends Controller
             }
         }
         
+        $salePrice = floatval($item->sale_price ?? 0);
         return response()->json([
             'id' => $item->id,
             'name' => $itemName,
             'rate' => $item->packing_purchase_rate ?? 0,
+            'sale_price' => $salePrice,
             'total_price' => $item->total_price ?? 0,
             'price_per_unit' => $item->price_per_unit ?? 0,
             'unit' => $unitName,
@@ -889,9 +891,10 @@ class PurchaseController extends Controller
      */
     public function getItemStockStatus($id)
     {
-        $item = Item::findOrFail($id);
-        $packingSize = $item->packing ?? 1; // Default packing size
-        
+        $item = Item::with('unit_item')->findOrFail($id);
+        $packingSize = (float) ($item->packing ?? 1);
+        $unitName = $item->unit_item ? ($item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit') : 'Unit';
+
         // Get all warehouse items for this item
         $warehouseItems = \App\Models\WarehouseItem::with(['warehouse.branch'])
             ->where('item_id', $id)
@@ -931,7 +934,7 @@ class PurchaseController extends Controller
                 'quantity' => $quantity,
                 'cartons' => $cartons,
                 'loose' => $loose,
-                'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '')
+                'display' => $warehouse->warehouse_name // name only, no warehouse code in stock status
             ];
             
             $branchStocks[$branchId]['warehouses'][] = $warehouseData;
@@ -941,17 +944,20 @@ class PurchaseController extends Controller
         
         // Convert to array format
         foreach ($branchStocks as $branchStock) {
-            // Add branch total
+            // Add branch total (quantity = total in item unit)
+            $branchQty = $branchStock['total_cartons'] * $packingSize + $branchStock['total_loose'];
             $stockStatus[] = [
                 'type' => 'branch',
                 'id' => $branchStock['branch_id'],
                 'name' => $branchStock['branch_name'],
                 'code' => $branchStock['branch_code'],
-                'display' => $branchStock['display'],
+                'display' => $branchStock['branch_name'], // name only, no branch code in stock status
                 'cartons' => $branchStock['total_cartons'],
                 'loose' => $branchStock['total_loose'],
+                'quantity' => $branchQty,
+                'unit' => $unitName,
             ];
-            
+
             // Add warehouses under branch
             foreach ($branchStock['warehouses'] as $warehouse) {
                 $stockStatus[] = [
@@ -964,6 +970,7 @@ class PurchaseController extends Controller
                     'loose' => $warehouse['loose'],
                     'quantity' => $warehouse['quantity'],
                     'branch_id' => $branchStock['branch_id'],
+                    'unit' => $unitName,
                 ];
             }
         }
@@ -1480,64 +1487,75 @@ class PurchaseController extends Controller
         // Limit results
         $limit = $request->input('limit', 50);
         $items = $query->limit($limit)->get();
+        $branchId = $request->input('branch_id');
 
-        // Group items by warehouse
-        $warehouseItems = [];
-        foreach ($items as $item) {
-            // Get warehouse for this item (through warehouse_items)
-            $warehouseItem = \App\Models\WarehouseItem::where('item_id', $item->id)->first();
-            if ($warehouseItem) {
-                $warehouse = $warehouseItem->warehouse;
-                if ($warehouse) {
-                    $warehouseId = $warehouse->id;
-                    if (!isset($warehouseItems[$warehouseId])) {
-                        $warehouseItems[$warehouseId] = [
-                            'warehouse' => $warehouse,
-                            'branch' => $warehouse->branch,
-                            'items' => []
-                        ];
+        // When branch_id is present: return one row per item with branch total stock (same as stock status section)
+        if ($branchId && !empty($items)) {
+            foreach ($items as $item) {
+                $stock = (float) \App\Models\WarehouseItem::where('item_id', $item->id)
+                    ->whereHas('warehouse', fn($q) => $q->where('branch_id', $branchId))
+                    ->sum('quantity');
+                $results[] = [
+                    'type' => 'item',
+                    'id' => $item->id,
+                    'stock' => $stock,
+                    'item' => $item
+                ];
+            }
+        } else {
+            // No branch: group by warehouse (legacy behaviour)
+            $warehouseItems = [];
+            foreach ($items as $item) {
+                $warehouseItem = \App\Models\WarehouseItem::where('item_id', $item->id)->first();
+                if ($warehouseItem) {
+                    $warehouse = $warehouseItem->warehouse;
+                    if ($warehouse) {
+                        $warehouseId = $warehouse->id;
+                        if (!isset($warehouseItems[$warehouseId])) {
+                            $warehouseItems[$warehouseId] = [
+                                'warehouse' => $warehouse,
+                                'branch' => $warehouse->branch,
+                                'items' => []
+                            ];
+                        }
+                        $warehouseItems[$warehouseId]['items'][] = $item;
                     }
-                    $warehouseItems[$warehouseId]['items'][] = $item;
                 }
             }
-        }
-        
-        // Add warehouses with their items (warehouses appear before items)
-        foreach ($warehouseItems as $warehouseId => $data) {
-            $warehouse = $data['warehouse'];
-            $branch = $data['branch'];
-            
-            // Add warehouse header
-            $results[] = [
-                'type' => 'warehouse',
-                'id' => $warehouse->id,
-                'name' => $warehouse->warehouse_name,
-                'code' => $warehouse->warehouse_code,
-                'branch_id' => $warehouse->branch_id,
-                'branch_name' => $branch ? $branch->branch_name : '',
-                'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($branch ? ' - ' . $branch->branch_name : '')
-            ];
-            
-            // Add items under this warehouse
-            foreach ($data['items'] as $item) {
+            foreach ($warehouseItems as $warehouseId => $data) {
+                $warehouse = $data['warehouse'];
+                $branch = $data['branch'];
                 $results[] = [
-                    'type' => 'item',
-                    'id' => $item->id,
-                    'warehouse_id' => $warehouse->id,
-                    'warehouse_name' => $warehouse->warehouse_name,
-                    'item' => $item
+                    'type' => 'warehouse',
+                    'id' => $warehouse->id,
+                    'name' => $warehouse->warehouse_name,
+                    'code' => $warehouse->warehouse_code,
+                    'branch_id' => $warehouse->branch_id,
+                    'branch_name' => $branch ? $branch->branch_name : '',
+                    'display' => $warehouse->warehouse_name . ($warehouse->warehouse_code ? ' (' . $warehouse->warehouse_code . ')' : '') . ($branch ? ' - ' . $branch->branch_name : '')
                 ];
+                foreach ($data['items'] as $item) {
+                    $qty = (float) (\App\Models\WarehouseItem::where('item_id', $item->id)->where('warehouse_id', $warehouse->id)->value('quantity') ?? 0);
+                    $results[] = [
+                        'type' => 'item',
+                        'id' => $item->id,
+                        'warehouse_id' => $warehouse->id,
+                        'warehouse_name' => $warehouse->warehouse_name,
+                        'stock' => $qty,
+                        'item' => $item
+                    ];
+                }
             }
-        }
-        
-        // If no warehouse grouping, just return items
-        if (empty($warehouseItems) && !empty($items)) {
-            foreach ($items as $item) {
-                $results[] = [
-                    'type' => 'item',
-                    'id' => $item->id,
-                    'item' => $item
-                ];
+            if (empty($warehouseItems) && !empty($items)) {
+                foreach ($items as $item) {
+                    $stock = $item->on_hand ?? 0;
+                    $results[] = [
+                        'type' => 'item',
+                        'id' => $item->id,
+                        'stock' => $stock,
+                        'item' => $item
+                    ];
+                }
             }
         }
 
