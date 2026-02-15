@@ -1,5 +1,15 @@
 @extends('layouts.app')
 
+@push('styles')
+<style>
+    .product-bar h6 { text-transform: uppercase; }
+    .view-toggle-switch { display: flex; align-items: center; gap: 10px; }
+    .view-toggle-switch .form-check-input { width: 3rem; height: 1.5rem; cursor: pointer; }
+    .view-toggle-switch .form-check-label { cursor: pointer; user-select: none; }
+    [data-view="internal"] { transition: opacity 0.2s; }
+</style>
+@endpush
+
 @section('title', $item->name . ' - Product Details')
 
 @section('content')
@@ -9,8 +19,18 @@
             <h4>Product Details</h4>
             <h6>Full details of a product</h6>
         </div>
-        <div class="page-btn">
-           
+        <div class="page-btn d-flex align-items-center gap-3">
+            <div class="view-toggle-switch">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="viewModeSwitch">
+                    <label class="form-check-label" for="viewModeSwitch">
+                        <span id="viewModeLabel">Internal View</span>
+                    </label>
+                </div>
+            </div>
+            <a href="{{ url()->current() }}" target="_blank" class="btn btn-outline-primary">
+                <i class="ti ti-external-link me-1"></i> View in New Tab
+            </a>
             <button type="button" id="shareWhatsAppBtn" class="btn btn-success" onclick="toggleWhatsAppSection()">
                 <i class="ti ti-brand-whatsapp me-1"></i> Share on WhatsApp
             </button>
@@ -117,8 +137,8 @@
             <div class="card">
                 <div class="card-body">
 
-                    <!-- Barcode -->
-                    <div class="bar-code-view text-center mb-4">
+                    <!-- Barcode (Internal only) -->
+                    <div class="bar-code-view text-center mb-4" data-view="internal">
                         @if($item->barcode_image && file_exists(public_path($item->barcode_image)))
                             <div>
                                 <img src="{{ asset($item->barcode_image) }}" alt="Barcode" style="max-height:80px;">
@@ -140,7 +160,7 @@
                                 <h6>{{ $item->product_item->name ?? '-' }}</h6>
                             </li>
 
-                            <li>
+                            <li data-view="internal">
                                 <h4>Barcode</h4>
                                 <h6>{{ $item->bar_code ?? '-' }}</h6>
                             </li>
@@ -157,14 +177,14 @@
                             </li>
                             @endif
 
-                            <li>
+                            <li data-view="internal">
                                 <h4>Type</h4>
                                 <h6><span class="badge {{ $item->type == 'parts' ? 'bg-success' : ($item->type == 'battery' ? 'bg-warning' : 'bg-info') }}">{{ ucfirst($item->type ?? 'N/A') }}</span></h6>
                             </li>
 
                             <!-- COMMON FIELDS FOR ALL TYPES -->
                             @if(in_array($item->type, ['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad']))
-                                <li>
+                                <li data-view="internal">
                                     <h4>Unit</h4>
                                     <h6>{{ $item->unit_item->name ?? ($item->unit_item->unit ?? 'Piece') }}</h6>
                                 </li>
@@ -173,7 +193,7 @@
                             <!-- PARTS SPECIFIC FIELDS -->
                             @if($item->type == 'parts')
                                 @if($item->partnumber_item)
-                                <li>
+                                <li data-view="internal">
                                     <h4>Part Number</h4>
                                     <h6>{{ $item->partnumber_item->name ?? '-' }}</h6>
                                 </li>
@@ -194,38 +214,38 @@
                                 @endif
                                 
                                 @if($item->group_item)
-                                <li>
+                                <li data-view="internal">
                                     <h4>Group Name</h4>
                                     <h6>{{ $item->group_item->name ?? '-' }}</h6>
                                 </li>
                                 @endif
                                 
                                 @if($item->technology_item)
-                                <li>
+                                <li data-view="internal">
                                     <h4>Series</h4>
                                     <h6>{{ $item->technology_item->name ?? '-' }}</h6>
                                 </li>
                                 @endif
                                 
                                 @if($item->vehical_item)
-                                <li>
+                                <li data-view="internal">
                                     <h4>Vehicle Model</h4>
                                     <h6>{{ ($item->vehical_item->model_vehical && $item->vehical_item->model_vehical->name) ? $item->vehical_item->model_vehical->name : '-' }}</h6>
                                 </li>
-                                <li>
+                                <li data-view="internal">
                                     <h4>Manufacturer</h4>
                                     <h6>{{ ($item->vehical_item->manutacturer_vehical && $item->vehical_item->manutacturer_vehical->name) ? $item->vehical_item->manutacturer_vehical->name : '-' }}</h6>
                                 </li>
-                                <li>
+                                <li data-view="internal">
                                     <h4>Engine CC</h4>
                                     <h6>{{ ($item->vehical_item->engine_vehical && $item->vehical_item->engine_vehical->name) ? $item->vehical_item->engine_vehical->name . ' CC' : '-' }}</h6>
                                 </li>
-                                <li>
+                                <li data-view="internal">
                                     <h4>Country</h4>
                                     <h6>{{ ($item->vehical_item->country_vehical && $item->vehical_item->country_vehical->name) ? $item->vehical_item->country_vehical->name : '-' }}</h6>
                                 </li>
                                 @if($item->vehical_item->vehical_part_number && $item->vehical_item->vehical_part_number->name)
-                                <li>
+                                <li data-view="internal">
                                     <h4>Part Number</h4>
                                     <h6>{{ $item->vehical_item->vehical_part_number->name }}</h6>
                                 </li>
@@ -427,7 +447,7 @@
                             @endif
 
                             <!-- COMMON FIELDS FOR ALL TYPES -->
-                            <li>
+                            <li data-view="internal">
                                 <h4>On Hand (Stock)</h4>
                                 <h6>
                                     <span class="badge {{ $item->on_hand > 10 ? 'bg-success' : ($item->on_hand > 0 ? 'bg-warning' : 'bg-danger') }}">
@@ -436,29 +456,22 @@
                                 </h6>
                             </li>
 
-                            @if($item->price_per_unit)
-                            <li>
-                                <h4>Price per Unit</h4>
-                                <h6>Rs. {{ number_format($item->price_per_unit ?? 0, 2) }}</h6>
-                            </li>
-                            @endif
-
                             @if($item->total_price)
-                            <li>
+                            <li data-view="internal">
                                 <h4>Total Value</h4>
-                                <h6>Rs. {{ number_format($item->total_price ?? 0, 2) }}</h6>
+                                <h6>Rs. {{ number_format($item->total_price ?? 0, 0) }}</h6>
                             </li>
                             @endif
 
                             @if($item->sale_price)
                             <li>
                                 <h4>Sale Price</h4>
-                                <h6>Rs. {{ number_format($item->sale_price ?? 0, 2) }}</h6>
+                                <h6>Rs. {{ number_format($item->sale_price ?? 0, 0) }}</h6>
                             </li>
                             @endif
 
                             @if($item->weight_for_delivery)
-                            <li>
+                            <li data-view="internal">
                                 <h4>Weight</h4>
                                 <h6>
                                     {{ number_format($item->weight_for_delivery, 2) }}
@@ -492,13 +505,13 @@
                             @endif
 
                             @if($item->min_qty)
-                            <li>
+                            <li data-view="internal">
                                 <h4>Min Qty Alert</h4>
                                 <h6>{{ $item->min_qty ?? 0 }}</h6>
                             </li>
                             @endif
 
-                            <li>
+                            <li data-view="internal">
                                 <h4>Status</h4>
                                 <h6>
                                     <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}">
@@ -508,18 +521,18 @@
                             </li>
 
                             @if($item->updated_by_user)
-                            <li>
+                            <li data-view="internal">
                                 <h4>Last Updated By</h4>
                                 <h6>{{ $item->updated_by_user->name ?? 'Unknown' }} ({{ \Carbon\Carbon::parse($item->last_updated_at)->format('d M Y, h:i A') }})</h6>
                             </li>
                             @endif
 
-                            <li>
+                            <li data-view="internal">
                                 <h4>Added By</h4>
                                 <h6>{{ $item->item_user?->name ?? 'Unknown' }} ({{ $item->item_user?->email ?? '' }})</h6>
                             </li>
 
-                            <li>
+                            <li data-view="internal">
                                 <h4>Created At</h4>
                                 <h6>{{ \Carbon\Carbon::parse($item->created_at)->format('d M Y, h:i A') }}</h6>
                             </li>
@@ -607,6 +620,24 @@
             shareSection.style.display = 'none';
         }
     }
+    
+    // Toggle between Customer View and Internal View
+    function updateViewMode() {
+        const isInternal = document.getElementById('viewModeSwitch').checked;
+        const label = document.getElementById('viewModeLabel');
+        const internals = document.querySelectorAll('[data-view="internal"]');
+        internals.forEach(function(el) {
+            el.style.display = isInternal ? '' : 'none';
+        });
+        label.textContent = isInternal ? 'Internal View' : 'Customer View';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        const viewSwitch = document.getElementById('viewModeSwitch');
+        if (viewSwitch) {
+            viewSwitch.addEventListener('change', updateViewMode);
+            updateViewMode(); // Apply initial state
+        }
+    });
     
     // Wait for DOM to be ready
     document.addEventListener('DOMContentLoaded', function() {

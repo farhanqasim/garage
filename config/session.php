@@ -31,7 +31,8 @@ return [
     |
     */
 
-    'lifetime' => env('SESSION_LIFETIME', 120),
+    // Session lifetime: 1 year (525600 min) — user jab tak khud logout na kare tab tak login rehne ke liye
+    'lifetime' => env('SESSION_LIFETIME', 525600),
 
     'expire_on_close' => false,
 

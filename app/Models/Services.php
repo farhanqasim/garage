@@ -8,7 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 class Services extends Model
 {
     use HasFactory;
-    protected $fillable = ['name','status'];
+
+    protected $fillable = ['name', 'status', 'details'];
+
+    protected $casts = [
+        'details' => 'array',
+    ];
 
     public function item_servies()
     {

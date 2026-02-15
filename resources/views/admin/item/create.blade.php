@@ -255,6 +255,157 @@
         .inputswidth {
             width: 100% !important;
         }
+        /* Vehicle filter card - mobile stacked layout, full width (12 columns) */
+        .vehicle-filter-wrapper {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-card {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: visible !important;
+            overflow-y: auto !important;
+        }
+        .vehicle-filter-wrapper #vehicleTable {
+            display: block !important;
+            width: 100% !important;
+            table-layout: fixed !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-row {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-thead {
+            display: block !important;
+            width: 100% !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-thead .vehicle-filter-row {
+            border-bottom: none !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-thead .vehicle-filter-th {
+            display: block !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 0.75rem 1rem !important;
+            margin: 0 !important;
+            border: none !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            background: #fff !important;
+            color: #334155 !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-thead .vehicle-filter-th:last-child {
+            border-bottom: none !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-label {
+            display: block !important;
+            font-size: 0.7rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.04em !important;
+            color: #475569 !important;
+            margin-bottom: 0.45rem !important;
+        }
+        /* Input group: dropdown 100% + edit button right side, dropdown always visible (override app layout) */
+        .vehicle-filter-wrapper .vehicle-filter-input-group {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: stretch !important;
+            flex-wrap: nowrap !important;
+            gap: 0.5rem !important;
+        }
+        /* Ensure dropdown shows before button - override any .input-group .btn full width on mobile */
+        .vehicle-filter-wrapper .vehicle-filter-input-group .vehicle-filter-edit-btn {
+            flex: 0 0 auto !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        /* Original select - keep visible for layout; Select2 hides it but we need space for .select2-container */
+        .vehicle-filter-wrapper .vehicle-filter-input-group select.vehicle-filter-select {
+            width: 100% !important;
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+            max-width: 100% !important;
+        }
+        /* Select2 container - take all space except edit button (dropdown must show) */
+        .vehicle-filter-wrapper .vehicle-filter-input-group .select2-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 1 1 auto !important;
+            min-width: 120px !important;
+            min-height: 44px !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-input-group .select2-container .select2-selection {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: 44px !important;
+            box-sizing: border-box !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-input-group .select2-container .select2-selection .select2-selection__rendered {
+            display: block !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        /* Edit button - fixed size, do not shrink */
+        .vehicle-filter-wrapper .vehicle-filter-edit-btn {
+            flex-shrink: 0 !important;
+            min-width: 44px !important;
+            width: 44px !important;
+            min-height: 44px !important;
+            border-radius: 8px !important;
+            border: 1.5px solid #93c5fd !important;
+            background: #fff !important;
+        }
+        .vehicle-filter-wrapper .vehicle-filter-select {
+            min-height: 44px !important;
+            padding: 0.6rem 0.85rem !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+            border: 1.5px solid #93c5fd !important;
+            background: #fff !important;
+        }
+        .vehicle-filter-wrapper .vehicle-th-select {
+            background: #fff !important;
+            text-align: center !important;
+        }
+        .vehicle-filter-wrapper .vehicle-th-select label {
+            font-size: 0.7rem !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            color: #475569 !important;
+        }
+        .vehicle-filter-wrapper .vehicle-th-select .form-check-input {
+            width: 1.25rem !important;
+            height: 1.25rem !important;
+        }
+        .vehicle-filter-wrapper .vehicle-th-actions .d-flex {
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+        }
+        .vehicle-filter-wrapper .vehicle-th-actions .btn {
+            flex: 1;
+            min-height: 44px !important;
+        }
+        .vehicle-filter-wrapper .vehicle-year-display {
+            min-height: 44px !important;
+            font-size: 14px !important;
+        }
+        .vehicle-filter-wrapper .open-year-range-modal {
+            min-height: 44px !important;
+        }
         /* Vehicle table - better mobile display */
         #vehicleTable {
             font-size: 11px !important;
@@ -369,6 +520,151 @@
     /* Consistent field spacing */
     .field-group .row > div {
         margin-bottom: 1rem;
+    }
+
+    /* Vehicle filter card - full width (complete screen) */
+    .vehicle-filter-wrapper {
+        width: 100%;
+        max-width: 100%;
+    }
+    .vehicle-filter-card {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+    }
+    .vehicle-filter-card-title {
+        font-size: 0.8rem;
+    }
+    .vehicle-filter-thead .vehicle-filter-th {
+        vertical-align: middle;
+        padding: 0.5rem 0.45rem;
+    }
+    .vehicle-filter-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+    }
+    /* Vehicle filter header labels - black text, light background for readability */
+    .vehicle-filter-wrapper .vehicle-filter-thead .vehicle-filter-label {
+        color: #000 !important;
+    }
+    .vehicle-filter-wrapper #vehicleTable thead.vehicle-filter-thead {
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0;
+    }
+    .vehicle-filter-wrapper #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th {
+        background: #f1f5f9 !important;
+        border-color: #e2e8f0;
+        color: #000;
+    }
+    .vehicle-filter-select {
+        font-size: 12px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        min-height: 32px;
+    }
+    .vehicle-filter-edit-btn {
+        border-radius: 8px;
+        padding: 0.3rem 0.4rem;
+    }
+    .vehicle-year-display {
+        min-height: 36px;
+        max-height: 72px;
+        font-size: 11px;
+    }
+    .vehicle-table-wrap {
+        -webkit-overflow-scrolling: touch;
+        max-height: 240px;
+    }
+    .vehicle-table-wrap #vehicleTable {
+        table-layout: fixed;
+        width: 100%;
+        font-size: 12px;
+    }
+    .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th,
+    .vehicle-table-wrap #vehicleTable tbody td {
+        padding: 0.4rem 0.45rem;
+        vertical-align: middle;
+    }
+    /* SELECT column chota fix (mutabiq size) */
+    .vehicle-table-wrap #vehicleTable .vehicle-th-select {
+        width: 70px;
+        min-width: 70px;
+        max-width: 80px;
+        text-align: center;
+    }
+    .vehicle-table-wrap #vehicleTable .vehicle-th-select .d-flex {
+        align-items: center;
+    }
+    .vehicle-table-wrap #vehicleTable td:first-child {
+        width: 70px;
+        min-width: 70px;
+        max-width: 80px;
+        text-align: center;
+    }
+    /* Baaki columns balanced width */
+    .vehicle-table-wrap #vehicleTable th:nth-child(2),
+    .vehicle-table-wrap #vehicleTable td:nth-child(2) { width: 17%; }  /* Manufacturer */
+    .vehicle-table-wrap #vehicleTable th:nth-child(3),
+    .vehicle-table-wrap #vehicleTable td:nth-child(3) { width: 17%; }  /* Model */
+    .vehicle-table-wrap #vehicleTable th:nth-child(4),
+    .vehicle-table-wrap #vehicleTable td:nth-child(4) { width: 12%; }  /* Country */
+    .vehicle-table-wrap #vehicleTable th:nth-child(5),
+    .vehicle-table-wrap #vehicleTable td:nth-child(5) { width: 16%; }  /* Year */
+    .vehicle-table-wrap #vehicleTable th:nth-child(6),
+    .vehicle-table-wrap #vehicleTable td:nth-child(6) { width: 12%; }  /* Engine */
+    .vehicle-table-wrap #vehicleTable th:nth-child(7),
+    .vehicle-table-wrap #vehicleTable td:nth-child(7) { width: 10%; }  /* Actions */
+    .vehicle-table-wrap #vehicleTable th:nth-child(8),
+    .vehicle-table-wrap #vehicleTable td:nth-child(8) { width: 10%; }  /* Part */
+    .vehicle-table-wrap #vehicleTable tbody td {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    /* Large screen only: increase vehicle filter column widths */
+    @media (min-width: 769px) {
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable {
+            table-layout: auto;
+            min-width: 900px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-th-select,
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:first-child {
+            min-width: 90px;
+            width: 90px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(2),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(2) {
+            min-width: 160px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(3),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(3) {
+            min-width: 160px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(4),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(4) {
+            min-width: 130px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(5),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(5) {
+            min-width: 150px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(6),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(6) {
+            min-width: 120px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(7),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(7) {
+            min-width: 100px;
+        }
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable thead.vehicle-filter-thead th.vehicle-filter-th:nth-child(8),
+        .vehicle-filter-wrapper .vehicle-table-wrap #vehicleTable tbody td:nth-child(8) {
+            min-width: 100px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vehicle-filter-wrapper { max-width: 100%; }
     }
 </style>
 @endpush
@@ -568,29 +864,37 @@
                                             <label for="category" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">Category:</label>
                                         </div>
                                     </div>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
-                                            name="category_id" id="category">
-                                            <option value="">Select Category</option>
-                                            @foreach ($Categories as $category)
-                                            <option value="{{ $category->id }}" 
-                                                data-type="{{ $category->type ?? '' }}"
-                                                {{ old('category_id')==$category->id ? 'selected' : '' }}>
-                                                {{ $category->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Category"
-                                            data-fetch-route="{{ route('show.category', ':id') }}"
-                                            data-update-route="{{ route('update.category', ':id') }}"
-                                            data-delete-route="{{ route('destory.category', ':id') }}"
-                                            data-target-select=".category-select" data-has-image="1">
-                                            <i data-feather="edit"></i>
-                                        </button>
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="flex-grow-1">
+                                            <div class="input-group inputswidth">
+                                                <select
+                                                    class="form-control category-select searchable-select @error('category_id') is-invalid @enderror"
+                                                    name="category_id" id="category">
+                                                    <option value="">Select Category</option>
+                                                    @foreach ($Categories as $category)
+                                                    <option value="{{ $category->id }}" 
+                                                        data-type="{{ $category->type ?? '' }}"
+                                                        data-image="{{ $category->image ? asset($category->image) : '' }}"
+                                                        {{ old('category_id')==$category->id ? 'selected' : '' }}>
+                                                        {{ $category->name }}
+                                                    </option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="button" class="btn btn-secondary open-universal-modal"
+                                                    data-mode="edit" data-title="Edit Category"
+                                                    data-fetch-route="{{ route('show.category', ':id') }}"
+                                                    data-update-route="{{ route('update.category', ':id') }}"
+                                                    data-delete-route="{{ route('destory.category', ':id') }}"
+                                                    data-target-select=".category-select" data-has-image="1">
+                                                    <i data-feather="edit"></i>
+                                                </button>
+                                            </div>
+                                            @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                        </div>
+                                        <div id="categoryImageDisplay" class="flex-shrink-0" style="display:none;">
+                                            <img id="categoryImageImg" src="" alt="Category" class="rounded border" style="width:60px;height:60px;object-fit:cover;">
+                                        </div>
                                     </div>
-                                    @error('category_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <!-- Business Location -->
                                 <div class="col-md-4 d-none">
@@ -661,12 +965,9 @@
                                     </div>
                                     @error('company_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <!-- Series/Technology -->
-                                <div class="col-md-4 mb-3" style="display: none !important;">
-                                    <label for="technology_select">
-                                        <b x-show="selectedType === 'oil'">Technology:</b>
-                                        <b x-show="selectedType == 'battery'">Series:</b>
-                                    </label>
+                                <!-- Technology - visible for Battery and Oil -->
+                                <div class="col-md-4 mb-3" x-show="selectedType === 'battery' || selectedType === 'oil'">
+                                    <label for="technology_select">Technology:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control technology-select searchable-select @error('technology') is-invalid @enderror"
@@ -682,7 +983,7 @@
                                         </select>
                                         <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-mode="edit"
-                                            x-bind:data-title="selectedType === 'parts' ? 'Edit Technology' : 'Edit Series'"
+                                            data-title="Edit Technology"
                                             data-fetch-route="{{ route('show.technology', ':id') }}"
                                             data-update-route="{{ route('update.technology', ':id') }}"
                                             data-delete-route="{{ route('destory.technology', ':id') }}"
@@ -947,6 +1248,33 @@
                                 </div>
 
                                 <div class="col-md-4 mt-3">
+                                    <label for="pool_direction_select">Pool Thickness:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control pool-direction-select searchable-select @error('pool_direction_id') is-invalid @enderror"
+                                            name="pool_direction_id" id="pool_direction_select">
+                                            <option value="">Select Pool Thickness</option>
+                                            @foreach ($poolDirections as $pd)
+                                            <option value="{{ $pd->id }}" {{ old('pool_direction_id') == $pd->id ? 'selected' : '' }}>
+                                                {{ $pd->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Pool Thickness"
+                                            data-fetch-route="{{ route('show.pooldirection', ':id') }}"
+                                            data-update-route="{{ route('update.pooldirection', ':id') }}"
+                                            data-delete-route="{{ route('destory.pooldirection', ':id') }}"
+                                            data-target-select=".pool-direction-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('pool_direction_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="col-md-4 mt-3">
                                     <label for="Warrenty_select">Warrenty:</label>
                                     <div class="input-group inputswidth">
                                         <select
@@ -974,33 +1302,6 @@
                                     @enderror
                                 </div>
 
-                                <div class="col-md-4 mt-3">
-                                    <label for="made_in_select">Made In:</label>
-                                    <div class="input-group inputswidth">
-                                        <select
-                                            class="form-control made_in-select searchable-select @error('made_in') is-invalid @enderror"
-                                            name="made_in" id="made_in_select">
-                                            <option value="">Select Made In</option>
-                                            @foreach ($made_ins as $made)
-                                            <option value="{{ $made->id }}" {{ old('made_in', $made->name ==='Pakistan'
-                                                ? $made->id : '') == $made->id ? 'selected' : '' }}>
-                                                {{ $made->name }}
-                                            </option>
-                                            @endforeach
-                                        </select>
-                                        <button type="button" class="btn btn-secondary open-universal-modal"
-                                            data-mode="edit" data-title="Edit Made In"
-                                            data-fetch-route="{{ route('show.madeins', ':id') }}"
-                                            data-update-route="{{ route('update.madeins', ':id') }}"
-                                            data-delete-route="{{ route('destory.madeins', ':id') }}"
-                                            data-target-select=".made_in-select">
-                                            <i data-feather="edit"></i>
-                                        </button>
-                                    </div>
-                                    @error('made_in')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
                                 <div class="col-md-4 mt-3 d-none">
                                     <label for="battery_code">Battery Code:</label>
                                     <input type="text" class="form-control @error('battery_code') is-invalid @enderror"
@@ -1108,12 +1409,12 @@
                                     @error('mileage') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
                                 <div class="col-md-4 mt-3 ">
-                                    <label for="Level_select">Level:</label>
+                                    <label for="Level_select">Class:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control level-select searchable-select @error('level') is-invalid @enderror"
                                             name="level" id="Level_select">
-                                            <option value="">Select Level</option>
+                                            <option value="">Select Class</option>
                                             @foreach ($levels as $level)
                                             <option value="{{ $level->id }}" {{ old('level')==$level->id ?
                                                 'selected' : '' }}>
@@ -1131,6 +1432,32 @@
                                         </button>
                                     </div>
                                     @error('level')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-4 mt-3">
+                                    <label for="made_in_select">Made In:</label>
+                                    <div class="input-group inputswidth">
+                                        <select
+                                            class="form-control made_in-select searchable-select @error('made_in') is-invalid @enderror"
+                                            name="made_in" id="made_in_select">
+                                            <option value="">Select Made In</option>
+                                            @foreach ($made_ins as $made)
+                                            <option value="{{ $made->id }}" {{ old('made_in', $made->name === 'Pakistan' ? $made->id : '') == $made->id ? 'selected' : '' }}>
+                                                {{ $made->name }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
+                                            data-mode="edit" data-title="Edit Made In"
+                                            data-fetch-route="{{ route('show.madeins', ':id') }}"
+                                            data-update-route="{{ route('update.madeins', ':id') }}"
+                                            data-delete-route="{{ route('destory.madeins', ':id') }}"
+                                            data-target-select=".made_in-select">
+                                            <i data-feather="edit"></i>
+                                        </button>
+                                    </div>
+                                    @error('made_in')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
@@ -1199,9 +1526,26 @@
                             @enderror
                         </div> --}}
                         <div class="col-md-4">
-                            <label for="battery_size">Battery Size:</label>
-                            <input type="text" class="form-control @error('battery_size') is-invalid @enderror"
-                                name="battery_size" id="battery_size" value="{{ old('battery_size') }}" />
+                            <label for="battery_size_select">Battery Size:</label>
+                            <div class="input-group inputswidth">
+                                <select class="form-control battery-size-select searchable-select @error('battery_size') is-invalid @enderror"
+                                    name="battery_size_id" id="battery_size_select">
+                                    <option value="">Select Battery Size</option>
+                                    @foreach ($batterySizes as $bs)
+                                    <option value="{{ $bs->id }}" {{ old('battery_size_id') == $bs->id ? 'selected' : '' }}>
+                                        {{ $bs->name }}{{ ($bs->length || $bs->height || $bs->width) ? ' (' . implode(' × ', array_filter([$bs->length ?? null, $bs->height ?? null, $bs->width ?? null])) . ')' : '' }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-secondary open-battery-size-modal"
+                                    data-mode="edit" data-title="Edit Battery Size"
+                                    data-fetch-route="{{ route('show.battery.size', ':id') }}"
+                                    data-update-route="{{ route('update.battery.size', ':id') }}"
+                                    data-delete-route="{{ route('destory.battery.size', ':id') }}"
+                                    data-target-select=".battery-size-select">
+                                    <i data-feather="edit"></i>
+                                </button>
+                            </div>
                             @error('battery_size') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -1235,6 +1579,13 @@
                             @error('services')
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
+                            <button type="button" class="btn btn-outline-primary btn-sm mt-2 open-service-details-modal" id="addServiceDetailsBtn" disabled title="Select a service first">
+                                <i data-feather="plus" class="me-1" style="width:14px;height:14px;"></i> Add Detail
+                            </button>
+                            <div class="mt-3" id="serviceDetailsDisplay" style="display:none;">
+                                <label class="form-label small text-muted mb-1">Service details:</label>
+                                <div class="small border rounded p-2 bg-light" id="serviceDetailsDisplayList"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1476,11 +1827,10 @@
                             </select>
                             @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-4 mt-3">
+                        <div class="col-md-4 mt-3 d-none">
                             <label for="vehical_id">Vehicle Type:</label>
                             <div class="input-group inputswidth">
-                                <select class="form-control searchable-select @error('vehical_id') is-invalid @enderror"
-                                    name="vehical_id" id="vehical_id">
+                                <select class="form-control searchable-select" name="vehical_id" id="vehical_id">
                                     <option value="">Select Vehicle Type</option>
                                     @foreach ($Vehicals as $vehicle)
                                     <option value="{{ $vehicle->id }}">
@@ -1491,36 +1841,36 @@
                                     @endforeach
                                 </select>
                             </div>
-                            @error('vehical_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
-
                         </div>
                         {{-- PART NUMBER SELECT --}}
 
-                        {{-- VEHICLE TABLE --}}
-                        <div class="col-md-12" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
-                            <div class="table-responsive mt-4" style="max-height:250px;overflow-x:auto;overflow-y:auto;background-color:#ffffff;">
-                                <table class="table table-bordered" id="vehicleTable" style="background-color:#ffffff;">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th style="width: 50px; text-align: center;">
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Select</div>
-                                                    <div class="text-center">
-                                                        <input type="checkbox" id="selectAllVehicles" style="cursor: pointer;" title="Select All">
+                        {{-- VEHICLE TABLE - Mobile-friendly filter card (hidden on create/new) --}}
+                        @if(!($hideVehicleTable ?? false))
+                        <div class="col-md-12 vehicle-filter-wrapper mt-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            <div class="vehicle-filter-card rounded-3 shadow-sm border overflow-hidden bg-white">
+                                <div class="d-none d-md-block vehicle-filter-card-title px-3 py-2 border-bottom bg-light">
+                                    <span class="text-uppercase fw-bold text-secondary small"><i class="ti ti-car me-1"></i> Select vehicle</span>
+                                </div>
+                                <div class="table-responsive vehicle-table-wrap" style="max-height:280px;overflow-x:auto;overflow-y:auto;">
+                                    <table class="table table-bordered mb-0" id="vehicleTable">
+                                        <thead class="table-dark vehicle-filter-thead">
+                                            <tr class="vehicle-filter-row">
+                                                <th class="vehicle-filter-th vehicle-th-select">
+                                                    <div class="d-flex flex-column align-items-center">
+                                                        <label class="mb-2 fw-bold small text-nowrap">Select</label>
+                                                        <input type="checkbox" id="selectAllVehicles" class="form-check-input" style="cursor: pointer; width: 1.25rem; height: 1.25rem;" title="Select All">
                                                     </div>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Manufacturer</div>
-                                                    <div class="input-group inputswidth">
-                                                        <select id="vehicle_manufacturer_select" class="form-control car-manufacturer-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
-                                                            <option value="">Select</option>
+                                                </th>
+                                                <th class="vehicle-filter-th">
+                                                    <label class="vehicle-filter-label">Manufacturer</label>
+                                                    <div class="input-group inputswidth vehicle-filter-input-group">
+                                                        <select id="vehicle_manufacturer_select" class="form-control form-select car-manufacturer-select searchable-select vehicle-filter-select">
+                                                            <option value="">— Select —</option>
                                                             @foreach ($carManufacturers as $manufacturer)
                                                             <option value="{{ $manufacturer->id }}">{{ $manufacturer->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                        <button type="button" class="btn btn-outline-secondary open-universal-modal vehicle-filter-edit-btn"
                                                             data-mode="edit" data-title="Edit Manufacturer"
                                                             data-fetch-route="{{ route('show.car.manufacturer', ':id') }}"
                                                             data-update-route="{{ route('update.car.manufacturer', ':id') }}"
@@ -1529,19 +1879,17 @@
                                                             <i data-feather="edit" style="width: 14px; height: 14px;"></i>
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Model</div>
-                                                    <div class="input-group inputswidth">
-                                                        <select id="vehicle_model_select" class="form-control car-model-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
-                                                            <option value="">Select</option>
+                                                </th>
+                                                <th class="vehicle-filter-th">
+                                                    <label class="vehicle-filter-label">Model</label>
+                                                    <div class="input-group inputswidth vehicle-filter-input-group">
+                                                        <select id="vehicle_model_select" class="form-control form-select car-model-select searchable-select vehicle-filter-select">
+                                                            <option value="">— Select —</option>
                                                             @foreach ($carModels as $item)
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                        <button type="button" class="btn btn-outline-secondary open-universal-modal vehicle-filter-edit-btn"
                                                             data-mode="edit" data-title="Edit Car Model"
                                                             data-fetch-route="{{ route('show.car.model', ':id') }}"
                                                             data-update-route="{{ route('update.car.model', ':id') }}"
@@ -1550,19 +1898,17 @@
                                                             <i data-feather="edit" style="width: 14px; height: 14px;"></i>
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Country</div>
-                                                    <div class="input-group inputswidth">
-                                                        <select id="vehicle_country_select" class="form-control car-country-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
-                                                            <option value="">Select</option>
+                                                </th>
+                                                <th class="vehicle-filter-th">
+                                                    <label class="vehicle-filter-label">Country</label>
+                                                    <div class="input-group inputswidth vehicle-filter-input-group">
+                                                        <select id="vehicle_country_select" class="form-control form-select car-country-select searchable-select vehicle-filter-select">
+                                                            <option value="">— Select —</option>
                                                             @foreach ($carCountries as $item)
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                        <button type="button" class="btn btn-outline-secondary open-universal-modal vehicle-filter-edit-btn"
                                                             data-mode="edit" data-title="Edit Country"
                                                             data-fetch-route="{{ route('show.car.country', ':id') }}"
                                                             data-update-route="{{ route('update.car.country', ':id') }}"
@@ -1571,30 +1917,27 @@
                                                             <i data-feather="edit" style="width: 14px; height: 14px;"></i>
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <button type="button" class="btn btn-sm btn-primary open-year-range-modal mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
-                                                        <i data-feather="calendar" style="width: 12px; height: 12px;"></i>
-                                                        <span style="margin-left: 4px;">Year Range</span>
+                                                </th>
+                                                <th class="vehicle-filter-th">
+                                                    <label class="vehicle-filter-label d-block mb-2">Year range</label>
+                                                    <button type="button" class="btn btn-primary btn-sm w-100 open-year-range-modal mb-2">
+                                                        <i data-feather="calendar" style="width: 14px; height: 14px;"></i>
+                                                        <span class="ms-1">Year range</span>
                                                     </button>
-                                                    <div id="selectedYearRangesDisplay" class="border rounded p-2" style="min-height: 40px; max-height: 80px; overflow-y: auto; background-color: #f8f9fa; font-size: 10px; cursor: pointer;" data-show-all="false">
-                                                        <div class="text-muted text-center" style="font-size: 10px;">No ranges selected</div>
+                                                    <div id="selectedYearRangesDisplay" class="vehicle-year-display border rounded p-2 min-h-40 overflow-y-auto bg-light cursor-pointer small" data-show-all="false">
+                                                        <span class="text-muted">No ranges selected</span>
                                                     </div>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Engine</div>
-                                                    <div class="input-group inputswidth">
-                                                        <select id="vehicle_engine_select" class="form-control car-engine-select searchable-select" style="font-size: 12px; padding: 4px 8px;">
-                                                            <option value="">Select</option>
+                                                </th>
+                                                <th class="vehicle-filter-th">
+                                                    <label class="vehicle-filter-label">Engine</label>
+                                                    <div class="input-group inputswidth vehicle-filter-input-group">
+                                                        <select id="vehicle_engine_select" class="form-control form-select car-engine-select searchable-select vehicle-filter-select">
+                                                            <option value="">— Select —</option>
                                                             @foreach ($engineccs as $item)
                                                             <option value="{{ $item->id }}">{{ $item->name }}</option>
                                                             @endforeach
                                                         </select>
-                                                        <button type="button" class="btn btn-sm btn-secondary open-universal-modal"
+                                                        <button type="button" class="btn btn-outline-secondary open-universal-modal vehicle-filter-edit-btn"
                                                             data-mode="edit" data-title="Edit Engine CC"
                                                             data-fetch-route="{{ route('show.engine_cc', ':id') }}"
                                                             data-update-route="{{ route('update.engine_cc', ':id') }}"
@@ -1603,33 +1946,30 @@
                                                             <i data-feather="edit" style="width: 14px; height: 14px;"></i>
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </th>
-                                          
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <button type="button" class="btn btn-sm btn-warning clearVehicleFiltersBtn mb-2" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
-                                                        <i data-feather="x-circle" style="width: 12px; height: 12px;"></i>
-                                                        <span style="margin-left: 4px;">Empty</span>
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm btn-primary loadVehicleBtn" style="font-size: 11px; padding: 0.25rem 0.5rem; width: 100%;">
-                                                        <i data-feather="refresh-cw" style="width: 12px; height: 12px;"></i>
-                                                        <span style="margin-left: 4px;">Load</span>
-                                                    </button>
-                                                </div>
-                                            </th>
-                                            <th>
-                                                <div class="d-flex flex-column">
-                                                    <div class="mb-2 fw-bold">Part Number</div>
-                                                </div>
-                                            </th>
-                                        </tr>
-                                    </thead>
+                                                </th>
+                                                <th class="vehicle-filter-th vehicle-th-actions">
+                                                    <label class="vehicle-filter-label d-block mb-2">Actions</label>
+                                                    <div class="d-flex flex-column gap-2">
+                                                        <button type="button" class="btn btn-warning btn-sm clearVehicleFiltersBtn">
+                                                            <i data-feather="x-circle" style="width: 14px; height: 14px;"></i>
+                                                            <span class="ms-1">Clear</span>
+                                                        </button>
+                                                        <button type="button" class="btn btn-primary btn-sm loadVehicleBtn">
+                                                            <i data-feather="refresh-cw" style="width: 14px; height: 14px;"></i>
+                                                            <span class="ms-1">Load</span>
+                                                        </button>
+                                                    </div>
+                                                </th>
+                                                <th class="vehicle-filter-th vehicle-th-part">
+                                                    <label class="vehicle-filter-label">Part number</label>
+                                                </th>
+                                            </tr>
+                                        </thead>
                                     <tbody>
                                         @foreach ($Vehis as $car)
                                         <tr data-part="{{ $car->v_part_number_id??'' }}">
                                             <td style="text-align: center;">
-                                                <input type="checkbox" class="vehicle-checkbox" 
+                                                <input type="checkbox" class="vehicle-checkbox" name="vehical_id[]" value="{{ $car->id ?? '' }}"
                                                     data-vehicle-id="{{ $car->id ?? '' }}"
                                                     data-part="{{ $car->v_part_number_id??'' }}"
                                                     data-manufacturer="{{ $car->car_manufacturer }}"
@@ -1672,8 +2012,29 @@
                                         @endforeach
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         </div>
+                        @endif
+
+                        {{-- ASSOCIATED VEHICLES - Modal flow for create/new page --}}
+                        @if($hideVehicleTable ?? false)
+                        <div class="col-md-12 mt-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'filters' || selectedType === 'breakpad'">
+                            <div class="card border">
+                                <div class="card-header py-2">
+                                    <h6 class="mb-0"><i class="ti ti-car me-1"></i> Associated Vehicles</h6>
+                                    <small class="text-muted">Add vehicles this item fits. Part Number must be selected first.</small>
+                                </div>
+                                <div class="card-body py-3">
+                                    <button type="button" class="btn btn-primary btn-sm" id="openItemVehicleModal" data-bs-toggle="modal" data-bs-target="#itemVehicleAddModal">
+                                        <i class="ti ti-plus me-1"></i> Add Vehicle
+                                    </button>
+                                    <div id="itemVehiclesList" class="mt-3"></div>
+                                    <div id="itemVehiclesHiddenInputs"></div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                         <!-- Checkboxes
                         <div class="col-md-12 mt-4 field-group" :class="{ 'active': selectedType }">
                             <div class="d-flex justify-content-between align-items-center">
@@ -1730,6 +2091,87 @@
         </div>
     </div>
     </form>
+
+    {{-- Add Vehicle Modal for create/new (outside main form to prevent submit) --}}
+    @if($hideVehicleTable ?? false)
+    <div class="modal fade" id="itemVehicleAddModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-car me-2"></i>Add Vehicle</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="itemVehicleAddForm" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <input type="hidden" name="v_part_number_id" id="itemVehiclePartNumber" value="">
+                        <div class="mb-3">
+                            <label class="form-label">Make <span class="text-danger">*</span></label>
+                            <select class="form-select item-vehicle-manufacturer" name="car_manufacturer" required>
+                                <option value="">— Select —</option>
+                                @foreach ($carManufacturers as $m)
+                                <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Model <span class="text-danger">*</span></label>
+                            <select class="form-select item-vehicle-model" name="car_model_name" required>
+                                <option value="">— Select —</option>
+                                @foreach ($carModels as $m)
+                                <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Year From <span class="text-danger">*</span></label>
+                                <select class="form-select item-vehicle-year-from" name="year_from[]" required>
+                                    <option value="">From</option>
+                                    @for($y = 1900; $y <= 2100; $y++)
+                                    <option value="{{ $y }}">{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Year To <span class="text-danger">*</span></label>
+                                <select class="form-select item-vehicle-year-to" name="year_to[]" required>
+                                    <option value="">To</option>
+                                    @for($y = 1900; $y <= 2100; $y++)
+                                    <option value="{{ $y }}">{{ $y }}</option>
+                                    @endfor
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Engine CC</label>
+                            <select class="form-select item-vehicle-engine" name="engine_cc">
+                                <option value="">— Select —</option>
+                                @foreach ($engineccs as $e)
+                                <option value="{{ $e->id }}">{{ $e->name }} CC</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Country</label>
+                            <select class="form-select item-vehicle-country" name="car_manufactured_country">
+                                <option value="">— Select —</option>
+                                @foreach ($carCountries as $c)
+                                <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="itemVehicleAddForm" class="btn btn-primary" id="itemVehicleAddBtn">Add Vehicle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <h4 id="itemsTableTitle">Last 5 Created Items</h4>
     <div class="table-responsive">
         <table id="searchableTable" class="table table-hover table-center">
@@ -1737,11 +2179,9 @@
                 <tr>
                     <th>Product Image</th>
                     <th>Item Details</th>
-                    
-                   
-                    <th>User Name</th>
+                    <th>User & Branch</th>
+                    <th>View</th>
                     <th>Actions</th>
-                  
                 </tr>
             </thead>
             <tbody id="latestItemsTableBody">
@@ -1756,30 +2196,31 @@
                     </td>
                     <td>  
                         <div class="small">
-                            <div> {{ $item->partnumber_item->name ?? '-' }}</div>
+                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                            @if($item->product_item)
+                            <div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>
+                            @endif
                             <div> {{ $item->category->name ?? '-' }}</div>
                             <div> {{ $item->company_item->name ?? '-' }}</div>
                             <div> {{ $item->quality_item->name ?? '-' }}</div>
                         </div>
                     </td>
                    
-                    <td>{{ $item->item_user->name??'-' }}</td>
+                    <td>
+                        <div>{{ $item->item_user->name ?? '-' }}</div>
+                        <div class="small text-muted">{{ $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '-' }}</div>
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary" href="{{ route('item.show',$item->id) }}">
+                            <i data-feather="eye" class="me-1"></i> View
+                        </a>
+                    </td>
                     <td>
                         <div class="dropdown">
                             <button class="btn btn-primary  dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 Actions
                             </button>
-                            <ul class="dropdown-menu">
-                                {{-- <li>
-                                            <a class="dropdown-item" href="">
-                                                <i data-feather="tag" class="me-1"></i> Lable
-                                            </a>
-                                        </li> --}}
-                                <li>
-                                    <a class="dropdown-item" href="{{ route('item.show',$item->id) }}">
-                                        <i data-feather="eye" class="me-1"></i> View
-                                    </a>
-                                </li>
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
                                     <a class="dropdown-item" href="{{ route('item.edit',$item->id) }}">
                                         <i data-feather="edit" class="me-1"></i> Edit
@@ -1787,7 +2228,7 @@
                                 </li>
                                 <li>
                                     <a href="javascript:void(0)" onclick="confirmDelete('delete-form-{{ $item->id }}')"
-                                        class="p-2">
+                                        class="dropdown-item">
                                         <i data-feather="trash-2" class="feather-trash-2"></i> Delete
                                     </a>
                                     <!-- Hidden delete form -->
@@ -1798,25 +2239,6 @@
                                         @method('DELETE')
                                     </form>
                                 </li>
-                                <hr>
-                                {{-- <li>
-                                            <a class="dropdown-item" href="#">
-                                                <i data-feather="package" class="me-1"></i> Add or Edit Open Stock
-                                            </a>
-                                        </li> --}}
-
-                                {{-- <li>
-                                            <a class="dropdown-item" href="#">
-                                                <i data-feather="clock" class="me-1"></i> Product Stock History
-                                            </a>
-                                        </li> --}}
-
-                                <li>
-                                    <a class="dropdown-item text-primary"
-                                        href="{{ route('item.duplicate', $item->id) }}">
-                                        <i data-feather="copy" class="me-1"></i> Duplicate
-                                    </a>
-                                </li>
 
                             </ul>
                         </div>
@@ -1824,7 +2246,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="4" class="text-center">No items found.</td>
+                    <td colspan="5" class="text-center">No items found.</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -2212,6 +2634,80 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="applyYearRangeFilter">Apply Filter</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Battery Size Modal (Add/Edit with Name, Length, Height, Width) -->
+<div class="modal fade" id="batterySizeModal" tabindex="-1" aria-labelledby="batterySizeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="batterySizeModalLabel">Add Battery Size</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="battery_size_modal_id" value="">
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="battery_size_name" placeholder="Battery size name" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Height</label>
+                    <input type="text" class="form-control" id="battery_size_height" placeholder="e.g. 190">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Width</label>
+                    <input type="text" class="form-control" id="battery_size_width" placeholder="e.g. 175">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Length</label>
+                    <input type="text" class="form-control" id="battery_size_length" placeholder="e.g. 300">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger d-none" id="batterySizeModalDelete">Delete</button>
+                <button type="button" class="btn btn-primary" id="batterySizeModalSave">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Service Details Modal - Add kia kia kaam shamil hai -->
+<div class="modal fade" id="serviceDetailsModal" tabindex="-1" aria-labelledby="serviceDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="serviceDetailsModalLabel">Service Details - <span id="serviceDetailsServiceName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="service_details_modal_id" value="">
+                <p class="text-muted small mb-3">Is service mein kia kia kaam shamil hai - Add/Edit details below</p>
+                <div class="mb-3">
+                    <label class="form-label">Add new detail</label>
+                    <div class="row g-2 align-items-end">
+                        <div class="col">
+                            <input type="text" class="form-control" id="service_detail_new_input" placeholder="e.g. Oil Change, Filter Replacement">
+                        </div>
+                        <div class="col-auto" style="min-width: 120px;">
+                            <label class="form-label small mb-0">Price</label>
+                            <input type="number" class="form-control" id="service_detail_new_price" placeholder="0" min="0" step="0.01">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-primary" id="serviceDetailAddBtn">Add</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label">Details list</label>
+                    <ul class="list-group" id="serviceDetailsList"></ul>
+                    <p class="text-muted small mt-2 mb-0" id="serviceDetailsEmpty" style="display:none;">No details added yet. Add above.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="serviceDetailsModalSave">Save</button>
             </div>
         </div>
     </div>
@@ -3865,7 +4361,7 @@
                             $("#vehicleTable tbody").append(`
                                 <tr data-part="${group.v_part_number_id}">
                                     <td style="text-align: center;">
-                                        <input type="checkbox" class="vehicle-checkbox" 
+                                        <input type="checkbox" class="vehicle-checkbox" name="vehical_id[]" value="${group.id || ''}"
                                             data-vehicle-id="${group.id || ''}"
                                             data-part="${group.v_part_number_id}"
                                             data-manufacturer="${group.car_manufacturer}"
@@ -4442,7 +4938,7 @@
                                 let newRow = `
                                     <tr data-part="${group.v_part_number_id}">
                                         <td style="text-align: center;">
-                                            <input type="checkbox" class="vehicle-checkbox" 
+                                            <input type="checkbox" class="vehicle-checkbox" name="vehical_id[]" value="${group.id || ''}"
                                                 data-vehicle-id="${group.id || ''}"
                                                 data-part="${group.v_part_number_id}"
                                                 data-manufacturer="${group.car_manufacturer}"
@@ -5280,7 +5776,7 @@
         if (items.length === 0) {
             tbody.append(`
                 <tr>
-                    <td colspan="4" class="text-center">No items found for this type.</td>
+                    <td colspan="5" class="text-center">No items found for this type.</td>
                 </tr>
             `);
             return;
@@ -5293,13 +5789,16 @@
 
             const csrfToken = $('input[name="_token"]').val();
             
-            // Build item details HTML
+            // Build item details HTML - Product Name first, then Part Number
+            const productName = item.product_name && item.product_name !== '-' ? item.product_name : (item.part_number || '-');
+            const partNumberLine = (item.product_name && item.product_name !== '-') ? `<div class="text-muted">${item.part_number || '-'}</div>` : '';
             const itemDetails = `
                 <div class="small">
-                    <div> ${item.part_number || '-'}</div>
-                    <div> ${item.category_name || '-'}</div>
-                    <div> ${item.company_name || '-'}</div>
-                    <div> ${item.quality_name || '-'}</div>
+                    <div class="fw-semibold">${productName}</div>
+                    ${partNumberLine}
+                    <div>${item.category_name || '-'}</div>
+                    <div>${item.company_name || '-'}</div>
+                    <div>${item.quality_name || '-'}</div>
                 </div>
             `;
 
@@ -5315,18 +5814,21 @@
                         ${itemDetails}
                     </td>
                    
-                    <td>${item.user_name}</td>
-                     <td>
+                    <td>
+                        <div>${item.user_name}</div>
+                        <div class="small text-muted">${item.branch_name || '-'}</div>
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary" href="${item.show_url}">
+                            <i data-feather="eye" class="me-1"></i> View
+                        </a>
+                    </td>
+                    <td>
                         <div class="dropdown">
                             <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 Actions
                             </button>
-                            <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item" href="${item.show_url}">
-                                        <i data-feather="eye" class="me-1"></i> View
-                                    </a>
-                                </li>
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
                                     <a class="dropdown-item" href="${item.edit_url}">
                                         <i data-feather="edit" class="me-1"></i> Edit
@@ -5334,7 +5836,7 @@
                                 </li>
                                 <li>
                                     <a href="javascript:void(0)" onclick="confirmDelete('delete-form-${item.id}')"
-                                        class="p-2">
+                                        class="dropdown-item">
                                         <i data-feather="trash-2" class="feather-trash-2"></i> Delete
                                     </a>
                                     <form id="delete-form-${item.id}"
@@ -5343,12 +5845,6 @@
                                         <input type="hidden" name="_token" value="${csrfToken}">
                                         <input type="hidden" name="_method" value="DELETE">
                                     </form>
-                                </li>
-                                <hr>
-                                <li>
-                                    <a class="dropdown-item text-primary" href="${item.duplicate_url}">
-                                        <i data-feather="copy" class="me-1"></i> Duplicate
-                                    </a>
                                 </li>
                             </ul>
                         </div>
@@ -5838,7 +6334,7 @@
         }
         
         // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit dropdowns
-        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts', function(e) {
+        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #pool_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts, #battery_size_select', function(e) {
             const selectId = $(this).attr('id');
             // Focus search input as soon as dropdown starts opening
             requestAnimationFrame(function() {
@@ -5860,7 +6356,7 @@
             if (!selectId) return;
             
             // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit
-            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts') {
+            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'pool_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts' || selectId === 'battery_size_select') {
                 function focusSearchInput() {
                     const $container = $select.next('.select2-container');
                     if ($container.length) {
@@ -5997,6 +6493,11 @@
                         route: '{{ route("post.minuspool") }}',
                         targetSelect: '.minus-pole-direction-select'
                     },
+                    'pool_direction_select': {
+                        title: 'Add Pool Thickness',
+                        route: '{{ route("post.pooldirection") }}',
+                        targetSelect: '.pool-direction-select'
+                    },
                     'Warrenty_select': {
                         title: 'Add Warrenty',
                         route: '{{ route("post.warrenty") }}',
@@ -6011,6 +6512,11 @@
                         title: 'Add Services',
                         route: '{{ route("post.services") }}',
                         targetSelect: '.Services-select'
+                    },
+                    'battery_size_select': {
+                        title: 'Add Battery Size',
+                        route: '{{ route("post.battery.size") }}',
+                        targetSelect: '.battery-size-select'
                     },
                     'unit_parts': {
                         title: 'Add Unit',
@@ -6307,9 +6813,34 @@
         // OPEN ADD / EDIT MODAL
         // Universal support for both .open-universal-modal and .add-btn
         // =========================
-        $(document).on('click', '.open-universal-modal, .add-btn', function(e) {
+        $(document).on('click', '.open-universal-modal, .add-btn, .open-battery-size-modal', function(e) {
             const $button = $(this);
             const selectId = $button.data('select-id');
+            
+            // Special handling for Battery Size Edit - open Battery Size modal (with Height & Width)
+            if ($button.hasClass('open-battery-size-modal')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $select = $button.closest('.input-group').find('select.battery-size-select').first();
+                const selectedId = $select.length ? $select.val() : '';
+                if (!selectedId) {
+                    alert('Please select a Battery Size to edit');
+                    return false;
+                }
+                const fetchRoute = $button.data('fetch-route').replace(':id', selectedId);
+                $.get(fetchRoute, function(res) {
+                    $('#battery_size_modal_id').val(res.id);
+                    $('#battery_size_name').val(res.name || '');
+                    $('#battery_size_height').val(res.height || '');
+                    $('#battery_size_width').val(res.width || '');
+                    $('#battery_size_length').val(res.length || '');
+                    $('#batterySizeModalLabel').text('Edit Battery Size');
+                    $('#batterySizeModalDelete').removeClass('d-none');
+                    $('#batterySizeModal').modal('show');
+                    setTimeout(function() { $('#battery_size_name').focus(); }, 300);
+                });
+                return false;
+            }
             
             // Special handling for unit_parts - open Unit modal instead of universal modal
             if (selectId === 'unit_parts' && $button.hasClass('add-new-dropdown-btn')) {
@@ -6335,6 +6866,25 @@
                     }, 300);
                 }
                 
+                return false;
+            }
+
+            // Special handling for battery_size_select - open Battery Size modal (with Height & Width) instead of universal modal
+            if (selectId === 'battery_size_select' && $button.hasClass('add-new-dropdown-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $searchTermSpan = $button.find('.dropdown-search-term');
+                const searchText = $searchTermSpan.length ? $searchTermSpan.text().trim() : '';
+                $('#battery_size_select').select2('close');
+                $('#battery_size_modal_id').val('');
+                $('#battery_size_name').val(searchText || '');
+                $('#battery_size_height').val('');
+                $('#battery_size_width').val('');
+                $('#battery_size_length').val('');
+                $('#batterySizeModalLabel').text('Add Battery Size');
+                $('#batterySizeModalDelete').addClass('d-none');
+                $('#batterySizeModal').modal('show');
+                setTimeout(function() { $('#battery_size_name').focus(); }, 300);
                 return false;
             }
             
@@ -6639,15 +7189,19 @@
             // EDIT MODE
             // =========================
             if (mode === 'edit') {
-                const $select = $(currentTargetSelect);
-                const selectedId = $select.val();
+                // Use select in same input-group as button (fixes multiple .quality-select etc.)
+                let $select = $button.closest('.input-group').find('select').first();
+                if (!$select.length && currentTargetSelect) {
+                    $select = $(currentTargetSelect).first();
+                }
+                const selectedId = $select.length ? $select.val() : '';
                 if (!selectedId) {
                     alert('Please select an item to edit');
                     return;
                 }
-                const fetchRoute = $(this).data('fetch-route').replace(':id', selectedId);
-                const updateRoute = $(this).data('update-route').replace(':id', selectedId);
-                deleteRoute = $(this).data('delete-route').replace(':id', selectedId);
+                const fetchRoute = $button.data('fetch-route').replace(':id', selectedId);
+                const updateRoute = $button.data('update-route').replace(':id', selectedId);
+                deleteRoute = $button.data('delete-route').replace(':id', selectedId);
                 currentEditId = selectedId;
                 $('#universal-form')
                     .attr('action', updateRoute)
@@ -6916,6 +7470,242 @@
                 }
             });
         });
+
+        // =========================
+        // BATTERY SIZE MODAL - Save (Add/Update) and Delete
+        // Sirf Battery Size model main: Name, Height, Width
+        // =========================
+        $('#batterySizeModalSave').on('click', function() {
+            const id = $('#battery_size_modal_id').val();
+            const name = $('#battery_size_name').val().trim();
+            const height = $('#battery_size_height').val().trim();
+            const width = $('#battery_size_width').val().trim();
+            const length = $('#battery_size_length').val().trim();
+            if (!name) {
+                toastr.warning('Please enter Battery Size name');
+                $('#battery_size_name').focus();
+                return;
+            }
+            const isEdit = id && id !== '';
+            const url = isEdit ? '{{ url("update/battery-size") }}/' + id : '{{ route("post.battery.size") }}';
+            const formData = new FormData();
+            formData.append('_token', $('input[name="_token"]').val());
+            formData.append('name', name);
+            if (height) formData.append('height', height);
+            if (width) formData.append('width', width);
+            if (length) formData.append('length', length);
+            if (isEdit) formData.append('_method', 'PUT');
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    if (!res || !res.id) {
+                        toastr.error(res && res.message ? res.message : 'Invalid response');
+                        return;
+                    }
+                    const sizeArr = [res.length, res.height, res.width].filter(Boolean);
+                    const sizeStr = sizeArr.length ? sizeArr.join(' × ') : '';
+                    const displayText = res.name + (sizeStr ? ' (' + sizeStr + ')' : '');
+                    const option = new Option(displayText, res.id, true, true);
+                    const $select = $('.battery-size-select');
+                    $select.find('option[value="' + res.id + '"]').remove();
+                    $select.append(option).val(res.id).trigger('change');
+                    $('#batterySizeModal').modal('hide');
+                    $('#battery_size_modal_id').val('');
+                    $('#battery_size_name').val('');
+                    $('#battery_size_height').val('');
+                    $('#battery_size_width').val('');
+                    $('#battery_size_length').val('');
+                    if (typeof playSaveSound === 'function') playSaveSound();
+                    toastr.success(isEdit ? (res.message || 'Updated successfully') : 'Battery Size added successfully');
+                },
+                error: function(xhr) {
+                    const res = xhr.responseJSON;
+                    toastr.error(res && res.message ? res.message : (res && res.errors ? Object.values(res.errors).flat().join(' ') : 'Failed to save'));
+                }
+            });
+        });
+        $('#batterySizeModalDelete').on('click', function() {
+            if (!confirm('Are you sure you want to delete this Battery Size?')) return;
+            const id = $('#battery_size_modal_id').val();
+            if (!id) return;
+            $.ajax({
+                url: '{{ url("destory/battery-size") }}/' + id,
+                method: 'POST',
+                data: { _token: $('input[name="_token"]').val(), _method: 'DELETE' },
+                success: function() {
+                    $('.battery-size-select').find('option[value="' + id + '"]').remove();
+                    $('#batterySizeModal').modal('hide');
+                    $('#battery_size_modal_id').val('');
+                    $('#battery_size_name').val('');
+                    $('#battery_size_height').val('');
+                    $('#battery_size_width').val('');
+                    $('#battery_size_length').val('');
+                    if (typeof playSaveSound === 'function') playSaveSound();
+                    toastr.success('Battery Size deleted');
+                },
+                error: function(xhr) {
+                    const res = xhr.responseJSON;
+                    toastr.error(res && res.message ? res.message : 'Failed to delete');
+                }
+            });
+        });
+
+        // =========================
+        // SERVICE DETAILS MODAL - Add kia kia kaam shamil hai
+        // =========================
+        function updateServiceDetailsBtnState() {
+            const val = $('#Services_scrap').val();
+            const $btn = $('#addServiceDetailsBtn');
+            if (val) {
+                $btn.prop('disabled', false).attr('title', 'Add details for selected service');
+                loadServiceDetailsDisplay(val);
+            } else {
+                $btn.prop('disabled', true).attr('title', 'Select a service first');
+                $('#serviceDetailsDisplay').hide();
+            }
+        }
+        function loadServiceDetailsDisplay(serviceId) {
+            if (!serviceId) return;
+            $.get('{{ url("show/service") }}/' + serviceId, function(res) {
+                const raw = Array.isArray(res.details) ? res.details : [];
+                const $box = $('#serviceDetailsDisplay');
+                const $list = $('#serviceDetailsDisplayList');
+                if (raw.length === 0) {
+                    $list.html('<span class="text-muted">No details added yet. Click Add Detail to add.</span>');
+                } else {
+                    const html = raw.map(function(d, i) {
+                        const t = (d.text || d.label || d || '');
+                        const p = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
+                        const item = p ? t + ' <span class="badge bg-success ms-1">' + p + '</span>' : t;
+                        return '<div class="py-1">' + (i + 1) + '. ' + item + '</div>';
+                    }).join('');
+                    $list.html(html);
+                }
+                $box.show();
+            }).fail(function() {
+                $('#serviceDetailsDisplay').hide();
+            });
+        }
+        updateServiceDetailsBtnState();
+        $(document).on('change select2:select', '#Services_scrap', updateServiceDetailsBtnState);
+
+        let serviceDetailsTemp = []; // Temp array while modal open
+        $(document).on('click', '.open-service-details-modal', function() {
+            const id = $('#Services_scrap').val();
+            const name = $('#Services_scrap option:selected').text();
+            if (!id || !name) {
+                toastr.warning('Please select a service first');
+                return;
+            }
+            $('#service_details_modal_id').val(id);
+            $('#serviceDetailsServiceName').text(name);
+            $('#service_detail_new_input').val('');
+            $('#service_detail_new_price').val('');
+            $.get('{{ url("show/service") }}/' + id, function(res) {
+                const raw = Array.isArray(res.details) ? res.details : [];
+                serviceDetailsTemp = raw.map(function(d) {
+                    return typeof d === 'object' && d !== null ? { text: (d.text || d.label || ''), price: (d.price ?? '') } : { text: String(d), price: '' };
+                });
+                renderServiceDetailsList();
+                $('#serviceDetailsModal').modal('show');
+                setTimeout(function() { $('#service_detail_new_input').focus(); }, 300);
+            });
+        });
+        function renderServiceDetailsList() {
+            const $list = $('#serviceDetailsList');
+            const $empty = $('#serviceDetailsEmpty');
+            $list.empty();
+            if (serviceDetailsTemp.length === 0) {
+                $empty.show();
+            } else {
+                $empty.hide();
+                serviceDetailsTemp.forEach(function(d, i) {
+                    const text = (d.text || d.label || d || '');
+                    const priceVal = (d.price !== undefined && d.price !== null && String(d.price).trim() !== '') ? String(d.price).trim() : '';
+                    const priceHtml = priceVal ? ' <span class="badge bg-success ms-2">' + priceVal + '</span>' : '';
+                    $list.append('<li class="list-group-item d-flex justify-content-between align-items-center">' +
+                        '<span>' + text + priceHtml + '</span>' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger remove-service-detail" data-idx="' + i + '"><i data-feather="trash-2" style="width:14px;height:14px;"></i></button></li>');
+                });
+                if (typeof feather !== 'undefined') feather.replace();
+            }
+        }
+        $(document).on('click', '#serviceDetailAddBtn', function() {
+            const v = $('#service_detail_new_input').val().trim();
+            if (!v) return;
+            const priceVal = $('#service_detail_new_price').val().trim();
+            serviceDetailsTemp.push({ text: v, price: priceVal ? priceVal : '' });
+            $('#service_detail_new_input').val('');
+            $('#service_detail_new_price').val('');
+            $('#service_detail_new_input').focus();
+            renderServiceDetailsList();
+        });
+        $(document).on('keypress', '#service_detail_new_input', function(e) {
+            if (e.which === 13) { e.preventDefault(); $('#serviceDetailAddBtn').click(); }
+        });
+        $(document).on('click', '.remove-service-detail', function() {
+            const i = parseInt($(this).data('idx'), 10);
+            serviceDetailsTemp.splice(i, 1);
+            renderServiceDetailsList();
+        });
+        $('#serviceDetailsModalSave').on('click', function() {
+            const id = $('#service_details_modal_id').val();
+            if (!id) return;
+            $.ajax({
+                url: '{{ url("update/service") }}/' + id,
+                method: 'POST',
+                data: {
+                    _token: $('input[name="_token"]').val(),
+                    _method: 'PUT',
+                    name: $('#Services_scrap option:selected').text(),
+                    details: serviceDetailsTemp
+                },
+                success: function(res) {
+                    $('#serviceDetailsModal').modal('hide');
+                    loadServiceDetailsDisplay(id);
+                    if (typeof playSaveSound === 'function') playSaveSound();
+                    toastr.success('Service details saved successfully');
+                },
+                error: function(xhr) {
+                    const res = xhr.responseJSON;
+                    toastr.error(res && res.message ? res.message : 'Failed to save');
+                }
+            });
+        });
+
+        // Category image display
+        function updateCategoryImageDisplay() {
+            const catId = $('#category').val();
+            const $opt = $('#category option:selected');
+            const imgSrc = $opt.length ? ($opt.data('image') || $opt.attr('data-image') || '') : '';
+            const $box = $('#categoryImageDisplay');
+            const $img = $('#categoryImageImg');
+            if (imgSrc) {
+                $img.attr('src', imgSrc).attr('alt', $opt.text());
+                $box.show();
+            } else if (catId) {
+                $.get('{{ url("show/category") }}/' + catId, function(res) {
+                    const raw = res.image ? String(res.image) : '';
+                    const src = raw ? (raw.startsWith('http') ? raw : '{{ url("/") }}/' + raw.replace(/^\/+/, '')) : '';
+                    if (src) {
+                        $opt.attr('data-image', src);
+                        $img.attr('src', src).attr('alt', res.name);
+                        $box.show();
+                    } else {
+                        $box.hide();
+                    }
+                }).fail(function() { $box.hide(); });
+            } else {
+                $box.hide();
+            }
+        }
+        $(document).on('change', '#category', updateCategoryImageDisplay);
+        updateCategoryImageDisplay();
+
         // Dynamic Subcategory Load
         $(document).on('change', 'select.category-select', function() {
             const subSelect = $('#subcategory');
@@ -7347,6 +8137,151 @@
                 }, 500);
             });
         }
+    });
+
+    // Item Vehicle Modal (create/new page only) - Same flow as edit: AJAX save, NO redirect, NO page refresh
+    $(document).ready(function() {
+        if ($('#openItemVehicleModal').length === 0 || $('#itemVehicleAddModal').length === 0) return;
+        
+        let itemVehicleIds = [];
+        let itemVehicleDetails = {};
+        
+        // Prevent Add Vehicle modal from opening without part number (same as edit)
+        $(document).on('click', '[data-bs-target="#itemVehicleAddModal"]', function(e) {
+            const partNumberId = $('#part_number_id').val();
+            if (!partNumberId || partNumberId === '' || partNumberId === null) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof toastr !== 'undefined') toastr.warning('Please select Part Number first.');
+                else alert('Please select Part Number first.');
+                $('#part_number_id').addClass('is-invalid').focus();
+                return false;
+            }
+        });
+        
+        $('#itemVehicleAddModal').on('show.bs.modal', function(e) {
+            const outsidePart = $('#part_number_id').val();
+            if (!outsidePart || outsidePart === '') {
+                e.preventDefault();
+                if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
+                $('#part_number_id').addClass('is-invalid').focus();
+                return;
+            }
+            document.getElementById('itemVehicleAddForm')?.reset();
+            $('#itemVehiclePartNumber').val(outsidePart);
+        });
+
+        // Form submit - same as edit: FormData, AJAX, no redirect/refresh
+        $('#itemVehicleAddForm').off('submit').on('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (!$('#itemVehicleAddModal').hasClass('show')) return false;
+            
+            let outsidePart = $('#part_number_id').val();
+            if (!outsidePart || outsidePart === '') {
+                if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
+                $('#part_number_id').addClass('is-invalid').focus();
+                return false;
+            }
+            $('#itemVehiclePartNumber').val(outsidePart);
+            $('#part_number_id').removeClass('is-invalid');
+            
+            const form = this;
+            const $btn = $('#itemVehicleAddBtn');
+            $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Adding...');
+            
+            const formData = new FormData(form);
+            formData.set('v_part_number_id', outsidePart);
+
+            $.ajax({
+                url: '{{ route("post.product_vehical") }}',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function(res) {
+                    if (!res) {
+                        if (typeof toastr !== 'undefined') toastr.error('No response from server');
+                        return;
+                    }
+                    if (res.errors && res.errors.length > 0) {
+                        res.errors.forEach(function(err) {
+                            if (typeof toastr !== 'undefined') toastr.error(err);
+                            else alert(err);
+                        });
+                        return;
+                    }
+                    if (res.duplicate_years && res.duplicate_years.length > 0) {
+                        if (typeof toastr !== 'undefined') toastr.warning('Already exists for year(s): ' + res.duplicate_years.join(', '));
+                        return;
+                    }
+                    if (res.success && res.vehicles && res.vehicles.length > 0) {
+                        res.vehicles.forEach(function(v) {
+                            if (itemVehicleIds.indexOf(v.id) === -1) {
+                                itemVehicleIds.push(v.id);
+                                const make = v.manutacturer_vehical?.name || '-';
+                                const model = v.model_vehical?.name || '-';
+                                const yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
+                                itemVehicleDetails[v.id] = make + ' / ' + model + ' / ' + yr;
+                            }
+                        });
+                        updateItemVehiclesDisplay();
+                        bootstrap.Modal.getInstance(document.getElementById('itemVehicleAddModal'))?.hide();
+                        if (typeof toastr !== 'undefined') toastr.success(res.message || 'Vehicle saved successfully!');
+                        if (typeof playSaveSound === 'function') playSaveSound();
+                    } else if (res.message && $('#itemVehicleAddModal').hasClass('show')) {
+                        if (typeof toastr !== 'undefined') toastr.info(res.message);
+                    }
+                },
+                error: function(xhr) {
+                    const msg = xhr.responseJSON?.message || 'Failed to add vehicle.';
+                    const errors = xhr.responseJSON?.errors;
+                    if (errors && Array.isArray(errors) && errors.length) {
+                        errors.forEach(function(err) {
+                            if (typeof toastr !== 'undefined') toastr.error(err);
+                            else alert(err);
+                        });
+                    } else {
+                        if (typeof toastr !== 'undefined') toastr.error(msg);
+                        else alert(msg);
+                    }
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).html('Add Vehicle');
+                }
+            });
+            return false;
+        });
+
+        function updateItemVehiclesDisplay() {
+            const $list = $('#itemVehiclesList');
+            const $hidden = $('#itemVehiclesHiddenInputs');
+            $hidden.empty();
+            if (itemVehicleIds.length === 0) {
+                $list.html('<p class="text-muted small mb-0">No vehicles added yet.</p>');
+                return;
+            }
+            let html = '<div class="list-group list-group-flush">';
+            itemVehicleIds.forEach(function(id, idx) {
+                $hidden.append(`<input type="hidden" name="vehical_id[]" value="${id}">`);
+                const label = itemVehicleDetails[id] || 'Vehicle #' + (idx + 1);
+                html += `<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="${id}">
+                    <span class="small">${label}</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle" data-id="${id}"><i class="ti ti-trash"></i></button>
+                </div>`;
+            });
+            html += '</div>';
+            $list.html(html);
+            $('.remove-item-vehicle').off('click').on('click', function() {
+                const id = parseInt($(this).data('id'));
+                itemVehicleIds = itemVehicleIds.filter(x => x !== id);
+                delete itemVehicleDetails[id];
+                updateItemVehiclesDisplay();
+            });
+        }
+        updateItemVehiclesDisplay();
     });
 </script>
 <style>

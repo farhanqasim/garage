@@ -12,11 +12,11 @@ class Item extends Model
        use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id' ,'vehical_id', 'total_price',  'price_per_unit', 'sale_price', 'on_hand',  'is_active', 'auto_deactive', 'is_dead','barcode_image',
+        'user_id' ,'vehical_id', 'vehical_ids', 'total_price',  'price_per_unit', 'sale_price', 'on_hand',  'is_active', 'auto_deactive', 'is_dead','barcode_image',
         'bar_code', 'p_id', 'mileage', 'type', 'plat_id', 'amphors',
         'lineitems', 'company_id', 'category_id', 'subcategory_id',
          'p_brochure', 'image', 'images',
-        'car_company', 'volt', 'cca', 'minus_pool_direction',
+        'car_company', 'volt', 'cca', 'minus_pool_direction', 'pole_thickness_id', 'pool_direction_id',
         'technology', 'grade', 'farmula', 'serial_number', 'battery_size',
         'bussiness_location', 'quality_id', 'part_number_id', 'l_stock',
         'm_stock', 'unit', 'packing', 'scale', 'filling',
@@ -35,6 +35,7 @@ class Item extends Model
         'car_manufacture_year'  => 'date',
         'update_date'           => 'date',
         'last_updated_at'       => 'datetime',
+        'vehical_ids'          => 'array',
         'filling'               => 'decimal:2',
         'weight_for_delivery'   => 'decimal:2',
         'packing_purchase_rate' => 'decimal:2',
@@ -119,6 +120,20 @@ class Item extends Model
         public function vehical_item()
         {
             return $this->belongsTo(VehicalType::class,'vehical_id');
+        }
+
+        /**
+         * Get vehicle models from vehical_ids array (with relationships for display)
+         */
+        public function vehical_items()
+        {
+            $ids = $this->vehical_ids ?? [];
+            if (empty($ids)) {
+                return collect([]);
+            }
+            return VehicalType::with(['manutacturer_vehical', 'model_vehical'])
+                ->whereIn('id', $ids)
+                ->get();
         }
 
         public function subcategory()

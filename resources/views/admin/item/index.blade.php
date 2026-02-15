@@ -37,7 +37,7 @@
         </ul>
         <div class="page-btn">
             @canany(['add_items', 'add_parts', 'add_filters', 'add_break_pad', 'add_oil', 'add_battery', 'add_scrap', 'add_services'])
-            <a href="{{ route('all.items.create') }}" class="btn btn-primary me-2">
+            <a href="{{ route('all.items.create.new') }}" class="btn btn-primary me-2">
                 <i class="ti ti-circle-plus me-1"></i>Add Items
             </a>
             @endcanany
@@ -82,6 +82,7 @@
                                     @endcanany
                                 </th>
                                 <th>Product Image</th>
+                                <th>View</th>
                                 <th>Actions</th>
                                 <th>Serial Number</th>
                                 <th>Update History</th>
@@ -121,19 +122,19 @@
                                         data-bs-target="#imageModal"
                                         data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
                                 </td>
+                                <td>
+                                    @can($viewPerm)
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ route('item.show',$item->id) }}">
+                                        <i data-feather="eye" class="me-1"></i> View
+                                    </a>
+                                    @endcan
+                                </td>
                                 <td class="no-highlight">
                                     <div class="dropdown">
                                         <button class="btn btn-primary  dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                             Actions
                                         </button>
                                         <ul class="dropdown-menu">
-                                            @can($viewPerm)
-                                            <li>
-                                                <a class="dropdown-item mt-3" href="{{ route('item.show',$item->id) }}">
-                                                    <i data-feather="eye" class="me-1"></i> View
-                                                </a>
-                                            </li>
-                                            @endcan
                                             @can($updatePerm)
                                             <li>
                                                 <a class="dropdown-item mt-2" href="{{ route('item.edit',$item->id) }}">
@@ -212,7 +213,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="12" class="text-center">No items found.</td>
+                                <td colspan="13" class="text-center">No items found.</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -382,7 +383,7 @@
             const deleteFormsContainer = document.getElementById('deleteFormsContainer');
             
             // Show loading
-            tbody.innerHTML = '<tr><td colspan="11" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
             
             // Build URL
             let url = type === 'all' 
@@ -428,12 +429,12 @@
                     if (data.success && data.items) {
                         renderItems(data.items);
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="11" class="text-center">No items found for this type.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="13" class="text-center">No items found for this type.</td></tr>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading items:', error);
-                    tbody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading items. Please try again.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger">Error loading items. Please try again.</td></tr>';
                 });
             }
         }
@@ -444,7 +445,7 @@
             const deleteFormsContainer = document.getElementById('deleteFormsContainer');
             
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" class="text-center">No items found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="text-center">No items found.</td></tr>';
                 deleteFormsContainer.innerHTML = '';
                 updateCheckboxes();
                 return;
@@ -474,17 +475,17 @@
                                 data-src="${imgSrc}"
                                 onerror="this.onerror=null; this.src='/assets/img/media/default.png';">
                         </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" href="${item.show_url || '#'}">
+                                <i data-feather="eye" class="me-1"></i> View
+                            </a>
+                        </td>
                         <td class="no-highlight">
                             <div class="dropdown">
                                 <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                     Actions
                                 </button>
                                 <ul class="dropdown-menu">
-                                    <li>
-                                        <a class="dropdown-item mt-3" href="${item.show_url || '#'}">
-                                            <i data-feather="eye" class="me-1"></i> View
-                                        </a>
-                                    </li>
                                     <li>
                                         <a class="dropdown-item mt-2" href="${item.edit_url || '#'}">
                                             <i data-feather="edit" class="me-1"></i> Edit

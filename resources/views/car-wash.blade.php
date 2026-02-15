@@ -1368,6 +1368,7 @@
             bankAccounts: {
                 index: '{{ route("car-wash.bank-accounts.index") }}',
                 forTransfer: '{{ route("car-wash.bank-accounts.for-transfer") }}',
+                branchBalanceHistory: '{{ route("car-wash.bank-accounts.branch-balance-history") }}',
                 ledger: (id) => `{{ url('/car-wash/bank-accounts') }}/${id}/ledger`,
                 create: '{{ route("admin.bank-accounts.create") }}',
             },
@@ -1949,11 +1950,11 @@
             }, []);
             useEffect(() => { fetchBankAccounts(); }, [fetchBankAccounts]);
 
-            // Balance History modal: load usi branch ke saare users ke bank accounts (total + har account balance)
+            // Balance History modal: total = login + branch doosre users; list = usi branch ke saare accounts
             useEffect(() => {
-                if (!showBankBalanceHistoryModal || !API_ROUTES.bankAccounts?.forTransfer) return;
+                if (!showBankBalanceHistoryModal || !API_ROUTES.bankAccounts?.branchBalanceHistory) return;
                 setBranchBalanceHistoryLoading(true);
-                fetch(API_ROUTES.bankAccounts.forTransfer, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                fetch(API_ROUTES.bankAccounts.branchBalanceHistory, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(r => r.json())
                     .then(data => {
                         if (data.success && Array.isArray(data.bankAccounts)) {
