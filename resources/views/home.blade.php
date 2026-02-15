@@ -51,7 +51,7 @@
           @endcanany
           @canany(['view_sales', 'add_sales'])
           <div class="col-xl-3 col-sm-6 col-12 d-flex">
-            <a href="{{ route('create.sale') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+            <a href="{{ route('create.sale.new') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
               <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <div class="card-body d-flex align-items-center text-white">
                   <span class="sale-icon bg-white text-primary">
@@ -69,6 +69,24 @@
             </a>
           </div>
           @endcanany
+          <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <a href="{{ route('task.reminder') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+              <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                  <span class="sale-icon bg-white rounded-2 d-flex align-items-center justify-content-center" style="color: #d97706;">
+                    <i class="ti ti-bell fs-24"></i>
+                  </span>
+                  <div class="ms-2">
+                    <p class="text-white mb-1">Task Reminder</p>
+                    <div class="d-inline-flex align-items-center flex-wrap gap-2">
+                      <span class="text-white fw-semibold">New Reminder</span>
+                      <i class="ti ti-arrow-right fs-18 opacity-90"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
         </div>
         @canany(['view_items', 'add_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'])
         @if(isset($lowStockItems) && $lowStockItems->isNotEmpty())

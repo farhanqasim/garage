@@ -75,23 +75,17 @@ class SalesController extends Controller
             return response()->json(['error' => 'Branch not selected'], 400);
         }
         
-        // Get the last estimate number for this branch
+        // Get the last estimate number for this branch (separate EST series)
         $lastEstimate = Sale::where('branch_id', $branchId)
             ->where('status', 'estimate')
             ->orderBy('id', 'desc')
             ->first();
         
-        $nextNumber = 0; // Start from 00000
-        if ($lastEstimate) {
-            // Extract number from reference if it exists, otherwise use ID
-            if ($lastEstimate->reference && preg_match('/EST\s*#?\s*(\d+)/i', $lastEstimate->reference, $matches)) {
-                $nextNumber = intval($matches[1]) + 1;
-            } else {
-                // Count estimates for this branch (start from 0, so count gives next number)
-                $nextNumber = Sale::where('branch_id', $branchId)
-                    ->where('status', 'estimate')
-                    ->count();
-            }
+        $nextNumber = 1; // First estimate = 00001
+        if ($lastEstimate && $lastEstimate->reference && preg_match('/EST\s*#?\s*(\d+)/i', $lastEstimate->reference, $matches)) {
+            $nextNumber = intval($matches[1]) + 1;
+        } elseif ($lastEstimate) {
+            $nextNumber = Sale::where('branch_id', $branchId)->where('status', 'estimate')->count() + 1;
         }
         
         return response()->json([
@@ -110,28 +104,54 @@ class SalesController extends Controller
             return response()->json(['error' => 'Branch not selected'], 400);
         }
         
-        // Get the last sale order number for this branch
+        // Get the last sale order number for this branch (separate SO series)
         $lastSaleOrder = Sale::where('branch_id', $branchId)
             ->where('status', 'sale_order')
             ->orderBy('id', 'desc')
             ->first();
         
-        $nextNumber = 0; // Start from 00000
-        if ($lastSaleOrder) {
-            // Extract number from reference if it exists
-            if ($lastSaleOrder->reference && preg_match('/SO\s*#?\s*(\d+)/i', $lastSaleOrder->reference, $matches)) {
-                $nextNumber = intval($matches[1]) + 1;
-            } else {
-                // Count sale orders for this branch (start from 0, so count gives next number)
-                $nextNumber = Sale::where('branch_id', $branchId)
-                    ->where('status', 'sale_order')
-                    ->count();
-            }
+        $nextNumber = 1; // First sale order = 00001
+        if ($lastSaleOrder && $lastSaleOrder->reference && preg_match('/SO\s*#?\s*(\d+)/i', $lastSaleOrder->reference, $matches)) {
+            $nextNumber = intval($matches[1]) + 1;
+        } elseif ($lastSaleOrder) {
+            $nextNumber = Sale::where('branch_id', $branchId)->where('status', 'sale_order')->count() + 1;
         }
         
         return response()->json([
             'number' => str_pad($nextNumber, 5, '0', STR_PAD_LEFT)
         ]);
+    }
+
+    /**
+     * Get next invoice (sale) number for this branch (separate INV series)
+     */
+    public function getNextInvoiceNumber()
+    {
+        $branchId = session('selected_branch_id');
+        if (!$branchId) {
+            return response()->json(['error' => 'Branch not selected'], 400);
+        }
+        $next = $this->getNextReferenceNumberForBranchAndStatus($branchId, 'pending', 'INV');
+        return response()->json(['number' => $next]);
+    }
+
+    /**
+     * Get next reference number for a branch and status (INV / EST / SO) - each has its own series.
+     */
+    private function getNextReferenceNumberForBranchAndStatus(int $branchId, string $status, string $prefix): string
+    {
+        $last = Sale::where('branch_id', $branchId)
+            ->where('status', $status)
+            ->orderBy('id', 'desc')
+            ->first();
+        $nextNumber = 1;
+        $pattern = '/(' . preg_quote($prefix, '/') . '\s*#?\s*(\d+))/i';
+        if ($last && $last->reference && preg_match($pattern, $last->reference, $matches)) {
+            $nextNumber = (int) $matches[2] + 1;
+        } elseif ($last) {
+            $nextNumber = Sale::where('branch_id', $branchId)->where('status', $status)->count() + 1;
+        }
+        return str_pad((string) $nextNumber, 5, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -459,6 +479,15 @@ class SalesController extends Controller
             $query->where('is_active', $request->is_active == '1' ? 1 : 0);
         }
 
+        // Sale context: only items that have a sale price / are meant for sale
+        if ($request->boolean('for_sale')) {
+            $query->where(function ($q) {
+                $q->where('sale_price', '>', 0)
+                  ->orWhere('price_per_unit', '>', 0)
+                  ->orWhere('total_price', '>', 0);
+            });
+        }
+
         // Price range filter (for sale price)
         if ($request->has('min_price') && $request->min_price) {
             $query->where('sale_price', '>=', $request->min_price);
@@ -772,12 +801,19 @@ class SalesController extends Controller
             $shipping = floatval($request->shipping ?? 0);
             $grandTotal = $itemsTotal + $orderTax - $discount + $shipping;
 
+            $status = $request->status ?? 'pending';
+            $reference = $status === 'estimate'
+                ? 'EST #' . $this->getNextReferenceNumberForBranchAndStatus((int) $request->branch_id, 'estimate', 'EST')
+                : ($status === 'sale_order'
+                    ? 'SO #' . $this->getNextReferenceNumberForBranchAndStatus((int) $request->branch_id, 'sale_order', 'SO')
+                    : 'INV #' . $this->getNextReferenceNumberForBranchAndStatus((int) $request->branch_id, 'pending', 'INV'));
+
             $sale = Sale::create([
                 'customer_id' => $request->customer_id,
                 'branch_id' => $request->branch_id,
                 'sale_date' => $request->sale_date,
-                'reference' => $request->reference,
-                'status' => $request->status ?? 'pending',
+                'reference' => $reference,
+                'status' => $status,
                 'subtotal' => $itemsTotal,
                 'order_tax' => $orderTax,
                 'discount' => $discount,
@@ -1219,5 +1255,51 @@ class SalesController extends Controller
                 ->withInput()
                 ->with('error', 'Error creating payment: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get last 5 sale price history for an item (for add-item modal).
+     */
+    public function getItemSaleHistory($id)
+    {
+        $item = Item::findOrFail($id);
+
+        $saleHistory = SaleItem::with(['sale.customer'])
+            ->where('item_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        $history = [];
+        foreach ($saleHistory as $line) {
+            $sale = $line->sale;
+            $customerName = 'Walk-in';
+            if ($sale && $sale->customer) {
+                $names = $sale->customer->names;
+                if (is_array($names) && !empty($names)) {
+                    $customerName = $names[0];
+                } elseif (is_string($names)) {
+                    $customerName = $names;
+                }
+            }
+            $saleDate = $sale && $sale->sale_date ? $sale->sale_date : $line->created_at;
+            $dt = $saleDate ? \Carbon\Carbon::parse($saleDate) : \Carbon\Carbon::parse($line->created_at);
+            $daysAgo = $dt->diffInDays(now());
+
+            $history[] = [
+                'customer_name' => $customerName,
+                'quantity' => (float) $line->quantity,
+                'unit' => $line->unit ?? 'Unit',
+                'rate' => (float) $line->rate,
+                'sale_date' => $dt->format('d/m/Y'),
+                'sale_date_time' => $dt->format('d/m/Y h:i A'),
+                'days_ago' => $daysAgo,
+            ];
+        }
+
+        return response()->json([
+            'item_id' => (int) $item->id,
+            'history' => $history,
+        ]);
     }
 }
