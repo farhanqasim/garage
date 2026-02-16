@@ -100,12 +100,14 @@ Route::middleware('auth')->group(function () {
      
 // Normal user dashboard
 Route::get('/home', [HomeController::class, 'index'])->name('home');
+
 Route::get('/task-reminder', [\App\Http\Controllers\TaskReminderController::class, 'index'])->name('task.reminder')->middleware('auth');
 Route::post('/task-reminder', [\App\Http\Controllers\TaskReminderController::class, 'store'])->name('task.reminder.store')->middleware('auth');
 Route::post('/task-reminder/{id}/response', [\App\Http\Controllers\TaskReminderController::class, 'addResponse'])->name('task.reminder.response')->middleware('auth');
 Route::post('/task-reminder/{id}/complete', [\App\Http\Controllers\TaskReminderController::class, 'complete'])->name('task.reminder.complete')->middleware('auth');
 Route::delete('/task-reminder/{id}', [\App\Http\Controllers\TaskReminderController::class, 'destroy'])->name('task.reminder.destroy')->middleware('auth');
 Route::get('/users', [HomeController::class, 'users'])->name('users');
+
 Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
 Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
 Route::get('/attendance/history-page', [\App\Http\Controllers\CarWashAttendanceController::class, 'historyPage'])->name('attendance.history.page')->middleware('auth');
@@ -656,6 +658,16 @@ Route::get('sales/{id}/pdf',[SalesController::class,'pdf'])->name('sales.downloa
 Route::get('sales/{id}/payments',[SalesController::class,'getPayments'])->name('sales.payments');
 Route::get('sales/{id}/payments/create',[SalesController::class,'showCreatePayment'])->name('sales.payments.create');
 Route::post('sales/{id}/payments',[SalesController::class,'createPayment'])->name('sales.payments.store');
+Route::get('/sales/items/ajax-search', [SalesController::class, 'ajaxSearch'])
+    ->name('sales.items.ajax.search');
+Route::get('/sales/filter-options', [SalesController::class, 'getFilterOptions'])
+    ->name('sales.filter.options');
+Route::get('/sales/next-invoice-number', [SalesController::class, 'getNextInvoiceNumber'])
+    ->name('sales.next.invoice.number');
+Route::get('/sales/next-estimate-number', [SalesController::class, 'getNextEstimateNumber'])
+    ->name('sales.next.estimate.number');
+Route::get('/sales/next-sale-order-number', [SalesController::class, 'getNextSaleOrderNumber'])
+    ->name('sales.next.sale.order.number');
 Route::get('sales/items/{id}',[SalesController::class,'getItemDetails'])->name('sales.items.details');
 Route::get('sales/items/{id}/stock-status',[SalesController::class,'getItemStockStatus'])->name('sales.items.stock.status');
 Route::get('sales/items/{id}/purchase-history',[SalesController::class,'getItemPurchaseHistory'])->name('sales.items.purchase.history');
@@ -702,7 +714,6 @@ Route::post('warehouses/{id}/items',[WarehouseController::class,'storeItem'])->n
 Route::put('warehouses/{warehouseId}/items/{itemId}',[WarehouseController::class,'updateStock'])->name('warehouses.update-stock')->middleware('auth');
 Route::delete('warehouses/{warehouseId}/items/{itemId}',[WarehouseController::class,'removeItem'])->name('warehouses.remove-item')->middleware('auth');
 Route::get('warehouses/{id}/low-stock',[WarehouseController::class,'lowStock'])->name('warehouses.low-stock')->middleware('auth');
-
 
 //pos
 Route::get('pos', [PosController::class, 'point_of_sale'])->name('pos.index');
