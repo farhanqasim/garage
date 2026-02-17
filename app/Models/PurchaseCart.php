@@ -14,6 +14,7 @@ class PurchaseCart extends Model
         'branch_id',
         'supplier_id',
         'item_id',
+        'item_name',
         'warehouse_id',
         'quantity',
         'unit',

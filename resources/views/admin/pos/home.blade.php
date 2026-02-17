@@ -59,7 +59,7 @@
 																 data-stock="{{ $item->on_hand ?? 0 }}"
 																 data-barcode="{{ $item->bar_code }}">
 																<a href="javascript:void(0);" class="pro-img">
-																	<img src="{{ $item->image }}" alt="{{ $itemName }}" onerror="this.src='{{ asset('images/default-item.jpg') }}'">
+																	<img src="{{ $item->image }}" alt="{{ $itemName }}" onerror="this.src='{{ asset('assets/img/icons/image.svg') }}'">
 																	<span><i class="ti ti-circle-check-filled"></i></span>
 																</a>
 																<h6 class="cat-name">

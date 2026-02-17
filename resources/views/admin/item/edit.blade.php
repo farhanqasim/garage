@@ -43,6 +43,25 @@
         color: white;
         box-shadow: 0 4px 12px #fe962e;
     }
+    /* Add Vehicle modal: keep edit button inside, medium modal */
+    #itemVehicleAddModalEdit .input-group,
+    #itemVehicleAddModalEdit .modal-body .input-group {
+        display: flex;
+        max-width: 100%;
+        min-width: 0;
+    }
+    #itemVehicleAddModalEdit .input-group .select2-container,
+    #itemVehicleAddModalEdit .input-group .select2-container--default {
+        flex: 1;
+        min-width: 0;
+        max-width: 100%;
+    }
+    #itemVehicleAddModalEdit .input-group .select2-container .selection .select2-selection {
+        max-width: 100%;
+    }
+    #itemVehicleAddModalEdit .input-group .btn {
+        flex-shrink: 0;
+    }
     .field-group {
         display: none;
     }
@@ -704,7 +723,7 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-title="Add Brand"
                                             data-route="{{ route('post.item.brand') }}"
                                             data-target-select=".brand-select">
@@ -876,7 +895,8 @@
                                                 <div class="input-group">
                                                     <select class="form-control form-control-lg searchable-select @error('unit') is-invalid @enderror"
                                                         name="unit" id="unit_parts" 
-                                                        data-saved-unit-id="{{ $item->unit ?? ($item->unit_item->id ?? '') }}"
+                                                        data-saved-unit-id="{{ $itemUnitIdForSelect ?? $item->unit ?? ($item->unit_item->id ?? '') }}"
+                                                        data-saved-unit-option="{{ $itemUnitOptionForSelect ?? '' }}"
                                                         style="width: 100%;">
                                                         <option value="">-- PLEASE SELECT --</option>
                                                     </select>
@@ -1562,6 +1582,7 @@
                             </div>
                         </div>
                         <div class="modal-footer">
+                        <button type="button" class="btn btn-danger d-none" id="deleteUnitBtn"><i class="ti ti-trash"></i> Delete</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>
@@ -1600,7 +1621,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Manufacturerd" data-mode="add"
                                         data-route="{{ route('post.car.manufacturer') }}"
                                         data-target-select=".car-manufacturer-select">
@@ -1633,7 +1654,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Car Model" data-mode="add"
                                         data-route="{{ route('post.car.model') }}"
                                         data-target-select=".car-model-select">
@@ -1667,7 +1688,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Engine CC" data-mode="add"
                                         data-route="{{ route('post.engine.cc') }}"
                                         data-target-select=".car-engine-select">
@@ -1701,7 +1722,7 @@
                                         @endforeach
                                     </select>
 
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Country" data-mode="add"
                                         data-route="{{ route('post.car.country') }}"
                                         data-target-select=".car-country-select">
@@ -1733,7 +1754,7 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-title="Add Part Number" data-mode="add"
                                             data-route="{{ route('post.partnumber') }}"
                                             data-target-select=".part_number-select">
@@ -1838,26 +1859,32 @@
                     <input type="hidden" name="v_part_number_id" id="itemVehiclePartNumberEdit" value="">
                     <div class="mb-3">
                         <label class="form-label">Make <span class="text-danger">*</span></label>
-                        <select class="form-select item-vehicle-manufacturer-edit" name="car_manufacturer" required>
-                            <option value="">— Select —</option>
-                            @foreach ($carManufacturers as $m)
-                            <option value="{{ $m->id }}">{{ $m->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="input-group">
+                            <select id="itemVehicleMakeEdit" class="form-control form-select item-vehicle-manufacturer-edit searchable-select" name="car_manufacturer" required>
+                                <option value="">— Select —</option>
+                                @foreach ($carManufacturers as $m)
+                                <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Make" data-fetch-route="{{ route('show.car.manufacturer', ':id') }}" data-update-route="{{ route('update.car.manufacturer', ':id') }}" data-delete-route="{{ route('destory.car.manufacturer', ':id') }}" data-target-select=".item-vehicle-manufacturer-edit" title="Edit Make"><i data-feather="edit" class="feather-16"></i></button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Model <span class="text-danger">*</span></label>
-                        <select class="form-select item-vehicle-model-edit" name="car_model_name" required>
-                            <option value="">— Select —</option>
-                            @foreach ($carModels as $m)
-                            <option value="{{ $m->id }}">{{ $m->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="input-group">
+                            <select id="itemVehicleModelEdit" class="form-control form-select item-vehicle-model-edit searchable-select" name="car_model_name" required>
+                                <option value="">— Select —</option>
+                                @foreach ($carModels as $m)
+                                <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Model" data-fetch-route="{{ route('show.car.model', ':id') }}" data-update-route="{{ route('update.car.model', ':id') }}" data-delete-route="{{ route('destory.car.model', ':id') }}" data-target-select=".item-vehicle-model-edit" title="Edit Model"><i data-feather="edit" class="feather-16"></i></button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label">Year From <span class="text-danger">*</span></label>
-                            <select class="form-select item-vehicle-year-from-edit" name="year_from[]" required>
+                            <select id="itemVehicleYearFromEdit" class="form-control form-select item-vehicle-year-from-edit searchable-select" name="year_from[]" required>
                                 <option value="">From</option>
                                 @for($y = 1900; $y <= 2100; $y++)
                                 <option value="{{ $y }}">{{ $y }}</option>
@@ -1866,7 +1893,7 @@
                         </div>
                         <div class="col-6 mb-3">
                             <label class="form-label">Year To <span class="text-danger">*</span></label>
-                            <select class="form-select item-vehicle-year-to-edit" name="year_to[]" required>
+                            <select id="itemVehicleYearToEdit" class="form-control form-select item-vehicle-year-to-edit searchable-select" name="year_to[]" required>
                                 <option value="">To</option>
                                 @for($y = 1900; $y <= 2100; $y++)
                                 <option value="{{ $y }}">{{ $y }}</option>
@@ -1876,21 +1903,27 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Engine CC</label>
-                        <select class="form-select item-vehicle-engine-edit" name="engine_cc">
-                            <option value="">— Select —</option>
-                            @foreach ($engineccs as $e)
-                            <option value="{{ $e->id }}">{{ $e->name }} CC</option>
-                            @endforeach
-                        </select>
+                        <div class="input-group">
+                            <select id="itemVehicleEngineEdit" class="form-control form-select item-vehicle-engine-edit searchable-select" name="engine_cc">
+                                <option value="">— Select —</option>
+                                @foreach ($engineccs as $e)
+                                <option value="{{ $e->id }}">{{ $e->name }} CC</option>
+                                @endforeach
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Engine CC" data-fetch-route="{{ route('show.engine_cc', ':id') }}" data-update-route="{{ route('update.engine_cc', ':id') }}" data-delete-route="{{ route('destory.engine_cc', ':id') }}" data-target-select=".item-vehicle-engine-edit" title="Edit Engine CC"><i data-feather="edit" class="feather-16"></i></button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Country</label>
-                        <select class="form-select item-vehicle-country-edit" name="car_manufactured_country">
-                            <option value="">— Select —</option>
-                            @foreach ($carCountries as $c)
-                            <option value="{{ $c->id }}">{{ $c->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="input-group">
+                            <select id="itemVehicleCountryEdit" class="form-control form-select item-vehicle-country-edit searchable-select" name="car_manufactured_country">
+                                <option value="">— Select —</option>
+                                @foreach ($carCountries as $c)
+                                <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Country" data-fetch-route="{{ route('show.car.country', ':id') }}" data-update-route="{{ route('update.car.country', ':id') }}" data-delete-route="{{ route('destory.car.country', ':id') }}" data-target-select=".item-vehicle-country-edit" title="Edit Country"><i data-feather="edit" class="feather-16"></i></button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -2739,9 +2772,20 @@ function md5(string) {
     
     // Add Base Unit functionality for Unit Modal in edit.blade.php
     let baseUnitIndex = 1;
+    let currentUnitId = null;
     document.getElementById('addBaseUnitBtn')?.addEventListener('click', function() {
         const container = document.getElementById('baseUnitsContainer');
         if (!container) return;
+        
+        // Auto-select: copy base unit from last existing row so new row has same base unit pre-selected
+        const lastItem = container.querySelector('.base-unit-item:last-child');
+        let clonedBaseUnitId = '';
+        if (lastItem) {
+            const lastBaseUnitSelect = lastItem.querySelector('select[name*="[base_unit_id]"]');
+            if (lastBaseUnitSelect && lastBaseUnitSelect.value) {
+                clonedBaseUnitId = lastBaseUnitSelect.value;
+            }
+        }
         
         const newItem = document.createElement('div');
         newItem.className = 'base-unit-item mb-3 p-3 border rounded';
@@ -2768,6 +2812,12 @@ function md5(string) {
             </div>
         `;
         container.appendChild(newItem);
+        
+        if (clonedBaseUnitId) {
+            const newSelect = newItem.querySelector('select[name*="[base_unit_id]"]');
+            if (newSelect) newSelect.value = clonedBaseUnitId;
+        }
+        
         baseUnitIndex++;
         updateUnitRemoveButtons();
     });
@@ -2810,10 +2860,15 @@ function md5(string) {
     }
 
     let formData = new FormData(this);
+    var url = currentUnitId ? "{{ url('units') }}/" + currentUnitId : "{{ route('post.units') }}";
+    var method = currentUnitId ? 'POST' : 'POST';
+    if (currentUnitId) {
+        formData.append('_method', 'PUT');
+    }
 
     $.ajax({
-        url: "{{ route('post.units') }}",
-        type: "POST",
+        url: url,
+        type: method,
         data: formData,
         processData: false,
         contentType: false,
@@ -2826,20 +2881,17 @@ function md5(string) {
                 return;
             }
             if(res.success){
-                // Reload units from API to get the new unit with all its data
+                var wasEdit = !!currentUnitId;
                 loadUnitsForDropdown();
-                
-                // Modal close kare
                 $("#Unit-add-modal").modal("hide");
-
-                // Form clear kare
                 $("#Unit-form")[0].reset();
-
-                // Success alert - only if modal was actually open
+                currentUnitId = null;
+                $('#deleteUnitBtn').addClass('d-none');
+                $('#Unit-modal-title').text('Add Unit');
                 Swal.fire({
                     icon: 'success',
                     title: 'Saved!',
-                    text: 'Unit added successfully'
+                    text: wasEdit ? 'Unit updated successfully' : 'Unit added successfully'
                 });
             }
         },
@@ -2882,7 +2934,133 @@ function md5(string) {
                 handleUnitChange();
             }
         }, 500);
+
+        /* =========================
+           EDIT UNIT (Edit Unit button next to Select Unit & Conversion)
+        ==========================*/
+        $('#editUnitBtn').on('click', function() {
+            var selected = $('#unit_parts option:selected');
+            if (!selected.length || !selected.val()) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Select Unit', 'Please select a unit first', 'warning');
+                } else {
+                    alert('Please select a unit first');
+                }
+                return;
+            }
+            var selectedValue = selected.val();
+            var unitIdFromOption = selected.attr('data-unit-id') || (selectedValue + '').split('_')[0];
+            currentUnitId = unitIdFromOption;
+            $('#Unit-modal-title').text('Edit Unit');
+            $('#deleteUnitBtn').removeClass('d-none');
+
+            $.ajax({
+                url: "{{ url('units') }}/" + currentUnitId,
+                type: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                success: function(res) {
+                    if (res && res.unit) {
+                        var unit = res.unit;
+                        $('#Unit-form [name="name"]').val(unit.name);
+                        $('#Unit-form [name="short_name"]').val(unit.short_name);
+                        var allowDecimalValue = (unit.allow_decimal === true || unit.allow_decimal === 1 || unit.allow_decimal === '1') ? '1' : '0';
+                        $('#Unit-form [name="allow_decimal"]').val(allowDecimalValue);
+
+                        $('#baseUnitsContainer').empty();
+                        baseUnitIndex = 0;
+                        if (unit.base_units && unit.base_units.length > 0) {
+                            $('#Unit-form [name="define_base_unit"]').prop('checked', true);
+                            $('#baseDetails').show();
+                            unit.base_units.forEach(function(baseUnit) {
+                                var mult = (baseUnit.pivot && baseUnit.pivot.multiplier) || baseUnit.multiplier || 1;
+                                addBaseUnitRowForEdit(baseUnit.id, mult);
+                            });
+                        } else {
+                            $('#Unit-form [name="define_base_unit"]').prop('checked', false);
+                            $('#baseDetails').hide();
+                            addBaseUnitRowForEdit('', '');
+                        }
+                        updateUnitRemoveButtons();
+                        $('#Unit-add-modal').modal('show');
+                    }
+                },
+                error: function(xhr) {
+                    var unitName = selected.attr('data-unit-name') || selected.text().split('(')[0].trim();
+                    var shortName = selected.attr('data-unit-short') || '';
+                    $('#Unit-form [name="name"]').val(unitName);
+                    $('#Unit-form [name="short_name"]').val(shortName);
+                    $('#Unit-form [name="allow_decimal"]').val(selected.attr('data-allow-decimal') || '0');
+                    var baseUnitId = selected.attr('data-base-unit-id');
+                    if (baseUnitId) {
+                        $('#Unit-form [name="define_base_unit"]').prop('checked', true);
+                        $('#baseDetails').show();
+                        $('#baseUnitsContainer').empty();
+                        baseUnitIndex = 0;
+                        addBaseUnitRowForEdit(baseUnitId, selected.attr('data-multiplier') || 1);
+                    } else {
+                        $('#Unit-form [name="define_base_unit"]').prop('checked', false);
+                        $('#baseDetails').hide();
+                        $('#baseUnitsContainer').empty();
+                        baseUnitIndex = 0;
+                        addBaseUnitRowForEdit('', '');
+                    }
+                    updateUnitRemoveButtons();
+                    $('#Unit-add-modal').modal('show');
+                }
+            });
+        });
+
+        $('#Unit-add-modal').on('hidden.bs.modal', function() {
+            $('#Unit-form')[0].reset();
+            $('#Unit-form [name="allow_decimal"]').val('0');
+            $('#deleteUnitBtn').addClass('d-none');
+            $('#Unit-modal-title').text('Add Unit');
+            currentUnitId = null;
+        });
+
+        $('#deleteUnitBtn').on('click', function() {
+            if (!currentUnitId) return;
+            if (typeof Swal === 'undefined') {
+                if (confirm('Delete this unit?')) { /* TODO: AJAX delete */ }
+                return;
+            }
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'This unit will be deleted',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete it'
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: "{{ url('units') }}/" + currentUnitId,
+                        type: 'POST',
+                        data: { _method: 'DELETE', _token: $('input[name=_token]').val() },
+                        success: function(res) {
+                            if (res && res.success) {
+                                loadUnitsForDropdown();
+                                $('#Unit-add-modal').modal('hide');
+                                $('#Unit-form')[0].reset();
+                                currentUnitId = null;
+                                $('#deleteUnitBtn').addClass('d-none');
+                                Swal.fire('Deleted!', 'Unit deleted successfully', 'success');
+                            }
+                        }
+                    });
+                }
+            });
+        });
     });
+
+    function addBaseUnitRowForEdit(baseUnitId, multiplier) {
+        var container = $('#baseUnitsContainer');
+        var html = '<div class="base-unit-item mb-3 p-3 border rounded"><div class="row g-2"><div class="col-5"><label class="small">Multiplier</label><input type="number" step="0.0001" name="base_units[' + baseUnitIndex + '][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3" value="' + (multiplier || '') + '"></div><div class="col-6"><label class="small">Base Unit</label><select name="base_units[' + baseUnitIndex + '][base_unit_id]" class="form-control form-control-sm"><option value="">Select Base Unit</option>@foreach($units as $u)<option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>@endforeach</select></div><div class="col-1 d-flex align-items-end"><button type="button" class="btn btn-danger btn-sm removeBaseUnit"><i class="ti ti-x"></i></button></div></div></div>';
+        container.append(html);
+        if (baseUnitId) {
+            container.find('.base-unit-item:last select').val(baseUnitId);
+        }
+        baseUnitIndex++;
+    }
     
     // Load units with conversions from API
     function loadUnitsForDropdown() {
@@ -2949,7 +3127,10 @@ function md5(string) {
                 const uniqueUnits = {};
                 
                 data.forEach(function(item) {
-                    const optionId = item.id + '_' + (item.base_unit_id || 'main');
+                    // Unique value per conversion: unit_id_base_unit_id_multiplier (e.g. 12_8_1, 12_8_2) so Can 1L vs Can 2L save correctly
+                    const basePart = (item.base_unit_id || 'main');
+                    const multPart = (item.multiplier != null && item.multiplier !== '') ? '_' + item.multiplier : '';
+                    const optionId = item.id + '_' + basePart + multPart;
                     const option = new Option(item.display_text, optionId, false, false);
                     option.setAttribute('data-unit-id', item.id);
                     option.setAttribute('data-unit-name', item.name);
@@ -2999,10 +3180,10 @@ function md5(string) {
                 }
                 
                 // Set the selected unit from item data (after options are loaded and Select2 initialized)
-                // Get unit ID from multiple sources for reliability
                 var savedItemUnitId = itemUnitId;
+                var savedUnitOption = $('#unit_parts').attr('data-saved-unit-option') || '';
+                if (savedUnitOption) savedUnitOption = String(savedUnitOption).trim();
                 
-                // Fallback: Get from data attribute if itemUnitId is not available
                 if (!savedItemUnitId || savedItemUnitId === null || savedItemUnitId === undefined || savedItemUnitId === '') {
                     var dataUnitId = $('#unit_parts').attr('data-saved-unit-id');
                     if (dataUnitId && dataUnitId !== '' && dataUnitId !== 'null') {
@@ -3010,67 +3191,51 @@ function md5(string) {
                     }
                 }
                 
-                // Function to set the selected unit
                 function setSelectedUnit() {
-                    // Check if savedItemUnitId exists and is valid
-                    if (!savedItemUnitId || savedItemUnitId === 'null' || savedItemUnitId === null || savedItemUnitId === undefined || savedItemUnitId === '') {
-                        return; // Silently return if no unit found
-                    }
-                    
-                    // Convert to string and extract unit_id
-                    let savedUnitId = String(savedItemUnitId).trim();
-                    
-                    // If contains underscore, extract only unit_id (format: unit_id_base_unit_id)
-                    if (savedUnitId.includes('_')) {
-                        savedUnitId = savedUnitId.split('_')[0];
-                    }
-                    
-                    // Convert to integer for comparison
-                    savedUnitId = parseInt(savedUnitId);
-                    
-                    if (isNaN(savedUnitId)) {
-                        return; // Invalid unit ID
-                    }
-                    
                     let foundOption = null;
-                    let foundOptionValue = null;
-                    
-                    // Match by unit_id - find option with matching data-unit-id
-                    $('#unit_parts option').each(function() {
-                        if ($(this).val() === '' || $(this).val() === null) {
-                            return true; // Skip empty option
+                    if (savedUnitOption && savedUnitOption !== '' && savedUnitOption !== 'null') {
+                        var $opt = $('#unit_parts').find('option[value="' + savedUnitOption.replace(/"/g, '\\"') + '"]');
+                        if ($opt.length) {
+                            foundOption = $opt.val();
                         }
-                        
-                        const optionUnitId = $(this).attr('data-unit-id');
-                        const optionBaseUnitId = $(this).attr('data-base-unit-id') || '';
-                        const optionValue = $(this).val();
-                        
-                        if (optionUnitId && parseInt(optionUnitId) === savedUnitId) {
-                            // Prefer options with 'main' base_unit or no base_unit
-                            if (!foundOption) {
-                                if (optionBaseUnitId === 'main' || optionBaseUnitId === '') {
-                                    foundOption = optionValue;
-                                    foundOptionValue = optionValue;
-                                    return false; // Found preferred option, stop searching
+                        // Backward compat: old unit_option may be "12_8" (no multiplier); match first option like "12_8_1"
+                        if (!foundOption && savedUnitOption.indexOf('_') !== -1) {
+                            var prefix = savedUnitOption + '_';
+                            $('#unit_parts option').each(function() {
+                                if ($(this).val() && $(this).val().indexOf(prefix) === 0) {
+                                    foundOption = $(this).val();
+                                    return false;
                                 }
+                            });
+                        }
+                    }
+                    if (!foundOption && savedItemUnitId && savedItemUnitId !== 'null') {
+                        let savedUnitId = String(savedItemUnitId).trim();
+                        if (savedUnitId.includes('_')) savedUnitId = savedUnitId.split('_')[0];
+                        savedUnitId = parseInt(savedUnitId);
+                        if (isNaN(savedUnitId)) savedUnitId = null;
+                        if (savedUnitId != null) {
+                            $('#unit_parts option').each(function() {
+                                if ($(this).val() === '' || $(this).val() === null) return true;
+                                const optionUnitId = $(this).attr('data-unit-id');
+                                const optionBaseUnitId = $(this).attr('data-base-unit-id') || '';
+                                if (optionUnitId && parseInt(optionUnitId) === savedUnitId) {
+                                    if (!foundOption || optionBaseUnitId === 'main' || optionBaseUnitId === '') {
+                                        foundOption = $(this).val();
+                                        return false;
+                                    }
+                                }
+                            });
+                            if (!foundOption) {
+                                $('#unit_parts option').each(function() {
+                                    if ($(this).val() === '' || $(this).val() === null) return true;
+                                    if (parseInt($(this).attr('data-unit-id')) === savedUnitId) {
+                                        foundOption = $(this).val();
+                                        return false;
+                                    }
+                                });
                             }
                         }
-                    });
-                    
-                    // If no match with 'main', select first option with matching unit_id
-                    if (!foundOption) {
-                        $('#unit_parts option').each(function() {
-                            if ($(this).val() === '' || $(this).val() === null) {
-                                return true; // Skip empty option
-                            }
-                            
-                            const optionUnitId = $(this).attr('data-unit-id');
-                            if (optionUnitId && parseInt(optionUnitId) === savedUnitId) {
-                                foundOption = $(this).val();
-                                foundOptionValue = foundOption;
-                                return false; // Found match, stop searching
-                            }
-                        });
                     }
                     
                     // Set the found option
@@ -3169,14 +3334,12 @@ function md5(string) {
     function handleUnitChange() {
         const selectedOption = $('#unit_parts option:selected');
         if (!selectedOption.val() || selectedOption.val() === '') {
-            // Hide both price management sections if no unit is selected
             $('#costPriceManagement').hide();
             $('#salePriceManagement').hide();
             resetPriceFields();
             return;
         }
         
-        // Show both price management sections when unit is selected
         $('#costPriceManagement').show();
         $('#salePriceManagement').show();
         
@@ -3185,36 +3348,33 @@ function md5(string) {
         const multiplier = parseFloat(selectedOption.attr('data-multiplier')) || 1;
         const decimalPlaces = parseInt(selectedOption.attr('data-decimal-places')) || 2;
         
-        // Update labels
         $('#costUnitLabel').text(`${unitName} COST:`);
         $('#saleUnitLabel').text(`${unitName} SALE:`);
         
-        // Check if unit has base unit
         const hasBaseUnit = baseUnitName && baseUnitName !== '' && multiplier && multiplier > 0;
         
         if (hasBaseUnit) {
-            // Show base unit inputs
             $('#costBaseLabel').text(`PER ${baseUnitName} COST:`);
             $('#saleBaseLabel').text(`PER ${baseUnitName} SALE:`);
             $('#baseCostPriceContainer').show();
             $('#baseSalePriceContainer').show();
-            
-            // Adjust column widths - make them side by side when base unit exists
             $('#costUnitContainer').removeClass('col-12').addClass('col-md-6');
             $('#saleUnitContainer').removeClass('col-12').addClass('col-md-6');
+            var baseCost = parseFloat($('#baseCostPrice').val()) || 0;
+            var baseSale = parseFloat($('#baseSalePrice').val()) || 0;
+            if (baseCost > 0 || baseSale > 0) {
+                $('#costPrice').val((baseCost * multiplier).toFixed(decimalPlaces));
+                $('#salePrice').val((baseSale * multiplier).toFixed(decimalPlaces));
+            }
         } else {
-            // Hide base unit inputs - show only unit cost and unit sale
             $('#costBaseLabel').text(`PER ${unitName} COST:`);
             $('#saleBaseLabel').text(`PER ${unitName} SALE:`);
             $('#baseCostPriceContainer').hide();
             $('#baseSalePriceContainer').hide();
-            
-            // Make unit inputs full width when no base unit
             $('#costUnitContainer').removeClass('col-md-6').addClass('col-12');
             $('#saleUnitContainer').removeClass('col-md-6').addClass('col-12');
         }
         
-        // Sync prices to show analysis
         syncPrices();
     }
     
@@ -3374,8 +3534,11 @@ function md5(string) {
                 if (initialType) {
                     localStorage.removeItem('selectedType');
                 }
-                
+                // Keep hidden type input in sync so form always has correct type on submit
+                var typeInput = document.querySelector('input[name="type"]');
+                if (typeInput) typeInput.value = this.selectedType || '';
                 this.$watch('selectedType', (value) => {
+                    if (typeInput) typeInput.value = value || '';
                     this.updateFieldsVisibility(value);
                     this.filterProductNameDropdown(value);
                 });
@@ -3387,10 +3550,13 @@ function md5(string) {
                 }, 100);
             },
             selectType(type) {
-                // Set new type (this automatically deselects previous one since selectedType is single value)
                 this.selectedType = type;
-                // Filter product name dropdown based on selected type
-                this.filterProductNameDropdown(type);
+                var typeInput = document.querySelector('input[name="type"]');
+                if (typeInput) typeInput.value = type || '';
+                this.$nextTick(() => {
+                    this.updateFieldsVisibility(type);
+                    this.filterProductNameDropdown(type);
+                });
             },
             filterProductNameDropdown(type) {
                 const productSelect = document.getElementById('name');
@@ -3695,28 +3861,39 @@ function md5(string) {
                     $('#image-field').hide();
                 }
                 
-                // Auto-fill from searchable select search term (if available)
-                if (currentTargetSelect && activeSelectSearch.selectId) {
-                    const selectId = $(currentTargetSelect).attr('id') || '';
-                    setTimeout(function() {
-                        let finalSearchTerm = '';
-                        
-                        // Check active search
-                        if (activeSelectSearch.selectId === selectId && activeSelectSearch.searchTerm) {
-                            finalSearchTerm = activeSelectSearch.searchTerm;
-                        }
-                        
-                        // Check stored terms
-                        if (!finalSearchTerm && lastSearchTerm[selectId]) {
-                            finalSearchTerm = lastSearchTerm[selectId].trim();
-                        }
-                        
-                        // Set if found
-                        if (finalSearchTerm) {
-                            $('#universal-name').val(finalSearchTerm);
-                            delete lastSearchTerm[selectId];
-                        }
-                    }.bind(this), 100);
+                // Auto-fill name from dropdown "Add" search term: read directly from clicked button first
+                let finalSearchTerm = '';
+                const $clickedBtn = $(this).closest('.add-new-dropdown-btn').length ? $(this).closest('.add-new-dropdown-btn') : ($(this).hasClass('add-new-dropdown-btn') ? $(this) : null);
+                if ($clickedBtn && $clickedBtn.length) {
+                    const $termSpan = $clickedBtn.find('.dropdown-search-term');
+                    if ($termSpan.length) {
+                        finalSearchTerm = $termSpan.text().trim();
+                    }
+                    const btnSelectId = $clickedBtn.data('select-id');
+                    if (btnSelectId && $('#' + btnSelectId).length) {
+                        try { $('#' + btnSelectId).select2('close'); } catch (e) {}
+                    }
+                }
+                if (!finalSearchTerm) {
+                    const activeSearch = window.activeSelectSearch || activeSelectSearch;
+                    const storedTerms = window.lastSearchTerm || lastSearchTerm;
+                    const isFromAddDropdownBtn = $(this).hasClass('add-new-dropdown-btn');
+                    const btnSelectId = isFromAddDropdownBtn ? ($(this).data('select-id') || '') : '';
+                    let resolvedSelectId = '';
+                    if (currentTargetSelect) {
+                        const $targetEl = $(currentTargetSelect);
+                        resolvedSelectId = ($targetEl.length && $targetEl.attr('id')) ? $targetEl.attr('id') : '';
+                    }
+                    const selectIdForPrefill = btnSelectId || resolvedSelectId;
+                    if (selectIdForPrefill && activeSearch && activeSearch.selectId === selectIdForPrefill && activeSearch.searchTerm) {
+                        finalSearchTerm = String(activeSearch.searchTerm).trim();
+                    }
+                    if (!finalSearchTerm && storedTerms && selectIdForPrefill && storedTerms[selectIdForPrefill]) {
+                        finalSearchTerm = String(storedTerms[selectIdForPrefill]).trim();
+                    }
+                }
+                if (finalSearchTerm) {
+                    $('#universal-name').val(finalSearchTerm);
                 }
                 
                 // Open modal and focus input
@@ -4131,6 +4308,43 @@ function md5(string) {
         $(document).on('change', '#category_parts', updateCategoryImageDisplayEdit);
         updateCategoryImageDisplayEdit();
 
+        // Edit button color: blue when select has value, gray when empty
+        function updateEditButtonColors() {
+            $('.input-group').each(function() {
+                var $grp = $(this);
+                var $btn = $grp.find('.open-universal-modal[data-target-select]');
+                if (!$btn.length) return;
+                var targetClass = ($btn.attr('data-target-select') || '').trim();
+                if (!targetClass) return;
+                var $sel = $grp.find('select' + targetClass);
+                if (!$sel.length) return;
+                var val = $sel.val();
+                if (val === '' || val == null) {
+                    $btn.removeClass('btn-primary').addClass('btn-secondary');
+                } else {
+                    $btn.removeClass('btn-secondary').addClass('btn-primary');
+                }
+            });
+        }
+        $(document).on('change', '#mainItemForm select', function() {
+            var $sel = $(this);
+            var $grp = $sel.closest('.input-group');
+            var $btn = $grp.find('.open-universal-modal[data-target-select]');
+            if (!$btn.length) return;
+            var targetClass = ($btn.attr('data-target-select') || '').trim();
+            if (!targetClass) return;
+            var $targetSel = $grp.find('select' + targetClass);
+            if (!$targetSel.length || $targetSel[0] !== $sel[0]) return;
+            var val = $sel.val();
+            if (val === '' || val == null) {
+                $btn.removeClass('btn-primary').addClass('btn-secondary');
+            } else {
+                $btn.removeClass('btn-secondary').addClass('btn-primary');
+            }
+        });
+        setTimeout(updateEditButtonColors, 100);
+        $(document).ready(updateEditButtonColors);
+
         // Dynamic Subcategory Load (if applicable)
         $(document).on('change', 'select.category-select', function() {
             const subSelect = $('#subcategory');
@@ -4237,8 +4451,8 @@ function md5(string) {
             }
         }
         
-        // Auto focus and Add New button for dropdowns
-        $(document).on('select2:opening', '#name, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap', function(e) {
+        // Auto focus and Add New button for dropdowns (includes vehicle modal dropdowns)
+        $(document).on('select2:opening', '#name, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #itemVehicleMakeEdit, #itemVehicleModelEdit, #itemVehicleYearFromEdit, #itemVehicleYearToEdit, #itemVehicleEngineEdit, #itemVehicleCountryEdit', function(e) {
             const selectId = $(this).attr('id');
             requestAnimationFrame(function() {
                 requestAnimationFrame(function() {
@@ -4251,56 +4465,34 @@ function md5(string) {
             });
         });
         
-        $(document).on('select2:open', '#name, #part_number_id, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap', function(e) {
+        $(document).on('select2:open', '#name, #part_number_id, #category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #itemVehicleMakeEdit, #itemVehicleModelEdit, #itemVehicleYearFromEdit, #itemVehicleYearToEdit, #itemVehicleEngineEdit, #itemVehicleCountryEdit', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id');
             if (!selectId) return;
             
             function focusSearchInput() {
-                const $container = $select.next('.select2-container');
-                if ($container.length) {
-                    const $searchInput = $container.find('.select2-search__field');
-                    if ($searchInput.length && $searchInput.length > 0) {
-                        const searchInput = $searchInput[0];
-                        if (searchInput) {
-                            searchInput.focus();
-                            searchInput.select();
-                            return true;
-                        }
-                    }
+                // Prefer the currently open dropdown's search field (works for modal/body-rendered dropdowns)
+                var $searchInput = $('.select2-container--open .select2-search__field');
+                if (!$searchInput.length) {
+                    var $container = $select.next('.select2-container');
+                    if ($container.length) $searchInput = $container.find('.select2-search__field');
+                }
+                if ($searchInput.length && $searchInput[0]) {
+                    $searchInput[0].focus();
+                    try { $searchInput[0].select(); } catch (e) {}
+                    return true;
                 }
                 return false;
             }
             
-            // Auto focus for all dropdowns
-            if (selectId === 'name' || selectId === 'part_number_id' || selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap') {
-                requestAnimationFrame(function() {
-                    focusSearchInput();
-                });
-                
-                setTimeout(function() {
-                    focusSearchInput();
-                }, 0);
-                
-                setTimeout(function() {
-                    focusSearchInput();
-                }, 10);
-                
-                setTimeout(function() {
-                    focusSearchInput();
-                }, 30);
-                
-                setTimeout(function() {
-                    focusSearchInput();
-                }, 50);
-                
-                setTimeout(function() {
-                    const $searchInput = $('.select2-container--open .select2-search__field');
-                    if ($searchInput.length) {
-                        $searchInput[0].focus();
-                        $searchInput[0].select();
-                    }
-                }, 100);
+            // Auto focus for all dropdowns (including vehicle modal)
+            const focusSelectIds = 'name,part_number_id,category,company_parts,quality,quality_filters,quality_breakpad,technology_select,grade_select,mileage_oil,Level_select,plates_scrap,amperes_select,volt_select,cca_select,minus_pole_direction_select,Warrenty_select,made_in_select,Services_scrap,itemVehicleMakeEdit,itemVehicleModelEdit,itemVehicleYearFromEdit,itemVehicleYearToEdit,itemVehicleEngineEdit,itemVehicleCountryEdit';
+            if (focusSelectIds.split(',').indexOf(selectId) !== -1) {
+                requestAnimationFrame(focusSearchInput);
+                setTimeout(focusSearchInput, 0);
+                setTimeout(focusSearchInput, 30);
+                setTimeout(focusSearchInput, 80);
+                setTimeout(focusSearchInput, 150);
             }
             
             let buttonConfig = null;
@@ -4409,6 +4601,26 @@ function md5(string) {
                         title: 'Add Services',
                         route: '{{ route("post.services") }}',
                         targetSelect: '.Services-select'
+                    },
+                    'itemVehicleMakeEdit': {
+                        title: 'Add Make',
+                        route: '{{ route("post.car.manufacturer") }}',
+                        targetSelect: '.item-vehicle-manufacturer-edit'
+                    },
+                    'itemVehicleModelEdit': {
+                        title: 'Add Model',
+                        route: '{{ route("post.car.model") }}',
+                        targetSelect: '.item-vehicle-model-edit'
+                    },
+                    'itemVehicleEngineEdit': {
+                        title: 'Add Engine CC',
+                        route: '{{ route("post.engine.cc") }}',
+                        targetSelect: '.item-vehicle-engine-edit'
+                    },
+                    'itemVehicleCountryEdit': {
+                        title: 'Add Country',
+                        route: '{{ route("post.car.country") }}',
+                        targetSelect: '.item-vehicle-country-edit'
                     }
                 };
                 
@@ -4485,10 +4697,7 @@ function md5(string) {
                     };
                 }
             }
-            
-            if (selectId) {
-                $('#' + selectId).select2('close');
-            }
+            // Do NOT close dropdown here - otherwise click may not fire and modal won't open. Close in modal handler.
         });
     });
 </script>
@@ -4744,12 +4953,33 @@ function md5(string) {
         $form.append($('<input type="hidden" name="short_disc">').val(shortDiscVal));
         $form.append($('<input type="hidden" name="pro_dis">').val(proDisVal));
 
-        var unitSelectVal = $('#unit_parts').val();
-        $form.find('input[type="hidden"][name="unit"]').remove();
-        if (unitSelectVal && unitSelectVal !== '' && unitSelectVal !== null) {
-            var unitId = unitSelectVal.includes('_') ? unitSelectVal.split('_')[0] : unitSelectVal;
-            $form.append($('<input type="hidden" name="unit">').val(unitId));
+        var $unitSelect = $('#unit_parts');
+        if ($unitSelect.length && $unitSelect.hasClass('select2-hidden-accessible') && typeof $unitSelect.select2 === 'function') {
+            try { $unitSelect.select2('close'); } catch (err) {}
         }
+        var runSubmit = function() {
+            var rawVal = null;
+            if ($unitSelect.length) {
+                if ($unitSelect.hasClass('select2-hidden-accessible') && typeof $unitSelect.select2 === 'function') {
+                    try {
+                        var sel2Data = $unitSelect.select2('data');
+                        if (sel2Data && sel2Data[0] && sel2Data[0].id !== undefined && sel2Data[0].id !== null) {
+                            rawVal = String(sel2Data[0].id);
+                        }
+                    } catch (err) {}
+                }
+                if (rawVal === undefined || rawVal === null || rawVal === '') {
+                    rawVal = $unitSelect.val();
+                    if (rawVal !== undefined && rawVal !== null) rawVal = String(rawVal);
+                }
+            }
+            var unitValueToSend = (rawVal !== undefined && rawVal !== null && rawVal !== '') ? String(rawVal).trim() : '';
+            $form.find('input[type="hidden"][name="unit"]').remove();
+            $unitSelect.removeAttr('name');
+            if (unitValueToSend) {
+                var $hu = $('<input type="hidden" name="unit">').attr('value', unitValueToSend);
+                $form.append($hu);
+            }
 
         var qualityVal = $('#quality').val() || $('#quality_filters').val() || $('#quality_breakpad').val() || '';
         $form.find('input[type="hidden"][name="quality_id"]').remove();
@@ -4760,6 +4990,41 @@ function md5(string) {
         if (techVal) $form.append('<input type="hidden" name="technology" value="' + techVal + '">');
 
         var formData = new FormData($form[0]);
+        formData.set('_method', 'PUT');
+        if (unitValueToSend) {
+            formData.set('unit', unitValueToSend);
+            if (unitValueToSend.indexOf('_') !== -1) {
+                formData.set('unit_option', unitValueToSend);
+            }
+        }
+        // Ensure Unit Management & Price Calculation fields are always sent (so edit saves unit + prices)
+        var totalPrice = $form.find('input[name="total_price"]').val();
+        var pricePerUnit = $form.find('input[name="price_per_unit"]').val();
+        var salePrice = $form.find('input[name="sale_price"]').val();
+        var salePricePerBase = $form.find('input[name="sale_price_per_base"]').val();
+        formData.set('total_price', totalPrice !== undefined && totalPrice !== null && totalPrice !== '' ? totalPrice : '');
+        formData.set('price_per_unit', pricePerUnit !== undefined && pricePerUnit !== null && pricePerUnit !== '' ? pricePerUnit : '');
+        formData.set('sale_price', salePrice !== undefined && salePrice !== null && salePrice !== '' ? salePrice : '');
+        formData.set('sale_price_per_base', salePricePerBase !== undefined && salePricePerBase !== null && salePricePerBase !== '' ? salePricePerBase : '');
+        // Sync common Item Info and all Select2 fields into FormData so changes are saved
+        var barCode = $('#itemBarCode').val();
+        if (barCode !== undefined && barCode !== null) formData.set('bar_code', barCode);
+        var pId = $('#name').val();
+        if (pId !== undefined && pId !== null) formData.set('p_id', pId);
+        var partNumberId = $('#part_number_id').val();
+        if (partNumberId !== undefined && partNumberId !== null) formData.set('part_number_id', partNumberId);
+        var categoryId = $('#category_parts').val();
+        if (categoryId !== undefined && categoryId !== null) formData.set('category_id', categoryId);
+        var companyId = $('#company_parts').length ? $('#company_parts').val() : ($('#company_filters').length ? $('#company_filters').val() : ($('#company_breakpad').length ? $('#company_breakpad').val() : ''));
+        if (companyId !== undefined && companyId !== null && companyId !== '') formData.set('company_id', companyId);
+        $form.find('select.select2-hidden-accessible').each(function() {
+            var $sel = $(this);
+            var name = $sel.attr('name');
+            if (name && name !== 'unit') {
+                var v = $sel.val();
+                if (v !== undefined && v !== null) formData.set(name, v);
+            }
+        });
         var $submitBtn = $form.find('button[type=submit]');
         var origHtml = $submitBtn.html();
         $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Updating...');
@@ -4776,7 +5041,27 @@ function md5(string) {
                     if (typeof toastr !== 'undefined') toastr.success(data.message, '', { timeOut: 3500 });
                     if (typeof playSaveSound === 'function') playSaveSound();
                 }
-                setTimeout(function() { window.location.reload(); }, 450);
+                // If inside iframe (e.g. add-new-item-modal), tell parent to show add-item-modal
+                if (window.self !== window.top) {
+                    var itemId = (data && (data.item_id || data.id)) || (function() {
+                        var m = $form.attr('action').match(/\/update\/(\d+)/);
+                        return m ? m[1] : null;
+                    })();
+                    if (itemId) {
+                        try { window.parent.postMessage({ type: 'ITEM_UPDATED', itemId: String(itemId) }, '*'); } catch (e) {}
+                    }
+                    setTimeout(function() { window.location.reload(); }, 450);
+                } else {
+                    // If opened with return_to (e.g. from purchases create Edit button), redirect there and open add-item-modal
+                    var params = new URLSearchParams(window.location.search);
+                    var returnTo = params.get('return_to');
+                    if (returnTo) {
+                        returnTo += (returnTo.indexOf('?') !== -1 ? '&' : '?') + 'open_add_item=1';
+                        window.location.href = returnTo;
+                    } else {
+                        setTimeout(function() { window.location.reload(); }, 450);
+                    }
+                }
             },
             error: function(xhr) {
                 $form.find('button[type=submit]').prop('disabled', false).html(origHtml);
@@ -4788,6 +5073,8 @@ function md5(string) {
                 if (typeof toastr !== 'undefined') toastr.error(msg);
             }
         });
+        };
+        setTimeout(runSubmit, 0);
     });
 </script>
 <script>
@@ -5321,8 +5608,24 @@ function md5(string) {
             $yr = ($v->year_from && $v->year_to) ? ($v->year_from == $v->year_to ? $v->year_from : $v->year_from . '-' . $v->year_to) : '-';
             return [$v->id => $make . ' / ' . $model . ' / ' . $yr];
         })->toArray());
+        @php
+            $itemVehicleFullDetailsEditData = ($editingItem->vehical_items() ?? collect())->keyBy('id')->map(function($v) {
+                return [
+                    'car_manufacturer' => $v->car_manufacturer,
+                    'car_model_name' => $v->car_model_name,
+                    'engine_cc' => $v->engine_cc,
+                    'car_manufactured_country' => $v->car_manufactured_country,
+                    'year_from' => $v->year_from,
+                    'year_to' => $v->year_to,
+                    'v_part_number_id' => $v->v_part_number_id
+                ];
+            })->toArray();
+        @endphp
+        let itemVehicleFullDetailsEdit = @json($itemVehicleFullDetailsEditData);
+        let editingVehicleId = null;
 
         $(document).on('click', '[data-bs-target="#itemVehicleAddModalEdit"]', function(e) {
+            if (editingVehicleId) return;
             let outsidePart = $('#part_number_id').val();
             if (!outsidePart || outsidePart === '' || outsidePart === null) {
                 e.preventDefault();
@@ -5334,80 +5637,211 @@ function md5(string) {
         });
 
         $('#itemVehicleAddModalEdit').on('show.bs.modal', function(e) {
-            let outsidePart = $('#part_number_id').val();
-            if (!outsidePart || outsidePart === '') {
-                e.preventDefault();
-                if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
-                $('#part_number_id').addClass('is-invalid').focus();
-                return;
+            if (!editingVehicleId) {
+                let outsidePart = $('#part_number_id').val();
+                if (!outsidePart || outsidePart === '') {
+                    e.preventDefault();
+                    if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
+                    $('#part_number_id').addClass('is-invalid').focus();
+                    return;
+                }
+                $('#itemVehicleAddModalEdit .modal-title').html('<i class="ti ti-car me-2"></i>Add Vehicle');
+                $('#itemVehicleAddBtnEdit').text('Add Vehicle');
+                document.getElementById('itemVehicleAddFormEdit')?.reset();
+                $('#itemVehiclePartNumberEdit').val(outsidePart);
             }
-            document.getElementById('itemVehicleAddFormEdit')?.reset();
-            $('#itemVehiclePartNumberEdit').val(outsidePart);
+            // Init Select2 search on vehicle modal dropdowns (in case they weren’t in DOM or need refresh)
+            var $modal = $('#itemVehicleAddModalEdit');
+            var vehicleSelectors = '.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-year-from-edit, .item-vehicle-year-to-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit';
+            $modal.find(vehicleSelectors).each(function() {
+                var $sel = $(this);
+                if ($.fn.select2) {
+                    if ($sel.hasClass('select2-hidden-accessible')) {
+                        try { $sel.select2('destroy'); } catch (err) {}
+                    }
+                    $sel.select2({
+                        placeholder: $sel.find('option:first').text(),
+                        allowClear: true,
+                        width: '100%',
+                        minimumResultsForSearch: 0,
+                        dropdownParent: $modal
+                    });
+                }
+            });
+        });
+        $('#itemVehicleAddModalEdit').on('shown.bs.modal', function() {
+            var $modal = $('#itemVehicleAddModalEdit');
+            if (editingVehicleId && itemVehicleFullDetailsEdit[editingVehicleId]) {
+                var data = itemVehicleFullDetailsEdit[editingVehicleId];
+                $modal.find('#itemVehicleMakeEdit').val(data.car_manufacturer || '').trigger('change');
+                $modal.find('#itemVehicleModelEdit').val(data.car_model_name || '').trigger('change');
+                $modal.find('#itemVehicleYearFromEdit').val(data.year_from || '').trigger('change');
+                $modal.find('#itemVehicleYearToEdit').val(data.year_to || '').trigger('change');
+                $modal.find('#itemVehicleEngineEdit').val(data.engine_cc || '').trigger('change');
+                $modal.find('#itemVehicleCountryEdit').val(data.car_manufactured_country || '').trigger('change');
+            }
+            $modal.find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-year-from-edit, .item-vehicle-year-to-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').off('select2:open.vehicleFocus').on('select2:open.vehicleFocus', function() {
+                var $sel = $(this);
+                setTimeout(function() {
+                    var $search = $modal.find('.select2-search__field');
+                    if ($search.length && $search[0]) {
+                        $search[0].focus();
+                    }
+                }, 50);
+                setTimeout(function() {
+                    var $search = $modal.find('.select2-search__field');
+                    if ($search.length && $search[0]) {
+                        $search[0].focus();
+                    }
+                }, 150);
+            });
+        });
+        $('#itemVehicleAddModalEdit').on('hidden.bs.modal', function() {
+            editingVehicleId = null;
+            $('#itemVehicleAddModalEdit').find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-year-from-edit, .item-vehicle-year-to-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    try { $(this).select2('destroy'); } catch (err) {}
+                }
+            });
         });
 
         $('#itemVehicleAddFormEdit').off('submit').on('submit', function(e) {
             e.preventDefault();
             e.stopPropagation();
             if (!$('#itemVehicleAddModalEdit').hasClass('show')) return false;
-            let outsidePart = $('#part_number_id').val();
+            let outsidePart = $('#itemVehiclePartNumberEdit').val() || $('#part_number_id').val();
             if (!outsidePart || outsidePart === '') {
                 if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
                 $('#part_number_id').addClass('is-invalid').focus();
                 return false;
             }
-            $('#itemVehiclePartNumberEdit').val(outsidePart);
             $('#part_number_id').removeClass('is-invalid');
             let form = this;
             let $btn = $('#itemVehicleAddBtnEdit');
-            $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Adding...');
+            let isEdit = !!editingVehicleId;
             let formData = new FormData(form);
             formData.set('v_part_number_id', outsidePart);
-            $.ajax({
-                url: '{{ route("post.product_vehical") }}',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                dataType: 'json',
-                success: function(res) {
-                    if (!res) { if (typeof toastr !== 'undefined') toastr.error('No response from server'); return; }
-                    if (res.errors && res.errors.length > 0) {
-                        res.errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); });
-                        return;
-                    }
-                    if (res.duplicate_years && res.duplicate_years.length > 0) {
-                        if (typeof toastr !== 'undefined') toastr.warning('Already exists for year(s): ' + res.duplicate_years.join(', '));
-                        return;
-                    }
-                    if (res.success && res.vehicles && res.vehicles.length > 0) {
-                        res.vehicles.forEach(function(v) {
-                            if (itemVehicleIdsEdit.indexOf(v.id) === -1) {
-                                itemVehicleIdsEdit.push(v.id);
-                                var make = v.manutacturer_vehical?.name || '-';
-                                var model = v.model_vehical?.name || '-';
-                                var yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
-                                itemVehicleDetailsEdit[v.id] = make + ' / ' + model + ' / ' + yr;
+
+            if (isEdit && itemVehicleFullDetailsEdit[editingVehicleId]) {
+                var old = itemVehicleFullDetailsEdit[editingVehicleId];
+                formData.set('old_v_part_number_id', old.v_part_number_id);
+                formData.set('old_car_manufacturer', old.car_manufacturer);
+                formData.set('old_car_model_name', old.car_model_name);
+                formData.set('old_engine_cc', old.engine_cc || '');
+                formData.set('old_car_manufactured_country', old.car_manufactured_country || '');
+                $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Updating...');
+                $.ajax({
+                    url: '{{ route("update.product_vehical") }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(res) {
+                        if (!res) { if (typeof toastr !== 'undefined') toastr.error('No response'); return; }
+                        if (res.success) {
+                            var deletedIds = res.deleted_ids || [];
+                            deletedIds.forEach(function(id) {
+                                itemVehicleIdsEdit = itemVehicleIdsEdit.filter(function(x) { return x !== id; });
+                                delete itemVehicleDetailsEdit[id];
+                                delete itemVehicleFullDetailsEdit[id];
+                            });
+                            if (res.vehicles && res.vehicles.length > 0) {
+                                res.vehicles.forEach(function(v) {
+                                    if (itemVehicleIdsEdit.indexOf(v.id) === -1) itemVehicleIdsEdit.push(v.id);
+                                    var make = v.manutacturer_vehical?.name || '-';
+                                    var model = v.model_vehical?.name || '-';
+                                    var yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
+                                    itemVehicleDetailsEdit[v.id] = make + ' / ' + model + ' / ' + yr;
+                                    itemVehicleFullDetailsEdit[v.id] = {
+                                        car_manufacturer: v.car_manufacturer,
+                                        car_model_name: v.car_model_name,
+                                        engine_cc: v.engine_cc,
+                                        car_manufactured_country: v.car_manufactured_country,
+                                        year_from: v.year_from,
+                                        year_to: v.year_to,
+                                        v_part_number_id: v.v_part_number_id
+                                    };
+                                });
                             }
-                        });
-                        updateItemVehiclesDisplayEdit();
-                        bootstrap.Modal.getInstance(document.getElementById('itemVehicleAddModalEdit'))?.hide();
-                        if (typeof toastr !== 'undefined') toastr.success(res.message || 'Vehicle saved successfully!');
-                        if (typeof playSaveSound === 'function') playSaveSound();
-                    } else if (res.message && $('#itemVehicleAddModalEdit').hasClass('show')) {
-                        if (typeof toastr !== 'undefined') toastr.info(res.message);
-                    }
-                },
-                error: function(xhr) {
-                    var msg = xhr.responseJSON?.message || 'Failed to add vehicle.';
-                    var errors = xhr.responseJSON?.errors;
-                    if (errors && Array.isArray(errors) && errors.length) {
-                        errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); else alert(err); });
-                    } else {
-                        if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
-                    }
-                },
-                complete: function() { $btn.prop('disabled', false).html('Add Vehicle'); }
-            });
+                            updateItemVehiclesDisplayEdit();
+                            bootstrap.Modal.getInstance(document.getElementById('itemVehicleAddModalEdit'))?.hide();
+                            if (typeof toastr !== 'undefined') toastr.success(res.message || 'Vehicle updated!');
+                            if (typeof playSaveSound === 'function') playSaveSound();
+                        } else {
+                            if (typeof toastr !== 'undefined') toastr.warning(res.message || 'Update failed');
+                        }
+                    },
+                    error: function(xhr) {
+                        var msg = xhr.responseJSON?.message || 'Failed to update vehicle.';
+                        var errors = xhr.responseJSON?.errors;
+                        if (errors && Array.isArray(errors) && errors.length) {
+                            errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); });
+                        } else {
+                            if (typeof toastr !== 'undefined') toastr.error(msg);
+                        }
+                    },
+                    complete: function() { $btn.prop('disabled', false).html('Update Vehicle'); }
+                });
+            } else {
+                $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Adding...');
+                $.ajax({
+                    url: '{{ route("post.product_vehical") }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: function(res) {
+                        if (!res) { if (typeof toastr !== 'undefined') toastr.error('No response from server'); return; }
+                        if (res.errors && res.errors.length > 0) {
+                            res.errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); });
+                            return;
+                        }
+                        if (res.duplicate_years && res.duplicate_years.length > 0) {
+                            if (typeof toastr !== 'undefined') toastr.warning('Already exists for year(s): ' + res.duplicate_years.join(', '));
+                            return;
+                        }
+                        if (res.success && res.vehicles && res.vehicles.length > 0) {
+                            res.vehicles.forEach(function(v) {
+                                if (itemVehicleIdsEdit.indexOf(v.id) === -1) {
+                                    itemVehicleIdsEdit.push(v.id);
+                                    var make = v.manutacturer_vehical?.name || '-';
+                                    var model = v.model_vehical?.name || '-';
+                                    var yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
+                                    itemVehicleDetailsEdit[v.id] = make + ' / ' + model + ' / ' + yr;
+                                    itemVehicleFullDetailsEdit[v.id] = {
+                                        car_manufacturer: v.car_manufacturer,
+                                        car_model_name: v.car_model_name,
+                                        engine_cc: v.engine_cc,
+                                        car_manufactured_country: v.car_manufactured_country,
+                                        year_from: v.year_from,
+                                        year_to: v.year_to,
+                                        v_part_number_id: v.v_part_number_id
+                                    };
+                                }
+                            });
+                            updateItemVehiclesDisplayEdit();
+                            bootstrap.Modal.getInstance(document.getElementById('itemVehicleAddModalEdit'))?.hide();
+                            if (typeof toastr !== 'undefined') toastr.success(res.message || 'Vehicle saved successfully!');
+                            if (typeof playSaveSound === 'function') playSaveSound();
+                        } else if (res.message && $('#itemVehicleAddModalEdit').hasClass('show')) {
+                            if (typeof toastr !== 'undefined') toastr.info(res.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        var msg = xhr.responseJSON?.message || 'Failed to add vehicle.';
+                        var errors = xhr.responseJSON?.errors;
+                        if (errors && Array.isArray(errors) && errors.length) {
+                            errors.forEach(function(err) { if (typeof toastr !== 'undefined') toastr.error(err); else alert(err); });
+                        } else {
+                            if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+                        }
+                    },
+                    complete: function() { $btn.prop('disabled', false).html('Add Vehicle'); }
+                });
+            }
             return false;
         });
 
@@ -5423,14 +5857,26 @@ function md5(string) {
             itemVehicleIdsEdit.forEach(function(id, idx) {
                 $hidden.append('<input type="hidden" name="vehical_id[]" value="' + id + '">');
                 var label = itemVehicleDetailsEdit[id] || 'Vehicle #' + (idx + 1);
-                html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="' + id + '"><span class="small">' + label + '</span><button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle-edit" data-id="' + id + '"><i class="ti ti-trash"></i></button></div>';
+                html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="' + id + '"><span class="small">' + label + '</span><div class="btn-group btn-group-sm"><button type="button" class="btn btn-sm btn-outline-primary edit-item-vehicle-edit" data-id="' + id + '" title="Edit vehicle"><i class="ti ti-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle-edit" data-id="' + id + '"><i class="ti ti-trash"></i></button></div></div>';
             });
             html += '</div>';
             $list.html(html);
+            $('.edit-item-vehicle-edit').off('click').on('click', function() {
+                var id = parseInt($(this).data('id'), 10);
+                var data = itemVehicleFullDetailsEdit[id];
+                if (!data) return;
+                editingVehicleId = id;
+                $('#itemVehicleAddModalEdit .modal-title').html('<i class="ti ti-car me-2"></i>Edit Vehicle');
+                $('#itemVehicleAddBtnEdit').text('Update Vehicle');
+                $('#itemVehiclePartNumberEdit').val(data.v_part_number_id);
+                $('#part_number_id').val(data.v_part_number_id).removeClass('is-invalid');
+                $('#itemVehicleAddModalEdit').modal('show');
+            });
             $('.remove-item-vehicle-edit').off('click').on('click', function() {
                 var id = parseInt($(this).data('id'));
                 itemVehicleIdsEdit = itemVehicleIdsEdit.filter(function(x) { return x !== id; });
                 delete itemVehicleDetailsEdit[id];
+                if (itemVehicleFullDetailsEdit[id]) delete itemVehicleFullDetailsEdit[id];
                 updateItemVehiclesDisplayEdit();
             });
         }

@@ -1396,16 +1396,18 @@
         const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
         
         // User role (for filtering admin cash)
-        const userRole = '{{ Auth::user()->role ?? "" }}';
-        const isAdmin = userRole === 'admin';
         @php
+            $u = auth()->user();
+            $userRoleVal = $u ? ($u->role ?? '') : '';
             $userRolesForDisplay = [
-                'role' => auth()->user()->role ?? '-',
-                'branch_id' => auth()->user()->branch_id ?? null,
-                'name' => auth()->user()->name ?? '-',
-                'email' => auth()->user()->email ?? '-',
+                'role' => $u ? ($u->role ?? '-') : '-',
+                'branch_id' => $u ? ($u->branch_id ?? null) : null,
+                'name' => $u ? ($u->name ?? '-') : '-',
+                'email' => $u ? ($u->email ?? '-') : '-',
             ];
         @endphp
+        const userRole = '{{ $userRoleVal }}';
+        const isAdmin = userRole === 'admin';
         const userRolesDisplay = @json($userRolesForDisplay);
         
         // Simplified App Component (UI structure without Firebase)
@@ -1714,6 +1716,7 @@
             const [showDailyReportModal, setShowDailyReportModal] = useState(false);
             const [selectedJobForDetail, setSelectedJobForDetail] = useState(null);
             const [selectedJobForEdit, setSelectedJobForEdit] = useState(null);
+            const [editingJobId, setEditingJobId] = useState(null);
             const [completedJobs, setCompletedJobs] = useState(() => {
                 // Use backend completed jobs from database only
                 return initialCompletedJobs && Array.isArray(initialCompletedJobs) ? initialCompletedJobs : [];
@@ -2694,6 +2697,18 @@
                             if (data.success && data.suggestions) {
                                 setPlateSuggestions(data.suggestions);
                                 setShowPlateDropdown(data.suggestions.length > 0);
+                                // Auto-fill customer name and phone when exactly one suggestion matches the entered plate
+                                const suggestions = data.suggestions;
+                                if (suggestions.length === 1) {
+                                    const s = suggestions[0];
+                                    const matchPlate = (s.vehicleNo || '').trim().toUpperCase();
+                                    if (matchPlate === q) {
+                                        const customerName = (s.customerName || '').trim();
+                                        const mobile = (s.mobile || '').replace(/\D/g, '').slice(0, 11);
+                                        setFormData(prev => ({ ...prev, customerName, mobile }));
+                                        setShowPlateDropdown(false);
+                                    }
+                                }
                             } else {
                                 setPlateSuggestions([]);
                                 setShowPlateDropdown(false);
@@ -8366,6 +8381,23 @@
                                                                 </span>
                                                             </div>
                                                             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap order-1 sm:order-2 sm:ml-auto justify-end">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedJobForEdit({
+                                                                        id: job.id,
+                                                                        customerName: job.customerName || job.customer_name,
+                                                                        vehicleNo: job.vehicleNo || job.vehicle_no,
+                                                                        mobile: job.mobile,
+                                                                        serviceName: job.serviceName || job.service_name || job.service,
+                                                                        workerName: job.workerName || job.worker_name || job.worker,
+                                                                        price: job.price,
+                                                                        notes: job.notes || ''
+                                                                    })}
+                                                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-1.5 md:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-colors shadow-md flex-shrink-0"
+                                                                    title="Edit job"
+                                                                >
+                                                                    EDIT
+                                                                </button>
                                                                 {(() => {
                                                                     const jobServiceForInspection = allServices.find(s => s.label === job.service);
                                                                     const serviceRequiresInspection = jobServiceForInspection ? (jobServiceForInspection.inspection_compulsory !== false) : true;
@@ -8486,9 +8518,68 @@
                                         return;
                                     }
                                     
-                                    // Validate customer name OR voice recording
-                                    if ((!formData.customerName || formData.customerName.trim() === '') && !audioBlob) {
+                                    // Validate customer name OR voice recording (skip voice requirement when editing)
+                                    if ((!formData.customerName || formData.customerName.trim() === '') && !audioBlob && !editingJobId) {
                                         alert('Please enter customer name OR record voice');
+                                        return;
+                                    }
+                                    if (editingJobId && (!formData.customerName || formData.customerName.trim() === '')) {
+                                        alert('Please enter customer name');
+                                        return;
+                                    }
+                                    
+                                    // ---------- EDIT JOB (same screen as create, submit = update) ----------
+                                    if (editingJobId) {
+                                        let editWorkerId = formData.workerId;
+                                        if (!editWorkerId && formData.worker) {
+                                            const fw = WORKERS.find(w => (typeof w === 'string' ? w : (w.name || '')) === formData.worker.trim());
+                                            if (fw && typeof fw !== 'string' && fw.id) editWorkerId = fw.id;
+                                        }
+                                        const updatePayload = {
+                                            customer_name: (formData.customerName || '').trim().toUpperCase(),
+                                            vehicle_no: (formData.vehicleNo || '').trim().toUpperCase(),
+                                            mobile: (formData.mobile || '').trim(),
+                                            service_name: (selectedService ? selectedService.label : formData.serviceName || '').toUpperCase(),
+                                            worker_name: (formData.worker || '').trim().toUpperCase(),
+                                            price: parseFloat(formData.price || 0) || 0,
+                                            notes: '',
+                                            worker_id: editWorkerId || undefined,
+                                            service_id: selectedService && selectedService.id ? selectedService.id : undefined
+                                        };
+                                        try {
+                                            const editRes = await fetch(API_ROUTES.jobs.update(editingJobId), {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                                                body: JSON.stringify(updatePayload)
+                                            });
+                                            const editResult = await editRes.json();
+                                            if (!editRes.ok) throw new Error(editResult.message || 'Update failed');
+                                            const updatedJob = editResult.job;
+                                            setActiveJobs(prev => prev.map(j => j.id === editingJobId ? {
+                                                ...j,
+                                                customerName: updatedJob.customerName || updatePayload.customer_name,
+                                                vehicleNo: updatedJob.vehicleNo || updatePayload.vehicle_no,
+                                                mobile: updatedJob.mobile || updatePayload.mobile,
+                                                serviceName: updatedJob.serviceName || updatePayload.service_name,
+                                                service: updatedJob.serviceName || updatePayload.service_name,
+                                                workerName: updatedJob.workerName || updatePayload.worker_name,
+                                                worker: updatedJob.workerName || updatePayload.worker_name,
+                                                price: updatedJob.price != null ? updatedJob.price : updatePayload.price
+                                            } : j));
+                                            setEditingJobId(null);
+                                            setSelectedService(null);
+                                            setView('dashboard');
+                                            setFormData({ customerName: '', vehicleNo: '', mobile: '', worker: '', workerId: null, price: 0 });
+                                            setAudioBlob(null);
+                                            if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+                                            setAudioUrl(null);
+                                            setIsRecording(false);
+                                            setMediaRecorder(null);
+                                            setRecognition(null);
+                                        } catch (err) {
+                                            console.error('Edit job error:', err);
+                                            alert('Error updating job: ' + (err.message || 'Unknown error'));
+                                        }
                                         return;
                                     }
                                     
@@ -9602,8 +9693,8 @@
                                                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
                                             }`}
                                         >
-                                            <span className="hidden sm:inline">{!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER FIRST' : 'START JOB'}</span>
-                                            <span className="sm:hidden">{!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER' : 'START JOB'}</span>
+                                            <span className="hidden sm:inline">{editingJobId ? (!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER FIRST' : 'UPDATE JOB') : (!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER FIRST' : 'START JOB')}</span>
+                                            <span className="sm:hidden">{editingJobId ? (!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER' : 'UPDATE JOB') : (!formData.worker || formData.worker.trim() === '' ? 'SELECT WORKER' : 'START JOB')}</span>
                                         </button>
                                     </div>
                                 </form>
@@ -9635,7 +9726,17 @@
                                                             <span className="font-black text-slate-800">{job.serviceName || 'N/A'}</span>
                                                             <p className="text-[10px] text-slate-500 mt-0.5">{job.endTime ? new Date(job.endTime).toLocaleString() : (job.createdAt ? new Date(job.createdAt).toLocaleString() : '')} • {job.workerName || 'N/A'}</p>
                                                         </div>
-                                                        <span className="font-mono font-bold text-emerald-600">Rs.{Math.round(job.price || 0)}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-mono font-bold text-emerald-600">Rs.{Math.round(job.price || 0)}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); setSelectedJobForEdit(job); setShowVehicleHistoryModal(false); }}
+                                                                className="px-2.5 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold text-[10px] uppercase tracking-wide"
+                                                                title="Edit Job"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     <p className="text-[10px] text-slate-400 mt-1">{job.customerName || ''} {job.mobile ? ' • ' + job.mobile : ''}</p>
                                                 </li>

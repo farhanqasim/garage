@@ -752,8 +752,33 @@ class ItemController extends Controller
                 $vehicle->years = $yearRanges->implode(', ');
                 return $vehicle;
             });
+        // Full unit option value for dropdown (e.g. "12_8" for CAN 2 Liter) so exact option is selected
+        $itemUnitOptionForSelect = null;
+        if (!empty($item->unit_option) && is_string($item->unit_option)) {
+            $itemUnitOptionForSelect = trim($item->unit_option);
+        }
+        // Fallback: resolve unit id for edit form (when no unit_option saved)
+        $itemUnitIdForSelect = null;
+        if (!$itemUnitOptionForSelect && isset($item->unit) && $item->unit !== null && $item->unit !== '') {
+            $raw = trim((string) $item->unit);
+            if (is_numeric($raw)) {
+                $itemUnitIdForSelect = (int) $raw;
+            } elseif ($item->relationLoaded('unit_item') && $item->unit_item && isset($item->unit_item->id)) {
+                $itemUnitIdForSelect = (int) $item->unit_item->id;
+            } else {
+                $unitByName = Unit::where('name', $raw)->orWhere('short_name', $raw)->first();
+                if ($unitByName) {
+                    $itemUnitIdForSelect = (int) $unitByName->id;
+                }
+            }
+        } elseif (!$itemUnitOptionForSelect && $item->relationLoaded('unit_item') && $item->unit_item && isset($item->unit_item->id)) {
+            $itemUnitIdForSelect = (int) $item->unit_item->id;
+        }
+
         return view('admin.item.edit', compact(
             'item',
+            'itemUnitIdForSelect',
+            'itemUnitOptionForSelect',
             'platos',
             'amphors',
             'batterySizes',
@@ -858,6 +883,7 @@ class ItemController extends Controller
             'gorup' => 'nullable|string', // Keep both for backward compatibility
             'made_in' => 'nullable|string',
             'is_dead' => 'sometimes|boolean',
+            'unit_option' => 'nullable|string|max:64',
         ]);
 
         // Duplicate combination check - Only for parts, filters, and breakpad types
@@ -899,11 +925,26 @@ class ItemController extends Controller
             $data['short_disc'] = $request->input('short_disc');
             $data['pro_dis'] = $request->input('pro_dis');
             
-            // Ensure unit value is included if present in request (even if validation didn't catch it)
-            if ($request->has('unit') && (!isset($data['unit']) || $data['unit'] === null)) {
-                $data['unit'] = $request->input('unit');
+            // Save unit: full option value (e.g. "12_8" for CAN 2 Liter) in unit_option; numeric id in unit for relation
+            if ($request->filled('unit') || $request->filled('unit_option')) {
+                $rawUnit = $request->filled('unit')
+                    ? (is_array($request->input('unit')) ? (string) ($request->input('unit')[0] ?? '') : (string) $request->input('unit'))
+                    : (string) $request->input('unit_option', '');
+                $rawUnit = trim($rawUnit);
+                if ($rawUnit !== '') {
+                    if (strpos($rawUnit, '_') !== false) {
+                        $parts = explode('_', $rawUnit, 2);
+                        $data['unit'] = $parts[0];
+                        $data['unit_option'] = $rawUnit;
+                    } else {
+                        $data['unit'] = $rawUnit;
+                        $data['unit_option'] = $request->filled('unit_option') ? trim((string) $request->input('unit_option')) : null;
+                    }
+                    if ($data['unit'] !== '' && !is_numeric($data['unit'])) {
+                        $data['unit_option'] = null;
+                    }
+                }
             }
-            
             // Debug: Log unit value before update
             Log::info('Item Update - Unit Value Check', [
                 'item_id' => $id,

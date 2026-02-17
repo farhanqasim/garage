@@ -452,21 +452,24 @@
                     </label>
                     <div class="d-flex align-items-start gap-2">
                         <div class="position-relative flex-grow-1">
-                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off">
+                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off" title="Type to search or edit product name">
                         <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
                             </div>
-                        <!-- Selected Item Details Display (below input) -->
-                        <div id="selected-item-details-display" class="mt-2 d-none" style="font-size: 0.85rem;">
-                            <div class="text-muted mb-1" id="selected-item-details-line1"></div>
-                            <div class="text-muted mb-1" id="selected-item-details-line2"></div>
-                            <div class="text-warning fw-semibold" id="selected-item-details-line3"></div>
+                        <!-- Product detail (below search input when item selected) -->
+                        <div id="selected-item-details-display" class="mt-2 d-none rounded border px-2 py-2" style="font-size: 0.85rem; background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%);">
+                            <div class="small text-uppercase fw-semibold text-secondary mb-1" style="font-size: 10px;">Product detail</div>
+                            <div class="small text-muted mt-1 mb-1" id="selected-item-details-line1"></div>
+                            <div class="text-primary small fw-semibold mt-1" id="selected-item-details-line3"></div>
                         </div>
                         </div>
+                        <button type="button" class="btn btn-primary align-self-center" id="item-edit-in-modal-btn" title="Edit selected item" style="display: none; white-space: nowrap;">
+                            <i class="ti ti-edit"></i> Edit
+                        </button>
                         <!-- Item Image Preview -->
                         <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
-                            <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
+                            <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover; cursor: pointer;" title="Click to view full image">
                             <div id="item-search-stock" class="text-center mt-1" style="font-size: 0.75rem; font-weight: 600;"></div>
                             <div id="item-search-warehouse" class="text-center mt-0 d-none" style="font-size: 0.65rem; color: #6c757d;"></div>
                         </div>
@@ -484,14 +487,10 @@
                         </label>
                     </div>
                     <div id="stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto;">
-                        <div id="stock-status-select-all-wrap" class="mb-2 small d-none">
-                            <label class="form-check-label cursor-pointer text-primary" style="cursor: pointer;">
-                                <input type="checkbox" class="form-check-input me-1" id="stock-status-select-all"> Select all
-                            </label>
-                        </div>
                         <div id="stock-status-list">
                             <p class="text-muted mb-0 small text-center">Loading stock status...</p>
                         </div>
+                        <div id="stock-status-list-total" class="d-flex py-1 small fw-bold mt-1 border-top pt-2" style="border-color: #dee2e6 !important; display: none;">Total — <span id="stock-status-list-total-text">0 Piece</span></div>
                     </div>
                     <div class="mt-2">
                         <label class="form-label fw-bold mb-1 small text-uppercase" style="font-size: 11px; color: #6c757d;">All branches stock</label>
@@ -501,39 +500,26 @@
                     </div>
                 </div>
                 
-                <!-- Quantity and Unit Row (Same Line) -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold mb-2">QUANTITY</label>
-                        <select id="item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="">-</option>
-                            @for($i = 1; $i <= 1000; $i++)
-                                <option value="{{ $i }}">{{ $i }}</option>
-                            @endfor
-                        </select>
-                        <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="1" step="1" placeholder="Or enter custom quantity (whole numbers only)" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
-                        <small class="text-muted" style="font-size: 11px;">Select or enter whole number quantity</small>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold mb-2">UNIT</label>
-                        <select id="item-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="">-</option>
-                            @if(isset($units) && $units->count() > 0)
-                                @foreach($units as $unit)
-                                    <option value="{{ $unit->name ?? $unit->short_name }}">{{ $unit->name ?? $unit->short_name }}</option>
-                                @endforeach
-                            @else
-                                <option value="Unit">Unit</option>
-                                <option value="Piece">Piece</option>
-                                <option value="Box">Box</option>
-                                <option value="Kg">Kg</option>
-                                <option value="Liter">Liter</option>
-                                <option value="Pack">Pack</option>
-                                <option value="Set">Set</option>
-                            @endif
-                        </select>
-                    </div>
-                </div>
+                <!-- Quantity: taken from stock warehouse row; hidden for fallback -->
+                <input type="hidden" id="item-quantity" value="1">
+                <input type="hidden" id="item-quantity-input" value="1">
+                <!-- Unit: hidden (value set from item/API, used on submit) -->
+                <select id="item-unit" class="d-none" aria-hidden="true">
+                    <option value="">-</option>
+                    @if(isset($units) && $units->count() > 0)
+                        @foreach($units as $unit)
+                            <option value="{{ $unit->name ?? $unit->short_name }}">{{ $unit->name ?? $unit->short_name }}</option>
+                        @endforeach
+                    @else
+                        <option value="Unit">Unit</option>
+                        <option value="Piece">Piece</option>
+                        <option value="Box">Box</option>
+                        <option value="Kg">Kg</option>
+                        <option value="Liter">Liter</option>
+                        <option value="Pack">Pack</option>
+                        <option value="Set">Set</option>
+                    @endif
+                </select>
 
                 <!-- Sale Rate and Warranty Row -->
                 <div class="row mb-3">
@@ -608,10 +594,9 @@
                 </div>
 
             </div>
-            <div class="modal-footer border-0 pt-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <label class="form-label mb-0 small fw-semibold text-muted">Save to warehouse</label>
-                    <select id="item-save-warehouse" class="form-select form-select-sm" style="min-width: 180px; border-radius: 8px;">
+            <div class="modal-footer border-0 pt-2 d-flex flex-wrap justify-content-end align-items-center gap-2">
+                <div class="d-none">
+                    <select id="item-save-warehouse" class="form-select form-select-sm">
                         <option value="">— Select warehouse —</option>
                     </select>
                 </div>
@@ -653,6 +638,21 @@
             <div class="modal-body p-3">
                 <div id="camera-barcode-reader" style="width: 100%; min-height: 240px; border-radius: 8px; overflow: hidden; background: #000;"></div>
                 <p class="small text-muted mb-0 mt-2 text-center">Point camera at barcode</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Item image full view modal (click thumbnail to open) -->
+<div class="modal fade" id="item-image-view-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold"><i class="ti ti-photo me-2"></i>Item image</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 text-center">
+                <img id="item-image-view-full" src="" alt="Item" class="img-fluid rounded shadow-sm" style="max-height: 70vh; object-fit: contain;">
             </div>
         </div>
     </div>
@@ -733,6 +733,14 @@
     .item-card.selected {
         border-color: #0d6efd;
         background: #e7f1ff;
+    }
+    /* Selected warehouse row: always show primary blue (override inline styles) */
+    #stock-status-list .stock-warehouse-item.bg-primary {
+        background-color: #0d6efd !important;
+        color: #fff !important;
+    }
+    #stock-status-list .stock-warehouse-item.bg-primary .text-muted {
+        color: rgba(255,255,255,0.9) !important;
     }
     mark {
         background: #ffeb3b;
@@ -969,6 +977,9 @@
 $(document).ready(function() {
     let purchaseItems = [];
     let itemCounter = 0;
+    let editingRowId = null;
+    let pendingEditItem = null;
+    let warehouseQtyFirstSelectDone = false; // clear other qty dropdowns only on first selection; after that each box keeps its value
     // Entry type: 'purchase' (default) or 'scrap' - same modal as Smart Invoice Scrap In
     let currentEntryType = 'purchase';
 
@@ -1115,6 +1126,30 @@ $(document).ready(function() {
     } else {
         $('#empty-state-hint').text('Select a branch first, then add items');
     }
+
+    // If redirected back after item edit (open_add_item=1), show add-item-modal after DOM/Bootstrap ready
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('open_add_item') === '1') {
+            params.delete('open_add_item');
+            var newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + (window.location.hash || '');
+            if (window.history && window.history.replaceState) window.history.replaceState({}, '', newUrl);
+            currentEntryType = 'purchase';
+            $('#add-item-modal-title').html('<i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS');
+            var $modal = $('#add-item-modal');
+            function showAddItemModal() {
+                if ($modal.length) {
+                    if (typeof $modal.modal === 'function') {
+                        $modal.modal('show');
+                    } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        var bsModal = new bootstrap.Modal($modal[0]);
+                        bsModal.show();
+                    }
+                }
+            }
+            setTimeout(showAddItemModal, 150);
+        }
+    })();
 
     // ========== YouTube-Style Search Modal Functionality ==========
     const purchaseSearchInput = $('#purchase-item-search-input');
@@ -1640,10 +1675,16 @@ $(document).ready(function() {
                 });
                 
                 // Update empty state hint (branch is now selected)
-                $('#empty-state-hint').text('Click "Add Item" to add items to cart');
+                $('#empty-state-hint').text('Click "PURCHASE ITEM" to add items to cart');
                 
-                // Load purchase cart for this branch
-                loadPurchaseCart();
+                // Keep items summary empty by default (do not load persisted cart)
+                $('#items-tbody').empty();
+                purchaseItems = [];
+                $('#empty-items-state').show();
+                $('#items-list').hide();
+                $('#payment-section').hide();
+                $('#payment-amount-row').hide();
+                calculateTotals();
             },
             error: function() {
                 Swal.fire({
@@ -1761,17 +1802,23 @@ $(document).ready(function() {
         updateDocTypeFromSwitch(); // init on load
     });
 
-    // Handle "Add New Item" button click - check branch first
-    $('#add-new-item-btn').on('click', function() {
-        const branchId = $('#purchaseBranchId').val();
+    // Handle "PURCHASE ITEM" button click - check branch first (event delegation so it works reliably)
+    $(document).on('click', '#add-new-item-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const branchId = ($('#purchaseBranchId').val() || '').toString().trim();
         
         if (!branchId) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Branch Required',
-                text: 'Please select a branch first before adding items.',
-                confirmButtonText: 'OK'
-            });
+            if (typeof Swal !== 'undefined' && Swal.fire) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Branch Required',
+                    text: 'Please select a branch first before adding items.',
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                alert('Please select a branch first before adding items.');
+            }
             return;
         }
         
@@ -1793,6 +1840,18 @@ $(document).ready(function() {
     $('#add-new-item-modal').on('hidden.bs.modal', function() {
         $('#add-new-item-iframe').attr('src', 'about:blank');
         $('#item-search').trigger('input');
+    });
+
+    // When item is updated inside iframe (add-new-item-modal), show add-item-modal so user can add it to purchase
+    var pendingItemIdAfterUpdate = null;
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'ITEM_UPDATED' && event.data.itemId) {
+            $('#add-new-item-modal').modal('hide');
+            pendingItemIdAfterUpdate = event.data.itemId;
+            currentEntryType = 'purchase';
+            $('#add-item-modal-title').html('<i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS');
+            $('#add-item-modal').modal('show');
+        }
     });
 
     // Handle "Scrap In" button - same modal as Add Item (like Smart Invoice Scrap In)
@@ -1950,11 +2009,14 @@ $(document).ready(function() {
         $('#selected-warehouse-id').val($(this).val() || '');
     });
 
-    // Reset form when modal opens
+    // Reset form when modal opens (skip full reset when opening for edit)
     $('#add-item-modal').on('show.bs.modal', function() {
         const branchId = $('#purchaseBranchId').val();
-        
-        // Reset form when modal opens
+        if (editingRowId !== null) {
+            $('#item-search-results').hide();
+            loadItemSaveWarehouseDropdown();
+            return;
+        }
         $('#item-search').val('');
         $('#selected-item-id').val('');
         $('#selected-warehouse-id').val('');
@@ -1966,26 +2028,35 @@ $(document).ready(function() {
         $('#warranty-unit').val('');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
         $('#item-search-results').hide();
+        $('#item-edit-in-modal-btn').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
         $('#barcode-scan-input').val('');
-        // Hide image preview
         $('#item-search-image-preview').addClass('d-none');
         $('#item-search-image').attr('src', '');
         $('#item-search-stock').html('');
         $('#item-search-warehouse').text('');
-        // Hide selected item details display
         $('#selected-item-details-display').addClass('d-none');
         $('#selected-item-details-line1').html('');
-        $('#selected-item-details-line2').html('');
         $('#selected-item-details-line3').html('');
-        // Load current branch warehouses into footer dropdown
         loadItemSaveWarehouseDropdown();
     });
         
-    // Focus on search input when modal is fully shown
+    // Focus on search input when modal is fully shown; keep input always editable
     $('#add-item-modal').on('shown.bs.modal', function() {
-        // Focus on search input after modal animation completes
+        $('#item-search').prop('readonly', false).prop('disabled', false).attr('readonly', false);
+        if (pendingItemIdAfterUpdate) {
+            var itemId = pendingItemIdAfterUpdate;
+            pendingItemIdAfterUpdate = null;
+            $('#selected-item-id').val(itemId);
+            $.get('{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId))
+                .then(function(r) {
+                    $('#item-search').val(r.name || '');
+                    loadItemStockStatus(itemId);
+                    $('#item-edit-in-modal-btn').show();
+                })
+                .catch(function() { $('#item-search').trigger('input'); });
+        }
         setTimeout(function() {
             $('#item-search').focus();
         }, 100);
@@ -2180,6 +2251,16 @@ $(document).ready(function() {
     // Product name search with dropdown - COMPREHENSIVE SEARCH
     let itemSearchTimeout = null;
     
+    // Edit selected item: open item edit page in new tab
+    $(document).on('click', '#item-edit-in-modal-btn', function() {
+        var itemId = ($('#selected-item-id').val() || '').toString().trim();
+        if (!itemId) return;
+        var editUrl = '{{ url("item/edit") }}' + '/' + itemId;
+        var returnTo = (window.location.pathname || '/purchases/create').replace(/\/+$/, '') || '/purchases/create';
+        editUrl += (editUrl.indexOf('?') !== -1 ? '&' : '?') + 'return_to=' + encodeURIComponent(returnTo);
+        window.open(editUrl, '_blank');
+    });
+
     // Use event delegation to ensure it works even if modal is dynamically loaded
     $(document).on('input', '#item-search', function() {
         const query = $(this).val().trim();
@@ -2193,6 +2274,7 @@ $(document).ready(function() {
             resultsDiv.hide();
             $('#selected-item-id').val('');
             $('#selected-warehouse-ids').val('');
+            $('#item-edit-in-modal-btn').hide();
             // Hide image preview when search is cleared
             $('#item-search-image-preview').addClass('d-none');
             $('#item-search-image').attr('src', '');
@@ -2201,7 +2283,6 @@ $(document).ready(function() {
             // Hide selected item details display when search is cleared
             $('#selected-item-details-display').addClass('d-none');
             $('#selected-item-details-line1').html('');
-            $('#selected-item-details-line2').html('');
             $('#selected-item-details-line3').html('');
             return;
         }
@@ -2241,9 +2322,23 @@ $(document).ready(function() {
                     if (results.length === 0 || !hasItemResults) {
                         resultsDiv.html(noItemsHtml);
                     } else {
+                        // Sort: branch first, then warehouse, then items; within items sort by name (alphabetically)
+                        var sortedResults = results.slice();
+                        sortedResults.sort(function(a, b) {
+                            if (a.type !== b.type) {
+                                var order = { 'branch': 0, 'warehouse': 1, 'item': 2 };
+                                return (order[a.type] !== undefined ? order[a.type] : 2) - (order[b.type] !== undefined ? order[b.type] : 2);
+                            }
+                            if (a.type === 'item' && b.type === 'item' && a.item && b.item) {
+                                var nameA = ((a.item.product_item && a.item.product_item.name) || a.item.short_disc || a.item.pro_dis || a.item.bar_code || '').toString().toLowerCase();
+                                var nameB = ((b.item.product_item && b.item.product_item.name) || b.item.short_disc || b.item.pro_dis || b.item.bar_code || '').toString().toLowerCase();
+                                return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+                            }
+                            return 0;
+                        });
                         let html = '';
-                        // Only render item results in dropdown (skip branch/warehouse to avoid extra clutter)
-                        results.forEach(function(result) {
+                        // Only render item results in dropdown (skip branch/warehouse)
+                        sortedResults.forEach(function(result) {
                             if (result.type !== 'item') return;
                             if (result.type === 'branch') {
                                 // Branch result
@@ -2390,9 +2485,9 @@ $(document).ready(function() {
                                     productName = product;
                                 }
                                 
-                                // Build first line for battery: Product Name + Plates + Amperes + Company
+                                // Build first line: Product Name + Plates + Amperes + Company (battery or when any of these present)
                                 let firstLineParts = [];
-                                if (itemType === 'battery') {
+                                if (itemType === 'battery' || plate || amperes || company) {
                                     firstLineParts.push(productName);
                                     if (plate) firstLineParts.push(plate + 'PL');
                                     if (amperes) firstLineParts.push(amperes + 'AH');
@@ -2400,32 +2495,38 @@ $(document).ready(function() {
                                 }
                                 
                                 // Build short details array for search display (includes vehicle)
+                                // Show volt, CCA, group etc. whenever present (battery or battery-like items)
                                 let searchDetails = [];
                                 
-                                // Common fields (short format) - exclude company for battery (it's on first line)
-                                if (itemType !== 'battery' && company) searchDetails.push(company);
-                                if (category) searchDetails.push(category);
-                                
-                                // Type-specific details (short format)
-                                if (itemType === 'battery') {
+                                // Battery-style details: show for battery type OR when item has volt/cca/group (so "AGS"-only items get full line)
+                                if (itemType === 'battery' || group || volt || cca) {
                                     if (group && !isDummy(group)) searchDetails.push(group);
-                                    if (volt) searchDetails.push(volt + 'V');
-                                    if (cca) searchDetails.push(cca + 'CCA');
+                                    if (volt) searchDetails.push(volt + (volt.toString().indexOf('V') !== -1 ? '' : 'V'));
+                                    if (cca) searchDetails.push(cca + (cca.toString().indexOf('CCA') !== -1 ? '' : 'CCA'));
                                     if (technology && !isDummy(technology)) searchDetails.push(technology);
                                     if (grade && !isDummy(grade)) searchDetails.push(grade);
                                     if (batterySize && !isDummy(batterySize)) searchDetails.push(batterySize);
-                                    // Plates and amperes are on first line, not here
-                                } else if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
-                                    if (partNumber && !isDummy(partNumber)) searchDetails.push(partNumber);
-                                    if (quality && !isDummy(quality)) searchDetails.push(quality);
-                                    if (manufacturer && model) {
-                                        searchDetails.push(manufacturer + ' ' + model);
-                                    } else if (manufacturer) {
-                                        searchDetails.push(manufacturer);
+                                    if (searchDetails.length === 0 && company) searchDetails.push(company);
+                                }
+                                // Common when not battery-style
+                                if (searchDetails.length === 0) {
+                                    if (company) searchDetails.push(company);
+                                    if (category) searchDetails.push(category);
+                                }
+                                // Type-specific for parts/filters/oil only when no details added yet
+                                if (searchDetails.length === 0) {
+                                    if (itemType === 'parts' || itemType === 'filters' || itemType === 'breakpad') {
+                                        if (partNumber && !isDummy(partNumber)) searchDetails.push(partNumber);
+                                        if (quality && !isDummy(quality)) searchDetails.push(quality);
+                                        if (manufacturer && model) {
+                                            searchDetails.push(manufacturer + ' ' + model);
+                                        } else if (manufacturer) {
+                                            searchDetails.push(manufacturer);
+                                        }
+                                    } else if (itemType === 'oil') {
+                                        if (technology && !isDummy(technology)) searchDetails.push(technology);
+                                        if (grade && !isDummy(grade)) searchDetails.push(grade);
                                     }
-                                } else if (itemType === 'oil') {
-                                    if (technology && !isDummy(technology)) searchDetails.push(technology);
-                                    if (grade && !isDummy(grade)) searchDetails.push(grade);
                                 }
                                 
                                 // Vehicle info (ONLY for search display, NOT for input field) - separate for styling
@@ -2467,15 +2568,14 @@ $(document).ready(function() {
                                 let stockIcon = stockValue > 10 ? 'ti-check' : (stockValue > 0 ? '' : 'ti-x');
                                 const stockDisplay = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(2);
                                 
-                                // Build first line HTML for battery items
+                                // Build first line HTML: show Product + PL + AH + Company when we have those parts
                                 let firstLineHtml = '';
                                 let firstLineText = productName; // Default to product name
-                                if (itemType === 'battery' && firstLineParts.length > 0) {
+                                if (firstLineParts.length > 0) {
                                     firstLineText = firstLineParts.join(' ');
                                     const highlightedFirstLine = highlightText(firstLineText, query);
                                     firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
                                 } else {
-                                    // For non-battery items, show product name as before
                                     const highlightedProductName = highlightText(productName, query);
                                     firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedProductName + '</div>';
                                 }
@@ -2624,57 +2724,29 @@ $(document).ready(function() {
             $('#item-quantity').val('1');
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
+            $('#item-edit-in-modal-btn').show();
             
-            // Show item details below input (matching image format)
+            // Show item details below input — same format as dropdown: "KSNKDCNK • 12V • 390CCA • Changan Altis" (vehicle in primary)
             let line1 = '';
-            let line2 = '';
             let line3 = '';
             
-            // Line 1: Volt only (remove company like "AGS")
-            if (itemLine1Details) {
-                // Remove company from line1Details (e.g., "AGS • 12V" -> "12V")
-                // Split by bullet and take everything after the first part (company)
-                const parts = itemLine1Details.split('•').map(p => p.trim());
-                if (parts.length > 1) {
-                    // Remove first part (company) and join the rest
-                    line1 = parts.slice(1).join(' • ').trim();
+            // Line 1: Full details • vehicle (same as search result second line)
+            if (itemDetails || itemVehicle) {
+                const detailsPart = (itemDetails || '').trim();
+                if (itemVehicle) {
+                    line1 = detailsPart ? (detailsPart + ' • <span class="text-primary fw-semibold">' + itemVehicle + '</span>') : ('<span class="text-primary fw-semibold">' + itemVehicle + '</span>');
                 } else {
-                    line1 = itemLine1Details;
+                    line1 = detailsPart;
                 }
-            } else if (itemDetails) {
-                // Fallback: use details without vehicle, CCA, and company
-                let detailsOnly = itemDetails;
-                if (itemVehicle && detailsOnly.includes(itemVehicle)) {
-                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\\s*' + itemVehicle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
-                }
-                if (itemCca && detailsOnly.includes(itemCca)) {
-                    detailsOnly = detailsOnly.replace(new RegExp('\\s*•\s*' + itemCca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
-                }
-                // Remove company from start if present (first part before first bullet)
-                const parts = detailsOnly.split('•').map(p => p.trim());
-                if (parts.length > 1) {
-                    detailsOnly = parts.slice(1).join(' • ').trim();
-                }
-                line1 = detailsOnly.trim();
             }
             
-            // Line 2: CCA + Vehicle (e.g., "380CCA • HONDA City" with vehicle in orange)
-            if (itemCca && itemVehicle) {
-                line2 = itemCca + ' • <span class="text-warning fw-semibold">' + itemVehicle + '</span>';
-            } else if (itemCca) {
-                line2 = itemCca;
-            } else if (itemVehicle) {
-                line2 = '<span class="text-warning fw-semibold">' + itemVehicle + '</span>';
-            }
-            
-            // Line 3: Barcode/Code (in orange with icon)
+            // Line 3: Barcode/Code (with icon)
             if (itemCode) {
-                line3 = '<i class="ti ti-barcode me-1"></i><span class="text-warning fw-semibold">' + itemCode + '</span>';
+                line3 = '<i class="ti ti-barcode me-1"></i>' + itemCode;
             }
             
-            if (line1 || line2 || line3) {
+            if (line1 || line3) {
                 $('#selected-item-details-line1').html(line1 || '&nbsp;');
-                $('#selected-item-details-line2').html(line2 || '&nbsp;');
                 $('#selected-item-details-line3').html(line3 || '&nbsp;');
                 $('#selected-item-details-display').removeClass('d-none');
             } else {
@@ -2751,13 +2823,17 @@ $(document).ready(function() {
         $('#stock-status-content').show();
         $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">Loading stock status...</p>');
         
+        var branchIdParam = ($('#purchaseBranchId').val() || '').toString();
         $.ajax({
             url: '{{ route("purchases.items.stock.status", ":id") }}'.replace(':id', itemId),
             method: 'GET',
+            data: branchIdParam ? { branch_id: branchIdParam } : {},
             success: function(stockData) {
+                warehouseQtyFirstSelectDone = false;
                 if (stockData.length === 0) {
                     $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">No stock found</p>');
                     $('#stock-status-all-branches').html('<p class="text-muted mb-0 text-center">No stock</p>');
+                    if (typeof updateStockStatusListTotal === 'function') updateStockStatusListTotal();
                     return;
                 }
                 
@@ -2765,7 +2841,28 @@ $(document).ready(function() {
                 var branchTotals = [];
                 var warehouseRows = []; // { warehouseDisplay, branchDisplay, quantity, unit } — only other branches
                 var currentBranchDisplay = '';
+                // Auto-select first warehouse row in the list if none selected (so first warehouse item is always selected)
+                var initialSelectedIds = ($('#selected-warehouse-ids').val() || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
+                if (initialSelectedIds.length === 0 && $('#selected-warehouse-id').val()) initialSelectedIds = [$('#selected-warehouse-id').val().toString()];
+                if (initialSelectedIds.length === 0 && stockData.length > 0) {
+                    for (var i = 0; i < stockData.length; i++) {
+                        if (stockData[i].type === 'warehouse') {
+                            initialSelectedIds = [stockData[i].id + ''];
+                            $('#selected-warehouse-ids').val(initialSelectedIds.join(','));
+                            $('#selected-warehouse-id').val(initialSelectedIds[0] || '');
+                            break;
+                        }
+                    }
+                }
                 let html = '';
+                var firstWarehouseRowDone = false;
+                // Show only warehouses in current branch in the main list (stock-status-content)
+                var showInMainList = function(stock) {
+                    if (!selectedBranchId) return true;
+                    if (stock.type === 'branch') return (stock.id + '') === selectedBranchId;
+                    if (stock.type === 'warehouse') return (stock.branch_id + '') === selectedBranchId;
+                    return true;
+                };
                 stockData.forEach(function(stock) {
                     if (stock.type === 'branch') {
                         if (selectedBranchId && (stock.id + '') !== selectedBranchId) {
@@ -2777,16 +2874,20 @@ $(document).ready(function() {
                     var qty = parseFloat(stock.quantity) || 0;
                     var qtyText = (Number.isInteger(qty) ? qty : qty.toFixed(2)) + ' ' + unitLabel;
                     if (stock.type === 'branch') {
-                        html += `
+                        if (showInMainList(stock)) {
+                            html += `
                             <div class="p-2 mb-1 border-bottom stock-branch-item" data-branch-id="${stock.id}" style="background-color: #fff;">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="fw-bold">${stock.display}</div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="text-muted"><span class="fw-bold">${qtyText}</span></span>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="stock-branch-selected-qty fw-bold text-dark">0 ${unitLabel}</span>
+                                        <span class="text-muted small">·</span>
+                                        <span class="stock-branch-total-rs fw-bold text-primary">Rs 0</span>
                                     </div>
                                 </div>
                             </div>
                         `;
+                        }
                     } else if (stock.type === 'warehouse') {
                         if (selectedBranchId && (stock.branch_id + '') !== selectedBranchId) {
                             warehouseRows.push({
@@ -2797,8 +2898,15 @@ $(document).ready(function() {
                                 qtyText: qtyText
                             });
                         }
+                        if (!showInMainList(stock)) return;
                         var selectedIds = ($('#selected-warehouse-ids').val() || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
                         if (selectedIds.length === 0 && $('#selected-warehouse-id').val()) selectedIds = [$('#selected-warehouse-id').val().toString()];
+                        if (selectedIds.length === 0 && !firstWarehouseRowDone) {
+                            firstWarehouseRowDone = true;
+                            selectedIds = [stock.id + ''];
+                            $('#selected-warehouse-ids').val(selectedIds.join(','));
+                            $('#selected-warehouse-id').val(selectedIds[0] || '');
+                        }
                         const isSelected = selectedIds.indexOf((stock.id + '')) !== -1;
                         html += `
                             <div class="p-2 mb-1 stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
@@ -2816,7 +2924,7 @@ $(document).ready(function() {
                                     </div>
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="${isSelected ? 'text-white' : 'text-muted'}"><span class="fw-bold">${qtyText}</span></span>
-                                        <input type="checkbox" class="form-check-input stock-warehouse-check" ${isSelected ? 'checked' : ''} data-warehouse-id="${stock.id}" onclick="event.stopPropagation();">
+                                        <select class="form-control form-control-sm stock-warehouse-qty-input" style="width: 70px; display: inline-block;" data-warehouse-id="${stock.id}" onclick="event.stopPropagation();" data-unit="${(unitLabel || 'Piece').replace(/"/g, '&quot;')}">${(function(){ var selVal = ''; var opts = '<option value="" selected>-</option>'; for (var i = 1; i <= 1000; i++) { opts += '<option value="'+i+'">'+i+'</option>'; } return opts; })()}</select>
                                     </div>
                                 </div>
                             </div>
@@ -2824,8 +2932,35 @@ $(document).ready(function() {
                     }
                 });
                 
-                $('#stock-status-list').html(html);
-                
+                if (!html.trim() && selectedBranchId) {
+                    $('#stock-status-list').html('<p class="text-muted mb-0 small text-center">No warehouses with stock in this branch for this item.</p>');
+                    if (typeof updateStockStatusListTotal === 'function') updateStockStatusListTotal();
+                } else {
+                    $('#stock-status-list').html(html);
+                    var $list = $('#stock-status-list');
+                    var $branchItems = $list.find('.stock-branch-item');
+                    $branchItems.get().reverse().forEach(function(el) { $(el).prependTo($list); });
+                    var $firstSel = $list.find('.stock-warehouse-item.bg-primary').first();
+                    if ($firstSel.length) {
+                        var $afterBranch = $list.find('.stock-branch-item').last();
+                        if ($afterBranch.length) $firstSel.insertAfter($afterBranch); else $firstSel.prependTo($list);
+                    }
+                }
+                // By default: warehouse qty dropdowns stay empty; sync #item-quantity only if user has selected a qty
+                var $firstWhQty = $('#stock-status-list .stock-warehouse-qty-input').first();
+                if ($firstWhQty.length) {
+                    var qtyFromWarehouse = parseFloat($firstWhQty.val());
+                    if (!isNaN(qtyFromWarehouse) && qtyFromWarehouse >= 1) {
+                        qtyFromWarehouse = Math.max(1, Math.min(1000, Math.round(qtyFromWarehouse)));
+                        $('#item-quantity').val(qtyFromWarehouse);
+                        $('#item-quantity-input').val(qtyFromWarehouse).hide();
+                    } else {
+                        $('#item-quantity').val('');
+                        $('#item-quantity-input').val('').hide();
+                    }
+                } else if (typeof syncQuantityToWarehouseInputs === 'function') {
+                    syncQuantityToWarehouseInputs();
+                }
                 var $whItems = $('.stock-warehouse-item');
                 if ($whItems.length) {
                     $('#stock-status-select-all-wrap').removeClass('d-none');
@@ -2833,6 +2968,7 @@ $(document).ready(function() {
                 } else {
                     $('#stock-status-select-all-wrap').addClass('d-none');
                 }
+                if (typeof updateStockStatusListTotal === 'function') updateStockStatusListTotal();
                 // Sync image-preview: show total stock of selected warehouses; if none selected use first warehouse
                 var $checked = $('.stock-warehouse-item.bg-primary');
                 if (!$checked.length) $checked = $('.stock-warehouse-item').first();
@@ -2848,36 +2984,162 @@ $(document).ready(function() {
                     $('#item-search-stock').html('');
                 }
                 
-                // All branches stock: table with Warehouse (left) | Branch | Quantity
+                // All branches stock: branch lines (Name (id) qty · Rs) then Total below
                 var allBranchesHtml = '';
+                var initialTotalQty = 0;
+                var initialTotalUnit = 'Piece';
                 if (warehouseRows.length > 0) {
-                    allBranchesHtml += '<div class="d-flex border-bottom py-1 small fw-bold text-uppercase" style="font-size: 10px; color: #6c757d; border-color: #dee2e6 !important;">';
-                    allBranchesHtml += '<span style="min-width: 38%;">Warehouse</span><span style="min-width: 38%;">Branch</span><span class="text-end" style="min-width: 24%;">Quantity</span></div>';
+                    var byBranch = {};
                     warehouseRows.forEach(function(r) {
-                        allBranchesHtml += '<div class="d-flex py-1 border-bottom align-items-center small" style="border-color: #eee !important;">';
-                        allBranchesHtml += '<span class="fw-500" style="min-width: 38%;">' + (r.warehouseDisplay || '—') + '</span>';
-                        allBranchesHtml += '<span class="text-muted" style="min-width: 38%;">' + (r.branchDisplay || '—') + '</span>';
-                        allBranchesHtml += '<span class="text-muted fw-bold text-end" style="min-width: 24%;">' + r.qtyText + '</span></div>';
+                        var key = r.branchDisplay || '';
+                        var q = parseFloat(r.quantity) || 0;
+                        var u = (r.unit || 'Piece').trim();
+                        var whDisplay = (r.warehouseDisplay || 'Warehouse').replace(/</g, '&lt;');
+                        var whQtyText = (Number.isInteger(q) ? q : q.toFixed(2)) + ' ' + u;
+                        if (!byBranch[key]) byBranch[key] = { display: r.branchDisplay, qty: 0, unit: u, warehouses: [] };
+                        byBranch[key].qty += q;
+                        byBranch[key].warehouses.push(whDisplay + ' ' + whQtyText);
+                        initialTotalQty += q;
+                        if (u) initialTotalUnit = u;
+                    });
+                    Object.keys(byBranch).forEach(function(k) {
+                        var b = byBranch[k];
+                        var qt = (Number.isInteger(b.qty) ? b.qty : b.qty.toFixed(2)) + ' ' + (b.unit || 'Piece');
+                        allBranchesHtml += '<div class="d-flex justify-content-between align-items-center py-1 border-bottom small" style="border-color: #dee2e6 !important;">';
+                        allBranchesHtml += '<span class="fw-bold">' + (b.display || '—').replace(/</g, '&lt;') + '</span>';
+                        allBranchesHtml += '<span class="text-muted">' + qt + '</span>';
+                        allBranchesHtml += '</div>';
+                        if (b.warehouses && b.warehouses.length > 0) {
+                            allBranchesHtml += '<div class="d-flex justify-content-between align-items-center py-0 px-2 small" style="border-color: #dee2e6 !important; font-size: 0.8rem; color: #6c757d;">';
+                            allBranchesHtml += '<span>' + b.warehouses.join(' · ') + '</span>';
+                            allBranchesHtml += '</div>';
+                        }
                     });
                 } else if (branchTotals.length > 0) {
-                    // Fallback: no warehouses, show branch totals only (Warehouse column empty)
-                    allBranchesHtml += '<div class="d-flex border-bottom py-1 small fw-bold text-uppercase" style="font-size: 10px; color: #6c757d; border-color: #dee2e6 !important;">';
-                    allBranchesHtml += '<span style="min-width: 38%;">Warehouse</span><span style="min-width: 38%;">Branch</span><span class="text-end" style="min-width: 24%;">Quantity</span></div>';
                     branchTotals.forEach(function(b) {
                         var u = (b.unit || 'Unit').trim();
                         var q = parseFloat(b.quantity) || 0;
+                        initialTotalQty += q;
+                        if (u) initialTotalUnit = u;
                         var qt = (Number.isInteger(q) ? q : q.toFixed(2)) + ' ' + u;
-                        allBranchesHtml += '<div class="d-flex py-1 border-bottom align-items-center small" style="border-color: #eee !important;">';
-                        allBranchesHtml += '<span style="min-width: 38%;">—</span>';
-                        allBranchesHtml += '<span class="fw-500" style="min-width: 38%;">' + (b.display || '') + '</span>';
-                        allBranchesHtml += '<span class="text-muted fw-bold text-end" style="min-width: 24%;">' + qt + '</span></div>';
+                        allBranchesHtml += '<div class="d-flex justify-content-between align-items-center py-1 border-bottom small" style="border-color: #dee2e6 !important;">';
+                        allBranchesHtml += '<span class="fw-bold">' + (b.display || '—').replace(/</g, '&lt;') + ' (' + (b.id || '') + ')</span>';
+                        allBranchesHtml += '<span class="text-muted">' + qt + '</span>';
+                        allBranchesHtml += '</div>';
                     });
                 }
+                if (allBranchesHtml) {
+                    var totalText = (Number.isInteger(initialTotalQty) ? initialTotalQty : initialTotalQty.toFixed(2)) + ' ' + initialTotalUnit;
+                    allBranchesHtml += '<div class="d-flex py-1 small fw-bold mt-1" style="border-color: #dee2e6 !important;">Total — ' + totalText + '</div>';
+                }
                 $('#stock-status-all-branches').html(allBranchesHtml || '<p class="text-muted mb-0 text-center">' + (selectedBranchId ? 'No stock in other branches' : 'No branches') + '</p>');
+                // Fetch all branches stock (no branch_id) to populate "All branches stock" — show all branches
+                $.ajax({
+                    url: '{{ route("purchases.items.stock.status", ":id") }}'.replace(':id', itemId),
+                    method: 'GET',
+                    data: {},
+                    success: function(allStockData) {
+                        var allHtml = '';
+                        var curBranchDisplay = '';
+                        var curBranchId = '';
+                        var curBranchCode = '';
+                        var totalQty = 0;
+                        var totalUnit = 'Piece';
+                        var branchRows = [];
+                        if (allStockData && allStockData.length > 0) {
+                            allStockData.forEach(function(s) {
+                                var u = (s.unit || 'Unit').trim();
+                                var q = parseFloat(s.quantity) || 0;
+                                var rate = parseFloat(s.rate || s.price || s.sale_price) || 0;
+                                if (s.type === 'branch') {
+                                    curBranchDisplay = s.display || s.name || '';
+                                    curBranchId = (s.id + '') || '';
+                                    curBranchCode = (s.code + '') || '';
+                                } else if (s.type === 'warehouse') {
+                                    totalQty += q;
+                                    if (u) totalUnit = u;
+                                    var whDisplay = (s.display || s.name || 'Warehouse').replace(/</g, '&lt;');
+                                    var whQty = (Number.isInteger(q) ? q : q.toFixed(2)) + ' ' + u;
+                                    var existing = branchRows.find(function(r) { return r.branchId === curBranchId; });
+                                    if (existing) {
+                                        existing.qty += q;
+                                        existing.value += q * rate;
+                                        existing.warehouses.push({ display: whDisplay, qty: q, qtyText: whQty, unit: u });
+                                    } else {
+                                        branchRows.push({
+                                            branchId: curBranchId,
+                                            display: curBranchDisplay,
+                                            code: curBranchCode,
+                                            qty: q,
+                                            unit: u,
+                                            value: q * rate,
+                                            warehouses: [{ display: whDisplay, qty: q, qtyText: whQty, unit: u }]
+                                        });
+                                    }
+                                }
+                            });
+                            branchRows.forEach(function(b) {
+                                var qt = (Number.isInteger(b.qty) ? b.qty : b.qty.toFixed(2)) + ' ' + (b.unit || totalUnit);
+                                var rsPart = (b.value > 0) ? (' · Rs ' + Math.round(b.value)) : '';
+                                var branchLabel = (b.display || '—').replace(/</g, '&lt;');
+                                if (b.code && branchLabel.indexOf('(') === -1) branchLabel += ' (' + b.code + ')';
+                                else if (b.branchId && branchLabel.indexOf('(') === -1) branchLabel += ' (' + b.branchId + ')';
+                                allHtml += '<div class="d-flex justify-content-between align-items-center py-1 border-bottom small" style="border-color: #dee2e6 !important;">';
+                                allHtml += '<span class="fw-bold">' + branchLabel + '</span>';
+                                allHtml += '<span class="text-muted">' + qt + rsPart + '</span>';
+                                allHtml += '</div>';
+                                if (b.warehouses && b.warehouses.length > 0) {
+                                    var whParts = b.warehouses.map(function(w) { return w.display + ' ' + w.qtyText; });
+                                    allHtml += '<div class="d-flex justify-content-between align-items-center py-0 px-2 small" style="border-color: #dee2e6 !important; font-size: 0.8rem; color: #6c757d;">';
+                                    allHtml += '<span>' + whParts.join(' · ') + '</span>';
+                                    allHtml += '</div>';
+                                }
+                            });
+                            var totalText = (Number.isInteger(totalQty) ? totalQty : totalQty.toFixed(2)) + ' ' + totalUnit;
+                            allHtml += '<div class="d-flex py-1 small fw-bold mt-1" style="border-color: #dee2e6 !important;">Total — ' + totalText + '</div>';
+                        }
+                        $('#stock-status-all-branches').html(allHtml || '<p class="text-muted mb-0 text-center">No stock in other branches</p>');
+                    },
+                    error: function() {
+                        $('#stock-status-all-branches').html('<p class="text-muted mb-0 text-center">Could not load all branches</p>');
+                    }
+                });
+                // Apply pending edit (row click → edit): set warehouse, qty, rate, unit, discount, tax, warranty
+                if (pendingEditItem) {
+                    var pe = pendingEditItem;
+                    if (pe.warehouse_id) {
+                        var $row = $('#stock-status-list .stock-warehouse-item[data-warehouse-id="' + pe.warehouse_id + '"]');
+                        if ($row.length) {
+                            $row.siblings('.stock-warehouse-item').removeClass('bg-primary text-white').css('background-color', '#f0f0f0');
+                            $row.addClass('bg-primary text-white').css('background-color', '');
+                            $('#selected-warehouse-id').val(pe.warehouse_id);
+                            if ($('#item-save-warehouse option[value="' + pe.warehouse_id + '"]').length) $('#item-save-warehouse').val(pe.warehouse_id);
+                            var $qtyInput = $('#stock-status-list .stock-warehouse-qty-input[data-warehouse-id="' + pe.warehouse_id + '"]');
+                            if ($qtyInput.length) $qtyInput.val(pe.quantity);
+                            $('#item-quantity').val(pe.quantity); $('#item-quantity-input').val(pe.quantity).hide();
+                        } else {
+                            $('#selected-warehouse-id').val(pe.warehouse_id);
+                            if ($('#item-save-warehouse option[value="' + pe.warehouse_id + '"]').length) $('#item-save-warehouse').val(pe.warehouse_id);
+                            $('#item-quantity').val(pe.quantity); $('#item-quantity-input').val(pe.quantity).hide();
+                        }
+                    }
+                    if (pe.rate != null) $('#item-rate').val(pe.rate);
+                    if (pe.unit != null) $('#item-unit').val(pe.unit);
+                    if (pe.discount != null) { $('#discount-type').val('amount'); $('#item-discount').val(pe.discount); }
+                    if (pe.tax_percentage != null) $('#item-tax').val(pe.tax_percentage);
+                    if (pe.warranty != null) {
+                        var w = (pe.warranty || '').toString().trim().split(/\s+/);
+                        $('#warranty-value').val(w[0] || ''); $('#warranty-unit').val(w[1] || '');
+                    }
+                    pendingEditItem = null;
+                }
+                if (typeof updateItemLineTotal === 'function') updateItemLineTotal();
+                if (typeof updateStockBranchSelectedQty === 'function') updateStockBranchSelectedQty();
             },
             error: function() {
                 $('#stock-status-list').html('<p class="text-danger mb-0 small text-center">Error loading stock status</p>');
                 $('#stock-status-all-branches').html('<p class="text-muted mb-0 text-center">—</p>');
+                if (typeof updateStockStatusListTotal === 'function') updateStockStatusListTotal();
             }
         });
     }
@@ -2890,7 +3152,9 @@ $(document).ready(function() {
         var idx = selectedIds.indexOf(id);
         if (idx === -1) selectedIds.push(id); else selectedIds.splice(idx, 1);
         $('#selected-warehouse-ids').val(selectedIds.join(','));
-        $('#selected-warehouse-id').val(selectedIds[0] || '');
+        var firstId = selectedIds[0] || '';
+        $('#selected-warehouse-id').val(firstId);
+        if (firstId && $('#item-save-warehouse option[value="' + firstId + '"]').length) $('#item-save-warehouse').val(firstId);
         
         stockWarehouseUpdating = true;
         $('.stock-warehouse-item').each(function() {
@@ -2899,7 +3163,7 @@ $(document).ready(function() {
             $(this).removeClass('bg-primary text-white bg-light').css('background-color', '');
             if (sel) $(this).addClass('bg-primary text-white'); else $(this).css('background-color', '#f0f0f0');
             $(this).find('span:first').html(sel ? '✓' : '');
-            $(this).find('.stock-warehouse-check').prop('checked', sel);
+            $(this).find('.stock-warehouse-qty-input').val('');
             var $nameSpan = $(this).find('.d-flex.align-items-center span:eq(1)');
             var $qtyWrap = $(this).find('.d-flex.align-items-center.gap-2 span').first();
             $nameSpan.toggleClass('text-white', sel).toggleClass('text-dark', !sel);
@@ -2921,7 +3185,14 @@ $(document).ready(function() {
         }
         var $all = $('.stock-warehouse-item');
         $('#stock-status-select-all').prop('checked', $all.length > 0 && $all.length === $('.stock-warehouse-item.bg-primary').length);
-        setTimeout(function() { stockWarehouseUpdating = false; }, 0);
+        var $list = $('#stock-status-list');
+        $list.find('.stock-branch-item').get().reverse().forEach(function(el) { $(el).prependTo($list); });
+        var $firstSel = $list.find('.stock-warehouse-item.bg-primary').first();
+        if ($firstSel.length) {
+            var $afterBranch = $list.find('.stock-branch-item').last();
+            if ($afterBranch.length) $firstSel.insertAfter($afterBranch); else $firstSel.prependTo($list);
+        }
+        setTimeout(function() { stockWarehouseUpdating = false; if (typeof updateStockBranchSelectedQty === 'function') updateStockBranchSelectedQty(); if (typeof updateItemLineTotal === 'function') updateItemLineTotal(); }, 0);
     }
     
     $(document).on('change', '#stock-status-select-all', function() {
@@ -2940,7 +3211,7 @@ $(document).ready(function() {
             $(this).removeClass('bg-primary text-white bg-light').css('background-color', '');
             if (sel) $(this).addClass('bg-primary text-white'); else $(this).css('background-color', '#f0f0f0');
             $(this).find('span:first').html(sel ? '✓' : '');
-            $(this).find('.stock-warehouse-check').prop('checked', sel);
+            $(this).find('.stock-warehouse-qty-input').val('');
             $(this).find('.d-flex.align-items-center span:eq(1)').toggleClass('text-white', sel).toggleClass('text-dark', !sel);
             $(this).find('.d-flex.align-items-center.gap-2 span').first().toggleClass('text-white', sel).toggleClass('text-muted', !sel);
         });
@@ -2956,50 +3227,27 @@ $(document).ready(function() {
             $('#item-search-stock').html('');
             $('#item-search-warehouse').text('');
         }
-        setTimeout(function() { stockWarehouseUpdating = false; }, 0);
+        var $list = $('#stock-status-list');
+        $list.find('.stock-branch-item').get().reverse().forEach(function(el) { $(el).prependTo($list); });
+        var $firstSel = $list.find('.stock-warehouse-item.bg-primary').first();
+        if ($firstSel.length) {
+            var $afterBranch = $list.find('.stock-branch-item').last();
+            if ($afterBranch.length) $firstSel.insertAfter($afterBranch); else $firstSel.prependTo($list);
+        }
+        setTimeout(function() { stockWarehouseUpdating = false; if (typeof updateStockBranchSelectedQty === 'function') updateStockBranchSelectedQty(); if (typeof updateItemLineTotal === 'function') updateItemLineTotal(); }, 0);
     });
     
     $(document).on('click', '.stock-warehouse-item', function(e) {
-        if ($(e.target).hasClass('stock-warehouse-check')) return;
         toggleStockWarehouseRow($(this));
     });
-    
-    $(document).on('change', '.stock-warehouse-check', function() {
-        if (stockWarehouseUpdating) return;
-        var $row = $(this).closest('.stock-warehouse-item');
-        var id = $row.data('warehouse-id') + '';
-        var selectedIds = ($('#selected-warehouse-ids').val() || '').split(',').map(function(x){ return x.trim(); }).filter(Boolean);
-        var isChecked = $(this).is(':checked');
-        var idx = selectedIds.indexOf(id);
-        if (isChecked && idx === -1) selectedIds.push(id);
-        else if (!isChecked && idx !== -1) selectedIds.splice(idx, 1);
-        $('#selected-warehouse-ids').val(selectedIds.join(','));
-        $('#selected-warehouse-id').val(selectedIds[0] || '');
-        stockWarehouseUpdating = true;
-        $('.stock-warehouse-item').each(function() {
-            var rid = $(this).data('warehouse-id') + '';
-            var sel = selectedIds.indexOf(rid) !== -1;
-            $(this).removeClass('bg-primary text-white bg-light').css('background-color', '');
-            if (sel) $(this).addClass('bg-primary text-white'); else $(this).css('background-color', '#f0f0f0');
-            $(this).find('span:first').html(sel ? '✓' : '');
-            $(this).find('.stock-warehouse-check').prop('checked', sel);
-            $(this).find('.d-flex.align-items-center span:eq(1)').toggleClass('text-white', sel).toggleClass('text-dark', !sel);
-            $(this).find('.d-flex.align-items-center.gap-2 span').first().toggleClass('text-white', sel).toggleClass('text-muted', !sel);
-        });
-        var $checked = $('.stock-warehouse-item.bg-primary');
-        if ($checked.length) {
-            var totalQ = 0, u = ($checked.first().data('unit') || 'Unit').trim();
-            $checked.each(function(){ totalQ += parseFloat($(this).data('quantity')) || 0; });
-            var qt = (Number.isInteger(totalQ) ? totalQ : totalQ.toFixed(2)) + ' ' + u;
-            var stockColor = totalQ > 10 ? 'text-success' : (totalQ > 0 ? 'text-warning' : 'text-danger');
-            $('#item-search-stock').html('<span class="' + stockColor + '">' + qt + '</span>');
-            $('#item-search-warehouse').text($checked.length > 1 ? $checked.length + ' warehouses' : ($checked.first().data('display') || ''));
-        } else {
-            $('#item-search-stock').html('');
-            $('#item-search-warehouse').text('');
+
+    // Click item thumbnail to view full image
+    $(document).on('click', '#item-search-image', function() {
+        var src = $(this).attr('src');
+        if (src) {
+            $('#item-image-view-full').attr('src', src);
+            $('#item-image-view-modal').modal('show');
         }
-        $('#stock-status-select-all').prop('checked', $('.stock-warehouse-item').length > 0 && $('.stock-warehouse-item').length === $checked.length);
-        setTimeout(function() { stockWarehouseUpdating = false; }, 0);
     });
     
     // Hide search results when clicking outside
@@ -3019,8 +3267,30 @@ $(document).ready(function() {
             method: 'GET',
             success: function(response) {
                 $('#selected-item-id').val(response.id);
-                $('#item-search').val(response.name);
+                $('#item-edit-in-modal-btn').show();
+                if (editingRowId === null) $('#item-search').val(response.name);
                 $('#item-quantity').val('1');
+                
+                // Show selected item details — same format as dropdown: "Group • 12V • CCA • Vehicle"
+                var detailsArr = [];
+                if (response.group_name) detailsArr.push(response.group_name);
+                if (response.volt) detailsArr.push(response.volt + (response.volt.toString().indexOf('V') !== -1 ? '' : 'V'));
+                if (response.cca) detailsArr.push(response.cca + (response.cca.toString().indexOf('CCA') !== -1 ? '' : 'CCA'));
+                var detailsPart = detailsArr.length ? detailsArr.join(' • ') : '';
+                var vehiclePart = (response.vehicle_name || (response.manufacturer && response.model ? (response.manufacturer + ' ' + response.model) : '')) || '';
+                var line1 = '';
+                if (detailsPart && vehiclePart) line1 = detailsPart + ' • <span class="text-primary fw-semibold">' + vehiclePart + '</span>';
+                else if (vehiclePart) line1 = '<span class="text-primary fw-semibold">' + vehiclePart + '</span>';
+                else if (detailsPart) line1 = detailsPart;
+                else line1 = (response.name || '').trim();
+                var line3 = (response.bar_code || '') ? ('<i class="ti ti-barcode me-1"></i>' + (response.bar_code + '').replace(/</g, '&lt;')) : '';
+                if (line1 || line3) {
+                    $('#selected-item-details-line1').html(line1 || '&nbsp;');
+                    $('#selected-item-details-line3').html(line3 || '&nbsp;');
+                    $('#selected-item-details-display').removeClass('d-none');
+                } else {
+                    $('#selected-item-details-display').addClass('d-none');
+                }
                 
                 // Set rate - use total_price if available, otherwise use rate
                 const itemRate = response.total_price || response.rate || 0;
@@ -3033,7 +3303,8 @@ $(document).ready(function() {
                 if (response.warehouse_id) {
                     $('#selected-warehouse-id').val(response.warehouse_id);
                     var $row = $('.stock-warehouse-item[data-warehouse-id="' + response.warehouse_id + '"]');
-                    $row.removeClass('bg-light').addClass('bg-primary text-white').find('span:first').html('✓');
+                    $row.siblings('.stock-warehouse-item').removeClass('bg-primary text-white').css('background-color', '#f0f0f0');
+                    $row.removeClass('bg-light').addClass('bg-primary text-white').css('background-color', '').find('span:first').html('✓');
                     if ($row.length) $('#item-search-warehouse').text($row.data('display') || $row.find('span:eq(1)').text().trim());
                 }
                 
@@ -3064,6 +3335,7 @@ $(document).ready(function() {
                 loadCustomerHistory(itemId);
                 
                 $('#search-results').hide();
+                if (typeof updateItemLineTotal === 'function') updateItemLineTotal();
             }
         });
     }
@@ -3176,27 +3448,141 @@ $(document).ready(function() {
         }
     });
 
-    // Quantity dropdown change - show custom input if needed
+    // Update line total shown next to SALE RATE (qty × rate − discount + tax). Branch header Rs uses sum of all warehouse qty dropdowns.
+    function updateItemLineTotal() {
+        var quantity = parseFloat($('#item-quantity').val()) || 0;
+        if ($('#item-quantity-input').is(':visible') && $('#item-quantity-input').val()) quantity = parseFloat($('#item-quantity-input').val()) || 0;
+        quantity = Math.max(0, quantity);
+        var rate = parseFloat($('#item-rate').val()) || 0;
+        var discount = parseFloat($('#item-discount').val()) || 0;
+        var discountType = $('#discount-type').val() || 'amount';
+        var taxPct = parseFloat($('#item-tax').val()) || 0;
+        var discountAmount = discountType === 'percent' ? (quantity * rate * discount) / 100 : discount;
+        var subtotal = (quantity * rate) - discountAmount;
+        var taxAmount = (subtotal * taxPct) / 100;
+        var total = subtotal + taxAmount;
+        $('#item-line-total').text('Rs ' + (Math.round(total) || 0));
+        // Branch header total: use sum of all warehouse qty dropdowns
+        var branchQty = 0;
+        $('#stock-status-list .stock-warehouse-qty-input').each(function() { branchQty += parseFloat($(this).val()) || 0; });
+        branchQty = Math.max(0, branchQty);
+        var branchDiscountAmount = discountType === 'percent' ? (branchQty * rate * discount) / 100 : discount;
+        var branchSubtotal = (branchQty * rate) - branchDiscountAmount;
+        var branchTaxAmount = (branchSubtotal * taxPct) / 100;
+        var branchTotal = branchSubtotal + branchTaxAmount;
+        $('#stock-status-list .stock-branch-total-rs').text('Rs ' + (Math.round(branchTotal) || 0));
+    }
+
+    $('#item-rate, #item-discount, #item-tax').on('input change', updateItemLineTotal);
+    $('#discount-type').on('change', updateItemLineTotal);
+    $('#item-quantity').on('change', updateItemLineTotal);
+
+    // Update branch header "selected total" (sum of all warehouse qty dropdowns in the list)
+    function updateStockBranchSelectedQty() {
+        var total = 0;
+        var unit = 'Piece';
+        $('#stock-status-list .stock-warehouse-qty-input').each(function() {
+            total += parseFloat($(this).val()) || 0;
+            if (!unit && $(this).data('unit')) unit = $(this).data('unit') || 'Piece';
+            if (unit === 'Piece' && $(this).data('unit')) unit = $(this).data('unit');
+        });
+        if ($('#stock-status-list .stock-warehouse-qty-input').length) unit = ($('#stock-status-list .stock-warehouse-qty-input').first().data('unit') || 'Piece').trim();
+        var text = (Number.isInteger(total) ? total : total.toFixed(2)) + ' ' + unit;
+        $('#stock-status-list .stock-branch-selected-qty').text(text);
+        if (typeof updateStockStatusListTotal === 'function') updateStockStatusListTotal();
+    }
+
+    // Update total row below warehouse list (sum of available stock from each warehouse row)
+    function updateStockStatusListTotal() {
+        var total = 0;
+        var unit = 'Piece';
+        $('#stock-status-list .stock-warehouse-item').each(function() {
+            total += parseFloat($(this).data('quantity')) || 0;
+            if ($(this).data('unit')) unit = ($(this).data('unit') || 'Piece').trim();
+        });
+        var $first = $('#stock-status-list .stock-warehouse-item').first();
+        if ($first.length) unit = ($first.data('unit') || 'Piece').trim();
+        var text = (Number.isInteger(total) ? total : total.toFixed(2)) + ' ' + unit;
+        var $totalRow = $('#stock-status-list-total');
+        var $totalText = $('#stock-status-list-total-text');
+        if ($('#stock-status-list .stock-warehouse-item').length) {
+            $totalRow.show();
+            $totalText.text(text);
+        } else {
+            $totalRow.hide();
+        }
+    }
+
+    // Sync quantity from item-quantity to warehouse inputs (dropdown is 1-1000)
+    function syncQuantityToWarehouseInputs() {
+        var qty = parseFloat($('#item-quantity').val()) || 0;
+        if ($('#item-quantity-input').is(':visible') && $('#item-quantity-input').val()) {
+            qty = parseFloat($('#item-quantity-input').val()) || 0;
+        }
+        qty = Math.max(1, Math.min(1000, Math.round(qty) || 1));
+        $('.stock-warehouse-qty-input').val(qty);
+    }
+
+    // Quantity dropdown change - sync to warehouse inputs
     $('#item-quantity').on('change', function() {
-        // Custom input is shown via other means if needed
-            $('#item-quantity-input').hide();
+        $('#item-quantity-input').hide();
+        syncQuantityToWarehouseInputs();
     });
 
-    // Use custom quantity input if provided
+    // Use custom quantity input if provided - sync to warehouse inputs
     $('#item-quantity-input').on('input', function() {
         const customQty = $(this).val();
         if (customQty && customQty > 0) {
             $('#item-quantity').val(customQty);
         }
+        syncQuantityToWarehouseInputs();
     });
 
-    // Shared: add current modal item to list; if closeAfterAdd then close modal, else reset form for next item
+    // When stock warehouse qty changes: sync that value to #item-quantity; move this row to top when qty is set.
+    $(document).on('change', '.stock-warehouse-qty-input', function() {
+        var $this = $(this);
+        var whId = $this.data('warehouse-id');
+        var val = ($this.val() || '').toString().trim();
+        if (val && !warehouseQtyFirstSelectDone) {
+            $('#stock-status-list .stock-warehouse-qty-input').not($this).val('');
+            warehouseQtyFirstSelectDone = true;
+        }
+        var $row = $this.closest('.stock-warehouse-item');
+        if (val && $row.length) {
+            var $list = $('#stock-status-list');
+            var $afterBranch = $list.find('.stock-branch-item').last();
+            if ($afterBranch.length) $row.insertAfter($afterBranch); else $row.prependTo($list);
+        }
+        var saveWhId = ($('#item-save-warehouse').val() || '').toString();
+        if (whId && (whId + '') === saveWhId) {
+            var q = parseFloat($this.val()) || 1;
+            q = Math.max(1, Math.min(1000, Math.round(q)));
+            $('#item-quantity').val(q);
+            $('#item-quantity-input').val(q).hide();
+        }
+        if (typeof updateItemLineTotal === 'function') updateItemLineTotal();
+        if (typeof updateStockBranchSelectedQty === 'function') updateStockBranchSelectedQty();
+    });
+
+    // When "Save to warehouse" changes: set #item-quantity from that warehouse's qty input
+    $('#item-save-warehouse').on('change', function() {
+        var whId = ($(this).val() || '').toString();
+        if (!whId) return;
+        var $qtyInput = $('#stock-status-list .stock-warehouse-qty-input[data-warehouse-id="' + whId + '"]');
+        if ($qtyInput.length) {
+            var q = parseFloat($qtyInput.val()) || 1;
+            q = Math.max(1, Math.min(1000, Math.round(q)));
+            $('#item-quantity').val(q);
+            $('#item-quantity-input').val(q).hide();
+        }
+        if (typeof updateItemLineTotal === 'function') updateItemLineTotal();
+        if (typeof updateStockBranchSelectedQty === 'function') updateStockBranchSelectedQty();
+    });
+
+    // Shared: add current modal item to list; if closeAfterAdd then close modal, else reset form for next item. When editingRowId is set, update existing row.
+    // When multiple warehouses have quantity selected, adds one cart line per warehouse.
     function submitItemEntry(closeAfterAdd) {
         const itemId = $('#selected-item-id').val();
-        let quantity = parseFloat($('#item-quantity').val()) || 0;
-        if ($('#item-quantity-input').is(':visible') && $('#item-quantity-input').val()) {
-            quantity = parseFloat($('#item-quantity-input').val()) || 0;
-        }
         const unit = $('#item-unit').val();
         const rate = parseFloat($('#item-rate').val()) || 0;
         const discount = parseFloat($('#item-discount').val()) || 0;
@@ -3206,55 +3592,117 @@ $(document).ready(function() {
         const itemName = cleanItemName(rawItemName, itemId);
         const warrantyValue = $('#warranty-value').val();
         const warrantyUnit = $('#warranty-unit').val();
-
-        if (!itemId || quantity <= 0 || rate <= 0) {
-            alert('Please select an item and enter valid quantity and rate');
-            return;
-        }
         const $whSel = $('#item-save-warehouse');
-        const warehouseId = ($whSel.val() || '').toString();
-        if (!warehouseId && currentEntryType !== 'scrap') {
-            alert('Please select a warehouse (Save to warehouse) before adding the item.');
+
+        if (!itemId || rate <= 0) {
+            alert('Please select an item and enter valid rate');
             return;
         }
 
-        let discountAmount = discount;
-        if (discountType === 'percent') {
-            discountAmount = (quantity * rate * discount) / 100;
+        // Collect all warehouses that have a quantity selected (dropdown not empty)
+        var warehouseLines = [];
+        $('#stock-status-list .stock-warehouse-qty-input').each(function() {
+            var whId = ($(this).data('warehouse-id') || '').toString();
+            var qty = parseFloat($(this).val()) || 0;
+            if (!whId || qty <= 0) return;
+            var $row = $(this).closest('.stock-warehouse-item');
+            var whName = ($row.data('display') || '').replace(/&quot;/g, '"');
+            if (!whName && $whSel.find('option[value="' + whId + '"]').length) whName = $whSel.find('option[value="' + whId + '"]').text().trim();
+            warehouseLines.push({ warehouse_id: whId, warehouse_name: whName, quantity: qty });
+        });
+
+        // Fallback: single warehouse from Save to warehouse / selected-warehouse-id
+        if (warehouseLines.length === 0 && currentEntryType !== 'scrap') {
+            var warehouseId = ($whSel.val() || '').toString() || ($('#selected-warehouse-id').val() || '').toString();
+            var quantity = parseFloat($('#item-quantity').val()) || 0;
+            if ($('#item-quantity-input').is(':visible') && $('#item-quantity-input').val()) quantity = parseFloat($('#item-quantity-input').val()) || 0;
+            if (!warehouseId || quantity <= 0) {
+                alert('Please select at least one warehouse and enter quantity (use the quantity dropdown per warehouse).');
+                return;
+            }
+            var warehouseName = $whSel.find('option:selected').text().trim() || ($('.stock-warehouse-item[data-warehouse-id="' + warehouseId + '"]').first().data('display') || '').replace(/&quot;/g, '"');
+            warehouseLines = [{ warehouse_id: warehouseId, warehouse_name: warehouseName, quantity: quantity }];
         }
-        const subtotal = (quantity * rate) - discountAmount;
-        const taxAmount = (subtotal * taxPercentage) / 100;
-        let total = subtotal + taxAmount;
-        if (currentEntryType === 'scrap') {
-            total = -Math.abs(total);
+        if (warehouseLines.length === 0 && currentEntryType === 'scrap') {
+            var qty = parseFloat($('#item-quantity').val()) || 0;
+            if (qty <= 0) { alert('Please enter quantity'); return; }
+            warehouseLines = [{ warehouse_id: null, warehouse_name: null, quantity: qty }];
         }
 
-        const warehouseName = warehouseId ? ($whSel.find('option:selected').text().trim() || '') : '';
-        const item = {
-            id: itemCounter++,
-            item_id: itemId,
-            name: itemName,
-            warehouse_id: warehouseId || null,
-            warehouse_name: warehouseName || null,
-            quantity: quantity,
-            unit: unit,
-            rate: rate,
-            discount: discountAmount,
-            tax_percentage: taxPercentage,
-            tax_amount: taxAmount,
-            total: total,
-            warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
-            entry_type: currentEntryType || 'purchase'
-        };
+        if (editingRowId !== null) {
+            // Edit mode: single row update (use first selected warehouse)
+            var wl = warehouseLines[0] || {};
+            var warehouseId = wl.warehouse_id || '';
+            var warehouseName = wl.warehouse_name || '';
+            var quantity = wl.quantity || parseFloat($('#item-quantity').val()) || 0;
+            var discountAmount = discountType === 'percent' ? (quantity * rate * discount) / 100 : discount;
+            var subtotal = (quantity * rate) - discountAmount;
+            var taxAmount = (subtotal * taxPercentage) / 100;
+            var total = subtotal + taxAmount;
+            if (currentEntryType === 'scrap') total = -Math.abs(total);
+            var idx = purchaseItems.findIndex(function(i) { return i.id === editingRowId; });
+            if (idx === -1) { editingRowId = null; return; }
+            var updatedItem = {
+                id: editingRowId,
+                item_id: itemId,
+                name: itemName,
+                warehouse_id: warehouseId || null,
+                warehouse_name: warehouseName || null,
+                quantity: quantity,
+                unit: unit,
+                rate: rate,
+                discount: discountAmount,
+                tax_percentage: taxPercentage,
+                tax_amount: taxAmount,
+                total: total,
+                warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
+                entry_type: currentEntryType || 'purchase'
+            };
+            purchaseItems[idx] = updatedItem;
+            $('#items-tbody tr[data-row-id="' + editingRowId + '"]').remove();
+            addItemToTable(updatedItem);
+            editingRowId = null;
+            pendingEditItem = null;
+            calculateTotals();
+            syncCartToServer();
+            resetItemModal();
+            $('#add-item-modal').modal('hide');
+            return;
+        }
 
-        purchaseItems.push(item);
-        addItemToTable(item);
+        // Add one cart line per warehouse with selected quantity
+        warehouseLines.forEach(function(wl) {
+            var quantity = wl.quantity;
+            var discountAmount = discountType === 'percent' ? (quantity * rate * discount) / 100 : discount;
+            var subtotal = (quantity * rate) - discountAmount;
+            var taxAmount = (subtotal * taxPercentage) / 100;
+            var total = subtotal + taxAmount;
+            if (currentEntryType === 'scrap') total = -Math.abs(total);
+            var item = {
+                id: itemCounter++,
+                item_id: itemId,
+                name: itemName,
+                warehouse_id: wl.warehouse_id || null,
+                warehouse_name: wl.warehouse_name || null,
+                quantity: quantity,
+                unit: unit,
+                rate: rate,
+                discount: discountAmount,
+                tax_percentage: taxPercentage,
+                tax_amount: taxAmount,
+                total: total,
+                warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
+                entry_type: currentEntryType || 'purchase'
+            };
+            purchaseItems.push(item);
+            addItemToTable(item);
+        });
+
         calculateTotals();
         syncCartToServer();
         if (purchaseItems.length > 0) {
             $('#payment-section').show(); $('#payment-amount-row').show();
         }
-
         if (closeAfterAdd) {
             resetItemModal();
             $('#add-item-modal').modal('hide');
@@ -3286,7 +3734,7 @@ $(document).ready(function() {
         const qtyUnitRate = item.quantity + ' ' + (item.unit || 'Unit') + ' · Rs ' + Math.round(parseFloat(item.rate));
         const discountTax = 'Rs ' + Math.round(parseFloat(item.discount)) + ' · ' + parseFloat(item.tax_percentage).toFixed(2) + '%';
         const row = `
-            <tr data-item-id="${item.item_id}" data-row-id="${item.id}" data-entry-type="${item.entry_type || 'purchase'}">
+            <tr class="purchase-item-row" data-item-id="${item.item_id}" data-row-id="${item.id}" data-entry-type="${item.entry_type || 'purchase'}" style="cursor: pointer;">
                 <td class="text-muted small">${warehouseDisplay}</td>
                 <td>
                     <div class="fw-bold text-dark">${itemName}</div>
@@ -3309,23 +3757,51 @@ $(document).ready(function() {
         $('#items-tbody').append(row);
     }
 
-    // Remove item
-    $(document).on('click', '.remove-item', function() {
+// Remove item
+    $(document).on('click', '.remove-item', function(e) {
+        e.stopPropagation();
         const rowId = $(this).data('row-id');
         purchaseItems = purchaseItems.filter(item => item.id !== rowId);
         $(this).closest('tr').remove();
-        
+
         if ($('#items-tbody tr').length === 0) {
             $('#empty-items-state').show();
             $('#items-list').hide();
             $('#payment-section').hide(); $('#payment-amount-row').hide();
         }
-        
+
         calculateTotals();
         syncCartToServer();
     });
 
+    // Click row to edit (open add-item modal with same data as when item was added)
+    $(document).on('click', '#items-tbody tr.purchase-item-row', function(e) {
+        if ($(e.target).closest('.remove-item').length) return;
+        var rowId = $(this).data('row-id');
+        var item = purchaseItems.find(function(i) { return i.id === rowId; });
+        if (!item) return;
+        editingRowId = rowId;
+        pendingEditItem = { warehouse_id: item.warehouse_id, quantity: item.quantity, rate: item.rate, unit: item.unit, discount: item.discount, tax_percentage: item.tax_percentage, warranty: item.warranty };
+        $('#selected-item-id').val(item.item_id);
+        $('#item-search').val(item.name || '');
+        $('#item-rate').val(item.rate != null ? item.rate : '0');
+        $('#item-unit').val(item.unit || '');
+        $('#item-discount').val(item.discount != null ? item.discount : '0');
+        $('#discount-type').val('amount');
+        $('#item-tax').val(item.tax_percentage != null ? item.tax_percentage : '0');
+        $('#item-quantity').val(item.quantity != null ? item.quantity : '1');
+        $('#item-quantity-input').val(item.quantity != null ? item.quantity : '1').hide();
+        if (item.warranty) {
+            var w = (item.warranty + '').trim().split(/\s+/);
+            $('#warranty-value').val(w[0] || ''); $('#warranty-unit').val(w[1] || '');
+        } else { $('#warranty-value').val(''); $('#warranty-unit').val(''); }
+        $('#add-item-modal').modal('show');
+        loadItemDetails(item.item_id);
+    });
+
     function resetItemModal() {
+        editingRowId = null;
+        pendingEditItem = null;
         $('#selected-item-id').val('');
         $('#item-search').val('');
         $('#item-quantity').val('');
@@ -3339,6 +3815,7 @@ $(document).ready(function() {
         $('#item-tax').val('0');
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to see history</p>');
         $('#hold-rate-link').hide();
+        if (typeof updateItemLineTotal === 'function') updateItemLineTotal();
         $('#item-search-results').hide();
         $('#stock-status-section').hide();
     }

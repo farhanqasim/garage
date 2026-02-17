@@ -72,7 +72,7 @@ class SalesController extends Controller
         $branchId = session('selected_branch_id');
         
         if (!$branchId) {
-            return response()->json(['error' => 'Branch not selected'], 400);
+            return response()->json(['number' => '00001']);
         }
         
         // Get the last estimate number for this branch (separate EST series)
@@ -101,7 +101,7 @@ class SalesController extends Controller
         $branchId = session('selected_branch_id');
         
         if (!$branchId) {
-            return response()->json(['error' => 'Branch not selected'], 400);
+            return response()->json(['number' => '00001']);
         }
         
         // Get the last sale order number for this branch (separate SO series)
@@ -129,7 +129,7 @@ class SalesController extends Controller
     {
         $branchId = session('selected_branch_id');
         if (!$branchId) {
-            return response()->json(['error' => 'Branch not selected'], 400);
+            return response()->json(['number' => '00001', 'message' => 'Please select a branch for accurate numbering']);
         }
         $next = $this->getNextReferenceNumberForBranchAndStatus($branchId, 'pending', 'INV');
         return response()->json(['number' => $next]);

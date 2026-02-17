@@ -19,7 +19,7 @@ class Item extends Model
         'car_company', 'volt', 'cca', 'minus_pool_direction', 'pole_thickness_id', 'pool_direction_id',
         'technology', 'grade', 'farmula', 'serial_number', 'battery_size',
         'bussiness_location', 'quality_id', 'part_number_id', 'l_stock',
-        'm_stock', 'unit', 'packing', 'scale', 'filling',
+        'm_stock', 'unit', 'unit_option', 'packing', 'scale', 'filling',
         'weight_for_delivery', 'weight_unit', 'packing_purchase_rate',
         'total_sale_price','sale_price_per_base','services','warrenty','gorup','made_in','level',
         'update_date', 'rack', 'supplier', 'pro_dis','short_disc',
@@ -49,9 +49,20 @@ class Item extends Model
     protected function image(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value
-                ? asset($value)                                 // already full path from helper
-                : asset('images/default-item.jpg'),
+            get: function ($value) {
+                $fallback = asset('assets/img/icons/image.svg');
+                if (!$value) {
+                    return $fallback;
+                }
+                if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                    return $value;
+                }
+                $path = str_starts_with($value, '/') ? public_path(ltrim($value, '/')) : public_path($value);
+                if (!file_exists($path)) {
+                    return $fallback;
+                }
+                return asset($value);
+            },
 
             // When you assign $item->image = $request->file('image')
             set: fn ($value) => $value instanceof \Illuminate\Http\UploadedFile

@@ -486,7 +486,7 @@
                     </label>
                     <div class="d-flex align-items-start gap-2">
                         <div class="position-relative flex-grow-1">
-                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off">
+                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off" title="Type to search or edit product name">
                         <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
@@ -2710,6 +2710,7 @@ $(document).ready(function() {
 
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
+        $('#item-search').prop('readonly', false).prop('disabled', false).attr('readonly', false);
         // Reset form when modal opens
         $('#item-search').val('');
         $('#selected-item-id').val('');

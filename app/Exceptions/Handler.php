@@ -208,6 +208,15 @@ class Handler extends ExceptionHandler
             ], 500);
         }
         
+        // Handle CSRF token mismatch (419 Page Expired) - redirect with message instead of raw 419 page
+        if ($exception instanceof \Illuminate\Session\TokenMismatchException) {
+            if (auth()->check()) {
+                return redirect()->back()->withInput($request->except('password', '_token'))
+                    ->with('error', 'Your session has expired. Please refresh the page and try again.');
+            }
+            return redirect()->route('login')->with('error', 'Your session has expired. Please login again.');
+        }
+
         // Handle authentication errors
         if ($exception instanceof \Illuminate\Auth\AuthenticationException) {
             if ($request->expectsJson()) {

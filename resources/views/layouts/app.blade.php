@@ -544,6 +544,11 @@ label{
   <!-- /Add Stock -->
 
 
+  @php
+  $isLocal = request()->getHost() && in_array(request()->getHost(), ['localhost', '127.0.0.1']);
+  $scriptType = $isLocal ? 'text/javascript' : 'f89f8e290dd47aa8bc06c7c9-text/javascript';
+  $scriptTypeAlt = $isLocal ? 'text/javascript' : 'a29272631196a62b967d88a8-text/javascript';
+  @endphp
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/feather-icons"></script>
   <!-- jQuery -->
@@ -553,41 +558,41 @@ label{
   <script src="{{asset('assets/js/feather.min.js')}}" ></script>
 
   <!-- Slimscroll JS -->
-  <script src="{{asset('assets/js/jquery.slimscroll.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/jquery.slimscroll.min.js')}}" type="{{ $scriptType }}"></script>
 
-	<script src="{{ asset('assets/js/jquery.dataTables.min.js') }}" type="a29272631196a62b967d88a8-text/javascript"></script>
-<script src="{{ asset('assets/js/dataTables.bootstrap5.min.js') }}" type="a29272631196a62b967d88a8-text/javascript"></script>
+	<script src="{{ asset('assets/js/jquery.dataTables.min.js') }}" type="{{ $scriptTypeAlt }}"></script>
+<script src="{{ asset('assets/js/dataTables.bootstrap5.min.js') }}" type="{{ $scriptTypeAlt }}"></script>
   <!-- Bootstrap Core JS -->
-  <script src="{{asset('assets/js/bootstrap.bundle.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/bootstrap.bundle.min.js')}}" type="{{ $scriptType }}"></script>
 
   <!-- ApexChart JS -->
-  <script src="{{asset('assets/plugins/apexchart/apexcharts.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  <script src="{{asset('assets/plugins/apexchart/chart-data.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/apexchart/apexcharts.min.js')}}" type="{{ $scriptType }}"></script>
+  <script src="{{asset('assets/plugins/apexchart/chart-data.js')}}" type="{{ $scriptType }}"></script>
 
   <!-- Chart JS -->
-  <script src="{{asset('assets/plugins/chartjs/chart.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  <script src="{{asset('assets/plugins/chartjs/chart-data.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/chartjs/chart.min.js')}}" type="{{ $scriptType }}"></script>
+  <script src="{{asset('assets/plugins/chartjs/chart-data.js')}}" type="{{ $scriptType }}"></script>
 
   <!-- Daterangepikcer JS -->
-  <script src="{{asset('assets/js/moment.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  	<script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" type="a29272631196a62b967d88a8-text/javascript"></script>
-  <script src="{{asset('assets/plugins/daterangepicker/daterangepicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/moment.min.js')}}" type="{{ $scriptType }}"></script>
+  	<script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" type="{{ $scriptTypeAlt }}"></script>
+  <script src="{{asset('assets/plugins/daterangepicker/daterangepicker.js')}}" type="{{ $scriptType }}"></script>
 
   <!-- Select2 JS -->
-  <script src="{{asset('assets/plugins/select2/js/select2.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/select2/js/select2.min.js')}}" type="{{ $scriptType }}"></script>
 
   <!-- Color Picker JS -->
-  <script src="{{asset('assets/plugins/%40simonwep/pickr/pickr.es5.min.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/plugins/%40simonwep/pickr/pickr.es5.min.js')}}" type="{{ $scriptType }}"></script>
 {{-- <script src="{{ asset('assets/js/custom-select2.js') }}" ></script> --}}
   <!-- Custom JS -->
-  <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
-  <script src="{{asset('assets/js/script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
+  <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="{{ $scriptType }}"></script>
+  <script src="{{asset('assets/js/script.js')}}" type="{{ $scriptType }}"></script>
 
-  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer onerror="this.onerror=null;">
-  </script>
-
+  @if (!$isLocal)
+  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer onerror="this.onerror=null;"></script>
 	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-  
+  @endif
+
   <script>
   // Suppress 404 errors for Cloudflare resources and missing files
   (function() {
@@ -998,27 +1003,48 @@ function confirmDelete(formId, customMessage = null) {
         }
     });
 
-    $(document).ajaxError(function(event, xhr) {
+    $(document).ajaxError(function(event, xhr, settings, thrownError) {
+        // Parse response - jQuery may not set responseJSON for some responses
+        let response = xhr.responseJSON;
+        if (!response && xhr.responseText) {
+            try {
+                var parsed = JSON.parse(xhr.responseText);
+                if (parsed && typeof parsed === 'object') response = parsed;
+            } catch (e) {}
+        }
+
+        // Log for debugging (check browser Console / F12)
+        console.error('AJAX Error:', {
+            url: settings && settings.url,
+            status: xhr.status,
+            message: response && response.message,
+            thrown: thrownError
+        });
+
         // Handle authentication errors (401 Unauthorized)
         if (xhr.status === 401) {
-            let response = xhr.responseJSON;
             let redirectUrl = (response && response.redirect) ? response.redirect : '{{ url("/") }}';
-            
             toastr.error(response?.message || 'Your session has expired. Please login again.');
-            
-            // Redirect to login after a short delay
-            setTimeout(function() {
-                window.location.href = redirectUrl;
-            }, 2000);
+            setTimeout(function() { window.location.href = redirectUrl; }, 2000);
             return;
         }
-        
-        // Handle other errors
-        let response = xhr.responseJSON;
-        if (response && response.message) {
-            toastr.error(response.message);
+
+        // Handle CSRF token mismatch (419)
+        if (xhr.status === 419) {
+            toastr.error(response?.message || 'Session expired. Please refresh the page and try again.');
+            return;
+        }
+
+        // Show server message when available (check both message and error keys)
+        var msg = response && (response.message || response.error);
+        if (msg) {
+            toastr.error(msg);
         } else {
-            toastr.error("Server Error! Please try again.");
+            var msg = "Server Error! Please try again.";
+            if (xhr.status === 404) msg = "Not found. Please refresh and try again.";
+            else if (xhr.status === 422) msg = "Validation failed. Please check your input.";
+            else if (xhr.status === 500) msg = "Server error. Check the console or Laravel logs for details.";
+            toastr.error(msg);
         }
     });
 </script>
@@ -1039,6 +1065,18 @@ function confirmDelete(formId, customMessage = null) {
             width: '100%',
             placeholder: 'Please Select',
             allowClear: true
+        });
+        // Auto-focus search input when any searchable dropdown opens (use open dropdown's search field)
+        $(document).on('select2:open', '.searchable-select', function() {
+            function focusSearch() {
+                var $input = $('.select2-container--open .select2-search__field');
+                if ($input.length && $input[0]) {
+                    $input[0].focus();
+                }
+            }
+            setTimeout(focusSearch, 0);
+            setTimeout(focusSearch, 50);
+            setTimeout(focusSearch, 120);
         });
   </script>
 

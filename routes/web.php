@@ -111,6 +111,8 @@ Route::get('/users', [HomeController::class, 'users'])->name('users');
 Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
 Route::get('/attendance-test', function() { return view('attendance-test'); })->name('attendance.test')->middleware('auth');
 Route::get('/attendance/history-page', [\App\Http\Controllers\CarWashAttendanceController::class, 'historyPage'])->name('attendance.history.page')->middleware('auth');
+Route::get('/attendance/history/export-pdf', [\App\Http\Controllers\CarWashAttendanceController::class, 'exportReportPdf'])->name('attendance.history.export.pdf')->middleware('auth');
+Route::get('/attendance/history/export-excel', [\App\Http\Controllers\CarWashAttendanceController::class, 'exportReportExcel'])->name('attendance.history.export.excel')->middleware('auth');
 Route::get('/car-wash', [HomeController::class, 'carWash'])->name('car.wash')->middleware('auth');
 Route::get('/employee/home', [HomeController::class, 'carWashHome'])->name('employee.home')->middleware(['auth', 'can:view_car_wash_jobs']);
 Route::get('/car-wash/completed-jobs', [HomeController::class, 'completedJobs'])->name('car.wash.completed-jobs')->middleware('auth');
@@ -400,6 +402,7 @@ Route::get('/delete-product/type/{id}', [ProductTypeController::class, 'deletepr
 
 
 Route::get('/all/branch', [BranchController::class, 'all_branches'])->name('all.branches');
+Route::get('/branches/{id}', [BranchController::class, 'show'])->name('branches.show');
 Route::post('/branches', [BranchController::class, 'store_branches'])->name('branch.store');
 Route::post('/update-branch-status/{id}', [BranchController::class, 'updatebranchStatus'])->name('update.branch.status');
 Route::put('/branch/update/{id}', [BranchController::class, 'update_branches'])->name('branch.update');
@@ -605,6 +608,7 @@ Route::delete('/destory/level/{id}', [AddInputController::class, 'destory_level'
 
 Route::get('all/vehical/types', [AddInputController::class,'all_vehicals_types'])->name('all.vehical');
 Route::post('/post/product/vehical', [AddInputController::class, 'post_product_vehical'])->name('post.product_vehical');
+Route::post('/update/product/vehical', [AddInputController::class, 'update_product_vehical'])->name('update.product_vehical');
 
 Route::put('vehicles/{id}', [AddInputController::class, 'update_vehical'])->name('vehicles.update');
 Route::delete('vehicles/{id}', [AddInputController::class, 'destroy_vehical'])->name('vehicles.destroy');

@@ -69,24 +69,7 @@
             </a>
           </div>
           @endcanany
-          <div class="col-xl-3 col-sm-6 col-12 d-flex">
-            <a href="{{ route('task.reminder') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
-              <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                <div class="card-body d-flex align-items-center text-white">
-                  <span class="sale-icon bg-white rounded-2 d-flex align-items-center justify-content-center" style="color: #d97706;">
-                    <i class="ti ti-bell fs-24"></i>
-                  </span>
-                  <div class="ms-2">
-                    <p class="text-white mb-1">Task Reminder</p>
-                    <div class="d-inline-flex align-items-center flex-wrap gap-2">
-                      <span class="text-white fw-semibold">New Reminder</span>
-                      <i class="ti ti-arrow-right fs-18 opacity-90"></i>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </a>
-          </div>
+        
           @can('add_items')
           <div class="col-xl-3 col-sm-6 col-12 d-flex">
             <a href="{{ route('all.items.create.new') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
@@ -98,7 +81,7 @@
                   <div class="ms-2">
                     <p class="text-white mb-1">Items</p>
                     <div class="d-inline-flex align-items-center flex-wrap gap-2">
-                      <span class="text-white fw-semibold">Create Item</span>
+                      <span class="text-white fw-semibold">Create Item </span>
                       <i class="ti ti-arrow-right fs-18 opacity-90"></i>
                     </div>
                   </div>
@@ -403,7 +386,7 @@
                 <div class="d-flex align-items-center justify-content-between {{ !$loop->last ? 'mb-4' : 'mb-0' }}">
                   <div class="d-flex align-items-center">
                     @if($item->image ?? null)
-                    <a href="{{ route('all.items') }}" class="avatar avatar-lg"><img src="{{ is_string($item->image) ? $item->image : asset('images/default-item.jpg') }}" alt="img"></a>
+                    <a href="{{ route('all.items') }}" class="avatar avatar-lg"><img src="{{ is_string($item->image) ? $item->image : asset('assets/img/icons/image.svg') }}" alt="img"></a>
                     @else
                     <div class="avatar avatar-lg bg-light d-flex align-items-center justify-content-center"><i class="ti ti-box fs-24 text-muted"></i></div>
                     @endif

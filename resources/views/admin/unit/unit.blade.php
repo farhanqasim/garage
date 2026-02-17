@@ -752,8 +752,9 @@
                     document.getElementById('unit-edit-decimal-precision-page').value = unit.decimal_after_point_digit || "2";
                     toggleEditDecimalPrecisionUnitPage();
                     
-                    // Load base units if they exist
-                    if (unit.base_units && unit.base_units.length > 0) {
+                    // Load base units (API returns baseUnits camelCase; support base_units for compatibility)
+                    const baseUnitsList = unit.baseUnits || unit.base_units || [];
+                    if (baseUnitsList.length > 0) {
                         document.getElementById('unit-edit-has-base-page').checked = true;
                         toggleEditBaseSettingsUnitPage();
                         const rowsContainer = document.getElementById('unit-edit-base-rows-page');
@@ -761,10 +762,11 @@
                             rowsContainer.removeChild(rowsContainer.lastChild);
                         }
                         
-                        unit.base_units.forEach((baseUnit, i) => {
+                        baseUnitsList.forEach((baseUnit, i) => {
                             if (i > 0) addEditBaseRowUnitPage();
                             const row = rowsContainer.children[i];
-                            row.querySelector('.multiplier-input').value = baseUnit.multiplier || '';
+                            const mult = (baseUnit.pivot && baseUnit.pivot.multiplier != null) ? baseUnit.pivot.multiplier : (baseUnit.multiplier != null ? baseUnit.multiplier : '');
+                            row.querySelector('.multiplier-input').value = mult;
                             const baseSelect = row.querySelector('.base-unit-select');
                             baseSelect.value = baseUnit.id || '';
                             if (i > 0) {

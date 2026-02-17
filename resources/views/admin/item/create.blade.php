@@ -25,6 +25,26 @@
         background-color: #ffffff !important;
     }
     
+    /* Add Vehicle modal: keep edit button inside, medium modal */
+    #itemVehicleAddModal .input-group,
+    #itemVehicleAddModal .modal-body .input-group {
+        display: flex;
+        max-width: 100%;
+        min-width: 0;
+    }
+    #itemVehicleAddModal .input-group .select2-container,
+    #itemVehicleAddModal .input-group .select2-container--default {
+        flex: 1;
+        min-width: 0;
+        max-width: 100%;
+    }
+    #itemVehicleAddModal .input-group .select2-container .selection .select2-selection {
+        max-width: 100%;
+    }
+    #itemVehicleAddModal .input-group .btn {
+        flex-shrink: 0;
+    }
+    
     /* Universal Modal Styling */
     #universal-add-modal .modal-content {
         background-color: #ffffff !important;
@@ -1364,7 +1384,7 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-title="Add Brand" data-mode="add"
                                             data-route="{{ route('post.item.brand') }}"
                                             data-target-select=".brand-select">
@@ -1475,7 +1495,7 @@
                                             </option>
                                             @endforeach
                                         </select>
-                                        <button type="button" class="btn btn-primary open-universal-modal"
+                                        <button type="button" class="btn btn-secondary open-universal-modal"
                                             data-title="Add Formula" data-mode="add"
                                             data-route="{{ route('post.formulas') }}"
                                             data-target-select=".formulas-select">
@@ -1515,7 +1535,7 @@
                                 </option>
                                 @endforeach
                                 </select>
-                                <button type="button" class="btn btn-primary open-universal-modal"
+                                <button type="button" class="btn btn-secondary open-universal-modal"
                                     data-title="Add Plate" data-mode="add" data-route="{{ route('post.platos') }}"
                                     data-target-select=".plates-select">
                                     <i data-feather="plus" class="feather-plus"></i>
@@ -2107,26 +2127,32 @@
                         <input type="hidden" name="v_part_number_id" id="itemVehiclePartNumber" value="">
                         <div class="mb-3">
                             <label class="form-label">Make <span class="text-danger">*</span></label>
-                            <select class="form-select item-vehicle-manufacturer" name="car_manufacturer" required>
-                                <option value="">— Select —</option>
-                                @foreach ($carManufacturers as $m)
-                                <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select id="itemVehicleMake" class="form-control form-select item-vehicle-manufacturer" name="car_manufacturer" required>
+                                    <option value="">— Select —</option>
+                                    @foreach ($carManufacturers as $m)
+                                    <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Make" data-fetch-route="{{ route('show.car.manufacturer', ':id') }}" data-update-route="{{ route('update.car.manufacturer', ':id') }}" data-delete-route="{{ route('destory.car.manufacturer', ':id') }}" data-target-select=".item-vehicle-manufacturer" title="Edit Make"><i data-feather="edit" class="feather-16"></i></button>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Model <span class="text-danger">*</span></label>
-                            <select class="form-select item-vehicle-model" name="car_model_name" required>
-                                <option value="">— Select —</option>
-                                @foreach ($carModels as $m)
-                                <option value="{{ $m->id }}">{{ $m->name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select id="itemVehicleModel" class="form-control form-select item-vehicle-model" name="car_model_name" required>
+                                    <option value="">— Select —</option>
+                                    @foreach ($carModels as $m)
+                                    <option value="{{ $m->id }}">{{ $m->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Model" data-fetch-route="{{ route('show.car.model', ':id') }}" data-update-route="{{ route('update.car.model', ':id') }}" data-delete-route="{{ route('destory.car.model', ':id') }}" data-target-select=".item-vehicle-model" title="Edit Model"><i data-feather="edit" class="feather-16"></i></button>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label class="form-label">Year From <span class="text-danger">*</span></label>
-                                <select class="form-select item-vehicle-year-from" name="year_from[]" required>
+                                <select id="itemVehicleYearFrom" class="form-select item-vehicle-year-from" name="year_from[]" required>
                                     <option value="">From</option>
                                     @for($y = 1900; $y <= 2100; $y++)
                                     <option value="{{ $y }}">{{ $y }}</option>
@@ -2135,7 +2161,7 @@
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label">Year To <span class="text-danger">*</span></label>
-                                <select class="form-select item-vehicle-year-to" name="year_to[]" required>
+                                <select id="itemVehicleYearTo" class="form-select item-vehicle-year-to" name="year_to[]" required>
                                     <option value="">To</option>
                                     @for($y = 1900; $y <= 2100; $y++)
                                     <option value="{{ $y }}">{{ $y }}</option>
@@ -2145,21 +2171,27 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Engine CC</label>
-                            <select class="form-select item-vehicle-engine" name="engine_cc">
-                                <option value="">— Select —</option>
-                                @foreach ($engineccs as $e)
-                                <option value="{{ $e->id }}">{{ $e->name }} CC</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select id="itemVehicleEngine" class="form-control form-select item-vehicle-engine" name="engine_cc">
+                                    <option value="">— Select —</option>
+                                    @foreach ($engineccs as $e)
+                                    <option value="{{ $e->id }}">{{ $e->name }} CC</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Engine CC" data-fetch-route="{{ route('show.engine_cc', ':id') }}" data-update-route="{{ route('update.engine_cc', ':id') }}" data-delete-route="{{ route('destory.engine_cc', ':id') }}" data-target-select=".item-vehicle-engine" title="Edit Engine CC"><i data-feather="edit" class="feather-16"></i></button>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Country</label>
-                            <select class="form-select item-vehicle-country" name="car_manufactured_country">
-                                <option value="">— Select —</option>
-                                @foreach ($carCountries as $c)
-                                <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select id="itemVehicleCountry" class="form-control form-select item-vehicle-country" name="car_manufactured_country">
+                                    <option value="">— Select —</option>
+                                    @foreach ($carCountries as $c)
+                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Country" data-fetch-route="{{ route('show.car.country', ':id') }}" data-update-route="{{ route('update.car.country', ':id') }}" data-delete-route="{{ route('destory.car.country', ':id') }}" data-target-select=".item-vehicle-country" title="Edit Country"><i data-feather="edit" class="feather-16"></i></button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -2365,7 +2397,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Manufacturerd" data-mode="add"
                                         data-route="{{ route('post.car.manufacturer') }}"
                                         data-target-select=".car-manufacturer-select">
@@ -2398,7 +2430,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Car Model" data-mode="add"
                                         data-route="{{ route('post.car.model') }}"
                                         data-target-select=".car-model-select">
@@ -2433,7 +2465,7 @@
                                         </option>
                                         @endforeach
                                     </select>
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Engine CC" data-mode="add"
                                         data-route="{{ route('post.engine.cc') }}"
                                         data-target-select=".car-engine-select">
@@ -2467,7 +2499,7 @@
                                         @endforeach
                                     </select>
 
-                                    <button type="button" class="btn btn-primary open-universal-modal"
+                                    <button type="button" class="btn btn-secondary open-universal-modal"
                                         data-title="Add Country" data-mode="add"
                                         data-route="{{ route('post.car.country') }}"
                                         data-target-select=".car-country-select">
@@ -5536,6 +5568,9 @@
         Alpine.data('productForm', () => ({
             selectedType: localStorage.getItem('selectedType') || '{{ old("type") }}' || '',
             init() {
+                // Sync hidden type input so form submission always has type
+                var typeInput = document.querySelector('input[name="type"]');
+                if (typeInput) typeInput.value = this.selectedType || '';
                 // Filter dropdowns on initial load if type is already selected
                 if (this.selectedType) {
                     // Wait for DOM and Select2 to be ready
@@ -5543,10 +5578,9 @@
                         filterDropdownsByType(this.selectedType);
                     }, 300);
                 }
-                
                 // Watch for selectedType changes and filter dropdown options
                 this.$watch('selectedType', (newType) => {
-                    // Filter all dropdowns based on selected type
+                    if (typeInput) typeInput.value = newType || '';
                     if (newType) {
                         setTimeout(() => {
                             filterDropdownsByType(newType);
@@ -5557,8 +5591,13 @@
             selectType(type) {
                 this.selectedType = type;
                 localStorage.setItem('selectedType', type);
-                // Filter dropdowns by selected type
-                filterDropdownsByType(type);
+                // Keep hidden input in sync so form always submits correct type (fixes update-not-reflecting)
+                var typeInput = document.querySelector('input[name="type"]');
+                if (typeInput) typeInput.value = type || '';
+                // Let Alpine update the DOM (x-show) before filtering dropdowns
+                this.$nextTick(() => {
+                    filterDropdownsByType(type);
+                });
                 // Load items by type when type changes
                 if (type) {
                     loadItemsByType(type);
@@ -6333,8 +6372,8 @@
             }
         }
         
-        // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit dropdowns
-        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #pool_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts, #battery_size_select', function(e) {
+        // Auto focus search input for Category, Company, Quality, ... Unit, and Add Vehicle modal dropdowns
+        $(document).on('select2:opening', '#category, #company_parts, #quality, #quality_filters, #quality_breakpad, #technology_select, #grade_select, #mileage_oil, #Level_select, #plates_scrap, #amperes_select, #volt_select, #cca_select, #minus_pole_direction_select, #pool_direction_select, #Warrenty_select, #made_in_select, #Services_scrap, #unit_parts, #battery_size_select, #itemVehicleMake, #itemVehicleModel, #itemVehicleEngine, #itemVehicleCountry', function(e) {
             const selectId = $(this).attr('id');
             // Focus search input as soon as dropdown starts opening
             requestAnimationFrame(function() {
@@ -6348,15 +6387,15 @@
             });
         });
         
-        // Generic handler for all dropdowns (Product Name, Category, Company, Quality, Unit, etc.)
-        $(document).on('select2:open', '.input-group .searchable-select:not(#part_number_id), #unit_parts', function(e) {
+        // Generic handler for all dropdowns (Product Name, Category, Company, Quality, Unit, etc.) + Add Vehicle modal dropdowns
+        $(document).on('select2:open', '.input-group .searchable-select:not(#part_number_id), #unit_parts, #itemVehicleMake, #itemVehicleModel, #itemVehicleEngine, #itemVehicleCountry', function(e) {
             const $select = $(this);
             const selectId = $select.attr('id');
             
             if (!selectId) return;
             
-            // Auto focus search input for Category, Company, Quality, Technology, Grade, Mileage, Level, Plates, Amperes, Volt, CCA, Minus Pole Direction, Warranty, Made In, and Unit
-            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'pool_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts' || selectId === 'battery_size_select') {
+            // Auto focus search input for Category, Company, Quality, ... Unit, and Add Vehicle modal dropdowns
+            if (selectId === 'category' || selectId === 'company_parts' || selectId === 'quality' || selectId === 'quality_filters' || selectId === 'quality_breakpad' || selectId === 'technology_select' || selectId === 'grade_select' || selectId === 'mileage_oil' || selectId === 'Level_select' || selectId === 'plates_scrap' || selectId === 'amperes_select' || selectId === 'volt_select' || selectId === 'cca_select' || selectId === 'minus_pole_direction_select' || selectId === 'pool_direction_select' || selectId === 'Warrenty_select' || selectId === 'made_in_select' || selectId === 'Services_scrap' || selectId === 'unit_parts' || selectId === 'battery_size_select' || selectId === 'itemVehicleMake' || selectId === 'itemVehicleModel' || selectId === 'itemVehicleEngine' || selectId === 'itemVehicleCountry') {
                 function focusSearchInput() {
                     const $container = $select.next('.select2-container');
                     if ($container.length) {
@@ -6527,6 +6566,26 @@
                         title: 'Add Group',
                         route: '{{ route("post.groups") }}',
                         targetSelect: '.group-select'
+                    },
+                    'itemVehicleMake': {
+                        title: 'Add Make',
+                        route: '{{ route("post.car.manufacturer") }}',
+                        targetSelect: '.item-vehicle-manufacturer'
+                    },
+                    'itemVehicleModel': {
+                        title: 'Add Model',
+                        route: '{{ route("post.car.model") }}',
+                        targetSelect: '.item-vehicle-model'
+                    },
+                    'itemVehicleEngine': {
+                        title: 'Add Engine CC',
+                        route: '{{ route("post.engine.cc") }}',
+                        targetSelect: '.item-vehicle-engine'
+                    },
+                    'itemVehicleCountry': {
+                        title: 'Add Country',
+                        route: '{{ route("post.car.country") }}',
+                        targetSelect: '.item-vehicle-country'
                     }
                 };
                 
@@ -7706,6 +7765,43 @@
         $(document).on('change', '#category', updateCategoryImageDisplay);
         updateCategoryImageDisplay();
 
+        // Edit button color: blue when select has value, gray when empty
+        function updateEditButtonColors() {
+            $('.input-group').each(function() {
+                var $grp = $(this);
+                var $btn = $grp.find('.open-universal-modal[data-target-select]');
+                if (!$btn.length) return;
+                var targetClass = ($btn.attr('data-target-select') || '').trim();
+                if (!targetClass) return;
+                var $sel = $grp.find('select' + targetClass);
+                if (!$sel.length) return;
+                var val = $sel.val();
+                if (val === '' || val == null) {
+                    $btn.removeClass('btn-primary').addClass('btn-secondary');
+                } else {
+                    $btn.removeClass('btn-secondary').addClass('btn-primary');
+                }
+            });
+        }
+        $(document).on('change', '#mainItemForm select', function() {
+            var $sel = $(this);
+            var $grp = $sel.closest('.input-group');
+            var $btn = $grp.find('.open-universal-modal[data-target-select]');
+            if (!$btn.length) return;
+            var targetClass = ($btn.attr('data-target-select') || '').trim();
+            if (!targetClass) return;
+            var $targetSel = $grp.find('select' + targetClass);
+            if (!$targetSel.length || $targetSel[0] !== $sel[0]) return;
+            var val = $sel.val();
+            if (val === '' || val == null) {
+                $btn.removeClass('btn-primary').addClass('btn-secondary');
+            } else {
+                $btn.removeClass('btn-secondary').addClass('btn-primary');
+            }
+        });
+        setTimeout(updateEditButtonColors, 100);
+        $(document).ready(updateEditButtonColors);
+
         // Dynamic Subcategory Load
         $(document).on('change', 'select.category-select', function() {
             const subSelect = $('#subcategory');
@@ -8145,9 +8241,12 @@
         
         let itemVehicleIds = [];
         let itemVehicleDetails = {};
+        let itemVehicleFullDetails = {};
+        let editingVehicleId = null;
         
         // Prevent Add Vehicle modal from opening without part number (same as edit)
         $(document).on('click', '[data-bs-target="#itemVehicleAddModal"]', function(e) {
+            editingVehicleId = null;
             const partNumberId = $('#part_number_id').val();
             if (!partNumberId || partNumberId === '' || partNumberId === null) {
                 e.preventDefault();
@@ -8160,25 +8259,79 @@
         });
         
         $('#itemVehicleAddModal').on('show.bs.modal', function(e) {
-            const outsidePart = $('#part_number_id').val();
-            if (!outsidePart || outsidePart === '') {
-                e.preventDefault();
-                if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
-                $('#part_number_id').addClass('is-invalid').focus();
-                return;
+            const $modal = $('#itemVehicleAddModal');
+            if (editingVehicleId) {
+                $modal.find('.modal-title').html('<i class="ti ti-car me-2"></i>Edit Vehicle');
+                $('#itemVehicleAddBtn').text('Update Vehicle');
+            } else {
+                $modal.find('.modal-title').html('<i class="ti ti-car me-2"></i>Add Vehicle');
+                $('#itemVehicleAddBtn').text('Add Vehicle');
+                const outsidePart = $('#part_number_id').val();
+                if (!outsidePart || outsidePart === '') {
+                    e.preventDefault();
+                    if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
+                    $('#part_number_id').addClass('is-invalid').focus();
+                    return;
+                }
+                document.getElementById('itemVehicleAddForm')?.reset();
+                $('#itemVehiclePartNumber').val(outsidePart);
             }
-            document.getElementById('itemVehicleAddForm')?.reset();
-            $('#itemVehiclePartNumber').val(outsidePart);
+            // Init Select2 with search on all vehicle dropdowns (same as edit page)
+            const vehicleSelectorsStr = '.item-vehicle-manufacturer, .item-vehicle-model, .item-vehicle-year-from, .item-vehicle-year-to, .item-vehicle-engine, .item-vehicle-country';
+            $modal.find(vehicleSelectorsStr).each(function() {
+                const $sel = $(this);
+                if ($.fn.select2) {
+                    if ($sel.hasClass('select2-hidden-accessible')) {
+                        try { $sel.select2('destroy'); } catch (err) {}
+                    }
+                    $sel.select2({
+                        placeholder: $sel.find('option:first').text(),
+                        allowClear: true,
+                        width: '100%',
+                        minimumResultsForSearch: 0,
+                        dropdownParent: $modal
+                    });
+                }
+            });
+        });
+        $('#itemVehicleAddModal').on('shown.bs.modal', function() {
+            const $modal = $('#itemVehicleAddModal');
+            if (editingVehicleId && itemVehicleFullDetails[editingVehicleId]) {
+                const data = itemVehicleFullDetails[editingVehicleId];
+                $modal.find('#itemVehicleMake').val(data.car_manufacturer || '').trigger('change');
+                $modal.find('#itemVehicleModel').val(data.car_model_name || '').trigger('change');
+                $modal.find('#itemVehicleYearFrom').val(data.year_from || '').trigger('change');
+                $modal.find('#itemVehicleYearTo').val(data.year_to || '').trigger('change');
+                $modal.find('#itemVehicleEngine').val(data.engine_cc || '').trigger('change');
+                $modal.find('#itemVehicleCountry').val(data.car_manufactured_country || '').trigger('change');
+            }
+            // Focus search input when any vehicle dropdown opens
+            $modal.find('.item-vehicle-manufacturer, .item-vehicle-model, .item-vehicle-year-from, .item-vehicle-year-to, .item-vehicle-engine, .item-vehicle-country').off('select2:open.vehicleFocus').on('select2:open.vehicleFocus', function() {
+                setTimeout(function() {
+                    const $search = $modal.find('.select2-search__field');
+                    if ($search.length && $search[0]) $search[0].focus();
+                }, 50);
+                setTimeout(function() {
+                    const $search = $modal.find('.select2-search__field');
+                    if ($search.length && $search[0]) $search[0].focus();
+                }, 150);
+            });
+        });
+        $('#itemVehicleAddModal').on('hidden.bs.modal', function() {
+            editingVehicleId = null;
+            $('#itemVehicleAddModal').find('.item-vehicle-manufacturer, .item-vehicle-model, .item-vehicle-year-from, .item-vehicle-year-to, .item-vehicle-engine, .item-vehicle-country').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    try { $(this).select2('destroy'); } catch (err) {}
+                }
+            });
         });
 
-        // Form submit - same as edit: FormData, AJAX, no redirect/refresh
+        // Form submit - add or update (same as edit page)
         $('#itemVehicleAddForm').off('submit').on('submit', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            
             if (!$('#itemVehicleAddModal').hasClass('show')) return false;
-            
-            let outsidePart = $('#part_number_id').val();
+            let outsidePart = $('#itemVehiclePartNumber').val() || $('#part_number_id').val();
             if (!outsidePart || outsidePart === '') {
                 if (typeof toastr !== 'undefined') toastr.error('Please select Part Number first.');
                 $('#part_number_id').addClass('is-invalid').focus();
@@ -8186,14 +8339,71 @@
             }
             $('#itemVehiclePartNumber').val(outsidePart);
             $('#part_number_id').removeClass('is-invalid');
-            
             const form = this;
             const $btn = $('#itemVehicleAddBtn');
-            $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Adding...');
-            
+            const isEdit = !!editingVehicleId;
             const formData = new FormData(form);
             formData.set('v_part_number_id', outsidePart);
 
+            if (isEdit && itemVehicleFullDetails[editingVehicleId]) {
+                const old = itemVehicleFullDetails[editingVehicleId];
+                formData.set('old_v_part_number_id', old.v_part_number_id);
+                formData.set('old_car_manufacturer', old.car_manufacturer);
+                formData.set('old_car_model_name', old.car_model_name);
+                formData.set('old_engine_cc', old.engine_cc || '');
+                formData.set('old_car_manufactured_country', old.car_manufactured_country || '');
+                $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Updating...');
+                $.ajax({
+                    url: '{{ route("update.product_vehical") }}',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(res) {
+                        if (!res) { if (typeof toastr !== 'undefined') toastr.error('No response'); return; }
+                        if (res.success) {
+                            const deletedIds = res.deleted_ids || [];
+                            deletedIds.forEach(function(id) {
+                                itemVehicleIds = itemVehicleIds.filter(x => x !== id);
+                                delete itemVehicleDetails[id];
+                                delete itemVehicleFullDetails[id];
+                            });
+                            if (res.vehicles && res.vehicles.length > 0) {
+                                res.vehicles.forEach(function(v) {
+                                    if (itemVehicleIds.indexOf(v.id) === -1) itemVehicleIds.push(v.id);
+                                    const make = v.manutacturer_vehical?.name || '-';
+                                    const model = v.model_vehical?.name || '-';
+                                    const yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
+                                    itemVehicleDetails[v.id] = make + ' / ' + model + ' / ' + yr;
+                                    itemVehicleFullDetails[v.id] = {
+                                        car_manufacturer: v.car_manufacturer,
+                                        car_model_name: v.car_model_name,
+                                        engine_cc: v.engine_cc,
+                                        car_manufactured_country: v.car_manufactured_country,
+                                        year_from: v.year_from,
+                                        year_to: v.year_to,
+                                        v_part_number_id: v.v_part_number_id
+                                    };
+                                });
+                            }
+                            updateItemVehiclesDisplay();
+                            bootstrap.Modal.getInstance(document.getElementById('itemVehicleAddModal'))?.hide();
+                            if (typeof toastr !== 'undefined') toastr.success(res.message || 'Vehicle updated.');
+                            if (typeof playSaveSound === 'function') playSaveSound();
+                        }
+                    },
+                    error: function(xhr) {
+                        const msg = xhr.responseJSON?.message || 'Failed to update vehicle.';
+                        if (typeof toastr !== 'undefined') toastr.error(msg); else alert(msg);
+                    },
+                    complete: function() { $btn.prop('disabled', false).html('Update Vehicle'); }
+                });
+                return false;
+            }
+
+            $btn.prop('disabled', true).html('<i class="ti ti-loader me-1"></i> Adding...');
             $.ajax({
                 url: '{{ route("post.product_vehical") }}',
                 type: 'POST',
@@ -8225,6 +8435,15 @@
                                 const model = v.model_vehical?.name || '-';
                                 const yr = (v.year_from && v.year_to) ? (v.year_from === v.year_to ? v.year_from : v.year_from + '-' + v.year_to) : '-';
                                 itemVehicleDetails[v.id] = make + ' / ' + model + ' / ' + yr;
+                                itemVehicleFullDetails[v.id] = {
+                                    car_manufacturer: v.car_manufacturer,
+                                    car_model_name: v.car_model_name,
+                                    engine_cc: v.engine_cc,
+                                    car_manufactured_country: v.car_manufactured_country,
+                                    year_from: v.year_from,
+                                    year_to: v.year_to,
+                                    v_part_number_id: v.v_part_number_id
+                                };
                             }
                         });
                         updateItemVehiclesDisplay();
@@ -8269,15 +8488,30 @@
                 const label = itemVehicleDetails[id] || 'Vehicle #' + (idx + 1);
                 html += `<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="${id}">
                     <span class="small">${label}</span>
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle" data-id="${id}"><i class="ti ti-trash"></i></button>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-sm btn-outline-primary edit-item-vehicle" data-id="${id}" title="Edit vehicle"><i class="ti ti-pencil"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle" data-id="${id}"><i class="ti ti-trash"></i></button>
+                    </div>
                 </div>`;
             });
             html += '</div>';
             $list.html(html);
+            $('.edit-item-vehicle').off('click').on('click', function() {
+                const id = parseInt($(this).data('id'), 10);
+                const data = itemVehicleFullDetails[id];
+                if (!data) return;
+                editingVehicleId = id;
+                $('#itemVehicleAddModal .modal-title').html('<i class="ti ti-car me-2"></i>Edit Vehicle');
+                $('#itemVehicleAddBtn').text('Update Vehicle');
+                $('#itemVehiclePartNumber').val(data.v_part_number_id);
+                $('#part_number_id').val(data.v_part_number_id).removeClass('is-invalid');
+                $('#itemVehicleAddModal').modal('show');
+            });
             $('.remove-item-vehicle').off('click').on('click', function() {
                 const id = parseInt($(this).data('id'));
                 itemVehicleIds = itemVehicleIds.filter(x => x !== id);
                 delete itemVehicleDetails[id];
+                if (itemVehicleFullDetails[id]) delete itemVehicleFullDetails[id];
                 updateItemVehiclesDisplay();
             });
         }

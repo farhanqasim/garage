@@ -33,33 +33,46 @@
                         <div class="card-body">
                             <form method="GET" action="{{ route('attendance.history.page') }}">
                                 <div class="row">
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-md-2 mb-3">
+                                        <label class="form-label fw-bold">Month</label>
+                                        <select name="month" class="form-select">
+                                            <option value="">All / Custom</option>
+                                            @foreach([1=>'Jan',2=>'Feb',3=>'Mar',4=>'Apr',5=>'May',6=>'Jun',7=>'Jul',8=>'Aug',9=>'Sep',10=>'Oct',11=>'Nov',12=>'Dec'] as $m => $label)
+                                                <option value="{{ $m }}" {{ $filters['month'] == $m ? 'selected' : '' }}>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 mb-3">
+                                        <label class="form-label fw-bold">Year</label>
+                                        <select name="year" class="form-select">
+                                            @foreach($years ?? [date('Y')] as $y)
+                                                <option value="{{ $y }}" {{ ($filters['year'] ?? '') == $y ? 'selected' : '' }}>{{ $y }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 mb-3">
                                         <label class="form-label fw-bold">Date From</label>
                                         <input type="date" name="date_from" class="form-control" value="{{ $filters['date_from'] }}">
                                     </div>
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-md-2 mb-3">
                                         <label class="form-label fw-bold">Date To</label>
                                         <input type="date" name="date_to" class="form-control" value="{{ $filters['date_to'] }}">
                                     </div>
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-md-2 mb-3">
                                         <label class="form-label fw-bold">Worker</label>
                                         <select name="worker_id" class="form-select">
                                             <option value="">All Workers</option>
                                             @foreach($workers as $worker)
-                                                <option value="{{ $worker->id }}" {{ $filters['worker_id'] == $worker->id ? 'selected' : '' }}>
-                                                    {{ $worker->name }}
-                                                </option>
+                                                <option value="{{ $worker->id }}" {{ $filters['worker_id'] == $worker->id ? 'selected' : '' }}>{{ $worker->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-md-2 mb-3">
                                         <label class="form-label fw-bold">User</label>
                                         <select name="user_id" class="form-select">
                                             <option value="">All Users</option>
                                             @foreach($users as $user)
-                                                <option value="{{ $user->id }}" {{ $filters['user_id'] == $user->id ? 'selected' : '' }}>
-                                                    {{ $user->name }}
-                                                </option>
+                                                <option value="{{ $user->id }}" {{ $filters['user_id'] == $user->id ? 'selected' : '' }}>{{ $user->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -69,25 +82,34 @@
                                         <button type="submit" class="btn btn-primary me-2">
                                             <i class="ti ti-search me-1"></i>Apply Filters
                                         </button>
-                                        <a href="{{ route('attendance.history.page') }}" class="btn btn-secondary">
+                                        <a href="{{ route('attendance.history.page') }}" class="btn btn-secondary me-2">
                                             <i class="ti ti-x me-1"></i>Clear Filters
                                         </a>
+                                        <span class="text-muted small">Use Month+Year for report by month, or Date From/To for custom range.</span>
                                     </div>
                                 </div>
                             </form>
                         </div>
                     </div>
 
-                    <!-- Attendance Table -->
+                    <!-- Completed Attendance: Download + Table -->
                     <div class="card">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <h5 class="mb-0">
                                 <i class="ti ti-check-circle me-2 text-success"></i>
                                 Completed Attendance ({{ count($completed) }} {{ count($completed) == 1 ? 'Pair' : 'Pairs' }})
                             </h5>
-                            <a href="{{ route('attendance.history.page', request()->query()) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="ti ti-refresh me-1"></i>Refresh
-                            </a>
+                            <div class="d-flex align-items-center gap-2">
+                                <a href="{{ route('attendance.history.export.pdf', request()->query()) }}" class="btn btn-danger btn-sm" target="_blank">
+                                    <i class="ti ti-file-type-pdf me-1"></i>Download PDF
+                                </a>
+                                <a href="{{ route('attendance.history.export.excel', request()->query()) }}" class="btn btn-success btn-sm" target="_blank">
+                                    <i class="ti ti-file-spreadsheet me-1"></i>Download Excel
+                                </a>
+                                <a href="{{ route('attendance.history.page', request()->query()) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ti ti-refresh me-1"></i>Refresh
+                                </a>
+                            </div>
                         </div>
                         <div class="card-body">
                             @if(count($completed) > 0)

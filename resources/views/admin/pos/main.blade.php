@@ -2850,10 +2850,11 @@ label{
   <script src="{{asset('assets/js/theme-colorpicker.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
   <script src="{{asset('assets/js/script.js')}}" type="f89f8e290dd47aa8bc06c7c9-text/javascript"></script>
 
-  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer>
-  </script>
-
+  @php $posHost = request()->getHost(); @endphp
+  @if ($posHost && !in_array($posHost, ['localhost', '127.0.0.1']))
+  <script src="{{asset('assets/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js')}}" data-cf-settings="f89f8e290dd47aa8bc06c7c9-|49" defer></script>
  	<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"3ca157e612a14eccbb30cf6db6691c29","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+  @endif
   <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -3034,8 +3035,26 @@ function confirmDelete(formId, customMessage = null) {
         }
     });
 
-    $(document).ajaxError(function(event, xhr) {
-        toastr.error("Server Error! Please try again.");
+    $(document).ajaxError(function(event, xhr, settings, thrownError) {
+        let response = xhr.responseJSON;
+        if (!response && xhr.responseText) {
+            try { var p = JSON.parse(xhr.responseText); if (p && typeof p === 'object') response = p; } catch (e) {}
+        }
+        console.error('AJAX Error:', { url: settings && settings.url, status: xhr.status, message: response && response.message });
+        if (xhr.status === 401) {
+            toastr.error(response?.message || 'Session expired. Please login again.');
+            setTimeout(function() { window.location.reload(); }, 2000);
+            return;
+        }
+        if (xhr.status === 419) {
+            toastr.error(response?.message || 'Session expired. Please refresh the page.');
+            return;
+        }
+        if (response && response.message) {
+            toastr.error(response.message);
+        } else {
+            toastr.error(xhr.status === 500 ? "Server error. Check browser console or Laravel logs." : "Server Error! Please try again.");
+        }
     });
 </script>
 

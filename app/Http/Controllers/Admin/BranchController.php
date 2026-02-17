@@ -62,6 +62,32 @@ class BranchController extends Controller
         }
     }
 
+    /**
+     * Get branch details as JSON (for AJAX requests, e.g. helpline phone)
+     */
+    public function show($id)
+    {
+        $branch = Branch::find($id);
+        if (!$branch) {
+            return response()->json(['error' => 'Branch not found'], 404);
+        }
+        $user = Auth::user();
+        if ($user->role !== 'admin') {
+            $isAssigned = $user->assignedBranches()->where('branch_id', $branch->id)->exists();
+            if (!$isAssigned) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+        }
+        return response()->json([
+            'id' => $branch->id,
+            'branch_name' => $branch->branch_name,
+            'branch_code' => $branch->branch_code,
+            'phone' => $branch->phone,
+            'email' => $branch->email,
+            'address' => $branch->address,
+        ]);
+    }
+
 public function store_branches(Request $request)
 {
     try {

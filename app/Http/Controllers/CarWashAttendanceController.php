@@ -8,7 +8,9 @@ use App\Models\CarWashAttendance;
 use App\Models\CarWashWorker;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\Traits\HasBranchAccess;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class CarWashAttendanceController extends Controller
 {
@@ -512,43 +514,52 @@ class CarWashAttendanceController extends Controller
     }
 
     /**
-     * Show attendance history page
+     * Show attendance history page with month filter and report (by employee, by month).
      */
     public function historyPage(Request $request)
     {
         $user = Auth::user();
         $branchId = $this->getUserBranchId($user);
 
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
+        $month = $request->get('month', '');
+        $year = $request->get('year', '');
+
+        // Month-based filter: if month & year set, use first and last day of that month
+        if ($month !== '' && $year !== '' && is_numeric($month) && is_numeric($year)) {
+            $month = (int) $month;
+            $year = (int) $year;
+            if ($month >= 1 && $month <= 12 && $year >= 2020 && $year <= 2100) {
+                $dateFrom = sprintf('%04d-%02d-01', $year, $month);
+                $dateTo = date('Y-m-t', strtotime($dateFrom));
+            }
+        }
+
         $query = CarWashAttendance::query();
-        
+
         if ($branchId) {
             $query->where('branch_id', $branchId);
         }
 
-        // Apply date filters
-        if ($request->has('date_from') && $request->date_from) {
-            $query->whereDate('captured_at', '>=', $request->date_from);
+        if ($dateFrom) {
+            $query->whereDate('captured_at', '>=', $dateFrom);
         }
-        if ($request->has('date_to') && $request->date_to) {
-            $query->whereDate('captured_at', '<=', $request->date_to);
+        if ($dateTo) {
+            $query->whereDate('captured_at', '<=', $dateTo);
         }
 
-        // Apply worker filter
-        if ($request->has('worker_id') && $request->worker_id) {
+        if ($request->filled('worker_id')) {
             $query->where('worker_id', $request->worker_id);
         }
-
-        // Apply user filter
-        if ($request->has('user_id') && $request->user_id) {
+        if ($request->filled('user_id')) {
             $query->where('attended_user_id', $request->user_id);
         }
 
-        // Get all attendances ordered by date
         $allAttendances = $query->orderBy('captured_at', 'desc')
             ->with(['worker', 'attendedUser', 'user'])
             ->get();
 
-        // Group by employee and find IN-OUT pairs
         $completed = [];
         $employeeGroups = [];
 
@@ -569,15 +580,13 @@ class CarWashAttendanceController extends Controller
             $employeeGroups[$empId]['attendances'][] = $att;
         }
 
-        // Find completed pairs (IN followed by OUT) and also show incomplete IN records
         foreach ($employeeGroups as $empId => $empData) {
             $attendances = collect($empData['attendances'])->sortBy('captured_at')->values();
-            
+
             for ($i = 0; $i < $attendances->count(); $i++) {
                 $inAttendance = $attendances[$i];
-                
+
                 if ($inAttendance->attendance_type === 'in') {
-                    // Find next OUT attendance
                     $outAttendance = null;
                     for ($j = $i + 1; $j < $attendances->count(); $j++) {
                         if ($attendances[$j]->attendance_type === 'out') {
@@ -587,10 +596,9 @@ class CarWashAttendanceController extends Controller
                     }
 
                     if ($outAttendance) {
-                        // Calculate hours for completed pair
                         $hours = $inAttendance->captured_at->diffInHours($outAttendance->captured_at, true);
                         $minutes = $inAttendance->captured_at->diffInMinutes($outAttendance->captured_at) % 60;
-                        
+
                         $completed[] = [
                             'id' => $inAttendance->id . '_' . $outAttendance->id,
                             'employeeId' => $empId,
@@ -617,7 +625,6 @@ class CarWashAttendanceController extends Controller
                             'status' => 'completed'
                         ];
                     } else {
-                        // Show incomplete IN record (no OUT yet)
                         $completed[] = [
                             'id' => $inAttendance->id . '_incomplete',
                             'employeeId' => $empId,
@@ -644,34 +651,91 @@ class CarWashAttendanceController extends Controller
             }
         }
 
-        // Sort by date descending
-        usort($completed, function($a, $b) {
+        usort($completed, function ($a, $b) {
             return $b['inTime']->timestamp - $a['inTime']->timestamp;
         });
 
-        // Get workers and users for filters
+        // Report: by employee (days present, days absent, total records, total hours)
+        $reportByEmployee = [];
+        $periodDays = 0;
+        if ($dateFrom && $dateTo) {
+            $start = \Carbon\Carbon::parse($dateFrom);
+            $end = \Carbon\Carbon::parse($dateTo);
+            $periodDays = $start->diffInDays($end) + 1;
+        }
+
+        foreach ($employeeGroups as $empId => $empData) {
+            $empCompleted = array_filter($completed, function ($c) use ($empId) {
+                return ($c['employeeId'] ?? '') === $empId && ($c['status'] ?? '') === 'completed';
+            });
+            $daysPresent = count(array_unique(array_column($empCompleted, 'date')));
+            $totalRecords = count($empCompleted);
+            $totalHours = array_sum(array_column($empCompleted, 'hours'));
+            $daysAbsent = max(0, $periodDays - $daysPresent);
+
+            $reportByEmployee[] = [
+                'id' => $empId,
+                'name' => $empData['name'],
+                'type' => $empData['type'] === 'worker' ? 'Staff' : 'User',
+                'days_present' => $daysPresent,
+                'days_absent' => $daysAbsent,
+                'total_records' => $totalRecords,
+                'total_hours' => round($totalHours, 2),
+            ];
+        }
+        usort($reportByEmployee, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        // Report: by month (when range spans multiple months)
+        $reportByMonth = [];
+        if ($dateFrom && $dateTo) {
+            $byMonth = [];
+            foreach ($completed as $c) {
+                if (($c['status'] ?? '') !== 'completed') {
+                    continue;
+                }
+                $monthKey = \Carbon\Carbon::parse($c['date'])->format('Y-m');
+                if (!isset($byMonth[$monthKey])) {
+                    $byMonth[$monthKey] = ['dates' => [], 'records' => 0, 'hours' => 0];
+                }
+                $byMonth[$monthKey]['dates'][$c['date']] = true;
+                $byMonth[$monthKey]['records']++;
+                $byMonth[$monthKey]['hours'] += $c['hours'] ?? 0;
+            }
+            foreach ($byMonth as $monthKey => $data) {
+                $reportByMonth[] = [
+                    'month' => $monthKey,
+                    'month_label' => \Carbon\Carbon::parse($monthKey . '-01')->format('F Y'),
+                    'days_present' => count($data['dates']),
+                    'total_records' => $data['records'],
+                    'total_hours' => round($data['hours'], 2),
+                ];
+            }
+            usort($reportByMonth, function ($a, $b) {
+                return strcmp($b['month'], $a['month']);
+            });
+        }
+
         $workersQuery = CarWashWorker::query();
         $this->applyBranchFilter($workersQuery, 'branch_id', $user);
         $workers = $workersQuery->where('status', true)->orderBy('name', 'asc')->get(['id', 'name']);
 
-        // Filter users by branch: only show users from logged-in user's branch
         $usersQuery = User::whereIn('role', ['user', 'manager', 'salesman', 'purchaser']);
-        
         if ($branchId) {
-            // Show users where branch_id matches OR user is assigned to this branch
-            $usersQuery->where(function($q) use ($branchId) {
+            $usersQuery->where(function ($q) use ($branchId) {
                 $q->where('branch_id', $branchId)
-                  ->orWhereHas('assignedBranches', function($query) use ($branchId) {
-                      $query->where('branch_id', $branchId);
-                  });
+                    ->orWhereHas('assignedBranches', function ($query) use ($branchId) {
+                        $query->where('branch_id', $branchId);
+                    });
             });
         } else {
-            // If no branch, only show users with no branch_id and no assigned branches
-            $usersQuery->whereNull('branch_id')
-                      ->whereDoesntHave('assignedBranches');
+            $usersQuery->whereNull('branch_id')->whereDoesntHave('assignedBranches');
         }
-        
         $users = $usersQuery->orderBy('name', 'asc')->get(['id', 'name']);
+
+        $currentYear = (int) date('Y');
+        $years = range($currentYear, $currentYear - 5);
 
         return view('attendance-history', [
             'completed' => $completed,
@@ -679,11 +743,219 @@ class CarWashAttendanceController extends Controller
             'users' => $users,
             'googleMapsApiKey' => config('services.google_maps.api_key'),
             'filters' => [
-                'date_from' => $request->get('date_from', ''),
-                'date_to' => $request->get('date_to', ''),
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'month' => $month ?: $request->get('month', ''),
+                'year' => $year ?: $request->get('year', (string) $currentYear),
                 'worker_id' => $request->get('worker_id', ''),
                 'user_id' => $request->get('user_id', ''),
-            ]
+            ],
+            'reportByEmployee' => $reportByEmployee,
+            'reportByMonth' => $reportByMonth,
+            'periodDays' => $periodDays,
+            'years' => $years,
         ]);
+    }
+
+    /**
+     * Build attendance report data from request (same filters as history page).
+     * Used by export PDF/Excel.
+     */
+    protected function getAttendanceReportData(Request $request): array
+    {
+        $user = Auth::user();
+        $branchId = $this->getUserBranchId($user);
+
+        $dateFrom = $request->get('date_from', '');
+        $dateTo = $request->get('date_to', '');
+        $month = $request->get('month', '');
+        $year = $request->get('year', '');
+
+        if ($month !== '' && $year !== '' && is_numeric($month) && is_numeric($year)) {
+            $month = (int) $month;
+            $year = (int) $year;
+            if ($month >= 1 && $month <= 12 && $year >= 2020 && $year <= 2100) {
+                $dateFrom = sprintf('%04d-%02d-01', $year, $month);
+                $dateTo = date('Y-m-t', strtotime($dateFrom));
+            }
+        }
+
+        $query = CarWashAttendance::query();
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+        if ($dateFrom) {
+            $query->whereDate('captured_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('captured_at', '<=', $dateTo);
+        }
+        if ($request->filled('worker_id')) {
+            $query->where('worker_id', $request->worker_id);
+        }
+        if ($request->filled('user_id')) {
+            $query->where('attended_user_id', $request->user_id);
+        }
+
+        $allAttendances = $query->orderBy('captured_at', 'desc')
+            ->with(['worker', 'attendedUser'])
+            ->get();
+
+        $completed = [];
+        $employeeGroups = [];
+
+        foreach ($allAttendances as $att) {
+            $empId = $att->worker_id ? 'worker_' . $att->worker_id : 'user_' . $att->attended_user_id;
+            $empName = $att->worker ? $att->worker->name : ($att->attendedUser ? $att->attendedUser->name : 'Unknown');
+            $empType = $att->worker_id ? 'worker' : 'user';
+            if (!isset($employeeGroups[$empId])) {
+                $employeeGroups[$empId] = ['id' => $empId, 'name' => $empName, 'type' => $empType, 'attendances' => []];
+            }
+            $employeeGroups[$empId]['attendances'][] = $att;
+        }
+
+        foreach ($employeeGroups as $empId => $empData) {
+            $attendances = collect($empData['attendances'])->sortBy('captured_at')->values();
+            for ($i = 0; $i < $attendances->count(); $i++) {
+                $inAttendance = $attendances[$i];
+                if ($inAttendance->attendance_type !== 'in') {
+                    continue;
+                }
+                $outAttendance = null;
+                for ($j = $i + 1; $j < $attendances->count(); $j++) {
+                    if ($attendances[$j]->attendance_type === 'out') {
+                        $outAttendance = $attendances[$j];
+                        break;
+                    }
+                }
+                if ($outAttendance) {
+                    $hours = $inAttendance->captured_at->diffInHours($outAttendance->captured_at, true);
+                    $minutes = $inAttendance->captured_at->diffInMinutes($outAttendance->captured_at) % 60;
+                    $completed[] = [
+                        'employeeId' => $empId,
+                        'employeeName' => $empData['name'],
+                        'employeeType' => $empData['type'],
+                        'date' => $inAttendance->captured_at->format('Y-m-d'),
+                        'inTime' => $inAttendance->captured_at,
+                        'outTime' => $outAttendance->captured_at,
+                        'status' => 'completed',
+                        'hours' => round($hours + ($minutes / 60), 2),
+                    ];
+                }
+            }
+        }
+
+        usort($completed, fn ($a, $b) => $b['inTime']->timestamp - $a['inTime']->timestamp);
+
+        $periodDays = 0;
+        if ($dateFrom && $dateTo) {
+            $periodDays = \Carbon\Carbon::parse($dateFrom)->diffInDays(\Carbon\Carbon::parse($dateTo)) + 1;
+        }
+
+        $reportByEmployee = [];
+        foreach ($employeeGroups as $empId => $empData) {
+            $empCompleted = array_filter($completed, fn ($c) => ($c['employeeId'] ?? '') === $empId && ($c['status'] ?? '') === 'completed');
+            $daysPresent = count(array_unique(array_column($empCompleted, 'date')));
+            $totalRecords = count($empCompleted);
+            $totalHours = array_sum(array_column($empCompleted, 'hours'));
+            $reportByEmployee[] = [
+                'name' => $empData['name'],
+                'type' => $empData['type'] === 'worker' ? 'Staff' : 'User',
+                'days_present' => $daysPresent,
+                'days_absent' => max(0, $periodDays - $daysPresent),
+                'total_records' => $totalRecords,
+                'total_hours' => round($totalHours, 2),
+            ];
+        }
+        usort($reportByEmployee, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        $reportByMonth = [];
+        if ($dateFrom && $dateTo) {
+            $byMonth = [];
+            foreach ($completed as $c) {
+                if (($c['status'] ?? '') !== 'completed') {
+                    continue;
+                }
+                $monthKey = \Carbon\Carbon::parse($c['date'])->format('Y-m');
+                if (!isset($byMonth[$monthKey])) {
+                    $byMonth[$monthKey] = ['dates' => [], 'records' => 0, 'hours' => 0];
+                }
+                $byMonth[$monthKey]['dates'][$c['date']] = true;
+                $byMonth[$monthKey]['records']++;
+                $byMonth[$monthKey]['hours'] += $c['hours'] ?? 0;
+            }
+            foreach ($byMonth as $monthKey => $data) {
+                $reportByMonth[] = [
+                    'month' => $monthKey,
+                    'month_label' => \Carbon\Carbon::parse($monthKey . '-01')->format('F Y'),
+                    'days_present' => count($data['dates']),
+                    'total_records' => $data['records'],
+                    'total_hours' => round($data['hours'], 2),
+                ];
+            }
+            usort($reportByMonth, fn ($a, $b) => strcmp($b['month'], $a['month']));
+        }
+
+        return [
+            'completed' => $completed,
+            'reportByEmployee' => $reportByEmployee,
+            'reportByMonth' => $reportByMonth,
+            'periodDays' => $periodDays,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ];
+    }
+
+    /**
+     * Download attendance report as PDF (uses current filter params from query string).
+     */
+    public function exportReportPdf(Request $request)
+    {
+        $data = $this->getAttendanceReportData($request);
+        $pdf = Pdf::loadView('attendance-report-pdf', $data);
+        $filename = 'completed-attendance-' . ($data['date_from'] ?: date('Y-m-d')) . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Download attendance report as Excel (CSV) (uses current filter params from query string).
+     */
+    public function exportReportExcel(Request $request)
+    {
+        $data = $this->getAttendanceReportData($request);
+        $csv = $this->buildAttendanceReportCsv($data);
+        $filename = 'completed-attendance-' . ($data['date_from'] ?: date('Y-m-d')) . '.csv';
+        $bom = "\xEF\xBB\xBF";
+        return Response::streamDownload(function () use ($csv, $bom) {
+            echo $bom . $csv;
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    protected function buildAttendanceReportCsv(array $data): string
+    {
+        $lines = [];
+        $lines[] = 'Completed Attendance';
+        $lines[] = 'Period: ' . ($data['date_from'] ?? '') . ' to ' . ($data['date_to'] ?? '') . ' (' . ($data['periodDays'] ?? 0) . ' days)';
+        $lines[] = '';
+
+        $lines[] = 'Employee,Date,IN Time,OUT Time,Hours';
+        foreach ($data['completed'] ?? [] as $r) {
+            $inTime = isset($r['inTime']) ? $r['inTime']->format('h:i A') : '';
+            $outTime = isset($r['outTime']) ? $r['outTime']->format('h:i A') : '';
+            $hours = isset($r['hours']) ? number_format($r['hours'], 2) : '';
+            $lines[] = sprintf(
+                '"%s","%s","%s","%s","%s"',
+                str_replace('"', '""', $r['employeeName'] ?? ''),
+                $r['date'] ?? '',
+                $inTime,
+                $outTime,
+                $hours
+            );
+        }
+
+        return implode("\r\n", $lines);
     }
 }

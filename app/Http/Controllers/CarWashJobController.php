@@ -124,6 +124,8 @@ class CarWashJobController extends Controller
     /**
      * Search past jobs by vehicle plate number (for autocomplete).
      * Returns unique vehicle_no with latest customer_name and mobile per plate.
+     * Searches across all branches so that when a customer comes to any branch
+     * (or returns later), entering plate number auto-fills name and phone.
      */
     public function searchByPlate(Request $request)
     {
@@ -133,9 +135,8 @@ class CarWashJobController extends Controller
             return response()->json(['success' => true, 'suggestions' => []]);
         }
 
-        $user = Auth::user();
         $query = CarWashJob::query();
-        $this->applyBranchFilter($query, 'branch_id', $user);
+        // No branch filter: search all branches so plate lookup works at any branch
 
         $jobs = $query
             ->whereNotNull('vehicle_no')

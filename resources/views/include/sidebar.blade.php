@@ -133,6 +133,8 @@
                                 @canany(['view_items', 'view_services']) <li><a href="{{ route('item-type-data.index', 'services') }}">Services</a></li> @endcanany
                             </ul>
                         </li>
+                        <li><a href="{{ route('all.units') }}"><i class="ti ti-brand-unity fs-16 me-2"></i><span>Units</span></a></li>
+
                         @endcanany
                         @can('view_car_wash_services')
                         <li class="submenu">

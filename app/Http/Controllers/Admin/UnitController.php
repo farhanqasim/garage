@@ -124,29 +124,17 @@ class UnitController extends Controller
                 'decimal_places' => $request->decimal_places ?? ($request->allow_decimal ? 2 : 0),
             ]);
             
-            // Update multiple base units if provided
+            // Update multiple base units: allow same base_unit_id with different multipliers (1L, 2L, 3L, ...)
             if ($request->has('base_units') && is_array($request->base_units)) {
-                // First, detach all existing base units
                 $unit->baseUnits()->detach();
-                
-                // Then attach all new base units (allowing same base_unit_id with different multipliers)
                 foreach ($request->base_units as $baseUnit) {
-                    if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
-                        // Check if this combination already exists to avoid duplicates
-                        $exists = $unit->baseUnits()
-                            ->where('base_unit_id', $baseUnit['base_unit_id'])
-                            ->wherePivot('multiplier', $baseUnit['multiplier'])
-                            ->exists();
-                        
-                        if (!$exists) {
-                            $unit->baseUnits()->attach($baseUnit['base_unit_id'], [
-                                'multiplier' => $baseUnit['multiplier']
-                            ]);
-                        }
+                    if (!empty($baseUnit['base_unit_id'])) {
+                        $multiplier = isset($baseUnit['multiplier']) && $baseUnit['multiplier'] !== '' && is_numeric($baseUnit['multiplier'])
+                            ? (float) $baseUnit['multiplier'] : 1;
+                        $unit->baseUnits()->attach($baseUnit['base_unit_id'], ['multiplier' => $multiplier]);
                     }
                 }
             } else {
-                // If no base units provided, remove all base unit relationships
                 $unit->baseUnits()->detach();
             }
             
@@ -188,18 +176,13 @@ class UnitController extends Controller
         
         $unit->save();
         
-        // Save multiple base units if provided
+        // Save multiple base units: allow same base_unit_id with different multipliers (e.g. 1L, 2L, 3L)
         if ($request->has('base_units') && is_array($request->base_units)) {
-            $baseUnitsData = [];
             foreach ($request->base_units as $baseUnit) {
-                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
-                    $baseUnitsData[$baseUnit['base_unit_id']] = [
-                        'multiplier' => $baseUnit['multiplier']
-                    ];
+                if (!empty($baseUnit['base_unit_id']) && isset($baseUnit['multiplier']) && $baseUnit['multiplier'] !== '') {
+                    $multiplier = is_numeric($baseUnit['multiplier']) ? (float) $baseUnit['multiplier'] : 1;
+                    $unit->baseUnits()->attach($baseUnit['base_unit_id'], ['multiplier' => $multiplier]);
                 }
-            }
-            if (!empty($baseUnitsData)) {
-                $unit->baseUnits()->sync($baseUnitsData);
             }
         }
         
@@ -229,20 +212,16 @@ class UnitController extends Controller
         
         $unit->update();
         
-        // Update multiple base units if provided
+        // Update multiple base units: allow same base_unit_id with different multipliers (e.g. 1L, 2L, 3L)
         if ($request->has('base_units') && is_array($request->base_units)) {
-            $baseUnitsData = [];
+            $unit->baseUnits()->detach();
             foreach ($request->base_units as $baseUnit) {
-                if (!empty($baseUnit['base_unit_id']) && !empty($baseUnit['multiplier'])) {
-                    $baseUnitsData[$baseUnit['base_unit_id']] = [
-                        'multiplier' => $baseUnit['multiplier']
-                    ];
+                if (!empty($baseUnit['base_unit_id']) && isset($baseUnit['multiplier']) && $baseUnit['multiplier'] !== '') {
+                    $multiplier = is_numeric($baseUnit['multiplier']) ? (float) $baseUnit['multiplier'] : 1;
+                    $unit->baseUnits()->attach($baseUnit['base_unit_id'], ['multiplier' => $multiplier]);
                 }
             }
-            // Sync will replace all existing relationships
-            $unit->baseUnits()->sync($baseUnitsData);
         } else {
-            // If no base units provided, remove all base unit relationships
             $unit->baseUnits()->detach();
         }
         

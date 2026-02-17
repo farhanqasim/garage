@@ -43,6 +43,26 @@ class PurchaseController extends Controller
         $suppliers = Supplier::orderBy('created_at', 'desc')->get();
         $branches = \App\Models\Branch::where('status', 'active')->get();
         $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
+
+        // If no branch selected in session, default to user's login/assigned branch
+        if (!session('selected_branch_id')) {
+            $user = auth()->user();
+            $branch = null;
+            if ($user->branch_id) {
+                $branch = \App\Models\Branch::where('id', $user->branch_id)->where('status', 'active')->first();
+            }
+            if (!$branch && method_exists($user, 'assignedBranches')) {
+                $branch = $user->assignedBranches()->where('status', 'active')->first();
+            }
+            if ($branch) {
+                session([
+                    'selected_branch_id' => $branch->id,
+                    'selected_branch_name' => $branch->branch_name,
+                    'selected_branch_code' => $branch->branch_code ?? '',
+                ]);
+            }
+        }
+
         return view('admin.purchases.create', compact('suppliers', 'branches', 'units'));
     }
 
@@ -103,7 +123,10 @@ class PurchaseController extends Controller
             if ($row->supplier_id !== null) {
                 $supplierId = $row->supplier_id;
             }
-            $itemName = $row->item ? ($row->item->short_disc ?? $row->item->pro_dis ?? $row->item->bar_code ?? 'Item #' . $row->item_id) : 'Item #' . $row->item_id;
+            // Use stored display name from when user selected item, else fallback to item fields
+            $itemName = !empty($row->item_name)
+                ? $row->item_name
+                : ($row->item ? ($row->item->short_disc ?? $row->item->pro_dis ?? $row->item->bar_code ?? 'Item #' . $row->item_id) : 'Item #' . $row->item_id);
             $warehouseName = $row->warehouse
                 ? ($row->warehouse->warehouse_name . ($row->warehouse->warehouse_code ? ' (' . $row->warehouse->warehouse_code . ')' : ''))
                 : null;
@@ -173,6 +196,7 @@ class PurchaseController extends Controller
                 'branch_id' => $branchId,
                 'supplier_id' => $supplierId,
                 'item_id' => $it['item_id'],
+                'item_name' => $it['name'] ?? null,
                 'warehouse_id' => $it['warehouse_id'] ?? null,
                 'quantity' => $it['quantity'],
                 'unit' => $it['unit'] ?? null,
@@ -887,22 +911,78 @@ class PurchaseController extends Controller
     }
     
     /**
-     * Get stock status for an item across all branches and warehouses
+     * Get stock status for an item across all branches and warehouses.
+     * If branch_id is passed, returns all warehouses of that branch (with 0 quantity where no stock).
      */
-    public function getItemStockStatus($id)
+    public function getItemStockStatus(Request $request, $id)
     {
         $item = Item::with('unit_item')->findOrFail($id);
         $packingSize = (float) ($item->packing ?? 1);
         $unitName = $item->unit_item ? ($item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit') : 'Unit';
 
-        // Get all warehouse items for this item
+        $requestedBranchId = $request->query('branch_id');
+
+        // When branch_id is provided: return all warehouses of this branch (with quantity 0 if no stock)
+        if ($requestedBranchId !== null && $requestedBranchId !== '') {
+            $branch = \App\Models\Branch::find($requestedBranchId);
+            $warehouses = \App\Models\Warehouse::where('branch_id', $requestedBranchId)->orderBy('warehouse_name')->get();
+            $quantitiesByWarehouse = \App\Models\WarehouseItem::where('item_id', $id)
+                ->whereIn('warehouse_id', $warehouses->pluck('id'))
+                ->get()
+                ->keyBy('warehouse_id');
+
+            $stockStatus = [];
+            $branchName = $branch ? $branch->branch_name : 'No Branch';
+            $branchCode = $branch ? ($branch->branch_code ?? '') : '';
+            $totalQty = 0;
+
+            $stockStatus[] = [
+                'type' => 'branch',
+                'id' => (int) $requestedBranchId,
+                'name' => $branchName,
+                'code' => $branchCode,
+                'display' => $branchName . ($branchCode ? ' (' . $branchCode . ')' : ''),
+                'cartons' => 0,
+                'loose' => 0,
+                'quantity' => 0,
+                'unit' => $unitName,
+            ];
+
+            foreach ($warehouses as $warehouse) {
+                $wi = $quantitiesByWarehouse->get($warehouse->id);
+                $quantity = $wi ? floatval($wi->quantity ?? 0) : 0;
+                $totalQty += $quantity;
+                $cartons = floor($quantity / $packingSize);
+                $loose = fmod($quantity, $packingSize);
+
+                $stockStatus[] = [
+                    'type' => 'warehouse',
+                    'id' => $warehouse->id,
+                    'name' => $warehouse->warehouse_name,
+                    'code' => $warehouse->warehouse_code ?? '',
+                    'display' => $warehouse->warehouse_name,
+                    'cartons' => (int) $cartons,
+                    'loose' => $loose,
+                    'quantity' => $quantity,
+                    'branch_id' => (int) $requestedBranchId,
+                    'unit' => $unitName,
+                ];
+            }
+
+            // Update branch total
+            $stockStatus[0]['quantity'] = $totalQty;
+            $stockStatus[0]['cartons'] = (int) floor($totalQty / $packingSize);
+            $stockStatus[0]['loose'] = fmod($totalQty, $packingSize);
+
+            return response()->json($stockStatus);
+        }
+
+        // Original behaviour: all branches/warehouses that have stock for this item
         $warehouseItems = \App\Models\WarehouseItem::with(['warehouse.branch'])
             ->where('item_id', $id)
             ->get();
-        
+
         $stockStatus = [];
-        
-        // Group by branch first
         $branchStocks = [];
         foreach ($warehouseItems as $warehouseItem) {
             $warehouse = $warehouseItem->warehouse;
@@ -910,11 +990,11 @@ class PurchaseController extends Controller
             $branchId = $branch ? $branch->id : 0;
             $branchName = $branch ? $branch->branch_name : 'No Branch';
             $branchCode = $branch ? $branch->branch_code : '';
-            
+
             $quantity = floatval($warehouseItem->quantity ?? 0);
             $cartons = floor($quantity / $packingSize);
             $loose = $quantity % $packingSize;
-            
+
             if (!isset($branchStocks[$branchId])) {
                 $branchStocks[$branchId] = [
                     'branch_id' => $branchId,
@@ -926,7 +1006,7 @@ class PurchaseController extends Controller
                     'warehouses' => []
                 ];
             }
-            
+
             $warehouseData = [
                 'warehouse_id' => $warehouse->id,
                 'warehouse_name' => $warehouse->warehouse_name,
@@ -934,31 +1014,28 @@ class PurchaseController extends Controller
                 'quantity' => $quantity,
                 'cartons' => $cartons,
                 'loose' => $loose,
-                'display' => $warehouse->warehouse_name // name only, no warehouse code in stock status
+                'display' => $warehouse->warehouse_name
             ];
-            
+
             $branchStocks[$branchId]['warehouses'][] = $warehouseData;
             $branchStocks[$branchId]['total_cartons'] += $cartons;
             $branchStocks[$branchId]['total_loose'] += $loose;
         }
-        
-        // Convert to array format
+
         foreach ($branchStocks as $branchStock) {
-            // Add branch total (quantity = total in item unit)
             $branchQty = $branchStock['total_cartons'] * $packingSize + $branchStock['total_loose'];
             $stockStatus[] = [
                 'type' => 'branch',
                 'id' => $branchStock['branch_id'],
                 'name' => $branchStock['branch_name'],
                 'code' => $branchStock['branch_code'],
-                'display' => $branchStock['branch_name'], // name only, no branch code in stock status
+                'display' => $branchStock['branch_name'],
                 'cartons' => $branchStock['total_cartons'],
                 'loose' => $branchStock['total_loose'],
                 'quantity' => $branchQty,
                 'unit' => $unitName,
             ];
 
-            // Add warehouses under branch
             foreach ($branchStock['warehouses'] as $warehouse) {
                 $stockStatus[] = [
                     'type' => 'warehouse',
@@ -974,7 +1051,7 @@ class PurchaseController extends Controller
                 ];
             }
         }
-        
+
         return response()->json($stockStatus);
     }
 

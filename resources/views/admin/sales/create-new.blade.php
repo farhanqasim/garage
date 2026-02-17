@@ -474,7 +474,7 @@
                     </label>
                     <div class="d-flex align-items-start gap-2">
                         <div class="position-relative flex-grow-1">
-                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off">
+                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off" title="Type to search or edit product name">
                         <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
@@ -486,6 +486,9 @@
                             <div class="text-warning fw-semibold" id="selected-item-details-line3"></div>
                         </div>
                         </div>
+                        <button type="button" class="btn btn-primary align-self-center" id="item-edit-in-modal-btn" title="Edit selected item" style="display: none; white-space: nowrap;">
+                            <i class="ti ti-edit"></i> Edit
+                        </button>
                         <!-- Item Image Preview -->
                         <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
                             <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
@@ -1535,6 +1538,17 @@ $(document).ready(function() {
         $('#item-search').trigger('input');
     });
 
+    // When item is updated inside iframe, show add-item-modal so user can add it to sale
+    var pendingItemIdAfterUpdate = null;
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'ITEM_UPDATED' && event.data.itemId) {
+            $('#add-new-item-modal').modal('hide');
+            pendingItemIdAfterUpdate = event.data.itemId;
+            $('#add-item-modal-title').html('<i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS');
+            $('#add-item-modal').modal('show');
+        }
+    });
+
     // Quick barcode scan (above items list): open Add Item modal and run barcode search
     function openAddItemModalForQuickScan(barcodeOrCamera) {
         const branchId = $('#salesBranchId').val();
@@ -1650,6 +1664,7 @@ $(document).ready(function() {
         $('#customer-history-content').html('<p class="text-muted mb-0 small">Select item to view history</p>');
         $('#purchase-history-content').html('<p class="text-muted mb-0 small">Select item to view purchase history</p>');
         $('#item-search-results').hide();
+        $('#item-edit-in-modal-btn').hide();
         $('#stock-status-section').hide();
         $('#stock-status-content').hide();
         $('#barcode-scan-input').val('');
@@ -1669,7 +1684,23 @@ $(document).ready(function() {
     var pendingQuickBarcode = null;
     var openCameraAfterQuickScan = false;
     $('#add-item-modal').on('shown.bs.modal', function() {
+        $('#item-search').prop('readonly', false).prop('disabled', false).attr('readonly', false);
+        if (pendingItemIdAfterUpdate) {
+            var itemId = pendingItemIdAfterUpdate;
+            pendingItemIdAfterUpdate = null;
+            pendingQuickBarcode = null;
+            openCameraAfterQuickScan = false;
+            $('#selected-item-id').val(itemId);
+            $.get('{{ route("purchases.items.details", ":id") }}'.replace(':id', itemId))
+                .then(function(r) {
+                    $('#item-search').val(r.name || '');
+                    if (typeof loadItemStockStatus === 'function') loadItemStockStatus(itemId);
+                    $('#item-edit-in-modal-btn').show();
+                })
+                .catch(function() { $('#item-search').trigger('input'); });
+        }
         setTimeout(function() {
+            if (pendingItemIdAfterUpdate) return;
             if (pendingQuickBarcode) {
                 runBarcodeSearch(pendingQuickBarcode);
                 pendingQuickBarcode = null;
@@ -1714,6 +1745,7 @@ $(document).ready(function() {
                     
                     $('#item-search').val(itemName);
                     $('#selected-item-id').val(itemId);
+                    $('#item-edit-in-modal-btn').show();
                     $('#item-unit').val(unit);
                     $('#item-rate').val(Math.round(parseFloat(itemRate) || 0));
                     $('#item-search-results').hide();
@@ -1903,6 +1935,16 @@ $(document).ready(function() {
         cameraBarcodeScanner = null;
     });
     
+    // Edit selected item: open item edit page in new tab
+    $(document).on('click', '#item-edit-in-modal-btn', function() {
+        var itemId = ($('#selected-item-id').val() || '').toString().trim();
+        if (!itemId) return;
+        var editUrl = '{{ url("item/edit") }}' + '/' + itemId;
+        var returnTo = (window.location.pathname || '').replace(/\/+$/, '');
+        if (returnTo) editUrl += (editUrl.indexOf('?') !== -1 ? '&' : '?') + 'return_to=' + encodeURIComponent(returnTo);
+        window.open(editUrl, '_blank');
+    });
+
     // Product name search with dropdown - COMPREHENSIVE SEARCH
     let itemSearchTimeout = null;
     
@@ -1918,6 +1960,7 @@ $(document).ready(function() {
         if (query.length < 2) {
             resultsDiv.hide();
             $('#selected-item-id').val('');
+            $('#item-edit-in-modal-btn').hide();
             // Hide image preview when search is cleared
             $('#item-search-image-preview').addClass('d-none');
             $('#item-search-image').attr('src', '');
@@ -2345,6 +2388,7 @@ $(document).ready(function() {
             // Set input value: Use first line text (the black text from search result)
             $('#item-search').val(itemFirstLine);
         $('#selected-item-id').val(itemId);
+            $('#item-edit-in-modal-btn').show();
             $('#item-quantity').val('1');
             $('#item-unit').val(itemUnit || 'Unit');
             $('#item-search-results').hide();
@@ -2581,6 +2625,7 @@ $(document).ready(function() {
             method: 'GET',
             success: function(response) {
                 $('#selected-item-id').val(response.id);
+                $('#item-edit-in-modal-btn').show();
                 $('#item-search').val(response.name);
                 
                 // Set rate - prefer sale_price for sales
@@ -2982,6 +3027,7 @@ $(document).ready(function() {
 
     function resetItemModal() {
         $('#selected-item-id').val('');
+        $('#item-edit-in-modal-btn').hide();
         $('#item-search').val('');
         resetItemQuantitySelect();
         $('#item-quantity-input').val('1').hide();
