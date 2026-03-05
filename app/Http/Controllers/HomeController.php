@@ -57,6 +57,10 @@ class HomeController extends Controller
         $this->applyBranchFilter($purchaseQuery, 'branch_id');
         $totalPurchase = (clone $purchaseQuery)->sum('grand_total');
         $totalPurchaseReturn = (clone $purchaseQuery)->where('status', 'return')->sum('grand_total');
+        // Unverified purchase bills (at least one item not verified)
+        $unverifiedPurchasesCount = (clone $purchaseQuery)->whereHas('items', function ($q) {
+            $q->whereNull('verified_by');
+        })->count();
 
         // Low stock: on_hand <= l_stock or 5 (min_qty column may not exist)
         $lowStockItems = Item::where('is_active', true)
@@ -122,6 +126,7 @@ class HomeController extends Controller
             'totalSalesReturn',
             'totalPurchase',
             'totalPurchaseReturn',
+            'unverifiedPurchasesCount',
             'lowStockItems',
             'suppliersCount',
             'customersCount',
@@ -301,28 +306,45 @@ public function carWash()
     $this->applyBranchFilter($svcQuery, 'branch_id', $user);
     $services = $svcQuery->where('status', true)->orderBy('created_at', 'desc')->get();
 
-    $wrkQuery = CarWashWorker::query();
+    $wrkQuery = \App\Models\User::where('role', 'worker');
     $this->applyBranchFilter($wrkQuery, 'branch_id', $user);
-    $workers = $wrkQuery->where('status', true)->orderBy('name', 'asc')->get();
+    $workers = $wrkQuery->orderBy('name', 'asc')->get(['id', 'name', 'commission', 'phone']);
 
     $jobsQuery = CarWashJob::query();
     $this->applyBranchFilter($jobsQuery, 'branch_id', $user);
     $activeJobs = $jobsQuery->active()
-    ->with('expense')
+    ->with(['expense', 'customer', 'customerCar'])
     ->orderBy('start_time', 'asc')
     ->get()
     ->map(function($job) {
         $expenseTotal = $job->expense ? (float) ($job->expense->total_amount ?? 0) : 0;
+        // Resolve customer name, vehicle, mobile from customers + customer_cars
+        $customerName = null;
+        $vehicleNo = null;
+        $mobile = null;
+        if ($job->relationLoaded('customer') && $job->customer) {
+            $names = $job->customer->names ?? [];
+            $customerName = is_array($names) && count($names) > 0 ? (string) ($names[0] ?? '') : null;
+            $phones = $job->customer->phones ?? [];
+            $mobile = is_array($phones) && count($phones) > 0 ? (string) ($phones[0] ?? '') : null;
+        }
+        if ($job->relationLoaded('customerCar') && $job->customerCar) {
+            $vehicleNo = $job->customerCar->plate_number ? (string) $job->customerCar->plate_number : null;
+        }
         return [
             'id' => $job->id,
             'serviceId' => $job->service_id,
-            'workerId' => $job->worker_id,
-            'customerName' => $job->customer_name ?? 'N/A',
-            'vehicleNo' => $job->vehicle_no ?? 'N/A',
-            'mobile' => $job->mobile ?? '',
+            'workerId' => $job->worker_user_id ?? $job->worker_id,
+            'customerId' => $job->customer_id,
+            'customerCarId' => $job->customer_car_id,
+            'customerName' => $customerName,
+            'vehicleNo' => $vehicleNo,
+            'mobile' => $mobile,
             'service' => $job->service_name ?? 'N/A',
+            'serviceName' => $job->service_name ?? 'N/A',
             'price' => (float) $job->price,
             'worker' => $job->worker_name ?? '',
+            'workerName' => $job->worker_name ?? '',
             'startTime' => $job->start_time ? $job->start_time->toISOString() : null,
             'expenseTotalAmount' => $expenseTotal,
         ];
@@ -372,10 +394,10 @@ public function carWashHome()
         ->where('status', 'active')
         ->count();
     
-    // Total workers
-    $workersQuery = CarWashWorker::query();
+    // Total workers (users with role=worker)
+    $workersQuery = \App\Models\User::where('role', 'worker');
     $this->applyBranchFilter($workersQuery, 'branch_id', $user);
-    $totalWorkers = $workersQuery->where('status', true)->count();
+    $totalWorkers = $workersQuery->count();
     
     // Total services
     $servicesQuery = CarWashService::query();
@@ -434,23 +456,25 @@ public function completedJobs()
     $query = CarWashJob::query();
     $this->applyBranchFilter($query, 'branch_id', $user);
     $completedJobs = $query->completed()
-    ->with('worker')
+    ->with(['worker', 'workerUser'])
     ->orderBy('end_time', 'desc')
     ->get()
     ->map(function($job) {
-        // Get worker commission percentage
         $workerCommission = 0;
-        $commissionAmount = 0;
-        if ($job->worker && $job->worker->commission) {
+        if ($job->worker_user_id && $job->workerUser) {
+            $workerCommission = (float) ($job->workerUser->commission ?? 0);
+        } elseif ($job->worker && $job->worker->commission) {
             $workerCommission = (float) $job->worker->commission;
-            // Calculate commission amount: (price * commission_percentage) / 100
-            $commissionAmount = (($job->price ?? 0) * $workerCommission) / 100;
         }
-        
+        $jobPrice = (float) ($job->price ?? 0);
+        $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
+        $totalJobPrice = $jobPrice + (float) $additionalPrices;
+        $commissionAmount = $workerCommission > 0 ? ($totalJobPrice * $workerCommission) / 100 : 0;
+
         return [
             'id' => $job->id,
             'serviceId' => $job->service_id,
-            'workerId' => $job->worker_id,
+            'workerId' => $job->worker_user_id ?? $job->worker_id,
             'customerName' => $job->customer_name,
             'vehicleNo' => $job->vehicle_no,
             'mobile' => $job->mobile,
@@ -468,7 +492,8 @@ public function completedJobs()
         ];
     });
     
-    return view('car-wash-completed-jobs', compact('branchName', 'userName', 'completedJobs'));
+    $currentUserId = $user->id;
+    return view('car-wash-completed-jobs', compact('branchName', 'userName', 'completedJobs', 'currentUserId'));
 }
 
 /**
@@ -522,14 +547,14 @@ public function carWashServices()
         $branchId = $branchInfo['id'];
         $branchName = $branchInfo['name'];
 
-    $wrkQuery = CarWashWorker::with(['bankAccount.bank', 'workerCashAccount']);
+    $wrkQuery = \App\Models\User::with(['workerCashAccount', 'bankAccount.bank'])->where('role', 'worker');
     $this->applyBranchFilter($wrkQuery, 'branch_id', $user);
     $paymentController = app(CarWashPaymentController::class);
     $workers = $wrkQuery->orderBy('name', 'asc')->get()
-    ->map(function($worker) use ($user, $branchId, $paymentController) {
+    ->map(function($workerUser) use ($user, $branchId, $paymentController) {
         $jobQuery = CarWashJob::query();
         $this->applyBranchFilter($jobQuery, 'branch_id', $user);
-        $todayCompletedJobs = $jobQuery->where('worker_id', $worker->id)
+        $todayCompletedJobs = $jobQuery->where('worker_user_id', $workerUser->id)
             ->where('status', 'completed')
             ->where(function($query) {
                 $query->whereDate('end_time', today())
@@ -544,59 +569,54 @@ public function carWashServices()
             // Calculate daily commission
             $dailyCommission = 0;
             $dailyJobsCount = $todayCompletedJobs->count();
-            $workerCommissionPercentage = (float) ($worker->commission ?? 0);
-            
+            $workerCommissionPercentage = (float) ($workerUser->commission ?? 0);
             foreach ($todayCompletedJobs as $job) {
-                // Calculate total job price including additional prices
                 $jobPrice = (float) ($job->price ?? 0);
                 $additionalPrices = is_array($job->additional_prices) ? array_sum(array_column($job->additional_prices, 'price')) : 0;
                 $totalJobPrice = $jobPrice + (float) $additionalPrices;
-                
-                // Calculate commission on total price
                 if ($totalJobPrice > 0 && $workerCommissionPercentage > 0) {
-                    $commissionAmount = ($totalJobPrice * $workerCommissionPercentage) / 100;
-                    $dailyCommission += $commissionAmount;
+                    $dailyCommission += ($totalJobPrice * $workerCommissionPercentage) / 100;
                 }
             }
-            
+            $cashAccount = $workerUser->workerCashAccount;
             return [
-                'id' => $worker->id,
-                'name' => $worker->name,
-                'mobile' => $worker->mobile,
-                'additional_mobiles' => $worker->additional_mobiles ?? [],
-                'father_name' => $worker->father_name,
-                'father_mobile' => $worker->father_mobile,
-                'father_additional_mobiles' => $worker->father_additional_mobiles ?? [],
-                'location' => $worker->location,
-                'commission' => $worker->commission,
-                'id_card_front' => $worker->id_card_front,
-                'id_card_back' => $worker->id_card_back,
-                'father_card_front' => $worker->father_card_front,
-                'father_card_back' => $worker->father_card_back,
-                'status' => $worker->status,
-                'bank_account_id' => $worker->bank_account_id,
-                'bank_account' => $worker->bankAccount ? [
-                    'id' => $worker->bankAccount->id,
-                    'account_title' => $worker->bankAccount->account_title,
-                    'account_number' => $worker->bankAccount->account_number,
-                    'bank' => $worker->bankAccount->bank ? ['name' => $worker->bankAccount->bank->name] : null,
+                'id' => $workerUser->id,
+                'name' => $workerUser->name,
+                'mobile' => $workerUser->phone ?? null,
+                'additional_mobiles' => [],
+                'father_name' => null,
+                'father_mobile' => null,
+                'father_additional_mobiles' => [],
+                'location' => $workerUser->current_location ?? null,
+                'commission' => $workerUser->commission ?? 0,
+                'id_card_front' => $workerUser->user_id_card_front,
+                'id_card_back' => $workerUser->user_id_card_back,
+                'father_card_front' => null,
+                'father_card_back' => null,
+                'status' => true,
+                'bank_account_id' => $workerUser->bank_account_id,
+                'bank_account' => $workerUser->bankAccount ? [
+                    'id' => $workerUser->bankAccount->id,
+                    'account_title' => $workerUser->bankAccount->account_title,
+                    'account_number' => $workerUser->bankAccount->account_number,
+                    'bank' => $workerUser->bankAccount->bank ? ['name' => $workerUser->bankAccount->bank->name] : null,
                 ] : null,
-                'has_cash_account' => (bool) $worker->workerCashAccount,
-                'cash_balance' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->balance, 2) : 0,
-                'total_earned' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->total_earned, 2) : 0,
-                'total_paid' => $worker->workerCashAccount ? round((float) $worker->workerCashAccount->total_paid, 2) : 0,
-                'payment_status' => $worker->workerCashAccount ? (
-                    (float) $worker->workerCashAccount->balance <= 0 ? 'paid' : (
-                        (float) $worker->workerCashAccount->total_paid > 0 ? 'partial' : 'unpaid'
+                'has_cash_account' => (bool) $cashAccount,
+                'cash_balance' => $cashAccount ? round((float) $cashAccount->balance, 2) : 0,
+                'total_earned' => $cashAccount ? round((float) $cashAccount->total_earned, 2) : 0,
+                'total_paid' => $cashAccount ? round((float) $cashAccount->total_paid, 2) : 0,
+                'payment_status' => $cashAccount ? (
+                    (float) $cashAccount->balance <= 0 ? 'paid' : (
+                        (float) $cashAccount->total_paid > 0 ? 'partial' : 'unpaid'
                     )
                 ) : 'unpaid',
-                'bank_name' => $worker->bank_name,
-                'bank_account_title' => $worker->bank_account_title,
-                'bank_account_number' => $worker->bank_account_number,
-                'bank_iban' => $worker->bank_iban,
+                'bank_name' => $workerUser->bank_name,
+                'bank_account_title' => $workerUser->bank_account_title,
+                'bank_account_number' => $workerUser->bank_account_number,
+                'bank_iban' => $workerUser->bank_iban,
                 'daily_jobs_count' => $dailyJobsCount,
                 'daily_commission' => round($dailyCommission, 2),
-                'pending_commission' => round($paymentController->calculatePendingCommission($worker->id, $branchId), 2),
+                'pending_commission' => round($paymentController->calculatePendingCommissionForUserWorker($workerUser->id, $branchId), 2),
             ];
         });
 

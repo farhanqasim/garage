@@ -2,6 +2,32 @@
     @csrf
     <div class="modal-body">
         <div class="row g-3 p-3">
+            @php
+                $user = auth()->user();
+                $userBranchId = $user->branch_id ?? $user->assignedBranches()->first()?->id ?? null;
+                $isBranchUser = (bool) $userBranchId && $user->role !== 'admin';
+                $selectedBranchId = old('branch_id', session('selected_branch_id') ?? $userBranchId);
+            @endphp
+            <!-- Branch: admin sees all, branch user sees only their branch (pre-selected) -->
+            <div class="col-12">
+                <label for="customer_branch_id" class="form-label fw-bold">Branch <span class="text-danger">*</span></label>
+                <select name="branch_id" id="customer_branch_id" class="form-select" required>
+                    @if(isset($branches) && $branches->isNotEmpty())
+                        @if($isBranchUser && $userBranchId)
+                            @foreach($branches->where('id', $userBranchId) as $b)
+                                <option value="{{ $b->id }}" selected>{{ $b->branch_name }}{{ $b->branch_code ? ' (' . $b->branch_code . ')' : '' }}</option>
+                            @endforeach
+                        @else
+                            <option value="">Select branch</option>
+                            @foreach($branches as $b)
+                                <option value="{{ $b->id }}" {{ (int)$selectedBranchId === (int)$b->id ? 'selected' : '' }}>{{ $b->branch_name }}{{ $b->branch_code ? ' (' . $b->branch_code . ')' : '' }}</option>
+                            @endforeach
+                        @endif
+                    @else
+                        <option value="">No branches</option>
+                    @endif
+                </select>
+            </div>
             <!-- Visiting Document -->
             <div class="col-md-6">
                 <label for="visiting_doc" class="form-label">Visiting Document</label>
@@ -68,17 +94,15 @@
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ old('company') }}" class="form-control">
             </div>
-            <div class="col-md-6">
-                <label for="carnumber">Add Vehicles:</label>
-                <div class="input-group">
-                    <select class="form-control" name="carnumber" id="carnumber">
-                        <option value="">Select Services</option>
-                        <option value="1">Vehicle One</option>
-                    </select>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vehical-add-modal">
-                        <i data-feather="plus"></i>
-                    </button>
+            <div class="col-12">
+                <label class="form-label fw-bold text-uppercase" style="font-size: 11px; color: #6c757d;">ADD VEHICLES</label>
+                <div id="add-customer-vehicles-container" class="mb-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;">
+                    <p id="add-customer-vehicles-empty" class="small text-muted mb-0 col-12">No vehicles added. Click the button below to add from modal.</p>
                 </div>
+                <button type="button" id="add-another-vehicle-btn" class="btn btn-sm btn-outline-primary">
+                    <i class="ti ti-plus me-1"></i>Add another vehicle
+                </button>
+                <input type="hidden" name="carnumber" value="">
             </div>
             <div class="col-md-6">
                 <label for="email" class="form-label">Email</label>

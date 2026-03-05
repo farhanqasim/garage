@@ -93,6 +93,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/save-pattern', [LoginController::class, 'savePattern'])->name('save.pattern');
     Route::post('/save-fingerprint', [LoginController::class, 'saveFingerprint'])->name('save.fingerprint');
 
+    // WebAuthn: register options for profile (authenticated user adding passkey/fingerprint)
+    Route::post('/webauthn/register/options', [WebAuthnController::class, 'getRegisterOptionsForProfile'])->name('webauthn.register.options');
+
     // Theme Customizer (save/load from database)
     Route::get('/theme-settings', [ThemeSettingsController::class, 'index'])->name('theme.settings.index');
     Route::post('/theme-settings', [ThemeSettingsController::class, 'update'])->name('theme.settings.update');
@@ -105,7 +108,12 @@ Route::get('/task-reminder', [\App\Http\Controllers\TaskReminderController::clas
 Route::post('/task-reminder', [\App\Http\Controllers\TaskReminderController::class, 'store'])->name('task.reminder.store')->middleware('auth');
 Route::post('/task-reminder/{id}/response', [\App\Http\Controllers\TaskReminderController::class, 'addResponse'])->name('task.reminder.response')->middleware('auth');
 Route::post('/task-reminder/{id}/complete', [\App\Http\Controllers\TaskReminderController::class, 'complete'])->name('task.reminder.complete')->middleware('auth');
+Route::patch('/task-reminder/{id}/status', [\App\Http\Controllers\TaskReminderController::class, 'updateStatus'])->name('task.reminder.status')->middleware('auth');
 Route::delete('/task-reminder/{id}', [\App\Http\Controllers\TaskReminderController::class, 'destroy'])->name('task.reminder.destroy')->middleware('auth');
+
+Route::get('/reminders', [\App\Http\Controllers\RemindersController::class, 'index'])->name('reminders.index')->middleware('auth');
+Route::get('/reminders/counts', [\App\Http\Controllers\RemindersController::class, 'counts'])->name('reminders.counts')->middleware('auth');
+
 Route::get('/users', [HomeController::class, 'users'])->name('users');
 
 Route::get('/attendance', [HomeController::class, 'attendance'])->name('attendance')->middleware('auth');
@@ -177,6 +185,7 @@ Route::middleware('auth')->prefix('car-wash')->name('car-wash.')->group(function
     Route::get('/jobs/active', [\App\Http\Controllers\CarWashJobController::class, 'activeJobs'])->name('jobs.active');
     Route::get('/jobs/completed', [\App\Http\Controllers\CarWashJobController::class, 'completedJobs'])->name('jobs.completed');
     Route::get('/jobs/search-by-plate', [\App\Http\Controllers\CarWashJobController::class, 'searchByPlate'])->name('jobs.search-by-plate');
+    Route::get('/jobs/find-customer-by-plate', [\App\Http\Controllers\CarWashJobController::class, 'findCustomerByPlate'])->name('jobs.find-customer-by-plate');
     Route::get('/jobs/vehicle-history', [\App\Http\Controllers\CarWashJobController::class, 'vehicleHistory'])->name('jobs.vehicle-history');
     Route::get('/jobs/today-stats', [\App\Http\Controllers\CarWashJobController::class, 'todayStats'])->name('jobs.today-stats');
     Route::get('/daily-report/pdf', [\App\Http\Controllers\CarWashJobController::class, 'dailyReportPdf'])->name('jobs.daily-report-pdf');
@@ -414,6 +423,7 @@ Route::delete('/branch/delete/{id}', [BranchController::class, 'delete_branch'])
 
 // All Users
 Route::get('/all/users', [UserController::class, 'all_users'])->name('all.users');
+Route::get('/users/{id}/transactions-report', [UserController::class, 'transactionsReport'])->name('user.transactions.report');
 Route::get('/branch/{branchId}/users', [UserController::class, 'branchUsers'])->name('branch.users');
 Route::delete('/delete-user/{id}', [UserController::class, 'deleteuser'])->name('delete.user');
 Route::put('/update-user/{id}', [UserController::class, 'updateuser'])->name('update.user');
@@ -438,13 +448,20 @@ Route::post('/all/items/store', [ItemController::class, 'items_store'])->name('a
 Route::get('/item/edit/{id}', [ItemController::class, 'item_edit'])->name('item.edit');
 Route::put('/item/update/{id}', [ItemController::class, 'item_update'])->name('item.update');
 Route::get('/item/show/{id}', [ItemController::class, 'item_show'])->name('item.show');
+Route::get('/items/price-list', [ItemController::class, 'priceList'])->name('items.price.list');
+Route::get('/items/stock-report', [ItemController::class, 'stockReport'])->name('items.stock.report');
+Route::get('/items/scrap-report', [ItemController::class, 'scrapReport'])->name('items.scrap.report');
+Route::post('/items/price-list/bulk-update', [ItemController::class, 'bulkPriceUpdate'])->name('items.price.list.bulk.update');
 Route::get('/items/{id}/vehicle-details', [ItemController::class, 'getVehicleDetails'])->name('items.vehicle.details');
 Route::post('/items/{id}/service-history-ai', [ItemController::class, 'generateServiceHistoryAI'])->name('items.service.history.ai');
 Route::get('/items/by-type/{type}', [ItemController::class, 'getItemsByType'])->name('items.by.type');
 Route::get('/items/by-part-number/{partNumberId}', [ItemController::class, 'getItemsByPartNumber'])->name('items.by.part.number');
 Route::get('/items/count/by-part-number/{partNumberId}', [ItemController::class, 'getItemsCountByPartNumber'])->name('items.count.by.part.number');
+Route::get('/items/count/by-product/{productId}', [ItemController::class, 'getItemsCountByProduct'])->name('items.count.by.product');
+Route::get('/items/weight-unit-lookup', [ItemController::class, 'weightUnitLookup'])->name('items.weight.unit.lookup');
 Route::post('/check-barcode', [ItemController::class, 'checkBarcode'])->name('check.barcode');
 Route::delete('/all/items/bulk-delete', [ItemController::class, 'itembulkDelete'])->name('all.items.bulkDelete');
+Route::post('/all/items/bulk-update', [ItemController::class, 'bulkUpdate'])->name('all.items.bulkUpdate');
 Route::get('/item/{id}/duplicate', [ItemController::class, 'duplicate'])->name('item.duplicate');
 Route::post('/items/{id}/duplicate', [ItemController::class, 'itemduplicate'])->name('items.duplicate');
 Route::delete('/item/delete/{id}', [ItemController::class, 'item_delete'])->name('item.delete');
@@ -692,12 +709,24 @@ Route::get('/purchases/filter-options', [PurchaseController::class, 'getFilterOp
 Route::get('purchases/items/{id}',[PurchaseController::class,'getItemDetails'])->name('purchases.items.details');
 Route::get('purchases/items/{id}/stock-status',[PurchaseController::class,'getItemStockStatus'])->name('purchases.items.stock.status');
 Route::get('purchases/suppliers/{id}/balance',[PurchaseController::class,'getSupplierBalance'])->name('purchases.suppliers.balance');
+Route::get('purchases/suppliers/{id}/purchase-orders', [PurchaseController::class, 'getPurchaseOrdersBySupplier'])->name('purchases.suppliers.purchase-orders');
+Route::post('purchases/{id}/close-po', [PurchaseController::class, 'closePurchaseOrder'])->name('purchases.close-po');
 Route::get('purchases/items/{id}/purchase-history',[PurchaseController::class,'getItemPurchaseHistory'])->name('purchases.items.purchase.history');
+Route::post('purchases/items/{id}/verify',[PurchaseController::class,'verifyItem'])->name('purchases.items.verify')->middleware('auth');
 Route::get('purchases/suppliers/search-phone',[PurchaseController::class,'searchSuppliersByPhone'])->name('purchases.suppliers.search.phone');
 Route::get('purchases/cart', [PurchaseController::class, 'getPurchaseCart'])->name('purchases.cart.get')->middleware('auth');
 Route::post('purchases/cart', [PurchaseController::class, 'updatePurchaseCart'])->name('purchases.cart.update')->middleware('auth');
+Route::post('purchases/temporary-product', [PurchaseController::class, 'storeTemporaryProduct'])->name('purchases.temporary.store')->middleware('auth');
+Route::post('purchases/temporary-supplier', [PurchaseController::class, 'storeTemporarySupplier'])->name('purchases.temporary.supplier.store')->middleware('auth');
+Route::post('purchases/voice-upload', [PurchaseController::class, 'uploadVoice'])->name('purchases.voice.upload')->middleware('auth');
+Route::post('purchases/voice-delete', [PurchaseController::class, 'deleteVoice'])->name('purchases.voice.delete')->middleware('auth');
+Route::get('purchases/temporary-products', [\App\Http\Controllers\Admin\TemporaryProductController::class, 'index'])->name('purchases.temporary.index')->middleware('auth');
+Route::get('purchases/temporary-products/{id}/edit', [\App\Http\Controllers\Admin\TemporaryProductController::class, 'edit'])->name('purchases.temporary.edit')->middleware('auth');
+Route::put('purchases/temporary-products/{id}', [\App\Http\Controllers\Admin\TemporaryProductController::class, 'update'])->name('purchases.temporary.update')->middleware('auth');
+Route::post('purchases/temporary-products/{id}/convert', [\App\Http\Controllers\Admin\TemporaryProductController::class, 'convert'])->name('purchases.temporary.convert')->middleware('auth');
 Route::get('purchases/{id}',[PurchaseController::class,'show'])->name('purchases.show')->middleware('auth');
 Route::get('purchases/{id}/pdf',[PurchaseController::class,'pdf'])->name('purchases.pdf')->middleware('auth');
+Route::get('purchases/{id}/invoice-pdf',[PurchaseController::class,'invoicePdfPublic'])->name('purchases.invoice.pdf.public')->middleware('signed');
 Route::get('purchases/{id}/convert-to-sale',[PurchaseController::class,'convertToSale'])->name('purchases.convert.to.sale')->middleware('auth');
 Route::get('purchases/{id}/edit',[PurchaseController::class,'edit'])->name('purchases.edit')->middleware('auth');
 Route::put('purchases/{id}',[PurchaseController::class,'update'])->name('purchases.update');
@@ -727,6 +756,9 @@ Route::get('pos/search', [PosController::class, 'search'])->name('pos.search');
 
 Route::get('/customers', [CustomerController::class, 'all_customers'])->name('customers.index');
 Route::post('/customers', [CustomerController::class, 'customer_store'])->name('customers.store');
+Route::post('/customer-vehicles', [CustomerController::class, 'storeVehicle'])->name('customer.vehicles.store');
+Route::put('/customer-vehicles/{id}', [CustomerController::class, 'updateVehicle'])->name('customer.vehicles.update');
+Route::get('/customers/{customer}/vehicles', [CustomerController::class, 'getCustomerVehicles'])->name('customer.vehicles.index');
 Route::get('/admin/customers/{id}/edit-data', [CustomerController::class, 'getCustomerForEdit'])->name('customers.edit.data');
 Route::put('/customers/{customer}', [CustomerController::class, 'customer_update'])->name('customers.update');
 Route::get('/customers/{customer}/ledger', [CustomerController::class, 'getCustomerLedger'])->name('customers.ledger');

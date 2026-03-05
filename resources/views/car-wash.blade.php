@@ -1339,6 +1339,7 @@
                 active: '{{ route("car-wash.jobs.active") }}',
                 completed: '{{ route("car-wash.jobs.completed") }}',
                 searchByPlate: '{{ route("car-wash.jobs.search-by-plate") }}',
+                findCustomerByPlate: '{{ route("car-wash.jobs.find-customer-by-plate") }}',
                 vehicleHistory: '{{ route("car-wash.jobs.vehicle-history") }}',
                 todayStats: '{{ route("car-wash.jobs.today-stats") }}',
                 store: '{{ route("car-wash.jobs.store") }}',
@@ -1395,10 +1396,11 @@
         const csrfTokenElement = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfTokenElement ? csrfTokenElement.getAttribute('content') : '';
         
-        // User role (for filtering admin cash)
+        // User role and id (for header cash = logged-in user's cash account)
         @php
             $u = auth()->user();
             $userRoleVal = $u ? ($u->role ?? '') : '';
+            $currentUserId = $u ? $u->id : null;
             $userRolesForDisplay = [
                 'role' => $u ? ($u->role ?? '-') : '-',
                 'branch_id' => $u ? ($u->branch_id ?? null) : null,
@@ -1406,6 +1408,7 @@
                 'email' => $u ? ($u->email ?? '-') : '-',
             ];
         @endphp
+        const currentUserId = {{ $currentUserId ? (int)$currentUserId : 'null' }};
         const userRole = '{{ $userRoleVal }}';
         const isAdmin = userRole === 'admin';
         const userRolesDisplay = @json($userRolesForDisplay);
@@ -1455,26 +1458,28 @@
                     .catch(err => console.error('Error loading report bank balance:', err));
             };
             
+            // Fetch logged-in user's cash account balance and update stats (used for ON HAND in header)
+            const loadLoggedInUserCashBalance = () => {
+                if (!API_ROUTES.payments || !API_ROUTES.payments.cashAccountBalance) return;
+                const url = currentUserId
+                    ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId))
+                    : API_ROUTES.payments.cashAccountBalance;
+                fetch(url)
+                    .then(res => res.json())
+                    .then(balanceData => {
+                        if (balanceData.success) {
+                            const newBalance = parseFloat(balanceData.balance) || 0;
+                            setStats(prev => ({ ...prev, cashOnHand: newBalance }));
+                        }
+                    })
+                    .catch(err => console.error('Error loading cash account balance:', err));
+            };
+
             // Function to refresh cash account balance
             const refreshCashBalance = () => {
                 loadReportCashOnHand();
                 loadReportBankBalance();
-                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
-                    fetch(API_ROUTES.payments.cashAccountBalance)
-                        .then(res => res.json())
-                        .then(balanceData => {
-                            if (balanceData.success) {
-                                const newBalance = parseFloat(balanceData.balance) || 0;
-                                setStats(prev => ({
-                                    ...prev,
-                                    cashOnHand: newBalance
-                                }));
-                            }
-                        })
-                        .catch(err => {
-                            console.error('Error refreshing cash account balance:', err);
-                        });
-                }
+                loadLoggedInUserCashBalance();
             };
             
             // Load stats from API on mount - simplified to avoid errors
@@ -1503,21 +1508,9 @@
                         });
                     }
                 }, 1000); // Check every second
-                // Fetch user's cash account balance first
-                let userCashBalance = 0;
-                if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
-                    fetch(API_ROUTES.payments.cashAccountBalance)
-                        .then(res => res.json())
-                        .then(balanceData => {
-                            if (balanceData.success) {
-                                userCashBalance = parseFloat(balanceData.balance) || 0;
-                            }
-                        })
-                        .catch(err => {
-                            console.error('Error loading cash account balance:', err);
-                        });
-                }
-                
+                // Load logged-in user's cash account balance for ON HAND (updates stats.cashOnHand when API returns)
+                loadLoggedInUserCashBalance();
+
                 // Calculate stats from completed jobs
                 fetch(API_ROUTES.jobs.completed)
                     .then(res => res.json())
@@ -1535,10 +1528,7 @@
                             });
                             const todayRevenue = todayJobs.reduce((sum, job) => sum + (parseFloat(job.price) || 0), 0);
                             
-                            // Use user's cash account balance instead of calculating from jobs
-                            const cashOnHand = userCashBalance;
-                            
-                            // Try to get expenses from todayStats API if available
+                            // cashOnHand is set by loadLoggedInUserCashBalance() (logged-in user's cash account)
                             if (API_ROUTES.jobs.todayStats) {
                                 fetch(API_ROUTES.jobs.todayStats)
                                     .then(res => res.json())
@@ -1548,16 +1538,14 @@
                                                 ...prev,
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: data.stats.todayExpensesTotal || 0,
-                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0),
-                                                cashOnHand: cashOnHand
+                                                todayGrandTotal: todayRevenue - (data.stats.todayExpensesTotal || 0)
                                             }));
                                         } else {
                                             setStats(prev => ({
                                                 ...prev,
                                                 todayRevenue: todayRevenue,
                                                 todayExpensesTotal: 0,
-                                                todayGrandTotal: todayRevenue,
-                                                cashOnHand: cashOnHand
+                                                todayGrandTotal: todayRevenue
                                             }));
                                         }
                                     })
@@ -1567,8 +1555,7 @@
                                             ...prev,
                                             todayRevenue: todayRevenue,
                                             todayExpensesTotal: 0,
-                                            todayGrandTotal: todayRevenue,
-                                            cashOnHand: cashOnHand
+                                            todayGrandTotal: todayRevenue
                                         }));
                                     });
                             } else {
@@ -1576,8 +1563,7 @@
                                     ...prev,
                                     todayRevenue: todayRevenue,
                                     todayExpensesTotal: 0,
-                                    todayGrandTotal: todayRevenue,
-                                    cashOnHand: cashOnHand
+                                    todayGrandTotal: todayRevenue
                                 }));
                             }
                         } else {
@@ -1585,8 +1571,7 @@
                                 ...prev,
                                 todayRevenue: 0,
                                 todayExpensesTotal: 0,
-                                todayGrandTotal: 0,
-                                cashOnHand: userCashBalance
+                                todayGrandTotal: 0
                             }));
                         }
                     })
@@ -1596,8 +1581,7 @@
                             ...prev,
                             todayRevenue: 0,
                             todayExpensesTotal: 0,
-                            todayGrandTotal: 0,
-                            cashOnHand: userCashBalance
+                            todayGrandTotal: 0
                         }));
                     });
             }, []);
@@ -1613,6 +1597,9 @@
                 customerName: '',
                 vehicleNo: '',
                 mobile: '',
+                customerId: null,   // From customers table (when selected from plate lookup)
+                customerCarId: null, // From customer_cars (when selected from plate lookup)
+                branchName: '',      // Branch name when customer selected from plate search
                 worker: '', // Must be explicitly selected - no default value
                 workerId: null, // Worker ID for database
                 price: 0
@@ -1772,6 +1759,7 @@
             // Plate search autocomplete & vehicle history
             const [plateSuggestions, setPlateSuggestions] = useState([]);
             const [showPlateDropdown, setShowPlateDropdown] = useState(false);
+            const [plateSearchLoading, setPlateSearchLoading] = useState(false);
             const [vehicleHistoryJobs, setVehicleHistoryJobs] = useState([]);
             const [showVehicleHistoryModal, setShowVehicleHistoryModal] = useState(false);
             const [vehicleHistoryLoading, setVehicleHistoryLoading] = useState(false);
@@ -1897,11 +1885,12 @@
                 if (API_ROUTES.bankAccounts?.index && typeof fetchBankAccounts === 'function') {
                     fetchBankAccounts();
                 }
-                // Auto-fill amount with login user ka bank balance; zero ho to 0
-                const userBankBal = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                // Auto-fill amount with login user ka bank opening balance; zero ho to 0
+                const userBankBal = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.opening_balance ?? acc.balance) || 0), 0);
                 setBankTransferAmount(String(Math.round(userBankBal)));
                 if (API_ROUTES.payments && API_ROUTES.payments.cashAccountBalance) {
-                    fetch(API_ROUTES.payments.cashAccountBalance, {
+                    const cashUrl = currentUserId ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.payments.cashAccountBalance;
+                    fetch(cashUrl, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                     })
                         .then(res => res.json())
@@ -1937,15 +1926,17 @@
                 }
             }, [showAttendanceModal]);
 
-            // Load login user's branch bank accounts (for Bank tab in complete job modal). Refetch via fetchBankAccounts (e.g. after creating in Admin).
+            // Load login user's bank accounts only (for Bank tab in complete job modal — job amount goes to selected account).
             const fetchBankAccounts = React.useCallback(() => {
                 if (!API_ROUTES.bankAccounts?.index) return;
-                fetch(API_ROUTES.bankAccounts.index, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                const url = currentUserId ? (API_ROUTES.bankAccounts.index + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.bankAccounts.index;
+                fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success && Array.isArray(data.bankAccounts)) {
                             setBankAccounts(data.bankAccounts);
-                            const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                            // Header shows logged-in user's opening_balance total
+                            const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.opening_balance ?? acc.balance) || 0), 0);
                             setBankBalanceTotal(total);
                         }
                     })
@@ -2109,7 +2100,8 @@
             // Load cash account balance for daily report modal
             const loadDailyReportCashBalance = React.useCallback(() => {
                 if (!API_ROUTES.payments?.cashAccountBalance) return;
-                fetch(API_ROUTES.payments.cashAccountBalance, {
+                const cashUrl = currentUserId ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.payments.cashAccountBalance;
+                fetch(cashUrl, {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -2152,6 +2144,7 @@
             const [mediaRecorder, setMediaRecorder] = useState(null);
             const [recognition, setRecognition] = useState(null);
             const [speechNetworkError, setSpeechNetworkError] = useState(false);
+            const [customerNameFromVoice, setCustomerNameFromVoice] = useState(false); // When true, name was set from voice and is not editable
             
             // Attendance modal state
             const [showAttendanceModal, setShowAttendanceModal] = useState(false);
@@ -2174,17 +2167,21 @@
             const attendanceStreamRef = React.useRef(null);
             const attendanceCanvasRef = React.useRef(null);
             const recognitionTranscriptRef = React.useRef(''); // Store transcript for mobile compatibility
+            const recognitionInterimRef = React.useRef('');    // Interim transcript (mobile often only gets this)
             const customerNameInputRef = React.useRef(null);   // Direct ref to input so voice text always applies
 
-            // Apply voice transcript to customer name – jo bola jay wo customer name input mein auto likh jay
-            const applyCustomerNameFromTranscript = React.useCallback((text) => {
+            // Apply voice transcript to customer name – jo bola jay wo customer name input mein auto likh jay. When fromVoice is true, name becomes non-editable.
+            const applyCustomerNameFromTranscript = React.useCallback((text, fromVoice) => {
                 const name = (text && typeof text === 'string') ? String(text).trim().toUpperCase() : '';
                 if (!name) {
                     console.log('⚠️ applyCustomerNameFromTranscript: Empty text, skipping');
                     return;
                 }
-                console.log('✅ applyCustomerNameFromTranscript called with:', name);
+                console.log('✅ applyCustomerNameFromTranscript called with:', name, 'fromVoice:', !!fromVoice);
                 recognitionTranscriptRef.current = name;
+                if (fromVoice) {
+                    setCustomerNameFromVoice(true);
+                }
                 
                 // Step 1: Update React state FIRST (so controlled input gets value)
                 setFormData(prev => {
@@ -2680,33 +2677,43 @@
                 }
             }, [completedJobs, dateRangeStart, dateRangeEnd, selectedWorkerFilter]);
             
-            // Plate number search (debounced) for autocomplete
+            // Plate number lookup from customers + customer_cars (findCustomerByPlate) for autocomplete
             useEffect(() => {
                 const q = (formData.vehicleNo || '').trim().toUpperCase();
                 if (q.length < 1) {
                     setPlateSuggestions([]);
                     setShowPlateDropdown(false);
+                    setPlateSearchLoading(false);
                     return;
                 }
+                setPlateSearchLoading(true);
                 if (plateSearchTimeoutRef.current) clearTimeout(plateSearchTimeoutRef.current);
                 plateSearchTimeoutRef.current = setTimeout(() => {
-                    const url = API_ROUTES.jobs.searchByPlate + '?q=' + encodeURIComponent(q);
+                    const url = API_ROUTES.jobs.findCustomerByPlate + '?plate=' + encodeURIComponent(q);
                     fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                         .then(res => res.json())
                         .then(data => {
-                            if (data.success && data.suggestions) {
-                                setPlateSuggestions(data.suggestions);
-                                setShowPlateDropdown(data.suggestions.length > 0);
-                                // Auto-fill customer name and phone when exactly one suggestion matches the entered plate
-                                const suggestions = data.suggestions;
-                                if (suggestions.length === 1) {
-                                    const s = suggestions[0];
+                            setPlateSearchLoading(false);
+                            if (data.success && data.matches) {
+                                const matches = data.matches;
+                                setPlateSuggestions(matches);
+                                setShowPlateDropdown(matches.length > 0);
+                                // Auto-fill when exactly one match matches the entered plate
+                                if (matches.length === 1) {
+                                    const s = matches[0];
                                     const matchPlate = (s.vehicleNo || '').trim().toUpperCase();
                                     if (matchPlate === q) {
-                                        const customerName = (s.customerName || '').trim();
-                                        const mobile = (s.mobile || '').replace(/\D/g, '').slice(0, 11);
-                                        setFormData(prev => ({ ...prev, customerName, mobile }));
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            customerName: (s.customerName || '').trim(),
+                                            mobile: (s.mobile || '').replace(/\D/g, '').slice(0, 11),
+                                            customerId: s.customerId || null,
+                                            customerCarId: s.customerCarId || null,
+                                            branchName: (s.branchName || '').trim()
+                                        }));
                                         setShowPlateDropdown(false);
+                                        const nameInput = customerNameInputRef.current || document.getElementById('customerNameInput');
+                                        if (nameInput) nameInput.value = (s.customerName || '').trim();
                                     }
                                 }
                             } else {
@@ -2714,7 +2721,7 @@
                                 setShowPlateDropdown(false);
                             }
                         })
-                        .catch(() => { setPlateSuggestions([]); setShowPlateDropdown(false); });
+                        .catch(() => { setPlateSearchLoading(false); setPlateSuggestions([]); setShowPlateDropdown(false); });
                 }, 300);
                 return () => { if (plateSearchTimeoutRef.current) clearTimeout(plateSearchTimeoutRef.current); };
             }, [formData.vehicleNo]);
@@ -3716,10 +3723,11 @@
                             <button
                                 type="button"
                                 onClick={async () => {
-                                    // Load cash balance first for validation
+                                    // Load cash balance first for validation (logged-in user's balance)
                                     let cashBalanceForValidation = 0;
                                     try {
-                                        const cashRes = await fetch(API_ROUTES.payments.cashAccountBalance, {
+                                        const cashUrl = currentUserId ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.payments.cashAccountBalance;
+                                        const cashRes = await fetch(cashUrl, {
                                             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                                         });
                                         if (cashRes.ok) {
@@ -3749,10 +3757,10 @@
                                             if (data.success && data.bankAccounts) {
                                                 // Set logged-in user's bank accounts
                                                 setBankAccounts(data.bankAccounts);
-                                                // Calculate total balance for logged-in user's bank accounts
-                                                const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                // Header/transfer: use opening_balance total for logged-in user
+                                                const total = data.bankAccounts.reduce((sum, acc) => sum + (parseFloat(acc.opening_balance ?? acc.balance) || 0), 0);
                                                 setBankBalanceTotal(total);
-                                                // Auto-fill transfer amount with logged-in user's balance
+                                                // Auto-fill transfer amount with logged-in user's opening balance
                                                 setBankTransferAmount(String(Math.round(total)));
                                             } else {
                                                 setBankAccounts([]);
@@ -3800,8 +3808,8 @@
                                 <p className="text-[7px] sm:text-[8px] opacity-50 font-black uppercase mb-0.5 sm:mb-1">Bank</p>
                                 <p className="text-xs sm:text-sm font-black text-blue-400 font-mono truncate" aria-label="Bank account balance">
                                     Rs.{(() => {
-                                        // Login user ke bank accounts ka total; zero ho to 0 hi dikhao
-                                        const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                        // Login user ke bank accounts ka opening_balance total
+                                        const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.opening_balance ?? acc.balance) || 0), 0);
                                         return Math.round(userBankBalance);
                                     })()}
                                 </p>
@@ -4877,36 +4885,19 @@
                                                                 }
                                                                 
                                                                 // Save expense to backend if exists
+                                                                // expenseItems already contains both preset (Tea, etc.) and custom items (keyed by customItem.id) - count each once only
                                                                 const expenseItemsArray = [];
                                                                 let totalExpenseAmount = 0;
                                                                 
-                                                                // Get expense items from expenseItems state
                                                                 Object.keys(currentJobExpenseItems).forEach(itemName => {
                                                                     const item = currentJobExpenseItems[itemName];
                                                                     if (item && item.quantity > 0 && item.price !== '' && parseFloat(item.price) > 0) {
                                                                         const priceValue = parseFloat(item.price) || 0;
                                                                         const total = item.quantity * priceValue;
                                                                         totalExpenseAmount += total;
-                                                                        
+                                                                        const custom = currentJobCustomExpenses.find(c => c.id === itemName);
                                                                         expenseItemsArray.push({
-                                                                            name: itemName,
-                                                                            quantity: item.quantity,
-                                                                            price: priceValue,
-                                                                            total: total
-                                                                        });
-                                                                    }
-                                                                });
-                                                                
-                                                                // Add custom expenses
-                                                                currentJobCustomExpenses.forEach(customItem => {
-                                                                    const item = currentJobExpenseItems[customItem.id];
-                                                                    if (item && item.quantity > 0 && item.price !== '' && parseFloat(item.price) > 0) {
-                                                                        const priceValue = parseFloat(item.price) || 0;
-                                                                        const total = item.quantity * priceValue;
-                                                                        totalExpenseAmount += total;
-                                                                        
-                                                                        expenseItemsArray.push({
-                                                                            name: customItem.name,
+                                                                            name: custom ? custom.name : itemName,
                                                                             quantity: item.quantity,
                                                                             price: priceValue,
                                                                             total: total
@@ -6473,7 +6464,7 @@
                                                         onContextMenu={(e) => e.preventDefault()}
                                                     >
                                                         Rs.{(() => {
-                                                            const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                            const userBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.opening_balance ?? acc.balance) || 0), 0);
                                                             return Math.round(userBankBalance);
                                                         })()}
                                                     </div>
@@ -6858,8 +6849,8 @@
                                                             return;
                                                         }
                                                         
-                                                        // Validate against bank balance (bank-to-bank transfer, not cash)
-                                                        const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+                                                        // Validate against bank opening balance (bank-to-bank transfer)
+                                                        const branchBankBalance = (bankAccounts || []).reduce((sum, acc) => sum + (parseFloat(acc.opening_balance ?? acc.balance) || 0), 0);
                                                         const maxBankBalance = branchBankBalance > 0 ? branchBankBalance : (stats && typeof stats.reportBankBalance !== 'undefined' ? stats.reportBankBalance : bankBalanceTotal || 0);
                                                         if (amount > maxBankBalance) {
                                                             alert(`Amount cannot exceed available bank balance (Rs.${Math.round(maxBankBalance)})`);
@@ -8169,9 +8160,13 @@
                                                     <button
                                                         onClick={async () => {
                                                             const updateData = {
-                                                                customer_name: document.getElementById('editCustomerName').value.trim().toUpperCase(),
+                                                                customer_id: selectedJobForEdit.customerId ?? null,
+                                                                customer_car_id: selectedJobForEdit.customerCarId ?? null,
+                                                                customer_name: document.getElementById('editCustomerName').value.trim(),
                                                                 vehicle_no: document.getElementById('editVehicleNo').value.trim().toUpperCase(),
                                                                 mobile: document.getElementById('editMobile').value.trim(),
+                                                                service_id: selectedJobForEdit.serviceId ?? null,
+                                                                worker_id: selectedJobForEdit.workerId ?? null,
                                                                 service_name: document.getElementById('editService').value.trim().toUpperCase(),
                                                                 worker_name: document.getElementById('editWorker').value.trim().toUpperCase(),
                                                                 price: parseFloat(document.getElementById('editAmount').value) || 0,
@@ -8332,16 +8327,19 @@
                                                                     className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-white font-black text-sm sm:text-base md:text-lg shadow-lg flex-shrink-0"
                                                                     style={styleObj}
                                                                 >
-                                                                    {job.vehicleNo ? job.vehicleNo.charAt(0) : 'V'}
+                                                                    {(() => {
+                                                                        const v = job.vehicleNo || job.vehicle_no || '';
+                                                                        return (v && v !== 'N/A') ? v.charAt(0).toUpperCase() : 'V';
+                                                                    })()}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-sm sm:text-base md:text-lg font-black text-slate-900 uppercase tracking-tight truncate">
-                                                                        {job.vehicleNo}
+                                                                        {job.vehicleNo || job.vehicle_no || 'N/A'}
                                                                     </p>
                                                                     <p className="text-[9px] sm:text-[10px] text-slate-500 font-black mt-0.5 truncate">
-                                                                        {job.customerName}
+                                                                        {job.customerName || job.customer_name || 'N/A'}
                                                                     </p>
-                                                                    {job.mobile && (
+                                                                    {(job.mobile != null && job.mobile !== '') && (
                                                                         <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono font-black mt-0.5 truncate">
                                                                             {job.mobile}
                                                                         </p>
@@ -8569,7 +8567,7 @@
                                             setEditingJobId(null);
                                             setSelectedService(null);
                                             setView('dashboard');
-                                            setFormData({ customerName: '', vehicleNo: '', mobile: '', worker: '', workerId: null, price: 0 });
+                                            setFormData({ customerName: '', vehicleNo: '', mobile: '', branchName: '', worker: '', workerId: null, price: 0 });
                                             setAudioBlob(null);
                                             if (audioUrl) { URL.revokeObjectURL(audioUrl); }
                                             setAudioUrl(null);
@@ -8617,16 +8615,14 @@
                                     
                                     // Find worker_id - prefer direct ID, fallback to name matching
                                     if (formData.workerId) {
-                                        // Direct worker ID from formData
                                         workerId = formData.workerId;
                                     } else if (formData.worker) {
-                                        // Fallback: Find worker by name
                                         const foundWorker = WORKERS.find(w => {
                                             const workerName = typeof w === 'string' ? w : (w.name || '');
                                             return workerName === formData.worker.trim();
                                         });
-                                        if (foundWorker && typeof foundWorker !== 'string' && foundWorker.id) {
-                                            workerId = foundWorker.id;
+                                        if (foundWorker && typeof foundWorker !== 'string') {
+                                            workerId = foundWorker.id ?? foundWorker.user_id ?? null;
                                         }
                                     }
                                     
@@ -8647,13 +8643,16 @@
                                     const jobData = {
                                         service_id: serviceId,
                                         worker_id: workerId, // Required field - must be present
-                                        customer_name: formData.customerName || null,
-                                        vehicle_no: formData.vehicleNo || null,
-                                        mobile: formData.mobile || null,
+                                        customer_id: formData.customerId || null,
+                                        customer_car_id: formData.customerCarId || null,
+                                        customer_name: (formData.customerName || '').trim() || null,
+                                        vehicle_no: (formData.vehicleNo || '').trim().toUpperCase() || null,
+                                        mobile: (formData.mobile || '').trim() || null,
                                         service_name: selectedService ? selectedService.label : 'Unknown Service',
                                         price: finalPrice,
                                         additional_prices: selectedService?.additionalPrices || [],
                                         worker_name: formData.worker || null,
+                                        voice_note: audioBase64 || null, // Voice recording for later reference
                                     };
                                     
                                     // Double check worker_id before sending
@@ -8709,9 +8708,10 @@
                                     
                                     // Reset form and go back to dashboard
                                     setView('dashboard');
-                                    setFormData({ customerName: '', vehicleNo: '', mobile: '', worker: '', workerId: null, price: 0 }); // Reset worker to empty - must be selected
+                                    setFormData({ customerName: '', vehicleNo: '', mobile: '', customerId: null, customerCarId: null, branchName: '', worker: '', workerId: null, price: 0 }); // Reset worker to empty - must be selected
                                     setSelectedService(null);
                                     setAudioBlob(null);
+                                    setCustomerNameFromVoice(false);
                                     if (audioUrl) {
                                         URL.revokeObjectURL(audioUrl);
                                     }
@@ -8729,44 +8729,54 @@
                                                 value={formData.vehicleNo}
                                                 onChange={(e) => {
                                                     let value = e.target.value.toUpperCase().replace(/\s/g, '-');
-                                                    setFormData({ ...formData, vehicleNo: value });
+                                                    setFormData(prev => ({ ...prev, vehicleNo: value, customerId: null, customerCarId: null, branchName: '' }));
                                                 }}
-                                                onFocus={() => { if (plateSuggestions.length > 0) setShowPlateDropdown(true); }}
+                                                onFocus={() => { if (plateSuggestions.length > 0 || plateSearchLoading) setShowPlateDropdown(true); }}
                                                 onBlur={() => { setTimeout(() => setShowPlateDropdown(false), 200); }}
                                             />
-                                            {showPlateDropdown && plateSuggestions.length > 0 && (
+                                            {showPlateDropdown && (plateSearchLoading || plateSuggestions.length > 0) && (
                                                 <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                                    {plateSuggestions.map((s, i) => (
-                                                        <button
-                                                            key={i}
-                                                            type="button"
-                                                            className="w-full text-left px-3 py-2.5 hover:bg-slate-100 border-b border-slate-100 last:border-0 font-mono text-sm"
-                                                            onMouseDown={(e) => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                const vehicleNo = (s.vehicleNo || '').trim();
-                                                                const customerName = (s.customerName || '').trim();
-                                                                const mobile = (s.mobile || '').replace(/\D/g, '').slice(0, 11);
-                                                                setFormData(prev => ({
-                                                                    ...prev,
-                                                                    vehicleNo: vehicleNo || prev.vehicleNo,
-                                                                    customerName: customerName || prev.customerName,
-                                                                    mobile: mobile
-                                                                }));
-                                                                setShowPlateDropdown(false);
-                                                                const nameInput = customerNameInputRef.current || document.getElementById('customerNameInput');
-                                                                if (nameInput) {
-                                                                    nameInput.value = customerName;
-                                                                    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
-                                                                }
-                                                            }}
-                                                        >
-                                                            <span className="font-black text-slate-800">{s.vehicleNo}</span>
-                                                            {(s.customerName || s.mobile) && (
-                                                                <span className="block text-[10px] text-slate-500 mt-0.5">{s.customerName || ''} {s.mobile ? ' • ' + s.mobile : ''}</span>
-                                                            )}
-                                                        </button>
-                                                    ))}
+                                                    {plateSearchLoading ? (
+                                                        <div className="px-3 py-4 text-center text-slate-500">
+                                                            <span className="inline-block w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mr-2 align-middle"></span>
+                                                            Loading...
+                                                        </div>
+                                                    ) : (
+                                                        plateSuggestions.map((s, i) => (
+                                                            <button
+                                                                key={i}
+                                                                type="button"
+                                                                className="w-full text-left px-3 py-2.5 hover:bg-slate-100 border-b border-slate-100 last:border-0 font-mono text-sm"
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    const vehicleNo = (s.vehicleNo || '').trim();
+                                                                    const customerName = (s.customerName || '').trim();
+                                                                    const mobile = (s.mobile || '').replace(/\D/g, '').slice(0, 11);
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        vehicleNo: vehicleNo || prev.vehicleNo,
+                                                                        customerName: customerName || prev.customerName,
+                                                                        mobile: mobile,
+                                                                        customerId: s.customerId ?? prev.customerId,
+                                                                        customerCarId: s.customerCarId ?? prev.customerCarId,
+                                                                        branchName: (s.branchName || '').trim()
+                                                                    }));
+                                                                    setShowPlateDropdown(false);
+                                                                    const nameInput = customerNameInputRef.current || document.getElementById('customerNameInput');
+                                                                    if (nameInput) {
+                                                                        nameInput.value = customerName;
+                                                                        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <span className="font-black text-slate-800">{s.vehicleNo}</span>
+                                                                {(s.customerName || s.mobile || s.branchName) && (
+                                                                    <span className="block text-[10px] text-slate-500 mt-0.5">{s.customerName || ''} {s.mobile ? ' • ' + s.mobile : ''}{s.branchName ? ' • ' + s.branchName : ''}</span>
+                                                                )}
+                                                            </button>
+                                                        ))
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -8801,26 +8811,32 @@
                                         <div className="bg-slate-50 px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 rounded-xl sm:rounded-2xl">
                                             <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase mb-1.5 sm:mb-2 block">
                                                 Customer Name <span className="text-red-500">*</span>
+                                                {formData.branchName && (
+                                                    <span className="ml-2 font-normal normal-case text-slate-600">• Branch: {formData.branchName}</span>
+                                                )}
                                             </label>
                                             <div className="flex gap-1.5 sm:gap-2">
                                                 <input
                                                     ref={customerNameInputRef}
                                                     id="customerNameInput"
                                                     type="text"
+                                                    readOnly={customerNameFromVoice}
                                                     className={`flex-1 bg-transparent font-bold text-xs outline-none border-2 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 ${
                                                         !formData.customerName && !audioBlob 
                                                             ? 'border-red-400 text-red-600' 
                                                             : 'border-slate-300 text-slate-900'
-                                                    }`}
+                                                    } ${customerNameFromVoice ? 'cursor-not-allowed bg-slate-100' : ''}`}
                                                     placeholder={audioBlob ? "Voice recorded (or enter name)" : "Enter customer name or use mic"}
                                                     value={formData.customerName || ''}
                                                     onChange={(e) => {
+                                                        if (customerNameFromVoice) return;
                                                         const newValue = e.target.value;
                                                         setFormData(prev => ({ ...prev, customerName: newValue }));
                                                         if (newValue.trim()) {
                                                             setAudioBlob(null); // Clear voice if name is entered
                                                         }
                                                     }}
+                                                    title={customerNameFromVoice ? 'Name set from voice – not editable' : ''}
                                                 />
                                                 <button
                                                     type="button"
@@ -8846,14 +8862,14 @@
                                                                     window.transcriptCheckInterval = null;
                                                                 }
                                                                 
-                                                                // Process transcript immediately when stopping (for mobile) - multiple attempts
+                                                                // Process transcript immediately when stopping (for mobile) - use final or interim
                                                                 const processManualStop = (delay) => {
                                                                     setTimeout(() => {
-                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        const text = (recognitionTranscriptRef.current || recognitionInterimRef.current || '').trim();
+                                                                        if (text) {
+                                                                            const customerName = text.toUpperCase();
                                                                             console.log('✅ Manual stop - setting customer name:', customerName);
-                                                                            applyCustomerNameFromTranscript(customerName);
-                                                                            setAudioBlob(null);
+                                                                            applyCustomerNameFromTranscript(customerName, true);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                                 setAudioUrl(null);
@@ -8919,14 +8935,14 @@
                                                                     stream.getTracks().forEach(track => track.stop());
                                                                 }
                                                                 
-                                                                // Apply transcript to customer name when recording stops – try immediately and with delays
+                                                                // Apply transcript when recording stops – use final or interim (interim helps on mobile)
                                                                 const processRecordingStop = (delay) => {
                                                                     setTimeout(() => {
-                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        const text = (recognitionTranscriptRef.current || recognitionInterimRef.current || '').trim();
+                                                                        if (text) {
+                                                                            const customerName = text.toUpperCase();
                                                                             console.log('✅ Recording stop - setting customer name:', customerName);
-                                                                            applyCustomerNameFromTranscript(customerName);
-                                                                            setAudioBlob(null);
+                                                                            applyCustomerNameFromTranscript(customerName, true);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                             }
@@ -8944,6 +8960,8 @@
                                                             
                                                             // Clear transcript ref and customer name input for new recording – pehle wala text clear ho jay
                                                             recognitionTranscriptRef.current = '';
+                                                            recognitionInterimRef.current = '';
+                                                            setCustomerNameFromVoice(false); // Allow new name from this recording
                                                             setSpeechNetworkError(false); // Reset network error on new recording
                                                             // Clear customer name input so new recording overwrites old text
                                                             setFormData(prev => ({ ...prev, customerName: '' }));
@@ -8984,44 +9002,42 @@
                                                                 
                                                                 recognitionInstance.onresult = (event) => {
                                                                     if (!event.results || event.results.length === 0) return;
-                                                                    // Use ONLY FINAL results for accuracy – interim results are less accurate
                                                                     let finalTranscript = '';
+                                                                    let interimTranscript = '';
                                                                     const finalParts = [];
                                                                     for (let i = 0; i < event.results.length; i++) {
                                                                         const r = event.results[i];
-                                                                        if (!r.isFinal) continue; // Skip interim – only use final for accuracy
-                                                                        // Use first alternative (most confident) from final results
                                                                         let t = '';
                                                                         if (r.length > 0 && r[0]) {
                                                                             t = (r[0].transcript || r[0].transcriptText || '').trim();
                                                                         } else if (r.transcript) {
                                                                             t = String(r.transcript).trim();
                                                                         }
-                                                                        if (t && finalParts[finalParts.length - 1] !== t) {
-                                                                            finalParts.push(t);
+                                                                        if (!t) continue;
+                                                                        if (r.isFinal) {
+                                                                            if (finalParts[finalParts.length - 1] !== t) finalParts.push(t);
+                                                                        } else {
+                                                                            interimTranscript = t; // Keep latest interim (mobile often only gets this)
                                                                         }
                                                                     }
                                                                     finalTranscript = finalParts.join(' ');
-                                                                    // Fallback: if no final yet, use last result's first alternative
                                                                     if (!finalTranscript && event.results.length > 0) {
                                                                         const last = event.results[event.results.length - 1];
                                                                         if (last && last.length > 0 && last[0]) {
                                                                             finalTranscript = (last[0].transcript || last[0].transcriptText || '').trim();
                                                                         }
                                                                     }
+                                                                    if (interimTranscript) {
+                                                                        recognitionInterimRef.current = interimTranscript.replace(/\s+/g, ' ').trim();
+                                                                    }
                                                                     if (finalTranscript) {
-                                                                        // Clean transcript: remove extra spaces, normalize
                                                                         finalTranscript = finalTranscript.replace(/\s+/g, ' ').trim();
-                                                                        // Store in ref
                                                                         recognitionTranscriptRef.current = finalTranscript;
-                                                                        // Apply with small delay to let recognition finish processing
                                                                         setTimeout(function() {
-                                                                            applyCustomerNameFromTranscript(finalTranscript);
+                                                                            applyCustomerNameFromTranscript(finalTranscript, true);
                                                                         }, 100);
-                                                                        // Clear audio when we have final transcript
                                                                         const hasFinal = event.results.some(r => r.isFinal);
                                                                         if (hasFinal) {
-                                                                            setAudioBlob(null);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                                 setAudioUrl(null);
@@ -9063,15 +9079,16 @@
                                                                 
                                                                 recognitionInstance.onend = () => {
                                                                     console.log('🎤 Speech recognition ended');
-                                                                    console.log('📝 Final stored transcript:', recognitionTranscriptRef.current);
+                                                                    const finalOrInterim = (recognitionTranscriptRef.current || recognitionInterimRef.current || '').trim();
+                                                                    console.log('📝 Stored transcript (final or interim):', finalOrInterim);
                                                                     
-                                                                // Process transcript with multiple attempts for mobile
+                                                                // Process transcript with multiple attempts for mobile (use interim if no final)
                                                                 const processTranscript = () => {
-                                                                    if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                        const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                    const text = (recognitionTranscriptRef.current || recognitionInterimRef.current || '').trim();
+                                                                    if (text) {
+                                                                        const customerName = text.toUpperCase();
                                                                         console.log('✅ Processing transcript from onend:', customerName);
-                                                                        applyCustomerNameFromTranscript(customerName);
-                                                                        setAudioBlob(null);
+                                                                        applyCustomerNameFromTranscript(customerName, true);
                                                                         if (audioUrl) {
                                                                             URL.revokeObjectURL(audioUrl);
                                                                             setAudioUrl(null);
@@ -9230,44 +9247,36 @@
                                                                 let lastTranscript = '';
                                                                 window.transcriptCheckInterval = setInterval(() => {
                                                                     checkCount++;
-                                                                    const currentTranscript = recognitionTranscriptRef.current || '';
-                                                                    console.log(`🔄 Periodic check #${checkCount} - transcript ref:`, currentTranscript);
-                                                                    console.log(`🔄 Recognition state:`, recognitionInstance ? recognitionInstance.state : 'null');
-                                                                    
-                                                                    // Check if we have transcript in ref
-                                                                    if (currentTranscript && currentTranscript.trim() && currentTranscript !== lastTranscript) {
-                                                                        const customerName = currentTranscript.trim().toUpperCase();
-                                                                        console.log('✅ Periodic check - found NEW transcript:', customerName);
-                                                                        lastTranscript = currentTranscript;
-                                                                        applyCustomerNameFromTranscript(customerName);
+                                                                    const text = (recognitionTranscriptRef.current || recognitionInterimRef.current || '').trim();
+                                                                    console.log(`🔄 Periodic check #${checkCount} - transcript (final or interim):`, text);
+                                                                    if (recognitionInstance) {
+                                                                        try { console.log('🔄 Recognition state:', recognitionInstance.state); } catch (e) {}
                                                                     }
-                                                                    
-                                                                    // Also try to access recognition state and results directly (mobile workaround)
+                                                                    if (text && text !== lastTranscript) {
+                                                                        const customerName = text.toUpperCase();
+                                                                        console.log('✅ Periodic check - applying transcript (final or interim):', customerName);
+                                                                        lastTranscript = text;
+                                                                        applyCustomerNameFromTranscript(customerName, true);
+                                                                    }
                                                                     try {
                                                                         if (recognitionInstance) {
                                                                             const state = recognitionInstance.state;
-                                                                            console.log(`📱 Recognition state: ${state}`);
-                                                                            
                                                                             if (state === 'listening') {
-                                                                                // Recognition is active, but might not have fired onresult
                                                                                 console.log('🎤 Recognition is listening, waiting for results...');
                                                                             } else if (state === 'stopped' && checkCount > 5) {
-                                                                                // Recognition stopped but we haven't got results yet
                                                                                 console.log('⚠️ Recognition stopped but no transcript yet');
                                                                             }
                                                                         }
                                                                     } catch (e) {
-                                                                        // Ignore errors accessing state
                                                                         console.log('Error accessing recognition state:', e);
                                                                     }
                                                                     
-                                                                    // Stop checking after 20 seconds
-                                                                    if (checkCount >= 40) { // 40 * 500ms = 20 seconds
+                                                                    if (checkCount >= 40) {
                                                                         clearInterval(window.transcriptCheckInterval);
                                                                         window.transcriptCheckInterval = null;
                                                                         console.log('⏱️ Periodic check stopped after 20 seconds');
                                                                     }
-                                                                }, 500); // Check every 500ms for faster response on mobile
+                                                                }, 500);
                                                             }
                                                             
                                                             // Auto stop after 10 seconds
@@ -9301,14 +9310,14 @@
                                                                     window.transcriptCheckInterval = null;
                                                                 }
                                                                 
-                                                                // Process transcript with multiple attempts
+                                                                // Process transcript with multiple attempts (use interim on mobile when no final)
                                                                 const processFinalTranscript = (delay) => {
                                                                     setTimeout(() => {
-                                                                        if (recognitionTranscriptRef.current && recognitionTranscriptRef.current.trim()) {
-                                                                            const customerName = recognitionTranscriptRef.current.trim().toUpperCase();
+                                                                        const text = (recognitionTranscriptRef.current || recognitionInterimRef.current || '').trim();
+                                                                        if (text) {
+                                                                            const customerName = text.toUpperCase();
                                                                             console.log(`✅ Timeout (${delay}ms) - setting customer name:`, customerName);
-                                                                            applyCustomerNameFromTranscript(customerName);
-                                                                            setAudioBlob(null);
+                                                                            applyCustomerNameFromTranscript(customerName, true);
                                                                             if (audioUrl) {
                                                                                 URL.revokeObjectURL(audioUrl);
                                                                                 setAudioUrl(null);
@@ -9358,6 +9367,9 @@
                                                     ⚠️ Please enter customer name OR record voice (Required)
                                                 </p>
                                             )}
+                                            <p className="text-[8px] sm:text-[9px] text-slate-500 mt-1">
+                                                Voice-to-text: works on desktop; on mobile it may not convert (e.g. iPhone). You can type the name or record audio.
+                                            </p>
                                             {isRecording && (
                                                 <div className="mt-1.5 sm:mt-2">
                                                     <p className="text-[8px] sm:text-[9px] text-blue-600 font-bold mb-1 animate-pulse">
@@ -9471,8 +9483,8 @@
                                                     <div className={`grid grid-cols-2 gap-1.5 sm:gap-2 ${!formData.worker ? 'animate-pulse' : ''}`}>
                                                         {WORKERS.map((worker, index) => {
                                                             const workerName = typeof worker === 'string' ? worker : (worker.name || 'Unknown');
-                                                            const workerKey = typeof worker === 'string' ? worker : (worker.id || index);
-                                                            const workerId = typeof worker === 'string' ? null : (worker.id || null);
+                                                            const workerKey = typeof worker === 'string' ? worker : (worker.id || worker.user_id || index);
+                                                            const workerId = typeof worker === 'string' ? null : (worker.id ?? worker.user_id ?? null);
                                                             const isSelected = formData.worker === workerName || formData.workerId === workerId;
                                                             
                                                             return (
@@ -9685,11 +9697,10 @@
                                         </div>
                                         <button 
                                             type="submit" 
-                                            disabled={!formData.worker || formData.worker.trim() === ''}
                                             title={!formData.worker || formData.worker.trim() === '' ? 'Please select a worker first' : 'Start the job'}
                                             className={`w-full sm:w-auto px-6 sm:px-7 md:px-8 py-3 sm:py-4 md:py-5 rounded-xl sm:rounded-[18px] md:rounded-[22px] font-black uppercase text-[9px] sm:text-[10px] tracking-widest transition-all relative ${
                                                 !formData.worker || formData.worker.trim() === ''
-                                                    ? 'bg-slate-600 text-slate-300 cursor-not-allowed opacity-50'
+                                                    ? 'bg-slate-600 text-slate-300 hover:bg-slate-500 hover:text-white cursor-pointer opacity-90'
                                                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
                                             }`}
                                         >

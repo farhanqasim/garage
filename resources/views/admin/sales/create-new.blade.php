@@ -58,7 +58,9 @@
                             <div class="row align-items-center">
                                 <!-- Left Side: Company Information -->
                                 <div class="col-md-6">
-                                    <h2 class="mb-1 fw-bold" style="color: #0d6efd; font-size: 28px; line-height: 1.2;">{{ setting_value('logo_text', 'BARKI EXPRESS') }}</h2>
+                                    <a href="{{ route('home') }}" class="text-decoration-none d-inline-block" title="Home par jayein">
+                                        <h2 class="mb-1 fw-bold" style="color: #0d6efd; font-size: 28px; line-height: 1.2;">{{ setting_value('logo_text', 'BARKI EXPRESS') }}</h2>
+                                    </a>
                                     <p class="mb-2" style="color: #0d6efd; font-size: 14px; font-weight: 500;">AUTO OIL & SPARE PARTS SPECIALIST</p>
                                     <p class="mb-0" style="color: #6c757d; font-size: 13px;">
                                         <i class="ti ti-phone me-1"></i>HELPLINE: <span id="helplineNumber" style="color: #0d6efd; font-weight: 500;">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
@@ -110,6 +112,9 @@
                         <div class="row mb-4">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">PARTY NAME / VEHICLE #</label>
+                                <div id="customer-branch-display" class="small mb-1" style="font-size: 10px; color: #6c757d; display: none;">
+                                    <span class="text-muted">Branch:</span> <span id="customer-branch-name"></span>
+                                </div>
                                 <div class="input-group">
                                     <select name="customer_id" id="customer_id" class="form-control select2-customer-search @error('customer_id') is-invalid @enderror" required style="border-radius: 6px 0 0 6px;">
                                         <option value="" selected>SEARCH PARTY NAME / VEHICLE #...</option>
@@ -130,6 +135,7 @@
                                                 data-company="{{ $customer->company ?? '' }}"
                                                 data-address="{{ $customer->address ?? '' }}"
                                                 data-area="{{ $customer->area ?? '' }}"
+                                                data-branch-name="{{ optional($customer->branch)->branch_name ?? '—' }}"
                                                 data-search-text="{{ strtolower($displayText) }}">
                                             {{ $displayText }}
                                         </option>
@@ -151,6 +157,7 @@
                                                         data-company="{{ $customer->company ?? '' }}"
                                                         data-address="{{ $customer->address ?? '' }}"
                                                         data-area="{{ $customer->area ?? '' }}"
+                                                        data-branch-name="{{ optional($customer->branch)->branch_name ?? '—' }}"
                                                         data-search-text="{{ strtolower($vehicleText . ' ' . $vehicle->plate_number) }}">
                                                     {{ $vehicleText }}
                                                 </option>
@@ -227,12 +234,9 @@
                                         <table class="table table-bordered">
                                             <thead id="salesItemsThead">
                                                 <tr>
+                                                    <th>Warehouse</th>
                                                     <th>Item</th>
-                                                    <th>Qty</th>
-                                                    <th>Unit</th>
                                                     <th>Rate</th>
-                                                    <th>Discount</th>
-                                                    <th>Tax %</th>
                                                     <th>Total</th>
                                                     <th>Action</th>
                                                 </tr>
@@ -454,41 +458,47 @@
 </div>
 
 <!-- Add Item Modal - ITEM DETAIL BOX -->
-<div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border-radius: 12px;">
+<div class="modal fade" id="add-item-modal" tabindex="-1" aria-hidden="true" style="z-index: 9999 !important; pointer-events: auto !important;">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="pointer-events: auto !important;">
+        <div class="modal-content" style="border-radius: 12px; pointer-events: auto !important;">
             <div class="modal-header border-0 pb-2">
-                <h5 class="modal-title fw-bold" id="add-item-modal-title">
+                <h5 class="modal-title fw-bold modal-title--sale" id="add-item-modal-title">
                     <i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Product Name (Searchable/Selectable) - Premium search -->
+                <!-- Barcode (same as purchase modal) -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted mb-1"><i class="ti ti-barcode me-1"></i>Barcode</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="barcode-scan-input" class="form-control" placeholder="Barcode scan karein ya type karein..." autocomplete="off">
+                        <button type="button" class="btn btn-outline-primary flex-shrink-0" id="open-camera-scan-btn" title="Camera se barcode scan karein"><i class="ti ti-camera me-1"></i> Camera</button>
+                    </div>
+                </div>
+                <!-- Product Name (same style as purchase modal) -->
                 <div class="mb-3" id="item-search-wrapper">
-                    <label class="form-label fw-bold mb-2 d-flex align-items-center">
-                        <span class="rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 28px; height: 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff;">
-                            <i class="ti ti-search" style="font-size: 14px;"></i>
-                        </span>
-                        PRODUCT NAME
-                    </label>
+                    <label class="form-label small fw-bold text-muted mb-1"><i class="ti ti-search me-1"></i>Product name</label>
                     <div class="d-flex align-items-start gap-2">
                         <div class="position-relative flex-grow-1">
-                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off" title="Type to search or edit product name">
+                        <input type="text" id="item-search" class="form-control item-search-input text-uppercase" placeholder="Search item… or barcode" autocomplete="off" title="Type to search or edit product name">
                         <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
                             </div>
-                        <!-- Selected Item Details Display (below input) -->
-                        <div id="selected-item-details-display" class="mt-2 d-none" style="font-size: 0.85rem;">
-                            <div class="text-muted mb-1" id="selected-item-details-line1"></div>
-                            <div class="text-muted mb-1" id="selected-item-details-line2"></div>
-                            <div class="text-warning fw-semibold" id="selected-item-details-line3"></div>
+                        <!-- Selected Item Details (same box style as purchase) -->
+                        <div id="selected-item-details-display" class="mt-2 d-none rounded border px-2 py-2 d-flex align-items-center justify-content-between gap-2" style="font-size: 0.85rem; background: linear-gradient(135deg, #f8f9fc 0%, #f0f2f8 100%);">
+                            <div class="flex-grow-1 min-width-0">
+                                <div class="small text-uppercase fw-semibold text-secondary mb-1" style="font-size: 10px;">Product detail</div>
+                                <div class="small text-muted mt-1 mb-1 text-uppercase" id="selected-item-details-line1"></div>
+                                <div class="small text-primary fw-semibold mt-1 mb-1" id="selected-item-details-line2" style="display: none;"></div>
+                                <div class="text-primary small fw-semibold mt-1" id="selected-item-details-line3"></div>
+                            </div>
+                            <button type="button" class="btn btn-primary flex-shrink-0" id="item-edit-in-modal-btn" title="Edit selected item" style="display: none; white-space: nowrap;">
+                                <i class="ti ti-edit"></i> Edit
+                            </button>
                         </div>
                         </div>
-                        <button type="button" class="btn btn-primary align-self-center" id="item-edit-in-modal-btn" title="Edit selected item" style="display: none; white-space: nowrap;">
-                            <i class="ti ti-edit"></i> Edit
-                        </button>
                         <!-- Item Image Preview -->
                         <div id="item-search-image-preview" class="d-none" style="flex-shrink: 0;">
                             <img id="item-search-image" src="" alt="Item Image" class="rounded border shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
@@ -500,11 +510,11 @@
                     <input type="hidden" id="selected-warehouse-id">
                 </div>
                 
-                <!-- STOCK STATUS Section (Shows when item is selected) -->
+                <!-- Stock status (same label style as purchase: Available stock) -->
                 <div id="stock-status-section" class="mb-3" style="display: none;">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <label class="form-label fw-bold mb-0">
-                            <i class="ti ti-settings me-2"></i>STOCK STATUS
+                        <label class="form-label fw-bold mb-0" id="stock-status-section-label">
+                            <i class="ti ti-package me-2"></i>Available stock
                         </label>
                     </div>
                     <div id="stock-status-content" class="border rounded p-2" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto;">
@@ -514,21 +524,16 @@
                     </div>
                 </div>
                 
-                <!-- Quantity and Unit Row (Same Line) -->
-                <div class="row mb-3">
+                <!-- Quantity and Unit Row -->
+                <input type="hidden" id="item-liter-per-can" value="">
+                <div class="row mb-3" id="quantity-row-normal">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold mb-2">QUANTITY</label>
-                        <select id="item-quantity" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
-                            <option value="">-</option>
-                            @for($i = 1; $i <= 1000; $i++)
-                                <option value="{{ $i }}">{{ $i }}</option>
-                            @endfor
-                        </select>
-                        <input type="number" id="item-quantity-input" class="form-control mt-2" value="1" min="1" step="1" placeholder="Or enter custom quantity (whole numbers only)" style="background-color: #f8f9fa; border-radius: 8px; display: none;">
-                        <small class="text-muted" style="font-size: 11px;">Select or enter whole number quantity</small>
+                        <label class="form-label fw-bold mb-2"><i class="ti ti-shopping-cart me-1"></i>Quantity</label>
+                        <input type="number" id="item-quantity" class="form-control" value="1" min="0" step="any" placeholder="Quantity" style="background-color: #f8f9fa; border-radius: 8px;">
+                        <small class="text-muted" style="font-size: 11px;">Enter quantity</small>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold mb-2">UNIT</label>
+                        <label class="form-label fw-bold mb-2">Unit</label>
                         <select id="item-unit" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
                             <option value="">-</option>
                             @if(isset($units) && $units->count() > 0)
@@ -547,18 +552,20 @@
                         </select>
                     </div>
                 </div>
+                <input type="hidden" id="item-quantity-cans" value="0">
+                <input type="hidden" id="item-quantity-liters" value="0">
 
                 <!-- Sale Rate and Warranty Row -->
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold mb-2">SALE RATE</label>
+                        <label class="form-label fw-bold mb-2"><i class="ti ti-shopping-cart me-1"></i>Sale rate</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light">Rs</span>
                             <input type="number" id="item-rate" class="form-control" value="0" step="1" min="0" placeholder="0" style="background-color: #f8f9fa; border-radius: 8px;">
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold mb-2">WARRANTY</label>
+                        <label class="form-label fw-bold mb-2">Warranty</label>
                         <div class="row g-2">
                             <div class="col-6">
                                 <select id="warranty-value" class="form-control" style="background-color: #f8f9fa; border-radius: 8px;">
@@ -660,11 +667,11 @@
                 </div>
 
             </div>
-            <div class="modal-footer border-0 pt-2">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">
-                    CONFIRM SELECTION
-                </button>
+            <div class="modal-footer border-0 pt-2 d-flex flex-wrap justify-content-end align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 8px; padding: 10px 24px;">Cancel</button>
+                    <button type="button" class="btn btn-primary fw-bold" id="confirm-entry" style="background-color: #0d6efd; border-radius: 8px; padding: 10px 30px;">CONFIRM SELECTION</button>
+                </div>
             </div>
         </div>
     </div>
@@ -686,9 +693,9 @@
 </div>
 
 <!-- Vehicle Modal -->
-<div class="modal fade" id="vehicle-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+<div class="modal fade" id="vehicle-modal" tabindex="-1" aria-hidden="true" style="z-index: 9999 !important; pointer-events: auto !important;">
+    <div class="modal-dialog modal-dialog-centered" style="pointer-events: auto !important;">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden; pointer-events: auto !important;">
             <!-- Blue Header -->
             <div class="modal-header border-0 pb-0" style="background: #0d6efd; padding: 15px 20px;">
                 <h5 class="modal-title fw-bold text-white text-uppercase mb-0" style="font-size: 16px; letter-spacing: 0.5px;">
@@ -733,6 +740,121 @@
     </div>
 </div>
 
+<style>
+    /* Vehicle Edit modal must open on top of Edit Customer modal when both are open */
+    #editVehicleSaleModal.modal { z-index: 1065 !important; }
+    body.modal-open #editVehicleSaleModal.modal.show { z-index: 1065 !important; }
+    /* Ensure backdrop for vehicle edit is above customer edit modal (Bootstrap appends backdrops to body) */
+    .modal-backdrop.show:last-of-type { z-index: 1060 !important; }
+    /* Ensure add-item-modal is clickable on create/sale/new - move to body via JS */
+    #add-item-modal.modal,
+    body.modal-open #add-item-modal.modal {
+        z-index: 9999 !important;
+        pointer-events: auto !important;
+    }
+    #add-item-modal .modal-dialog,
+    #add-item-modal .modal-content,
+    #add-item-modal .modal-body,
+    #add-item-modal input,
+    #add-item-modal select,
+    #add-item-modal button {
+        pointer-events: auto !important;
+    }
+    #add-item-modal .modal-footer,
+    #add-item-modal .modal-header,
+    #add-item-modal .modal-footer button,
+    #add-item-modal .modal-header .btn-close {
+        pointer-events: auto !important;
+    }
+    /* Keep footer above body so buttons are always clickable */
+    #add-item-modal .modal-footer {
+        position: relative;
+        z-index: 10;
+        flex-shrink: 0;
+    }
+    body.modal-open .modal-backdrop { z-index: 9998 !important; }
+    /* Modal title color (match purchase modal) */
+    #add-item-modal-title.modal-title--sale { color: #0d6efd; }
+    /* Camera barcode modal when opened from add-item modal must be on top */
+    #camera-barcode-modal.modal.show { z-index: 10000 !important; }
+    #camera-barcode-modal .modal-dialog,
+    #camera-barcode-modal .modal-content { pointer-events: auto !important; }
+    /* Ensure all modals and their content are clickable when shown */
+    .modal.show .modal-dialog,
+    .modal.show .modal-content,
+    .modal.show .modal-body,
+    .modal.show .modal-footer,
+    .modal.show .modal-header,
+    .modal.show button,
+    .modal.show input,
+    .modal.show select { pointer-events: auto !important; }
+    /* Vehicle modal - same clickable fix as add-item-modal (above backdrop 9998) */
+    #vehicle-modal.modal,
+    body.modal-open #vehicle-modal.modal.show {
+        z-index: 9999 !important;
+        pointer-events: auto !important;
+    }
+    #vehicle-modal .modal-dialog,
+    #vehicle-modal .modal-content,
+    #vehicle-modal .modal-body,
+    #vehicle-modal .modal-footer,
+    #vehicle-modal .modal-header,
+    #vehicle-modal button,
+    #vehicle-modal input,
+    #vehicle-modal select { pointer-events: auto !important; }
+    /* Delivery modal - same clickable fix (above backdrop 9998) */
+    #delivery-modal.modal,
+    body.modal-open #delivery-modal.modal.show {
+        z-index: 9999 !important;
+        pointer-events: auto !important;
+    }
+    #delivery-modal .modal-dialog,
+    #delivery-modal .modal-content,
+    #delivery-modal .modal-body,
+    #delivery-modal .modal-footer,
+    #delivery-modal .modal-header,
+    #delivery-modal button,
+    #delivery-modal input,
+    #delivery-modal select,
+    #delivery-modal label { pointer-events: auto !important; }
+</style>
+<!-- Edit Vehicle Modal (sales - edit existing vehicle from vehicles-list) -->
+<div class="modal fade" id="editVehicleSaleModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-3">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold">Edit Vehicle</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editVehicleSaleForm">
+                <input type="hidden" id="editVehicleSaleId" value="">
+                <div class="modal-body" style="padding: 20px;">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">REG # / NUMBER</label>
+                        <input type="text" id="editVehicleSalePlate" class="form-control" placeholder="PLATE #" style="text-transform: uppercase; border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">MAKE / BRAND</label>
+                        <input type="text" id="editVehicleSaleMake" class="form-control" placeholder="Toyota, Honda..." style="border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">MODEL / NAME</label>
+                        <input type="text" id="editVehicleSaleModel" class="form-control" placeholder="Civic, Corolla..." style="border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2" style="color: #333; font-size: 13px;">MODEL YEAR</label>
+                        <input type="text" id="editVehicleSaleYear" class="form-control" placeholder="e.g. 2022" style="border-radius: 8px; padding: 12px; border: 1px solid #dee2e6;" required maxlength="4">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 pb-3 px-3">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold">Update Vehicle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Camera Barcode Scanner Modal (mobile / when no physical scanner) -->
 <div class="modal fade" id="camera-barcode-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 340px;">
@@ -752,9 +874,9 @@
 </div>
 
 <!-- Delivery Entry Modal -->
-<div class="modal fade" id="delivery-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border-radius: 12px;">
+<div class="modal fade" id="delivery-modal" tabindex="-1" aria-hidden="true" style="z-index: 9999 !important; pointer-events: auto !important;">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="pointer-events: auto !important;">
+        <div class="modal-content" style="border-radius: 12px; pointer-events: auto !important;">
             <div class="modal-header border-0 pb-2" style="background-color: #f97316; color: white;">
                 <h5 class="modal-title fw-bold">
                     <i class="ti ti-truck me-2"></i>DELIVERY ENTRY
@@ -762,41 +884,6 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- NEW WORKER Section with Profile Upload -->
-                <div class="mb-4 p-3 rounded" style="background: #f0f9ff; border: 2px solid #0ea5e9;">
-                    <h6 class="fw-bold mb-3 text-uppercase" style="color: #0ea5e9; font-size: 14px;">
-                        <i class="ti ti-user-plus me-2"></i>NEW WORKER
-                    </h6>
-                    
-                    <!-- Worker Profile Upload -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold mb-2" style="color: #0ea5e9;">
-                            <i class="ti ti-photo me-1"></i>Worker Profile Photo
-                        </label>
-                        <label class="d-block btn btn-outline-primary w-100 p-3 text-center cursor-pointer position-relative" style="border: 2px solid #0ea5e9; border-radius: 8px; background-color: #f0f9ff; transition: all 0.3s ease; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;" onmouseover="this.style.backgroundColor='#e0f2fe'; this.style.borderColor='#0284c7';" onmouseout="this.style.backgroundColor='#f0f9ff'; this.style.borderColor='#0ea5e9';">
-                            <i class="ti ti-user-circle text-3xl text-primary mb-2 d-block" id="worker-profile-icon-placeholder"></i>
-                            <p class="mb-0 small fw-bold text-primary" id="worker-profile-text-placeholder">Click to Upload Worker Profile</p>
-                            <input type="file" id="worker-profile-photo" accept="image/*" class="d-none" onchange="handleWorkerProfilePhoto(this)">
-                            <div id="worker-profile-photo-preview" class="position-absolute" style="top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background-color: rgba(240, 249, 255, 0.95); border-radius: 8px; padding: 10px;">
-                                <img id="worker-profile-preview-img" src="" alt="Worker Profile" style="max-width: 100%; max-height: 100%; border-radius: 8px; object-fit: cover;">
-                            </div>
-                        </label>
-                        <small class="text-muted d-block mt-2">Upload profile photo of the main worker</small>
-                    </div>
-                    
-                    <!-- Worker Name -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold mb-2">Worker Name</label>
-                        <input type="text" id="worker-name" class="form-control" placeholder="Enter worker name">
-                    </div>
-                    
-                    <!-- Worker Mobile -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold mb-2">Worker Mobile Number</label>
-                        <input type="tel" id="worker-mobile" class="form-control" placeholder="03xx-xxxxxxx">
-                    </div>
-                </div>
-                
                 <div id="delivery-items-list" class="mb-3" style="display: none;">
                     <label class="form-label fw-bold mb-2">
                         <i class="ti ti-package me-1"></i>Items to Deliver:
@@ -903,7 +990,80 @@
     .cash-amount-input {
         -moz-appearance: textfield;
     }
-    /* Edit Customer: name – pehla word capital baaki small, font chota */
+    /* Stock warehouse row: Display + black unit tags + 1 Can + 3 number inputs (screenshot design) */
+    #stock-status-list .stock-warehouse-item .stock-warehouse-qty-input::-webkit-outer-spin-button,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-qty-input::-webkit-inner-spin-button,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-base-qty-input::-webkit-outer-spin-button,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-base-qty-input::-webkit-inner-spin-button,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-extra-input::-webkit-outer-spin-button,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-extra-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    #stock-status-list .stock-warehouse-item .stock-warehouse-qty-input,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-base-qty-input,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-extra-input {
+        -moz-appearance: textfield;
+    }
+    #stock-status-list .stock-warehouse-item {
+        background-color: #e9ecef !important;
+        cursor: pointer;
+        min-height: 42px;
+        color: #212529 !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    #stock-status-list .stock-warehouse-item .stock-warehouse-qty-labels {
+        color: #495057 !important;
+    }
+    #stock-status-list .stock-warehouse-item.bg-primary {
+        background-color: #0d6efd !important;
+        color: #fff !important;
+        border: 1px solid #0a58ca !important;
+    }
+    #stock-status-list .stock-warehouse-item.bg-primary .stock-warehouse-qty-labels {
+        color: #fff !important;
+    }
+    /* Black unit tags (4 L PER CAN, 4 Liter) */
+    #stock-status-list .stock-warehouse-item .warehouse-unit-tag {
+        background-color: #000 !important;
+        color: #fff !important;
+        border: none;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    #stock-status-list .stock-warehouse-item .stock-warehouse-qty-input,
+    #stock-status-list .stock-warehouse-item .stock-warehouse-base-qty-input {
+        background-color: #fff !important;
+        color: #212529 !important;
+        border-radius: 6px;
+        width: 56px;
+        text-align: center;
+    }
+    #stock-status-list .stock-warehouse-item .stock-warehouse-extra-input {
+        background-color: #fff !important;
+        color: #212529 !important;
+        border-radius: 6px;
+        width: 56px;
+        text-align: center;
+    }
+    #stock-status-list .stock-warehouse-item.bg-primary .stock-warehouse-qty-input,
+    #stock-status-list .stock-warehouse-item.bg-primary .stock-warehouse-base-qty-input {
+        background-color: rgba(255,255,255,0.95) !important;
+        color: #212529 !important;
+        border: 1px solid rgba(0,0,0,0.15);
+    }
+    #stock-status-list .stock-warehouse-item.bg-primary .stock-warehouse-extra-input {
+        background-color: rgba(255,255,255,0.95) !important;
+        color: #212529 !important;
+        border: 1px solid rgba(0,0,0,0.15);
+    }
+    /* Branch row */
+    #stock-status-list .stock-branch-item {
+        background-color: #fff !important;
+        min-height: 42px;
+    }
     .edit-name-display .name-first-word { font-size: 0.875rem; font-weight: 600; color: #212529; }
     .edit-name-display .name-rest { font-size: 0.875rem; color: #212529; font-weight: 400; }
     .edit-name-display:empty::before { content: attr(data-placeholder); color: #6c757d; }
@@ -1063,6 +1223,9 @@
 @endpush
 
 @push('scripts')
+<script>
+window.customerBranchNames = @json(collect($customers)->keyBy('id')->map(function($c) { return optional($c->branch)->branch_name ?? '—'; })->toArray());
+</script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 $(document).ready(function() {
@@ -1070,6 +1233,19 @@ $(document).ready(function() {
     let itemCounter = 0;
     // Entry type: 'sale' (default) or 'scrap' - same modal as Smart Invoice Scrap In
     let currentEntryType = 'sale';
+    
+    /* Move add-item-modal to body so it is clickable (fixes no-click on create/sale/new) */
+    function moveAddItemModalToBody() {
+        var $modal = $('#add-item-modal');
+        if ($modal.length) {
+            $modal.appendTo('body');
+            $modal.css({ 'z-index': 9999, 'pointer-events': 'auto' });
+            $modal.find('.modal-dialog, .modal-content, .modal-body, .modal-footer, .modal-header').css('pointer-events', 'auto');
+            $modal.find('button, input, select, a.btn').css('pointer-events', 'auto');
+        }
+    }
+    moveAddItemModalToBody();
+    window.addEventListener('load', moveAddItemModalToBody);
     
     // ---------- Sales items array ----------
     // Helper to clean item name (remove Lorem Ipsum or dummy text)
@@ -1218,6 +1394,9 @@ $(document).ready(function() {
         $('#edit_customer_email').val(customer.email || '');
         $('#edit_customer_address').val(customer.address || '');
         $('#edit_customer_area').val(customer.area || '');
+        if ($('#edit_customer_branch_id').length) {
+            $('#edit_customer_branch_id').val(customer.branch_id || '');
+        }
         
         // Display existing profile image below (preview neeche)
         if (customer.profile_img) {
@@ -1249,6 +1428,42 @@ $(document).ready(function() {
             }
         }
         updateRemoveButtons();
+
+        // Load and show this customer's vehicles (same card style as Add Vehicle on sales form)
+        const vehiclesUrl = '{{ url(route("customer.vehicles.index", ["customer" => "__ID__"])) }}'.replace('__ID__', customerId);
+        $('#edit-customer-vehicles-list').html('<span class="text-muted">Loading vehicles…</span>');
+        $.get(vehiclesUrl).done(function(res) {
+            const $list = $('#edit-customer-vehicles-list');
+            if (res.success && res.vehicles && res.vehicles.length > 0) {
+                let html = '<div class="d-flex flex-column gap-2" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">';
+                res.vehicles.forEach(function(v) {
+                    const plate = (v.plateNumber || '—').toString();
+                    const make = (v.make || '').toString();
+                    const model = (v.model || '').toString();
+                    const year = (v.year || '—').toString();
+                    const carId = (v.id || '').toString();
+                    const customerIdForVehicle = (v.customerId || customerId || '').toString();
+                    const plateEsc = (v.plateNumber || '').toString().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const makeEsc = make.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const modelEsc = model.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const yearEsc = year.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    html += '<div class="card mb-0 edit-customer-vehicle-card position-relative" style="border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #f8f9fa;">';
+                    html += '<div class="card-body p-3">';
+                    html += '<button type="button" class="btn btn-sm btn-outline-primary edit-vehicle-in-edit-customer-btn position-absolute top-0 end-0 m-2" style="padding: 4px 10px; z-index: 5;" title="Edit vehicle" data-car-id="' + carId + '" data-customer-id="' + customerIdForVehicle + '" data-plate="' + plateEsc + '" data-make="' + makeEsc + '" data-model="' + modelEsc + '" data-year="' + yearEsc + '"><i class="ti ti-edit me-1" style="font-size: 14px;"></i>Edit</button>';
+                    html += '<p class="mb-1 fw-bold text-uppercase" style="color: #4a90e2; font-size: 11px; letter-spacing: 0.5px;">ACTIVE VEHICLE</p>';
+                    html += '<h6 class="mb-1 fw-bold vehicle-card-plate" style="color: #1e3a8a; font-size: 16px;">' + plate + '</h6>';
+                    html += '<p class="mb-0 fw-semibold vehicle-card-make-model" style="color: #1e3a8a; font-size: 13px;">' + (make && model ? make.toUpperCase() + ' ' + model.toUpperCase() : (make || model || '—').toString().toUpperCase()) + '</p>';
+                    html += '<p class="mb-0 small text-muted mt-1 vehicle-card-year">Year: ' + year + '</p>';
+                    html += '</div></div>';
+                });
+                html += '</div>';
+                $list.html(html);
+            } else {
+                $list.html('<span class="text-muted">No vehicles added yet.</span>');
+            }
+        }).fail(function() {
+            $('#edit-customer-vehicles-list').html('<span class="text-muted">No vehicles added yet.</span>');
+        });
     }
     
     // Function to add more name & phone fields (name: first word large, rest small)
@@ -1348,15 +1563,26 @@ $(document).ready(function() {
         }
     });
     
-    // Customer change handler - auto-fill phone when name is selected
+    // Customer change handler - auto-fill phone and load customer's vehicles from DB
     // Use 'select2:select' event for Select2 compatibility
     $('#customer_id').on('change select2:select', function() {
+        const customerId = $(this).val();
         const selected = $(this).find('option:selected');
         const name = selected.data('name') || '';
         const phone = selected.data('phone') || '';
         const address = selected.data('address') || '';
         const area = selected.data('area') || '';
-        const customerId = $(this).val();
+        // Use server-provided map so branch name always works (Select2 can make option data unreliable)
+        const branchName = (window.customerBranchNames && customerId && window.customerBranchNames[customerId]) ? window.customerBranchNames[customerId] : (selected.attr('data-branch-name') || selected.data('branchName') || '—');
+        
+        // Show which branch this customer was created in
+        if (customerId) {
+            $('#customer-branch-name').text(branchName);
+            $('#customer-branch-display').show();
+        } else {
+            $('#customer-branch-name').text('');
+            $('#customer-branch-display').hide();
+        }
         
         // Update mobile dropdown if it's a select
         if (phone && $('#customer_mobile').is('select')) {
@@ -1367,6 +1593,11 @@ $(document).ready(function() {
         }
         $('#customer_address').val(address);
         $('#customer_area').val(area);
+        
+        // Load this customer's vehicles from database and show below Add Vehicle button
+        if (typeof loadCustomerVehicles === 'function') {
+            loadCustomerVehicles(customerId);
+        }
     });
     
     // Mobile number change handler - auto-fill customer when phone is selected (for select dropdown)
@@ -1603,8 +1834,8 @@ $(document).ready(function() {
     });
 
     // Handle "Scrap In" button - same modal as Add Item (like Smart Invoice Scrap In)
-    // Handle "Claim Return" button - same modal as Add Item (like Smart Invoice Claim)
-    $('#claim-receive-btn').on('click', function(e) {
+    // Handle "Claim" button - same modal as Add Item (like Smart Invoice Claim)
+    $('#claim-entry-btn').on('click', function(e) {
         e.preventDefault();
         const branchId = $('#salesBranchId').val();
         
@@ -1624,7 +1855,7 @@ $(document).ready(function() {
     });
 
     // Handle "Return" button - same modal as Add Item (like Smart Invoice Return)
-    $('#return-btn').on('click', function(e) {
+    $('#return-entry-btn').on('click', function(e) {
         e.preventDefault();
         const branchId = $('#salesBranchId').val();
         
@@ -1643,13 +1874,46 @@ $(document).ready(function() {
         $('#add-item-modal').modal('show');
     });
 
-    // Reset quantity dropdown to empty (options 1–1000 are in HTML)
+    // Handle "Scrap In" button - same modal as Add Item
+    $('#scrap-in-btn').on('click', function(e) {
+        e.preventDefault();
+        const branchId = $('#salesBranchId').val();
+        if (!branchId) {
+            Swal.fire({ icon: 'warning', title: 'Branch Required', text: 'Please select a branch first before adding scrap in items.', confirmButtonText: 'OK' });
+            return;
+        }
+        currentEntryType = 'scrap';
+        $('#add-item-modal-title').html('<i class="ti ti-recycle me-2"></i>SCRAP IN');
+        $('#add-item-modal').modal('show');
+    });
+
+    // Handle "Scrap Sale" button - same modal as Add Item
+    $('#scrap-sale-btn').on('click', function(e) {
+        e.preventDefault();
+        const branchId = $('#salesBranchId').val();
+        if (!branchId) {
+            Swal.fire({ icon: 'warning', title: 'Branch Required', text: 'Please select a branch first before adding scrap sale items.', confirmButtonText: 'OK' });
+            return;
+        }
+        currentEntryType = 'scrap_sale';
+        $('#add-item-modal-title').html('<i class="ti ti-file-text me-2"></i>SCRAP SALE');
+        $('#add-item-modal').modal('show');
+    });
+
+    // Reset quantity to default 1 and hide oil row
     function resetItemQuantitySelect() {
-        $('#item-quantity').val('');
+        $('#quantity-row-oil').hide();
+        $('#quantity-row-normal').show();
+        $('#item-quantity').val('1');
+        $('#item-quantity-cans').val(0);
+        $('#item-quantity-liters').val(0);
+        $('#item-quantity-oil-summary').text('= 0 Can total');
+        $('#item-liter-per-can').val('');
     }
 
     // Reset form when modal opens
     $('#add-item-modal').on('show.bs.modal', function() {
+        $('#add-item-modal').appendTo('body');
         const branchId = $('#salesBranchId').val();
         
         // Reset form when modal opens
@@ -1684,6 +1948,11 @@ $(document).ready(function() {
     var pendingQuickBarcode = null;
     var openCameraAfterQuickScan = false;
     $('#add-item-modal').on('shown.bs.modal', function() {
+        $('#add-item-modal').css({ 'pointer-events': 'auto', 'z-index': 9999 });
+        $('#add-item-modal').find('.modal-dialog, .modal-content, .modal-body, .modal-footer, .modal-header').css('pointer-events', 'auto');
+        $('#add-item-modal').find('button, input, select, a.btn').css('pointer-events', 'auto');
+        var $backdrop = $('.modal-backdrop').last();
+        if ($backdrop.length) $('#add-item-modal').insertAfter($backdrop);
         $('#item-search').prop('readonly', false).prop('disabled', false).attr('readonly', false);
         if (pendingItemIdAfterUpdate) {
             var itemId = pendingItemIdAfterUpdate;
@@ -1773,7 +2042,13 @@ $(document).ready(function() {
                                 const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
                                 const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                                 const unit = response.unit || 'Unit';
-                                $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                                const literPerCan = (response.liter_per_can != null && response.liter_per_can !== '' && !isNaN(parseFloat(response.liter_per_can))) ? parseFloat(response.liter_per_can) : null;
+                                let stockHtml = `<span class="${stockColor}">${stockText} ${unit}</span>`;
+                                if (literPerCan != null && literPerCan > 0) {
+                                    const lText = Number.isInteger(literPerCan) ? literPerCan : literPerCan.toFixed(1);
+                                    stockHtml += `<div class="small text-muted mt-0">${lText} L per can</div>`;
+                                }
+                                $('#item-search-stock').html(stockHtml);
                                 
                                 // Show supplier selection if stock is 0
                                 if (stockValue === 0) {
@@ -2044,9 +2319,11 @@ $(document).ready(function() {
                                     </div>
                                 `;
                             } else if (result.type === 'item') {
-                                // Item result - comprehensive display with all type-based details
+                                // Item result - comprehensive display with all type-based details (same as purchase search)
                                 const item = result.item;
-                                const itemType = item.type || '';
+                                const itemType = (item.type || '').toString().toLowerCase();
+                                const apiUnitDisplay = (result.unit_display != null && result.unit_display !== '') ? String(result.unit_display).trim() : '';
+                                const apiLiterPerCan = (result.liter_per_can != null && result.liter_per_can !== '' && !isNaN(parseFloat(result.liter_per_can))) ? parseFloat(result.liter_per_can) : null;
                                 const partNumber = item.partnumber_item ? item.partnumber_item.name : '';
                                 const barCode = item.bar_code || '';
                                 const shortDisc = (item.short_disc || '').trim();
@@ -2136,13 +2413,14 @@ $(document).ready(function() {
                     const product = item.product_item ? item.product_item.name : '';
                     const quality = item.quality_item ? item.quality_item.name : '';
                     const technology = item.technology_item ? item.technology_item.name : '';
-                    const grade = item.grade_item ? item.grade_item.name : '';
-                    const volt = item.volt_item ? item.volt_item.name : '';
-                    const cca = item.cca_item ? item.cca_item.name : '';
-                    const group = item.group_item ? item.group_item.name : '';
-                    const madeIn = item.made_in_item ? item.made_in_item.name : '';
-                    const level = item.level_item ? item.level_item.name : '';
-                    const batterySize = item.battery_size || '';
+                                    const grade = item.grade_item ? item.grade_item.name : '';
+                                    const volt = item.volt_item ? item.volt_item.name : '';
+                                    const cca = item.cca_item ? item.cca_item.name : '';
+                                    const group = item.group_item ? item.group_item.name : '';
+                                    const madeIn = item.made_in_item ? item.made_in_item.name : '';
+                                    const level = (item.level_item && item.level_item.name) ? String(item.level_item.name).trim() : '';
+                                    const mileageName = (item.mileage_item && item.mileage_item.name) ? String(item.mileage_item.name).trim() : '';
+                                    const batterySize = item.battery_size || '';
                     const plate = item.plate_item ? item.plate_item.name : '';
                     const amperes = item.amphors_item ? item.amphors_item.name : '';
                                 const stock = item.on_hand || 0;
@@ -2151,6 +2429,20 @@ $(document).ready(function() {
                                     const unit = (item.unit_item && (item.unit_item.name || item.unit_item.short_name))
                         ? (item.unit_item.name || item.unit_item.short_name) 
                                     : 'Unit';
+                    
+                    // Parse liter-per-can for oil/can (same as purchase)
+                    let literPerCan = null;
+                    const unitStr = (unit || '').toString();
+                    const literMatch = unitStr.match(/(\d+(?:\.\d+)?)\s*(?:liter|ltr|L)\b/i) || unitStr.match(/\b(?:liter|ltr|L)\s*(\d+(?:\.\d+)?)/i);
+                    if (literMatch) literPerCan = parseFloat(literMatch[1]);
+                    else if (item.filling != null && item.filling !== '' && !isNaN(parseFloat(item.filling))) literPerCan = parseFloat(item.filling);
+                    if (apiLiterPerCan != null && apiLiterPerCan > 0) literPerCan = apiLiterPerCan;
+                    let unitForFirstLine = (apiUnitDisplay !== '')
+                        ? apiUnitDisplay
+                        : ((literPerCan != null && literPerCan > 0)
+                            ? (Number.isInteger(literPerCan) ? literPerCan : literPerCan.toFixed(1)) + ' Liter'
+                            : ((unit && unit !== 'Unit' && !isDummy(unit)) ? unit : ''));
+                    if (unitForFirstLine) unitForFirstLine = unitForFirstLine.replace(/^can\s*-\s*/i, '').trim();
                     
                     // Update product name: Priority 1 - product_item.name (actual product name)
                     if (product && !isDummy(product)) {
@@ -2234,18 +2526,41 @@ $(document).ready(function() {
                     let stockIcon = stockValue > 10 ? 'ti-check' : (stockValue > 0 ? '' : 'ti-x');
                     const stockDisplay = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(2);
                     
-                    // Build first line HTML for battery items
+                    // Order: Grade • Level • Company (oil). Append unit (e.g. 4 Liter). Second line = category.
+                    const gradeLevelCompanyParts = [];
+                    if (grade && !isDummy(grade)) gradeLevelCompanyParts.push(grade);
+                    if (level && !isDummy(level)) gradeLevelCompanyParts.push(level);
+                    if (company && !isDummy(company)) gradeLevelCompanyParts.push(company);
+                    if (itemType === 'oil' && unitForFirstLine) gradeLevelCompanyParts.push(unitForFirstLine);
+                    const gradeLevelCompanyLine = gradeLevelCompanyParts.length > 0 ? gradeLevelCompanyParts.join(' • ') : '';
+                    
+                    // Build first line HTML: oil = Grade•Level•Company•unit + second line category; battery = firstLineParts; else product name
                     let firstLineHtml = '';
-                    let firstLineText = productName; // Default to product name
+                    let firstLineText = productName;
                     if (itemType === 'battery' && firstLineParts.length > 0) {
-                        firstLineText = firstLineParts.join(' ');
+                        firstLineText = firstLineParts.join(' • ');
                         const highlightedFirstLine = highlightText(firstLineText, query);
-                        firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedFirstLine + '</div>';
+                        firstLineHtml = '<div class="battery-type-sequence fw-bold mb-1">' + highlightedFirstLine + '</div>';
+                    } else if (gradeLevelCompanyLine) {
+                        firstLineText = gradeLevelCompanyLine;
+                        const highlighted = highlightText(gradeLevelCompanyLine, query);
+                        firstLineHtml = '<div class="fw-bold text-dark mb-1 text-uppercase">' + highlighted + '</div>';
+                        const secondLineParts = [];
+                        if (category && !isDummy(category)) secondLineParts.push(category);
+                        if (mileageName) secondLineParts.push('Mileage: ' + mileageName);
+                        const secondLineContent = secondLineParts.length > 0
+                            ? secondLineParts.join(' • ')
+                            : highlightText(productName, query);
+                        firstLineHtml += '<div class="small text-muted mt-0 text-uppercase">' + secondLineContent + '</div>';
                     } else {
-                        // For non-battery items, show product name as before
                         const highlightedProductName = highlightText(productName, query);
                         firstLineHtml = '<div class="fw-bold text-dark mb-1">' + highlightedProductName + '</div>';
                     }
+                    
+                    // Oil/Can: show "X L per can" when unit is e.g. Can - 3 Liter
+                    const literPerCanHtml = (literPerCan != null && literPerCan > 0)
+                        ? ('<div class="small text-info mt-0">Can = ' + (Number.isInteger(literPerCan) ? literPerCan : literPerCan.toFixed(1)) + ' L</div>')
+                        : '';
                     
                     // Build short details HTML for search display (includes vehicle) with highlighting
                     let detailsHtml = '';
@@ -2309,6 +2624,7 @@ $(document).ready(function() {
                              data-rate="${rate}"
                              data-unit="${unit}"
                                          data-warehouse-id="${result.warehouse_id || ''}"
+                             data-liter-per-can="${(literPerCan != null && literPerCan > 0) ? literPerCan : ''}"
                              style="cursor: pointer; transition: all 0.2s ease; background: white;">
                             <div class="d-flex justify-content-between align-items-start">
                                 ${itemImage ? `<div class="me-3" style="flex-shrink: 0;">
@@ -2316,6 +2632,7 @@ $(document).ready(function() {
                                 </div>` : ''}
                                 <div class="flex-grow-1 me-3">
                                     ${firstLineHtml}
+                                    ${literPerCanHtml}
                                     ${detailsHtml}
                                     ${codeInfo ? '<div class="text-primary small fw-semibold mt-1"><i class="ti ti-barcode me-1"></i>' + highlightedCodeInfo + '</div>' : ''}
                                     </div>
@@ -2325,6 +2642,7 @@ $(document).ready(function() {
                                         <span class="badge bg-${stockColor} bg-opacity-10 text-${stockColor}">
                                             ${stockIcon ? '<i class="ti ' + stockIcon + ' me-1"></i>' : ''}${stockDisplay} ${unit}
                                         </span>
+                                        ${(literPerCan != null && literPerCan > 0) ? ('<div class="small text-muted mt-1">' + (Number.isInteger(literPerCan) ? literPerCan : literPerCan.toFixed(1)) + ' L per can</div>') : ''}
                                     </div>
                                 </div>
                             </div>
@@ -2442,7 +2760,7 @@ $(document).ready(function() {
         
         if (line1 || line2 || line3) {
                 $('#selected-item-details-line1').html(line1 || '&nbsp;');
-            $('#selected-item-details-line2').html(line2 || '&nbsp;');
+            $('#selected-item-details-line2').html(line2 || '&nbsp;').toggle(!!line2);
             $('#selected-item-details-line3').html(line3 || '&nbsp;');
                 $('#selected-item-details-display').removeClass('d-none');
         } else {
@@ -2457,11 +2775,21 @@ $(document).ready(function() {
                     // Prefer sale_price for sales; then rate (from API), total_price, or row rate
                     const itemRate = response.sale_price || response.rate || response.total_price || 0;
                     $('#item-rate').val(Math.round(parseFloat(itemRate) || 0));
-                    $('#item-quantity').val('1');
-                    
-                    // Auto-set unit from item's saved unit
-                    if (response.unit) {
-                        $('#item-unit').val(response.unit);
+                    const literPerCan = (response.liter_per_can != null && response.liter_per_can !== '' && !isNaN(parseFloat(response.liter_per_can))) ? parseFloat(response.liter_per_can) : null;
+                    $('#item-liter-per-can').val(literPerCan != null && literPerCan > 0 ? literPerCan : '');
+                    if (literPerCan != null && literPerCan > 0) {
+                        $('#quantity-row-normal').hide();
+                        $('#quantity-row-oil').show();
+                        $('#item-quantity-cans').val(0);
+                        $('#item-quantity-liters').val(0);
+                        $('#item-quantity').val(0);
+                        $('#item-unit').val(response.unit || 'Can');
+                        $('#item-quantity-oil-summary').text('= 0 Can total');
+                    } else {
+                        $('#quantity-row-oil').hide();
+                        $('#quantity-row-normal').show();
+                        $('#item-quantity').val('1');
+                        $('#item-unit').val(response.unit || 'Unit');
                     }
                     
                     // Auto-select warehouse if available (from response or from search result)
@@ -2478,13 +2806,35 @@ $(document).ready(function() {
                         $('#item-search-image-preview').addClass('d-none');
                     }
                     
-                    // Show stock below image
+                    // Show stock below image (X Can Y Liter/ML for oil)
                     if (response.stock !== undefined) {
                         const stockValue = parseFloat(response.stock) || 0;
-                        const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
-                        const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                         const unit = response.unit || 'Unit';
-                        $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                        const lpc = (response.liter_per_can != null && response.liter_per_can !== '' && !isNaN(parseFloat(response.liter_per_can))) ? parseFloat(response.liter_per_can) : null;
+                        let stockHtml = '';
+                        if (lpc != null && lpc > 0 && stockValue > 0) {
+                            const fullCans = Math.floor(stockValue);
+                            const loose = stockValue % 1;
+                            const openLiters = loose * lpc;
+                            const openML = Math.round(openLiters * 1000);
+                            const canText = fullCans + ' Can';
+                            const looseText = openML >= 1000 ? (openLiters.toFixed(1).replace(/\.0$/, '') + ' Liter') : (openML + ' ML');
+                            stockHtml = `<span class="text-dark fw-500">${canText}${openML > 0 ? ' ' + looseText : ''}</span>`;
+                            if (openML > 0 && openML >= 1000) {
+                                stockHtml += `<span class="small text-muted d-block" style="font-size: 0.65rem;">${openML} ML</span>`;
+                            }
+                            stockHtml += `<div class="small text-muted mt-0">${Number.isInteger(lpc) ? lpc : lpc.toFixed(1)} L per can</div>`;
+                            $('#item-search-stock').html(stockHtml);
+                        } else {
+                            const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
+                            const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
+                            stockHtml = `<span class="${stockColor}">${stockText} ${unit}</span>`;
+                            if (lpc != null && lpc > 0) {
+                                const lText = Number.isInteger(lpc) ? lpc : lpc.toFixed(1);
+                                stockHtml += `<div class="small text-muted mt-0">${lText} L per can</div>`;
+                            }
+                            $('#item-search-stock').html(stockHtml);
+                        }
                         
                         // Show supplier selection if stock is 0
                         if (stockValue === 0) {
@@ -2549,40 +2899,54 @@ $(document).ready(function() {
                     return;
                 }
                 
-                let html = '';
-                stockData.forEach(function(stock) {
+                function formatStockRow(stock, isWarehouse) {
                     var unitLabel = (stock.unit || 'Unit').trim();
                     var qty = parseFloat(stock.quantity) || 0;
                     var qtyText = (Number.isInteger(qty) ? qty : qty.toFixed(2)) + ' ' + unitLabel;
+                    var cartons = parseInt(stock.cartons, 10) || 0;
+                    var loose = parseFloat(stock.loose) || 0;
+                    var literPerCan = (stock.base_unit === 'Liter' && stock.base_unit_multiplier) ? parseFloat(stock.base_unit_multiplier) : null;
+                    var openLiters = 0;
+                    if (literPerCan !== null) {
+                        var looseLitersVal = parseFloat(stock.loose_liters);
+                        if (!isNaN(looseLitersVal)) openLiters = looseLitersVal;
+                        else if (loose > 0) openLiters = loose * literPerCan;
+                    }
+                    var baseUnitLabel = (stock.base_unit || 'Liter').trim();
+                    var multVal = (literPerCan != null && literPerCan > 0) ? literPerCan : 0;
+                    var isSelected = isWarehouse && ($('#selected-warehouse-id').val() == stock.id);
+                    var rowClass = isWarehouse ? 'stock-warehouse-item' : 'stock-branch-item';
+                    if (isWarehouse && isSelected) rowClass += ' bg-primary text-white';
+                    var textClass = (isWarehouse && isSelected) ? 'text-white' : 'text-muted';
+
+                    if (isWarehouse) {
+                        var lpcText = (literPerCan != null && literPerCan > 0) ? (Number.isInteger(literPerCan) ? literPerCan : literPerCan.toFixed(1)) : '';
+                        var tag1Html = (lpcText !== '') ? '<span class="warehouse-unit-tag me-1">' + lpcText + ' L PER CAN</span>' : '';
+                        var tag2Html = (lpcText !== '' && baseUnitLabel) ? '<span class="warehouse-unit-tag me-2">' + lpcText + ' ' + baseUnitLabel + '</span>' : '';
+                        var canLabel = unitLabel || 'Can';
+                        var mainQtyDisp = Number.isInteger(qty) ? qty : qty.toFixed(2);
+                        var stockLabel = mainQtyDisp + ' ' + canLabel;
+                        var dataAttrs = ' data-warehouse-id="' + stock.id + '" data-branch-id="' + (stock.branch_id || '') + '" data-display="' + (stock.display || '').replace(/"/g, '&quot;') + '" data-quantity="' + qty + '" data-unit="' + (unitLabel || '').replace(/"/g, '&quot;') + '" data-base-unit="' + (stock.base_unit || '').replace(/"/g, '&quot;') + '" data-base-unit-multiplier="' + (multVal || '') + '" data-qty-text="' + (qtyText || '').replace(/"/g, '&quot;') + '" data-cartons="' + cartons + '" data-loose-liters="' + openLiters + '" data-liter-per-can="' + (literPerCan != null ? literPerCan : '') + '"';
+                        return '<div class="d-flex flex-wrap align-items-center gap-2 py-2 mb-1 ' + rowClass + '" ' + dataAttrs + ' style="cursor: pointer; transition: all 0.2s; ' + (isSelected ? '' : 'background-color: #f0f0f0;') + '">' +
+                            '<span class="me-2">' + (isSelected ? '✓' : '') + '</span>' +
+                            '<span class="' + (isSelected ? 'text-white' : '') + '">' + (stock.display || 'Display') + '</span>' +
+                            tag1Html +
+                            tag2Html +
+                            '<span class="' + (isSelected ? 'text-white' : 'text-dark') + ' me-2" style="font-size: 0.9rem;">' + stockLabel + '</span>' +
+                            '<input type="number" min="0" step="1" class="form-control form-control-sm stock-warehouse-qty-input" placeholder="0" value="0" data-warehouse-id="' + stock.id + '" onclick="event.stopPropagation();" data-unit="' + (unitLabel || 'Piece').replace(/"/g, '&quot;') + '">' +
+                            '<input type="number" min="0" step="0.01" class="form-control form-control-sm stock-warehouse-base-qty-input" placeholder="" value="" data-warehouse-id="' + stock.id + '" onclick="event.stopPropagation();" data-multiplier="' + multVal + '">' +
+                            '<input type="number" min="0" step="1" class="form-control form-control-sm stock-warehouse-extra-input" placeholder="" value="" data-warehouse-id="' + stock.id + '" onclick="event.stopPropagation();">' +
+                        '</div>';
+                    }
+                    return '<div class="p-2 mb-1 border-bottom stock-branch-item" style="background-color: #fff;"><div class="d-flex justify-content-between align-items-center"><div class="fw-bold">' + (stock.display || '') + '</div></div></div>';
+                }
+                
+                let html = '';
+                stockData.forEach(function(stock) {
                     if (stock.type === 'branch') {
-                        // Branch total
-                        html += `
-                            <div class="p-2 mb-1 border-bottom stock-branch-item" style="background-color: #fff;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="fw-bold">${stock.display}</div>
-                                    <div class="text-muted"><span class="fw-bold">${qtyText}</span></div>
-                                </div>
-                            </div>
-                        `;
+                        html += formatStockRow(stock, false);
                     } else if (stock.type === 'warehouse') {
-                        // Warehouse item - check if selected
-                        const isSelected = $('#selected-warehouse-id').val() == stock.id;
-                        html += `
-                            <div class="p-2 mb-1 stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
-                                 data-warehouse-id="${stock.id}"
-                                 data-branch-id="${stock.branch_id}"
-                                 style="cursor: pointer; transition: all 0.2s; ${isSelected ? '' : 'background-color: #f0f0f0;'}">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="d-flex align-items-center">
-                                        <span class="me-2">${isSelected ? '✓' : ''}</span>
-                                        <span class="${isSelected ? 'text-white' : ''}">${stock.display}</span>
-                                    </div>
-                                    <div class="${isSelected ? 'text-white' : 'text-muted'}">
-                                        <span class="fw-bold">${qtyText}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+                        html += formatStockRow(stock, true);
                     }
                 });
                 
@@ -2595,17 +2959,61 @@ $(document).ready(function() {
     }
     
     // Select warehouse from stock status
-    $(document).on('click', '.stock-warehouse-item', function() {
-        // Remove previous selection
-        $('.stock-warehouse-item').removeClass('bg-primary text-white').addClass('bg-light');
-        $('.stock-warehouse-item').find('span:first').text('');
-        
-        // Select this warehouse
-        $(this).removeClass('bg-light').addClass('bg-primary text-white');
-        $(this).find('span:first').html('✓');
-        
+    $(document).on('click', '.stock-warehouse-item', function(e) {
+        if ($(e.target).closest('.stock-warehouse-qty-input, .stock-warehouse-base-qty-input, .stock-warehouse-extra-input').length) return;
+        $('.stock-warehouse-item').removeClass('bg-primary text-white');
+        $('.stock-warehouse-item').each(function() { $(this).find('span').first().text(''); });
+        $(this).addClass('bg-primary text-white');
+        $(this).find('span').first().html('✓');
         const warehouseId = $(this).data('warehouse-id');
+        const warehouseDisplay = $(this).data('display') || $(this).find('span').eq(1).text() || 'Warehouse';
         $('#selected-warehouse-id').val(warehouseId);
+        $('#item-search-warehouse').text(warehouseDisplay).removeClass('d-none');
+        $('body').data('currentWarehouseName', warehouseDisplay);
+        $(this).find('.stock-warehouse-qty-input').val('0');
+        $(this).find('.stock-warehouse-base-qty-input').val('');
+        $(this).find('.stock-warehouse-extra-input').val('');
+        $('#item-quantity').val('');
+        $('#item-quantity-cans').val(0);
+        $('#item-quantity-liters').val(0);
+        if (typeof updateOilQuantityFromInputs === 'function') updateOilQuantityFromInputs();
+    });
+
+    $(document).on('focus', '.stock-warehouse-qty-input, .stock-warehouse-base-qty-input, .stock-warehouse-extra-input', function() {
+        var $row = $(this).closest('.stock-warehouse-item');
+        if ($row.length && !$row.hasClass('bg-primary')) {
+            $('.stock-warehouse-item').removeClass('bg-primary text-white');
+            $('.stock-warehouse-item').each(function() { $(this).find('span').first().text(''); });
+            $row.addClass('bg-primary text-white');
+            $row.find('span').first().html('✓');
+            $('#selected-warehouse-id').val($row.data('warehouse-id') || '');
+            var whDisp = $row.data('display') || $row.find('span').eq(1).text() || '';
+            if (whDisp) {
+                $('#item-search-warehouse').text(whDisp).removeClass('d-none');
+                $('body').data('currentWarehouseName', whDisp);
+            }
+        }
+    });
+    $(document).on('change', '.stock-warehouse-qty-input, .stock-warehouse-base-qty-input, .stock-warehouse-extra-input', function() {
+        var $row = $(this).closest('.stock-warehouse-item');
+        if (!$row.length) return;
+        var cans = parseInt($row.find('.stock-warehouse-qty-input').val(), 10) || 0;
+        var baseLiters = parseFloat($row.find('.stock-warehouse-base-qty-input').val()) || 0;
+        var lpc = parseFloat($row.data('liter-per-can')) || 0;
+        var looseLiters = 0;
+        if (lpc > 0) {
+            looseLiters = baseLiters;
+        }
+        var qty = cans;
+        if (lpc > 0 && (cans > 0 || looseLiters > 0)) {
+            qty = cans + (looseLiters / lpc);
+        }
+        if ($row.hasClass('bg-primary')) {
+            $('#item-quantity').val(qty > 0 ? qty : '');
+            $('#item-quantity-cans').val(cans);
+            $('#item-quantity-liters').val(looseLiters);
+            if (typeof updateOilQuantityFromInputs === 'function') updateOilQuantityFromInputs();
+        }
     });
     
     // Hide search results when clicking outside
@@ -2631,19 +3039,31 @@ $(document).ready(function() {
                 // Set rate - prefer sale_price for sales
                 const itemRate = response.sale_price || response.rate || response.total_price || 0;
                 $('#item-rate').val(Math.round(parseFloat(itemRate) || 0));
-                $('#item-quantity').val('1');
+                const literPerCan = (response.liter_per_can != null && response.liter_per_can !== '' && !isNaN(parseFloat(response.liter_per_can))) ? parseFloat(response.liter_per_can) : null;
+                $('#item-liter-per-can').val(literPerCan != null && literPerCan > 0 ? literPerCan : '');
+                if (literPerCan != null && literPerCan > 0) {
+                    $('#quantity-row-normal').hide();
+                    $('#quantity-row-oil').show();
+                    $('#item-quantity-cans').val(0);
+                    $('#item-quantity-liters').val(0);
+                    $('#item-quantity').val(0);
+                    $('#item-unit').val(response.unit || 'Can');
+                    $('#item-quantity-oil-summary').text('= 0 Can total');
+                } else {
+                    $('#quantity-row-oil').hide();
+                    $('#quantity-row-normal').show();
+                    $('#item-quantity').val('1');
+                    $('#item-unit').val(response.unit || 'Unit');
+                }
                 
-                // Set unit from item
-                $('#item-unit').val(response.unit || 'Unit');
-                
-                // Auto-select warehouse if available
+                // Auto-select warehouse
                 if (response.warehouse_id) {
                     $('#selected-warehouse-id').val(response.warehouse_id);
-                    // Update warehouse selection in stock status
+                    $('.stock-warehouse-item').removeClass('bg-primary text-white');
+                    $('.stock-warehouse-item').each(function() { $(this).find('span').first().text(''); });
                     $('.stock-warehouse-item[data-warehouse-id="' + response.warehouse_id + '"]')
-                        .removeClass('bg-light')
                         .addClass('bg-primary text-white')
-                        .find('span:first')
+                        .find('span').first()
                         .html('✓');
                 }
                 
@@ -2655,13 +3075,35 @@ $(document).ready(function() {
                     $('#item-search-image-preview').addClass('d-none');
                 }
                 
-                // Show stock below image
+                // Show stock below image (for oil items: X Can Y Liter / Y ML)
                 if (response.stock !== undefined) {
                     const stockValue = parseFloat(response.stock) || 0;
-                    const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
-                    const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                     const unit = response.unit || 'Unit';
-                    $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                    const lpc = (response.liter_per_can != null && response.liter_per_can !== '' && !isNaN(parseFloat(response.liter_per_can))) ? parseFloat(response.liter_per_can) : null;
+                    let stockHtml = '';
+                    if (lpc != null && lpc > 0 && stockValue > 0) {
+                        const fullCans = Math.floor(stockValue);
+                        const loose = stockValue % 1;
+                        const openLiters = loose * lpc;
+                        const openML = Math.round(openLiters * 1000);
+                        const canText = fullCans + ' Can';
+                        const looseText = openML >= 1000 ? (openLiters.toFixed(1).replace(/\.0$/, '') + ' Liter') : (openML + ' ML');
+                        stockHtml = `<span class="text-dark fw-500">${canText}${openML > 0 ? ' ' + looseText : ''}</span>`;
+                        if (openML > 0 && openML >= 1000) {
+                            stockHtml += `<span class="small text-muted d-block" style="font-size: 0.65rem;">${openML} ML</span>`;
+                        }
+                        stockHtml += `<div class="small text-muted mt-0">${Number.isInteger(lpc) ? lpc : lpc.toFixed(1)} L per can</div>`;
+                        $('#item-search-stock').html(stockHtml);
+                    } else {
+                        const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
+                        const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
+                        stockHtml = `<span class="${stockColor}">${stockText} ${unit}</span>`;
+                        if (lpc != null && lpc > 0) {
+                            const lText = Number.isInteger(lpc) ? lpc : lpc.toFixed(1);
+                            stockHtml += `<div class="small text-muted mt-0">${lText} L per can</div>`;
+                        }
+                        $('#item-search-stock').html(stockHtml);
+                    }
                     
                     // Show supplier selection if stock is 0
                     if (stockValue === 0) {
@@ -2697,6 +3139,23 @@ $(document).ready(function() {
             }
         });
     }
+    
+    // Oil quantity: sync Cans + Liters to #item-quantity (total in cans) and summary
+    function updateOilQuantityFromInputs() {
+        const lpc = parseFloat($('#item-liter-per-can').val()) || 0;
+        if (lpc <= 0) return;
+        const cans = parseInt($('#item-quantity-cans').val(), 10) || 0;
+        const liters = parseFloat($('#item-quantity-liters').val()) || 0;
+        const totalCans = cans + (liters / lpc);
+        $('#item-quantity').val(totalCans > 0 ? totalCans : 0);
+        const totalLiters = (cans * lpc) + liters;
+        let sum = '= ' + (totalCans > 0 ? totalCans.toFixed(3).replace(/\.?0+$/, '') : '0') + ' Can total';
+        if (totalLiters > 0) sum += ' (' + (totalLiters % 1 === 0 ? totalLiters : totalLiters.toFixed(2)) + ' L)';
+        $('#item-quantity-oil-summary').text(sum);
+    }
+    $(document).on('input change', '#item-quantity-cans, #item-quantity-liters', function() {
+        if ($('#quantity-row-oil').is(':visible')) updateOilQuantityFromInputs();
+    });
 
     // Load last 5 sale price history for selected item
     let lastPurchaseRate = 0;
@@ -2838,32 +3297,34 @@ $(document).ready(function() {
     });
 
     $('#item-quantity').on('change', function() {
-        $('#item-quantity-input').hide();
+        // Keep for any side effects; oil quantity sync is via updateOilQuantityFromInputs
     });
 
-    // Use custom quantity input if provided
-    $('#item-quantity-input').on('input', function() {
-        const customQty = parseInt($(this).val(), 10);
-        if (customQty && customQty > 0) {
-            const $sel = $('#item-quantity');
-            if (customQty > 1000 && !$sel.find('option[value="1001"]').length) {
-                for (let i = 1001; i <= 2000; i++) {
-                    $sel.append($('<option></option>').val(i).text(i));
+    // Confirm entry (use event delegation so it works after modal is moved to body)
+    $(document).on('click', '#confirm-entry', function() {
+        const itemId = $('#selected-item-id').val();
+        var quantityDisplay = '';
+        var $sel = $('.stock-warehouse-item.bg-primary');
+        if ($sel.length) {
+            var cans = parseInt($sel.find('.stock-warehouse-qty-input').val(), 10) || 0;
+            var baseLiters = parseFloat($sel.find('.stock-warehouse-base-qty-input').val()) || 0;
+            var lpc = parseFloat($sel.data('liter-per-can')) || 0;
+            $('#item-quantity-cans').val(cans);
+            $('#item-quantity-liters').val(baseLiters);
+            if (typeof updateOilQuantityFromInputs === 'function') updateOilQuantityFromInputs();
+            if (cans > 0 || baseLiters > 0) quantityDisplay = (cans > 0 ? cans + ' Can' : '') + (baseLiters > 0 ? (cans > 0 ? ' ' : '') + baseLiters + ' Liter' : '');
+            if (lpc > 0) {
+                var origCartons = parseInt($sel.data('cartons'), 10) || 0;
+                var origLooseL = parseFloat($sel.data('loose-liters')) || 0;
+                var origTotalLiters = (origCartons * lpc) + origLooseL;
+                var enteredLiters = (cans * lpc) + baseLiters;
+                if (enteredLiters > origTotalLiters) {
+                    alert('Quantity stock se ziyada hai. Available: ' + (origTotalLiters % 1 === 0 ? origTotalLiters : origTotalLiters.toFixed(2)) + ' Liter.');
+                    return;
                 }
             }
-            $sel.val(String(customQty));
         }
-    });
-
-    // Confirm entry
-    $('#confirm-entry').on('click', function() {
-        const itemId = $('#selected-item-id').val();
         let quantity = parseFloat($('#item-quantity').val()) || 0;
-        
-        // If custom quantity input is visible and has value, use that
-        if ($('#item-quantity-input').is(':visible') && $('#item-quantity-input').val()) {
-            quantity = parseFloat($('#item-quantity-input').val()) || 0;
-        }
         
         const unit = $('#item-unit').val();
         const rate = parseFloat($('#item-rate').val()) || 0;
@@ -2909,18 +3370,18 @@ $(document).ready(function() {
                 cancelButtonColor: '#6c757d'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, supplierId, isZeroStock);
+                    proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, supplierId, isZeroStock, quantityDisplay);
                 }
             });
             return;
         }
         
         // If no supplier, proceed normally
-        proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, null, false);
+        proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, null, false, quantityDisplay);
     });
     
     // Function to proceed with adding item
-    function proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, supplierId, isZeroStock) {
+    function proceedWithItemAdd(itemId, quantity, unit, rate, discount, discountType, taxPercentage, itemName, warrantyValue, warrantyUnit, supplierId, isZeroStock, quantityDisplay) {
 
         // Calculate discount amount
         let discountAmount = discount;
@@ -2938,11 +3399,15 @@ $(document).ready(function() {
         }
 
         // Add to items array (entry_type: 'purchase' or 'scrap' - same as Smart Invoice)
+        const selectedWarehouseId = $('#selected-warehouse-id').val();
+        const warehouseName = ($('#item-search-warehouse').text() || '').trim() || ($('body').data('currentWarehouseName') || '').trim() || (selectedWarehouseId ? 'Warehouse' : '—');
+        const branchName = ($('#selectedBranchName').text() || '').trim();
         const item = {
             id: itemCounter++,
             item_id: itemId,
             name: itemName,
             quantity: quantity,
+            quantity_display: quantityDisplay || null,
             unit: unit,
             rate: rate,
             discount: discountAmount,
@@ -2952,7 +3417,10 @@ $(document).ready(function() {
             warranty: warrantyValue ? warrantyValue + ' ' + warrantyUnit : null,
             entry_type: currentEntryType || 'purchase',
             supplier_id: supplierId || null,
-            is_zero_stock: isZeroStock || false
+            is_zero_stock: isZeroStock || false,
+            warehouse_id: (selectedWarehouseId && selectedWarehouseId !== '') ? selectedWarehouseId : null,
+            warehouse_name: warehouseName !== '—' ? warehouseName : null,
+            branch_name: branchName && branchName !== 'Select Branch' ? branchName : null
         };
 
         salesItems.push(item);
@@ -2978,10 +3446,13 @@ $(document).ready(function() {
         $('#empty-items-state').hide();
         $('#items-list').show();
         
-        // Clean item name before display (avoid Lorem Ipsum or dummy text)
+        // Clean item name before display (avoid Lorem Ipsum or dummy text); battery sequence = same highlight (dark blue, bold)
         const displayName = cleanItemName(item.name, item.item_id);
+        const isBatterySequence = (displayName && displayName.indexOf(' • ') !== -1);
+        const nameCellContent = isBatterySequence ? '<span class="battery-type-sequence fw-bold">' + (displayName.replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</span>' : (displayName.replace(/</g, '&lt;').replace(/>/g, '&gt;'));
         let typeBadge = '';
         if (item.entry_type === 'scrap') typeBadge = ' <span class="badge bg-warning text-dark ms-1" style="font-size: 9px;">SCRAP</span>';
+        else if (item.entry_type === 'scrap_sale') typeBadge = ' <span class="badge bg-success text-white ms-1" style="font-size: 9px;">SCRAP SALE</span>';
         else if (item.entry_type === 'claim') typeBadge = ' <span class="badge bg-info text-white ms-1" style="font-size: 9px;">CLAIM</span>';
         else if (item.entry_type === 'return') typeBadge = ' <span class="badge bg-danger text-white ms-1" style="font-size: 9px;">RETURN</span>';
         
@@ -2990,14 +3461,17 @@ $(document).ready(function() {
         const totalDisplay = 'Rs ' + totalVal.toFixed(2);
         const totalClass = totalVal < 0 ? ' text-danger fw-bold' : '';
         
+        const whDisplay = (item.warehouse_name || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const branchDisplay = (item.branch_name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const warehouseCell = branchDisplay
+            ? `<span class="d-block">${whDisplay}</span><span class="small text-muted">${branchDisplay}</span>`
+            : whDisplay;
+        
         const row = `
             <tr data-item-id="${item.item_id}" data-row-id="${item.id}" data-entry-type="${item.entry_type || 'purchase'}">
-                <td>${displayName}${typeBadge}</td>
-                <td>${item.quantity}</td>
-                <td>${item.unit}</td>
+                <td class="align-middle">${warehouseCell}</td>
+                <td>${displayName}${typeBadge}${item.quantity_display ? '<br><span class="text-muted small">' + item.quantity_display + '</span>' : ''}</td>
                 <td>Rs ${parseFloat(item.rate).toFixed(2)}</td>
-                <td>Rs ${parseFloat(item.discount).toFixed(2)}</td>
-                <td>${parseFloat(item.tax_percentage).toFixed(2)}%</td>
                 <td class="${totalClass}">${totalDisplay}</td>
                 <td>
                     <button type="button" class="btn btn-sm btn-danger remove-item" data-row-id="${item.id}">
@@ -3027,10 +3501,10 @@ $(document).ready(function() {
 
     function resetItemModal() {
         $('#selected-item-id').val('');
+        $('#selected-warehouse-id').val('');
         $('#item-edit-in-modal-btn').hide();
         $('#item-search').val('');
         resetItemQuantitySelect();
-        $('#item-quantity-input').val('1').hide();
         $('#item-unit').val('');
         $('#item-rate').val('0');
         $('#warranty-value').val('');
@@ -3386,6 +3860,15 @@ $(document).ready(function() {
         // Remove existing vehicle inputs first
         $('input[name^="vehicles["]').remove();
         
+        // Sync editable vehicle metrics from DOM to vehicles array before submit
+        $('.vehicle-current-km-input, .vehicle-daily-run-km-input, .vehicle-oil-capacity-input').each(function() {
+            const vehicleId = $(this).data('vehicle-id');
+            const val = $(this).val().trim();
+            const name = $(this).hasClass('vehicle-current-km-input') ? 'current_km' : ($(this).hasClass('vehicle-daily-run-km-input') ? 'daily_run_km' : 'oil_capacity');
+            const v = vehicles.find(function(ve) { return String(ve.id) === String(vehicleId); });
+            if (v) v[name] = val;
+        });
+        
         vehicles.forEach(function(vehicle, index) {
             // Add new inputs with customer_id
             const customerId = vehicle.customerId || $('#customer_id').val();
@@ -3413,6 +3896,21 @@ $(document).ready(function() {
                 type: 'hidden',
                 name: `vehicles[${index}][year]`,
                 value: vehicle.year
+            }).appendTo('#salesForm');
+            $('<input>').attr({
+                type: 'hidden',
+                name: `vehicles[${index}][oil_capacity]`,
+                value: vehicle.oil_capacity || ''
+            }).appendTo('#salesForm');
+            $('<input>').attr({
+                type: 'hidden',
+                name: `vehicles[${index}][current_km]`,
+                value: vehicle.current_km || ''
+            }).appendTo('#salesForm');
+            $('<input>').attr({
+                type: 'hidden',
+                name: `vehicles[${index}][daily_run_km]`,
+                value: vehicle.daily_run_km || ''
             }).appendTo('#salesForm');
         });
         
@@ -3493,7 +3991,8 @@ $(document).ready(function() {
                 tax_amount: taxAmount,
                 total: total,
                 supplier_id: item.supplier_id || null,
-                is_zero_stock: item.is_zero_stock || false
+                is_zero_stock: item.is_zero_stock || false,
+                warehouse_id: (item.warehouse_id != null && item.warehouse_id !== '') ? item.warehouse_id : null
             };
         });
 
@@ -3501,7 +4000,8 @@ $(document).ready(function() {
         const formData = new FormData(this);
         itemsData.forEach(function(item, index) {
             Object.keys(item).forEach(function(key) {
-                formData.append(`items[${index}][${key}]`, item[key]);
+                var val = item[key];
+                formData.append(`items[${index}][${key}]`, (val != null && val !== '') ? val : '');
             });
         });
 
@@ -3650,6 +4150,13 @@ $(document).ready(function() {
         $('#customer_mobile').select2('close');
         $('#addCustomerModal').modal('show');
     });
+    // When Add Customer modal opens (from sales page), set branch to current sales branch so new customer gets correct branch
+    $('#addCustomerModal').on('show.bs.modal', function() {
+        const salesBranchId = $('#salesBranchId').val();
+        if (salesBranchId && $('#customer_branch_id').length) {
+            $('#customer_branch_id').val(salesBranchId);
+        }
+    });
     // Full Add Customer form (#customerForm inside #addCustomerModal) - submit via AJAX then reload
     $(document).on('submit', '#addCustomerModal #customerForm', function(e) {
         e.preventDefault();
@@ -3781,7 +4288,57 @@ $(document).ready(function() {
     });
     
     // Vehicle Management
-    let vehicles = []; // Array to store vehicles
+    let vehicles = []; // Array to store vehicles (from DB when customer selected + newly added)
+    
+    // Load customer's vehicles from database and show below Add Vehicle button
+    function loadCustomerVehicles(customerId) {
+        if (!customerId) {
+            vehicles = [];
+            if (typeof displayVehicles === 'function') displayVehicles();
+            return;
+        }
+        $.ajax({
+            url: '{{ url("/customers") }}/' + customerId + '/vehicles',
+            type: 'GET',
+            dataType: 'json',
+            success: function(res) {
+                if (res && res.success && Array.isArray(res.vehicles)) {
+                    vehicles = res.vehicles.map(function(car) {
+                        return {
+                            id: 'db-' + car.id,
+                            dbId: car.id,
+                            customerId: String(car.customerId),
+                            plateNumber: car.plateNumber || '',
+                            make: car.make || '',
+                            model: car.model || '',
+                            year: car.year || '',
+                            oil_capacity: car.oil_capacity || '',
+                            current_km: car.current_km || '',
+                            daily_run_km: car.daily_run_km || ''
+                        };
+                    });
+                } else {
+                    vehicles = [];
+                }
+                if (typeof displayVehicles === 'function') displayVehicles();
+                // Auto-expand first vehicle so it shows like "ACTIVE VEHICLE" with metrics (as when user clicks)
+                if (vehicles.length > 0) {
+                    setTimeout(function() {
+                        const $firstCard = $('#vehicles-list .vehicle-card').first();
+                        if ($firstCard.length) {
+                            const $metrics = $firstCard.find('.vehicle-metrics');
+                            $firstCard.addClass('vehicle-card-expanded').css({ 'width': '100%', 'grid-column': '1 / -1' });
+                            $metrics.show();
+                        }
+                    }, 50);
+                }
+            },
+            error: function() {
+                vehicles = [];
+                if (typeof displayVehicles === 'function') displayVehicles();
+            }
+        });
+    }
     
     // Open vehicle modal
     $('#add-vehicle-btn').on('click', function() {
@@ -3793,12 +4350,24 @@ $(document).ready(function() {
             return;
         }
         
+        $('#vehicle-modal').appendTo('body');
         $('#vehicle-modal').modal('show');
         // Reset form
         $('#vehicle-form')[0].reset();
     });
     
-    // Function to save vehicle
+    // Move vehicle modal to body when shown (so it is clickable)
+    $('#vehicle-modal').on('show.bs.modal', function() {
+        $('#vehicle-modal').appendTo('body');
+    });
+    $('#vehicle-modal').on('shown.bs.modal', function() {
+        $('#vehicle-modal').css({ 'pointer-events': 'auto', 'z-index': 9999 });
+        $('#vehicle-modal').find('.modal-dialog, .modal-content, .modal-body, .modal-footer, .modal-header').css('pointer-events', 'auto');
+        var $backdrop = $('.modal-backdrop').last();
+        if ($backdrop.length) $('#vehicle-modal').insertAfter($backdrop);
+    });
+    
+    // Function to save vehicle (saves to database immediately with selected customer_id)
     function saveVehicle(closeModal = true) {
         // Check if customer is selected first
         const customerId = $('#customer_id').val();
@@ -3826,38 +4395,65 @@ $(document).ready(function() {
             return false;
         }
         
-        // Check if vehicle with same plate number already exists
-        const existingVehicle = vehicles.find(v => v.plateNumber === plateNumber);
-        if (existingVehicle) {
-            if (!confirm('Vehicle with this plate number already exists. Do you want to update it?')) {
-                return false;
-            }
-            // Update existing vehicle
-            existingVehicle.customerId = customerId;
-            existingVehicle.make = make;
-            existingVehicle.model = model;
-            existingVehicle.year = year;
-        } else {
-            // Add new vehicle with customer_id
-            vehicles.push({
-                id: Date.now(), // Unique ID
-                customerId: customerId,
-                plateNumber: plateNumber,
-                make: make,
-                model: model,
-                year: year
-            });
+        // Check if vehicle with same plate number already in list
+        const existingInList = vehicles.find(v => v.plateNumber === plateNumber);
+        if (existingInList && !confirm('Vehicle with this plate number already in list. Update it?')) {
+            return false;
         }
+        
+        // Save to database immediately (selected customer's ID)
+        const savePayload = {
+            customer_id: customerId,
+            plate_number: plateNumber,
+            make: make,
+            model: model,
+            year: year,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
+        
+        let saveSucceeded = false;
+        $.ajax({
+            url: '{{ route("customer.vehicles.store") }}',
+            type: 'POST',
+            data: savePayload,
+            async: false,
+            success: function(res) {
+                if (res && res.success) {
+                    saveSucceeded = true;
+                    if (existingInList) {
+                        existingInList.customerId = customerId;
+                        existingInList.make = make;
+                        existingInList.model = model;
+                        existingInList.year = year;
+                        if (res.vehicle && res.vehicle.id) existingInList.dbId = res.vehicle.id;
+                    } else {
+                        vehicles.push({
+                            id: Date.now(),
+                            dbId: (res.vehicle && res.vehicle.id) ? res.vehicle.id : null,
+                            customerId: customerId,
+                            plateNumber: plateNumber,
+                            make: make,
+                            model: model,
+                            year: year
+                        });
+                    }
+                }
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) || (xhr.responseJSON && xhr.responseJSON.errors) ? JSON.stringify(xhr.responseJSON.errors) : (xhr.statusText || 'Failed to save vehicle');
+                alert('Could not save vehicle: ' + msg);
+            }
+        });
+        
+        if (!saveSucceeded) return false;
         
         // Update display
         displayVehicles();
         
-        // Close modal and reset form if needed
         if (closeModal) {
             $('#vehicle-modal').modal('hide');
             $('#vehicle-form')[0].reset();
         } else {
-            // Just reset form for "Save & Add Another"
             $('#vehicle-form')[0].reset();
             $('#vehicle-plate-number').focus();
         }
@@ -3895,20 +4491,25 @@ $(document).ready(function() {
         $vehiclesList.empty();
         
         vehicles.forEach(function(vehicle) {
+            const dbId = vehicle.dbId || vehicle.id;
+            const canEdit = !!vehicle.dbId;
             const vehicleCard = `
-                <div class="card mb-3 vehicle-card" data-vehicle-id="${vehicle.id}" style="border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #f8f9fa; transition: all 0.3s ease;">
+                <div class="card mb-3 vehicle-card" data-vehicle-id="${vehicle.id}" data-db-id="${dbId}" data-customer-id="${vehicle.customerId || ''}" style="border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #f8f9fa; transition: all 0.3s ease;">
                     <div class="card-body p-3">
                         <!-- Top Section - Clickable -->
                         <div class="position-relative mb-0 vehicle-header" style="cursor: pointer;" data-vehicle-id="${vehicle.id}">
                             <div class="d-flex justify-content-between align-items-start">
-                                <div>
+                                <div class="vehicle-display-plate" style="flex: 1;">
                                     <p class="mb-1 fw-bold text-uppercase" style="color: #4a90e2; font-size: 11px; letter-spacing: 0.5px;">ACTIVE VEHICLE</p>
-                                    <h5 class="mb-1 fw-bold" style="color: #1e3a8a; font-size: 18px;">${vehicle.plateNumber}</h5>
-                                    <p class="mb-0 fw-semibold" style="color: #1e3a8a; font-size: 14px;">${vehicle.make.toUpperCase()} ${vehicle.model.toUpperCase()}</p>
+                                    <h5 class="mb-1 fw-bold vehicle-plate-text" style="color: #1e3a8a; font-size: 18px;">${vehicle.plateNumber || ''}</h5>
+                                    <p class="mb-0 fw-semibold vehicle-make-model-text" style="color: #1e3a8a; font-size: 14px;">${(vehicle.make || '').toUpperCase()} ${(vehicle.model || '').toUpperCase()}</p>
                                 </div>
-                                <button type="button" class="btn btn-sm remove-vehicle-btn" data-vehicle-id="${vehicle.id}" style="background: #dc3545; color: white; border-radius: 50%; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; z-index: 10;" onclick="event.stopPropagation();">
-                                    <i class="ti ti-x" style="font-size: 14px;"></i>
-                                </button>
+                                <div class="d-flex gap-1 vehicle-actions">
+                                    ${canEdit ? `<button type="button" class="btn btn-sm btn-outline-primary edit-vehicle-sale-btn" data-db-id="${vehicle.dbId}" data-customer-id="${vehicle.customerId || ''}" data-plate="${vehicle.plateNumber || ''}" data-make="${vehicle.make || ''}" data-model="${vehicle.model || ''}" data-year="${vehicle.year || ''}" style="border-radius: 50%; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 10;" title="Edit vehicle"><i class="ti ti-edit" style="font-size: 14px;"></i></button>` : ''}
+                                    <button type="button" class="btn btn-sm remove-vehicle-btn" data-vehicle-id="${vehicle.id}" style="background: #dc3545; color: white; border-radius: 50%; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; z-index: 10;">
+                                        <i class="ti ti-x" style="font-size: 14px;"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -3922,19 +4523,19 @@ $(document).ready(function() {
                                 <div class="col-4">
                                     <div class="rounded p-2" style="background: #f0f0f0; border: 1px solid #e0e0e0;">
                                         <p class="mb-1 text-uppercase" style="color: #666; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;">OIL CAPACITY</p>
-                                        <p class="mb-0 fw-bold" style="color: #1e3a8a; font-size: 12px;">0 KM</p>
+                                        <input type="text" class="form-control form-control-sm border-0 p-0 bg-transparent vehicle-oil-capacity-input" data-vehicle-id="${vehicle.id}" placeholder="0 KM" value="${vehicle.oil_capacity || ''}" style="color: #1e3a8a; font-size: 12px; font-weight: bold;">
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="rounded p-2" style="background: #e8f4f8; border: 1px solid #b3d9e6;">
                                         <p class="mb-1 text-uppercase" style="color: #4a90e2; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;">CURRENT KM</p>
-                                        <p class="mb-0 fw-bold" style="color: #666; font-size: 12px;">...</p>
+                                        <input type="text" class="form-control form-control-sm border-0 p-0 bg-transparent vehicle-current-km-input" data-vehicle-id="${vehicle.id}" placeholder="..." value="${vehicle.current_km || ''}" style="color: #1e3a8a; font-size: 12px; font-weight: bold;">
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="rounded p-2" style="background: #f3e8ff; border: 1px solid #d4b3ff;">
                                         <p class="mb-1 text-uppercase" style="color: #9333ea; font-size: 9px; font-weight: 600; letter-spacing: 0.5px;">DAILY RUN KM</p>
-                                        <p class="mb-0 fw-bold" style="color: #666; font-size: 12px;">KM...</p>
+                                        <input type="text" class="form-control form-control-sm border-0 p-0 bg-transparent vehicle-daily-run-km-input" data-vehicle-id="${vehicle.id}" placeholder="KM..." value="${vehicle.daily_run_km || ''}" style="color: #1e3a8a; font-size: 12px; font-weight: bold;">
                                     </div>
                                 </div>
                             </div>
@@ -3956,8 +4557,128 @@ $(document).ready(function() {
         }
     });
     
-    // Toggle vehicle metrics on header click and expand card width
+    // Update vehicle metrics from editable inputs (keep in sync with vehicles array)
+    $(document).on('input change', '.vehicle-current-km-input, .vehicle-daily-run-km-input, .vehicle-oil-capacity-input', function() {
+        const vehicleId = $(this).data('vehicle-id');
+        const $input = $(this);
+        const val = $input.val().trim();
+        const name = $input.hasClass('vehicle-current-km-input') ? 'current_km' : ($input.hasClass('vehicle-daily-run-km-input') ? 'daily_run_km' : 'oil_capacity');
+        const v = vehicles.find(function(ve) { return String(ve.id) === String(vehicleId); });
+        if (v) v[name] = val;
+    });
+    
+    // Edit vehicle (sales) - open modal and fill form
+    $(document).on('click', '.edit-vehicle-sale-btn', function(e) {
+        e.stopPropagation();
+        window._editVehicleFromEditCustomerId = null;
+        const dbId = $(this).data('db-id');
+        if (!dbId) return;
+        $('#editVehicleSaleId').val(dbId);
+        $('#editVehicleSalePlate').val($(this).data('plate') || '');
+        $('#editVehicleSaleMake').val($(this).data('make') || '');
+        $('#editVehicleSaleModel').val($(this).data('model') || '');
+        $('#editVehicleSaleYear').val($(this).data('year') || '');
+        $('#editVehicleSaleModal').modal('show');
+    });
+    
+    // Edit vehicle from Edit Customer modal - open same modal, on success refresh edit-customer vehicles list
+    $(document).on('click', '.edit-vehicle-in-edit-customer-btn', function(e) {
+        e.preventDefault();
+        const carId = $(this).data('car-id');
+        const customerIdForRefresh = $(this).data('customer-id') || $('#customer_id').val();
+        if (!carId) return;
+        window._editVehicleFromEditCustomerId = customerIdForRefresh;
+        $('#editVehicleSaleId').val(carId);
+        $('#editVehicleSalePlate').val($(this).data('plate') || '');
+        $('#editVehicleSaleMake').val($(this).data('make') || '');
+        $('#editVehicleSaleModel').val($(this).data('model') || '');
+        $('#editVehicleSaleYear').val($(this).data('year') || '');
+        $('#editVehicleSaleModal').modal('show');
+    });
+    
+    // Keep Vehicle Edit modal (and its backdrop) on top when opened over Edit Customer modal
+    $('#editVehicleSaleModal').on('shown.bs.modal', function() {
+        $(this).css('z-index', 1065);
+        $('.modal-backdrop').last().css('z-index', 1060);
+    });
+    
+    // Edit vehicle form submit - PUT to customer-vehicles and refresh list
+    $('#editVehicleSaleForm').on('submit', function(e) {
+        e.preventDefault();
+        const vehicleId = $('#editVehicleSaleId').val();
+        if (!vehicleId) return;
+        const plate = $('#editVehicleSalePlate').val().trim();
+        const make = $('#editVehicleSaleMake').val().trim();
+        const model = $('#editVehicleSaleModel').val().trim();
+        const year = $('#editVehicleSaleYear').val().trim();
+        const $btn = $(this).find('button[type="submit"]');
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: '/customer-vehicles/' + vehicleId,
+            type: 'POST',
+            data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                _method: 'PUT',
+                plate_number: plate,
+                make: make,
+                model: model,
+                year: year
+            },
+            success: function() {
+                const v = vehicles.find(function(ve) { return String(ve.dbId) === String(vehicleId); });
+                if (v) {
+                    v.plateNumber = plate;
+                    v.make = make;
+                    v.model = model;
+                    v.year = year;
+                }
+                if (typeof displayVehicles === 'function') displayVehicles();
+                $('#editVehicleSaleModal').modal('hide');
+                // If edit was opened from Edit Customer modal, refresh that modal's vehicles list
+                const refreshCustomerId = window._editVehicleFromEditCustomerId;
+                if (refreshCustomerId) {
+                    window._editVehicleFromEditCustomerId = null;
+                    const vehiclesUrl = '{{ url(route("customer.vehicles.index", ["customer" => "__ID__"])) }}'.replace('__ID__', refreshCustomerId);
+                    $.get(vehiclesUrl).done(function(res) {
+                        const $list = $('#edit-customer-vehicles-list');
+                        if (!$list.length) return;
+                        if (res.success && res.vehicles && res.vehicles.length > 0) {
+                            let html = '<div class="d-flex flex-column gap-2" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">';
+                            res.vehicles.forEach(function(v) {
+                                const plate = (v.plateNumber || '—').toString();
+                                const make = (v.make || '').toString();
+                                const model = (v.model || '').toString();
+                                const year = (v.year || '—').toString();
+                                const carId = (v.id || '').toString();
+                                const customerIdForVehicle = (v.customerId || refreshCustomerId || '').toString();
+                                html += '<div class="card mb-0 edit-customer-vehicle-card position-relative" style="border: 1px solid #e0e0e0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: #f8f9fa;">';
+                                html += '<div class="card-body p-3">';
+                                html += '<button type="button" class="btn btn-sm btn-outline-primary edit-vehicle-in-edit-customer-btn position-absolute top-0 end-0 m-2" style="padding: 2px 8px; z-index: 5;" title="Edit vehicle" data-car-id="' + carId + '" data-customer-id="' + customerIdForVehicle + '" data-plate="' + (v.plateNumber || '').toString().replace(/"/g, '&quot;') + '" data-make="' + make.replace(/"/g, '&quot;') + '" data-model="' + model.replace(/"/g, '&quot;') + '" data-year="' + year.replace(/"/g, '&quot;') + '"><i class="ti ti-edit" style="font-size: 14px;"></i></button>';
+                                html += '<p class="mb-1 fw-bold text-uppercase" style="color: #4a90e2; font-size: 11px; letter-spacing: 0.5px;">ACTIVE VEHICLE</p>';
+                                html += '<h6 class="mb-1 fw-bold vehicle-card-plate" style="color: #1e3a8a; font-size: 16px;">' + plate + '</h6>';
+                                html += '<p class="mb-0 fw-semibold vehicle-card-make-model" style="color: #1e3a8a; font-size: 13px;">' + (make && model ? make.toUpperCase() + ' ' + model.toUpperCase() : (make || model || '—').toString().toUpperCase()) + '</p>';
+                                html += '<p class="mb-0 small text-muted mt-1 vehicle-card-year">Year: ' + year + '</p>';
+                                html += '</div></div>';
+                            });
+                            html += '</div>';
+                            $list.html(html);
+                        }
+                    });
+                }
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : (xhr.responseText || 'Failed to update vehicle.');
+                alert(msg);
+            },
+            complete: function() {
+                $btn.prop('disabled', false);
+            }
+        });
+    });
+    
+    // Toggle vehicle metrics on header click and expand card width (ignore clicks on Edit/Remove)
     $(document).on('click', '.vehicle-header', function(e) {
+        if ($(e.target).closest('.edit-vehicle-sale-btn, .remove-vehicle-btn').length) return;
         e.stopPropagation();
         const vehicleId = $(this).data('vehicle-id');
         const $vehicleCard = $(this).closest('.vehicle-card');
@@ -3999,6 +4720,15 @@ $(document).ready(function() {
         // Remove existing vehicle inputs first
         $('input[name^="vehicles["]').remove();
         
+        // Sync editable vehicle metrics from DOM to vehicles array before submit
+        $('.vehicle-current-km-input, .vehicle-daily-run-km-input, .vehicle-oil-capacity-input').each(function() {
+            const vehicleId = $(this).data('vehicle-id');
+            const val = $(this).val().trim();
+            const name = $(this).hasClass('vehicle-current-km-input') ? 'current_km' : ($(this).hasClass('vehicle-daily-run-km-input') ? 'daily_run_km' : 'oil_capacity');
+            const v = vehicles.find(function(ve) { return String(ve.id) === String(vehicleId); });
+            if (v) v[name] = val;
+        });
+        
         vehicles.forEach(function(vehicle, index) {
             // Add new inputs with customer_id
             const customerId = vehicle.customerId || $('#customer_id').val();
@@ -4027,14 +4757,41 @@ $(document).ready(function() {
                 name: `vehicles[${index}][year]`,
                 value: vehicle.year
             }).appendTo('#salesForm');
+            $('<input>').attr({
+                type: 'hidden',
+                name: `vehicles[${index}][oil_capacity]`,
+                value: vehicle.oil_capacity || ''
+            }).appendTo('#salesForm');
+            $('<input>').attr({
+                type: 'hidden',
+                name: `vehicles[${index}][current_km]`,
+                value: vehicle.current_km || ''
+            }).appendTo('#salesForm');
+            $('<input>').attr({
+                type: 'hidden',
+                name: `vehicles[${index}][daily_run_km]`,
+                value: vehicle.daily_run_km || ''
+            }).appendTo('#salesForm');
         });
     });
     
     // ========== Delivery Entry Functions ==========
     
-    // Delivery entry - open modal
+    // Delivery entry - open modal (move to body so modal is clickable)
     $('#delivery-entry-btn').on('click', function() {
+        $('#delivery-modal').appendTo('body');
         $('#delivery-modal').modal('show');
+    });
+    
+    // Move delivery modal to body when shown and ensure it is above backdrop
+    $('#delivery-modal').on('show.bs.modal', function() {
+        $('#delivery-modal').appendTo('body');
+    });
+    $('#delivery-modal').on('shown.bs.modal', function() {
+        $('#delivery-modal').css({ 'pointer-events': 'auto', 'z-index': 9999 });
+        $('#delivery-modal').find('.modal-dialog, .modal-content, .modal-body, .modal-footer, .modal-header').css('pointer-events', 'auto');
+        var $backdrop = $('.modal-backdrop').last();
+        if ($backdrop.length) $('#delivery-modal').insertAfter($backdrop);
     });
     
     // Handle worker profile photo upload
@@ -4376,8 +5133,8 @@ $(document).ready(function() {
     </div>
 </div>
 
-{{-- Customer Edit Modal --}}
-<div class="modal fade" id="editCustomerModal" tabindex="-1" aria-labelledby="editCustomerModalLabel" aria-hidden="true">
+{{-- Customer Edit Modal (no overlay/backdrop so page stays visible) --}}
+<div class="modal fade" id="editCustomerModal" tabindex="-1" aria-labelledby="editCustomerModalLabel" aria-hidden="true" data-bs-backdrop="false" data-bs-keyboard="true">
     <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
             <div class="modal-header">
@@ -4389,6 +5146,18 @@ $(document).ready(function() {
                 @method('PUT')
                 <div class="modal-body">
                     <div class="row g-3 p-3">
+                        <!-- Branch -->
+                        <div class="col-12">
+                            <label for="edit_customer_branch_id" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Branch <span class="text-danger">*</span></label>
+                            <select name="branch_id" id="edit_customer_branch_id" class="form-select" required>
+                                <option value="">Select branch</option>
+                                @if(isset($branches) && $branches->isNotEmpty())
+                                    @foreach($branches as $b)
+                                        <option value="{{ $b->id }}">{{ $b->branch_name }}{{ $b->branch_code ? ' (' . $b->branch_code . ')' : '' }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
                         <!-- Visiting Document -->
                         <div class="col-md-6">
                             <label for="edit_visiting_doc" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Visiting Document</label>
@@ -4461,6 +5230,17 @@ $(document).ready(function() {
                             <label for="edit_customer_area" class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Area</label>
                             <input type="text" name="area" id="edit_customer_area" class="form-control">
                         </div>
+
+                        <!-- Customer Vehicles (loaded when modal opens; scroll down to see — click Edit on a vehicle to change it) -->
+                        <div class="col-12 mt-3" id="edit-customer-vehicles-section">
+                            <label class="form-label fw-bold mb-2 text-uppercase" style="font-size: 11px; color: #6c757d;">Customer Vehicles</label>
+                            <p class="small text-muted mb-2" style="font-size: 11px;">Vehicles listed below. Click <strong>Edit</strong> on a vehicle to open the edit form.</p>
+                            <div id="edit-customer-vehicles-container" class="border rounded p-3 bg-light" style="min-height: 60px;">
+                                <div id="edit-customer-vehicles-list" class="small">
+                                    <span class="text-muted">Loading vehicles…</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -4476,7 +5256,14 @@ $(document).ready(function() {
 </div>
 
 <script>
-    // Handle customer edit form submission
+(function runWhenJQueryReady() {
+  if (typeof window.jQuery === 'undefined') {
+    window.setTimeout(runWhenJQueryReady, 30);
+    return;
+  }
+  var $ = window.jQuery;
+  // Handle customer edit form submission
+  $(document).ready(function() {
     $('#editCustomerForm').on('submit', function(e) {
         e.preventDefault();
         const form = $(this);
@@ -4532,6 +5319,8 @@ $(document).ready(function() {
             }
         });
     });
+  });
+})();
 </script>
 
 @endsection

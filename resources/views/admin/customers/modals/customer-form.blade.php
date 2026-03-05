@@ -109,17 +109,15 @@
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ isset($customer) ? $customer->company : old('company') }}" class="form-control" placeholder="Enter company">
             </div>
-            <div class="col-md-6">
-                <label for="carnumber">Add Vehicles:</label>
-                <div class="input-group">
-                    <select class="form-control carnumber-select searchable-select" name="carnumber" id="carnumber">
-                        <option value="">Select Services</option>
-                        <option value="1" {{ (isset($customer) && $customer->carnumber == 1) ? 'selected' : '' }}>Vehicle One</option>
-                    </select>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vehical-add-modal">
-                        <i data-feather="plus"></i>
-                    </button>
+            <div class="col-12">
+                <label class="form-label fw-bold text-uppercase" style="font-size: 11px; color: #6c757d;">ADD VEHICLES</label>
+                <div id="add-customer-vehicles-container" class="mb-2" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px;">
+                    <p id="add-customer-vehicles-empty" class="small text-muted mb-0 col-12">No vehicles added. Click the button below to add from modal.</p>
                 </div>
+                <button type="button" id="add-another-vehicle-btn" class="btn btn-sm btn-outline-primary">
+                    <i class="ti ti-plus me-1"></i>Add another vehicle
+                </button>
+                <input type="hidden" name="carnumber" value="">
             </div>
             <div class="col-md-6">
                 <label for="email" class="form-label">Email</label>

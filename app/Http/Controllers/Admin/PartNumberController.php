@@ -47,7 +47,7 @@ class PartNumberController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255|unique:part_numbers,name',
+            'name' => 'required|string|max:255',
             'type' => 'nullable|string|in:parts,filters,breakpad,oil,battery',
             'status' => 'nullable|string|in:active,inactive',
         ]);
@@ -56,12 +56,15 @@ class PartNumberController extends Controller
         $name = $this->cleanPartNumberName($request->name);
 
         // Check for duplicates after cleaning
-        $existing = PartNumber::where('name', $name)->first();
+        $existing = PartNumber::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
         if ($existing) {
             return response()->json([
-                'success' => false,
-                'message' => 'Part number already exists (after cleaning)'
-            ], 422);
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This part number already exists. It has been selected for you.'
+            ]);
         }
 
         $partNumber = PartNumber::create([

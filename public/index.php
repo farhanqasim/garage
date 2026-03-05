@@ -7,6 +7,21 @@ define('LARAVEL_START', microtime(true));
 
 /*
 |--------------------------------------------------------------------------
+| Memory Limit (reduce OOM risk)
+|--------------------------------------------------------------------------
+| Set a reasonable PHP memory limit so the app fails gracefully instead of
+| exhausting system memory. Override via server env (e.g. SetEnv in Apache)
+| or php.ini; .env is not loaded until after bootstrap.
+*/
+if (function_exists('ini_set')) {
+    $limit = $_ENV['MEMORY_LIMIT'] ?? getenv('MEMORY_LIMIT') ?: '256M';
+    if ($limit !== '' && $limit !== '-1') {
+        @ini_set('memory_limit', $limit);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
 | Check If The Application Is Under Maintenance
 |--------------------------------------------------------------------------
 |

@@ -72,6 +72,101 @@
                 </div>
             </div>
         </div>
+        <div class="col-xl-3 col-sm-6 col-12">
+            <div class="card border-0 overflow-hidden" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                    <span class="bg-white bg-opacity-25 rounded-2 p-3 me-3"><i class="ti ti-receipt fs-24"></i></span>
+                    <div>
+                        <p class="text-white-50 mb-0 small text-uppercase fw-semibold">Sales Pending</p>
+                        <h4 class="text-white mb-0 fw-bold">{{ isset($salesPending) ? $salesPending->count() : 0 }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6 col-12">
+            <div class="card border-0 overflow-hidden" style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                    <span class="bg-white bg-opacity-25 rounded-2 p-3 me-3"><i class="ti ti-car fs-24"></i></span>
+                    <div>
+                        <p class="text-white-50 mb-0 small text-uppercase fw-semibold">Car Wash Pending</p>
+                        <h4 class="text-white mb-0 fw-bold">{{ isset($carWashPending) ? $carWashPending->count() : 0 }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @php
+        $salesPending = $salesPending ?? collect([]);
+        $carWashPending = $carWashPending ?? collect([]);
+    @endphp
+
+    {{-- Sales invoices pending (cards) --}}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header border-0 bg-transparent d-flex align-items-center justify-content-between">
+            <h5 class="card-title mb-0 fw-bold"><i class="ti ti-receipt me-2"></i>Sales Invoices Pending</h5>
+        </div>
+        <div class="card-body">
+            @if($salesPending->isEmpty())
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-receipt-off fs-36 mb-2 d-block opacity-50"></i>
+                    <p class="mb-0 small">No pending sales invoices.</p>
+                </div>
+            @else
+                <div class="row g-3">
+                    @foreach($salesPending as $sale)
+                        <div class="col-md-6 col-xl-4">
+                            <div class="card border shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="fw-semibold text-dark">{{ $sale->reference }}</span>
+                                        <span class="badge bg-warning bg-opacity-10 text-warning small">Recovery</span>
+                                    </div>
+                                    <p class="small text-muted mb-1">{{ $sale->customer }}</p>
+                                    <p class="mb-2"><strong class="text-primary">{{ number_format($sale->remaining, 2) }}</strong> <span class="small text-muted">remaining</span></p>
+                                    <p class="small text-muted mb-2">{{ $sale->sale_date ? \Carbon\Carbon::parse($sale->sale_date)->format('d M Y') : '—' }}</p>
+                                    <a href="{{ $sale->link }}" class="btn btn-sm btn-outline-primary">View</a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
+    {{-- Elite car wash – jobs / payment pending (cards) --}}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header border-0 bg-transparent d-flex align-items-center justify-content-between">
+            <h5 class="card-title mb-0 fw-bold"><i class="ti ti-car me-2"></i>Elite Car Wash — Jobs / Payment Pending</h5>
+        </div>
+        <div class="card-body">
+            @if($carWashPending->isEmpty())
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-car-off fs-36 mb-2 d-block opacity-50"></i>
+                    <p class="mb-0 small">No pending car wash jobs.</p>
+                </div>
+            @else
+                <div class="row g-3">
+                    @foreach($carWashPending as $job)
+                        <div class="col-md-6 col-xl-4">
+                            <div class="card border shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="fw-semibold text-dark">{{ $job->service_name }}</span>
+                                        <span class="badge bg-{{ ($job->status ?? '') === 'active' ? 'info' : 'warning' }} bg-opacity-10 text-{{ ($job->status ?? '') === 'active' ? 'info' : 'warning' }} text-uppercase small">{{ $job->status ?? '—' }}</span>
+                                    </div>
+                                    <p class="small text-muted mb-1">{{ $job->customer_name }} — {{ $job->vehicle_no }}</p>
+                                    <p class="mb-2"><strong class="text-primary">{{ number_format($job->price ?? 0, 2) }}</strong></p>
+                                    <p class="small text-muted mb-2">{{ $job->start_time ? \Carbon\Carbon::parse($job->start_time)->format('d M Y H:i') : '—' }}</p>
+                                    <a href="{{ $job->link }}" class="btn btn-sm btn-outline-primary">View</a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
     </div>
 
     {{-- Task list --}}
@@ -94,7 +189,13 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <span class="badge bg-{{ $task->priority === 'Critical' ? 'danger' : ($task->priority === 'High' ? 'warning' : 'secondary') }} bg-opacity-10 text-{{ $task->priority === 'Critical' ? 'danger' : ($task->priority === 'High' ? 'warning' : 'secondary') }} text-uppercase small">{{ $task->priority }}</span>
-                                        <span class="badge bg-{{ $task->status === 'Completed' ? 'success' : ($task->status === 'In-Progress' ? 'info' : 'warning') }} bg-opacity-10 text-{{ $task->status === 'Completed' ? 'success' : ($task->status === 'In-Progress' ? 'info' : 'warning') }} text-uppercase small">{{ $task->status }}</span>
+                                        <select class="form-select form-select-sm task-status-select border-{{ $task->status === 'Completed' ? 'success' : ($task->status === 'In-Progress' ? 'info' : ($task->status === 'Cancelled' ? 'danger' : ($task->status === 'On Hold' ? 'secondary' : 'warning'))) }} text-{{ $task->status === 'Completed' ? 'success' : ($task->status === 'In-Progress' ? 'info' : ($task->status === 'Cancelled' ? 'danger' : ($task->status === 'On Hold' ? 'secondary' : 'warning'))) }}" style="width: auto; min-width: 120px; font-size: 0.7rem;" data-task-id="{{ $task->id }}" onclick="event.stopPropagation();">
+                                            <option value="Pending" {{ $task->status === 'Pending' ? 'selected' : '' }}>Pending</option>
+                                            <option value="In-Progress" {{ $task->status === 'In-Progress' ? 'selected' : '' }}>In-Progress</option>
+                                            <option value="Completed" {{ $task->status === 'Completed' ? 'selected' : '' }}>Completed</option>
+                                            <option value="On Hold" {{ $task->status === 'On Hold' ? 'selected' : '' }}>On Hold</option>
+                                            <option value="Cancelled" {{ $task->status === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
+                                        </select>
                                     </div>
                                     <h6 class="card-title fw-bold text-dark mb-2">{{ $task->title }}</h6>
                                     <p class="small text-muted mb-2 line-clamp-2" style="--lines: 2;">{{ $task->description ?: '—' }}</p>
@@ -550,8 +651,74 @@
             });
     });
 
+    window.__taskReminderCsrf = '{{ csrf_token() }}';
+    function getCsrfToken() {
+        if (window.__taskReminderCsrf) return window.__taskReminderCsrf;
+        var m = document.querySelector('meta[name="csrf-token"]');
+        if (m && m.getAttribute('content')) return m.getAttribute('content');
+        var inp = document.querySelector('input[name="_token"]');
+        if (inp && inp.value) return inp.value;
+        return '';
+    }
+    document.addEventListener('change', function(e) {
+        var sel = e.target.closest('.task-status-select');
+        if (!sel) return;
+        var taskId = sel.getAttribute('data-task-id');
+        var status = sel.value;
+        if (!taskId || !status) return;
+        e.stopPropagation();
+        sel.disabled = true;
+        var url = '{{ url("task-reminder") }}/' + taskId + '/status';
+        var token = getCsrfToken();
+        if (!token) {
+            sel.disabled = false;
+            alert('Security token missing. Please refresh the page (F5) and try again.');
+            return;
+        }
+        var body = new FormData();
+        body.append('_token', token);
+        body.append('_method', 'PATCH');
+        body.append('status', status);
+        var headers = {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': token
+        };
+        fetch(url, {
+            method: 'POST',
+            body: body,
+            credentials: 'same-origin',
+            headers: headers
+        })
+            .then(function(r) {
+                if (r.status === 419) {
+                    return r.text().then(function() { return { ok: false, status: 419, data: { message: 'CSRF token mismatch. Please refresh the page (F5) and try again.' } }; });
+                }
+                return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }).catch(function() { return { ok: false, data: {} }; });
+            })
+            .then(function(result) {
+                sel.disabled = false;
+                if (result.status === 419) {
+                    alert(result.data && result.data.message ? result.data.message : 'Session expired. Please refresh the page (F5) and try again.');
+                    return;
+                }
+                if (result.ok && result.data && result.data.success) {
+                    var s = result.data.status;
+                    var cls = s === 'Completed' ? 'success' : (s === 'In-Progress' ? 'info' : (s === 'Cancelled' ? 'danger' : (s === 'On Hold' ? 'secondary' : 'warning')));
+                    sel.className = 'form-select form-select-sm task-status-select border-' + cls + ' text-' + cls + ' bg-opacity-10';
+                } else {
+                    alert((result.data && result.data.message) || 'Could not update status.');
+                }
+            })
+            .catch(function() {
+                sel.disabled = false;
+                alert('Network error. Please try again.');
+            });
+    });
+
     document.querySelectorAll('.task-card').forEach(function(el) {
-        el.addEventListener('click', function() {
+        el.addEventListener('click', function(e) {
+            if (e.target.closest('.task-status-select')) return;
             var task = JSON.parse(el.getAttribute('data-task'));
             currentTaskId = task.id;
             replyPhoto = null; replyAudio = null; replyLocation = null;

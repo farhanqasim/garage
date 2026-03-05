@@ -65,13 +65,12 @@ class CashAccountService
         return DB::transaction(function () use ($userId, $amount, $type, $referenceId, $referenceTable, $branchId, $note) {
             try {
                 $account = CashAccount::where('user_id', $userId)->lockForUpdate()->first();
-                
                 if (!$account) {
-                    throw new \Exception("Cash account not found for user ID: {$userId}");
+                    $account = CashAccount::create(['user_id' => $userId, 'balance' => 0]);
                 }
 
-                // Check sufficient balance
-                if ($account->balance < $amount) {
+                // Check sufficient balance (paying user's cash account)
+                if ((float) $account->balance < $amount) {
                     throw new \Exception("Insufficient balance. Available: {$account->balance}, Required: {$amount}");
                 }
 

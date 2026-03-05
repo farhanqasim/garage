@@ -40,6 +40,48 @@ class WebAuthnController extends Controller
     }
 
     /**
+     * Get registration options for the authenticated user (Profile page).
+     * Used when user wants to register a new passkey/fingerprint from profile.
+     */
+    public function getRegisterOptionsForProfile(Request $request)
+    {
+        if (!$request->wantsJson() && !$request->expectsJson()) {
+            $request->headers->set('Accept', 'application/json');
+        }
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
+        $challenge = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode(random_bytes(32)));
+        Session::put('webauthn_register_challenge', $challenge);
+        Session::put('webauthn_register_user_id', $user->id);
+        Session::put('webauthn_register_timestamp', now()->timestamp);
+        $options = [
+            'challenge' => $challenge,
+            'rp' => [
+                'name' => config('app.name', 'AccountCover'),
+                'id' => $this->getRpId(),
+            ],
+            'user' => [
+                'id' => base64_encode((string) $user->id),
+                'name' => $user->email,
+                'displayName' => $user->name ?? $user->email,
+            ],
+            'pubKeyCredParams' => [
+                ['type' => 'public-key', 'alg' => -7],
+                ['type' => 'public-key', 'alg' => -257],
+            ],
+            'timeout' => 60000,
+            'attestation' => 'none',
+            'authenticatorSelection' => [
+                'userVerification' => 'preferred',
+                'requireResidentKey' => false,
+            ],
+        ];
+        return response()->json(['success' => true, 'options' => $options]);
+    }
+
+    /**
      * Get login options for WebAuthn authentication.
      * This generates a challenge that the client will use to authenticate.
      */
@@ -188,7 +230,11 @@ class WebAuthnController extends Controller
         }
 
         $credential = $request->input('credential');
-        $credentialId = $credential['id']; // Already base64url encoded from client
+        $credentialId = is_string($credential['id'] ?? null) ? trim($credential['id']) : '';
+
+        if ($credentialId === '') {
+            return response()->json(['success' => false, 'message' => 'Invalid credential data'], 422);
+        }
 
         // Support two flows: (1) session from getLoginOptions(email,password) or (2) conditional UI (no session – find user by credential_id)
         $storedChallenge = Session::get('webauthn_login_challenge');
@@ -213,7 +259,8 @@ class WebAuthnController extends Controller
             $storedChallenge = $conditionalChallenge;
             $webauthnCredential = WebAuthnCredential::where('credential_id', $credentialId)->first();
             if (!$webauthnCredential) {
-                return response()->json(['success' => false, 'message' => 'Credential not found'], 404);
+                Log::warning('WebAuthn conditional login: credential not found', ['credential_id_length' => strlen($credentialId)]);
+                return response()->json(['success' => false, 'message' => 'Passkey not found. Please register fingerprint from Profile first (user/profile).'], 404);
             }
             $userId = $webauthnCredential->user_id;
         } else {
@@ -378,20 +425,11 @@ class WebAuthnController extends Controller
      */
     private function getRpId()
     {
-        // Get the current request host (most reliable)
+        // rpId must be the exact host (or parent domain) of the current origin. Do NOT convert 127.0.0.1 to localhost
+        // or the browser will not find the credential (origin is 127.0.0.1, rpId must match).
         $currentHost = request()->getHost();
-        
-        // Remove port number if present (WebAuthn rpId doesn't include ports)
         $currentHost = preg_replace('/:\d+$/', '', $currentHost);
-        
-        // Special handling for localhost/127.0.0.1
-        if ($currentHost === 'localhost' || $currentHost === '127.0.0.1' || $currentHost === '::1') {
-            return 'localhost';
-        }
-        
-        // For production, use the actual domain from request
-        // This ensures rpId matches the current domain exactly
-        return $currentHost;
+        return $currentHost ?: 'localhost';
     }
 
     /**

@@ -84,10 +84,17 @@
                                     @endif
                                 </td>
                                 <td>
-                                  @if ($user->role)
-                                    <span class="badge bg-success">Employee</span>
-                                    @else
-                                    <span class="badge bg-info">Customer</span>
+                                  @php
+                                    $roleLabels = ['employee' => 'Employee', 'worker' => 'Worker', 'user' => 'User', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser'];
+                                    $roleBadges = ['employee' => 'bg-success', 'worker' => 'bg-dark', 'user' => 'bg-info', 'manager' => 'bg-primary', 'salesman' => 'bg-secondary', 'purchaser' => 'bg-warning'];
+                                    $r = $user->role ?? '';
+                                    $label = $roleLabels[$r] ?? ucfirst($r);
+                                    $badge = $roleBadges[$r] ?? 'bg-secondary';
+                                  @endphp
+                                  @if ($r)
+                                    <span class="badge {{ $badge }}">{{ $label }}</span>
+                                  @else
+                                    <span class="badge bg-info">—</span>
                                   @endif
                                 </td>
                                 <td>{{ $user->branch->branch_name ?? 'N/A' }}</td>
@@ -206,7 +213,12 @@
                             <label for="role" class="form-label">Role</label>
                             <select name="role" class="form-select" required>
                                 <option value="">Select Role</option>
+                                <option value="user" {{ $item->role == 'user' ? 'selected' : '' }}>User</option>
                                 <option value="employee" {{ $item->role == 'employee' ? 'selected' : '' }}>Employee</option>
+                                <option value="manager" {{ $item->role == 'manager' ? 'selected' : '' }}>Manager</option>
+                                <option value="salesman" {{ $item->role == 'salesman' ? 'selected' : '' }}>Sales man</option>
+                                <option value="purchaser" {{ $item->role == 'purchaser' ? 'selected' : '' }}>Purchaser</option>
+                                <option value="worker" {{ $item->role == 'worker' ? 'selected' : '' }}>Worker</option>
                             </select>
                         </div>
 
@@ -221,6 +233,12 @@
                                     </option>
                                 @endforeach
                             </select>
+                        </div>
+
+                        <!-- Commission % (Worker) -->
+                        <div class="col-md-4 commission-edit-wrap" style="display: {{ $item->role === 'worker' ? 'block' : 'none' }};">
+                            <label for="commission_edit_{{ $item->id }}" class="form-label">Commission % (Worker)</label>
+                            <input type="number" name="commission" id="commission_edit_{{ $item->id }}" class="form-control" min="0" max="100" value="{{ old('commission', $item->commission ?? 0) }}" placeholder="0-100">
                         </div>
 
                         <!-- Profile Image -->
@@ -293,6 +311,7 @@
                                 <option value="manager">Manager</option>
                                 <option value="salesman">Sales man</option>
                                 <option value="purchaser">Purchaser</option>
+                                <option value="worker">Worker</option>
                             </select>
                         </div>
                         <div class="col-md-4 branch-section" >
@@ -303,6 +322,11 @@
                                     <option value="{{ $branch->id }}">{{ $branch->branch_name }} ({{ $branch->branch_code }})</option>
                                 @endforeach
                             </select>
+                        </div>
+
+                        <div class="col-md-4" id="commissionWrapAdd" style="display: none;">
+                            <label for="commission" class="form-label">Commission % (Worker)</label>
+                            <input type="number" name="commission" id="commissionAdd" class="form-control" min="0" max="100" value="0" placeholder="0-100">
                         </div>
 
                         <div class="col-md-12">
@@ -336,15 +360,28 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const roleSelect = document.getElementById('roleSelect');
-    const branchSection = document.querySelector('.branch-section');
+    const branchSections = document.querySelectorAll('.branch-section');
+    const commissionWrapAdd = document.getElementById('commissionWrapAdd');
 
-    roleSelect.addEventListener('change', function() {
-        const selectedRole = this.value;
-        if (selectedRole === 'employee' || selectedRole === 'customer') {
-            branchSection.style.display = 'block';
-        } else {
-            branchSection.style.display = 'none';
+    function toggleAddForm() {
+        const selectedRole = roleSelect ? roleSelect.value : '';
+        branchSections.forEach(function(el) {
+            el.style.display = (selectedRole === 'employee' || selectedRole === 'customer' || selectedRole === 'worker') ? 'block' : 'none';
+        });
+        if (commissionWrapAdd) {
+            commissionWrapAdd.style.display = selectedRole === 'worker' ? 'block' : 'none';
         }
+    }
+    if (roleSelect) {
+        roleSelect.addEventListener('change', toggleAddForm);
+        toggleAddForm();
+    }
+    // Edit modals: show Commission % when Role = Worker
+    document.querySelectorAll('.modal select[name="role"]').forEach(function(roleSel) {
+        roleSel.addEventListener('change', function() {
+            var wrap = this.closest('.modal').querySelector('.commission-edit-wrap');
+            if (wrap) wrap.style.display = this.value === 'worker' ? 'block' : 'none';
+        });
     });
 });
 </script>

@@ -11,6 +11,7 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
+        'branch_id',
         'profile_img',
         'visiting_doc',
         'multiple_images',
@@ -41,7 +42,11 @@ class Customer extends Model
         'password',
     ];
 
-    // Relationship with CustomerCar
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function customerCars()
     {
         return $this->hasMany(CustomerCar::class);

@@ -41,7 +41,29 @@ class BankController extends Controller
         
         // Otherwise return HTML view - combined Banks + Bank Accounts (Vyapar style)
         $banks = Bank::orderBy('name', 'asc')->paginate(10, ['*'], 'banks_page');
-        $bankAccountsQuery = BankAccount::with('bank')->where('user_id', Auth::id());
+        $user = Auth::user();
+        $bankAccountsQuery = BankAccount::with('bank');
+        $role = strtolower((string) ($user->role ?? ''));
+        $isAdmin = $role === 'admin';
+        if ($isAdmin) {
+            // Admin: show all bank accounts (no filter)
+        } else {
+            // Manager / other roles: show accounts by branch (branch_id match OR user belongs to branch)
+            $branchId = session('selected_branch_id') ?? $user->branch_id;
+            if ($branchId) {
+                $branchUserIds = \App\Models\User::where('branch_id', $branchId)
+                    ->orWhereHas('assignedBranches', fn($q) => $q->where('branch_id', $branchId))
+                    ->pluck('id')
+                    ->toArray();
+                $bankAccountsQuery->where(function ($q) use ($branchId, $branchUserIds) {
+                    $q->where('branch_id', $branchId)
+                        ->orWhereIn('user_id', $branchUserIds);
+                });
+            } else {
+                // No branch: show only logged-in user's accounts
+                $bankAccountsQuery->where('user_id', $user->id);
+            }
+        }
         if ($request->has('account_type') && $request->account_type) {
             $bankAccountsQuery->where('account_type', $request->account_type);
         }
@@ -249,28 +271,13 @@ class BankController extends Controller
                 if (isset($validated['notes']) && !empty($validated['notes'])) {
                     $transferNotes = $validated['notes'];
                 }
-                
-                // Debit from sender's bank account
-                BankTransaction::create([
-                    'bank_account_id' => $senderBankAccount->id,
-                    'transaction_date' => now(),
-                    'description' => "Transfer to {$bankName} - {$bankAccount->account_title} - {$transferNotes}",
-                    'amount' => $amount,
-                    'type' => 'debit',
-                    'statement_reference' => 'BANK-TRANSFER-' . time(),
-                    'reconciled' => true, // Auto-reconcile for transfers
-                ]);
 
-                // Credit to recipient's bank account
-                BankTransaction::create([
-                    'bank_account_id' => $bankAccount->id,
-                    'transaction_date' => now(),
-                    'description' => "Transfer from {$senderBankName} - {$senderBankAccount->account_title} ({$user->name}) - {$transferNotes}",
-                    'amount' => $amount,
-                    'type' => 'credit',
-                    'statement_reference' => 'BANK-TRANSFER-' . time(),
-                    'reconciled' => true, // Auto-reconcile for transfers
-                ]);
+                // Transfer = update opening_balance only (so balance shows in opening, not only in transactions)
+                $senderBankAccount->opening_balance = (float) ($senderBankAccount->opening_balance ?? 0) - $amount;
+                $senderBankAccount->save();
+
+                $bankAccount->opening_balance = (float) ($bankAccount->opening_balance ?? 0) + $amount;
+                $bankAccount->save();
 
                 $message = "Rs." . number_format($amount, 2) . " transferred from your bank account to {$bankName} successfully!";
                 return response()->json([

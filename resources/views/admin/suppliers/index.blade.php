@@ -55,6 +55,13 @@
         cursor: default !important;
     }
     
+    /* Add Supplier modal – prevent frozen state (z-index + pointer-events when shown) */
+    #addSupplierModal.show { z-index: 10056 !important; }
+    #addSupplierModal.show .modal-dialog,
+    #addSupplierModal.show .modal-content,
+    #addSupplierModal.show .modal-header,
+    #addSupplierModal.show .modal-body,
+    #addSupplierModal.show .modal-footer { pointer-events: auto !important; }
     /* Modal Dialog Desktop Alignment */
     #addSupplierModal .modal-dialog {
         max-width: 1140px !important;
@@ -450,11 +457,23 @@
     }
     
     /* Group field specific styling */
-    #addSupplierModal .col-md-6:has(select[name="group_id"]) {
+    #addSupplierModal .col-md-6:has(select[name="group_id"]),
+    [id^="editSupplierModal"] .col-md-6:has(select[name="group_id"]) {
         width: auto;
         min-width: 100px;
         flex: 1 1 auto;
         text-align: left;
+    }
+    /* Ensure Group Select2 dropdown always shows search box */
+    .select2-dropdown .select2-search--dropdown,
+    .select2-dropdown .select2-search.select2-search--dropdown {
+        display: block !important;
+        visibility: visible !important;
+    }
+    .select2-dropdown .select2-search__field {
+        display: block !important;
+        width: 100% !important;
+        visibility: visible !important;
     }
     
     /* Remove extra padding from row */
@@ -757,8 +776,8 @@
             </div>
         </div>
         <ul class="table-top-head">
-            <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf"><img src="{{ asset('assets/img/icons/pdf.svg') }}" alt="img"></a></li>
-            <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Excel"><img src="{{ asset('assets/img/icons/excel.svg') }}" alt="img"></a></li>
+            <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Pdf"><img src="/assets/img/icons/pdf.svg" alt="img"></a></li>
+            <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Excel"><img src="/assets/img/icons/excel.svg" alt="img"></a></li>
             <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Refresh"><i class="ti ti-refresh"></i></a></li>
             <li><a data-bs-toggle="tooltip" data-bs-placement="top" title="Collapse" id="collapse-header"><i class="ti ti-chevron-up"></i></a></li>
         </ul>
@@ -913,11 +932,11 @@
 
 {{-- Add Modal (Static) --}}
 @can('add_supplier')
-<div class="modal fade" id="addSupplierModal">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Add Supplier</h4>
+<div class="modal fade" id="addSupplierModal" tabindex="-1" aria-labelledby="addSupplierModalLabel" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true" style="z-index: 10056;">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable" style="pointer-events: auto;">
+        <div class="modal-content" style="pointer-events: auto;">
+            <div class="modal-header" style="pointer-events: auto;">
+                <h4 class="modal-title" id="addSupplierModalLabel">Add Supplier</h4>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @include('admin.suppliers.modals.create-supplier-form')
@@ -1014,6 +1033,33 @@
                 </div>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="cropImageBtn">Crop & Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Universal Edit Group Modal (for Edit Group button next to group dropdown) -->
+<div class="modal fade" id="universalEditGroupModal" tabindex="-1" aria-labelledby="universalEditGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="universalEditGroupModalLabel">Edit Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="universalEditGroupHint" class="text-muted small mb-2">Select a group from the dropdown first, then click the edit button.</p>
+                <div id="universalEditGroupForm" style="display: none;">
+                    <input type="hidden" id="universalEditGroupId" value="">
+                    <div class="mb-3">
+                        <label for="universalEditGroupName" class="form-label">Group Name</label>
+                        <input type="text" class="form-control" id="universalEditGroupName" placeholder="Group name">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="universalEditGroupFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger me-auto" id="universalEditGroupDeleteBtn" style="display: none;">Delete</button>
+                <button type="button" class="btn btn-primary" id="universalEditGroupSaveBtn" style="display: none;">Update</button>
             </div>
         </div>
     </div>
@@ -1606,7 +1652,25 @@
                 }
             }
         });
-        
+
+        // Search filter for name/phone rows in edit supplier modal
+        document.addEventListener('input', function(e) {
+            if (e.target.classList && e.target.classList.contains('name-phone-search-input')) {
+                const col = e.target.closest('.col-12');
+                const container = col ? col.querySelector('#namePhoneContainer') : null;
+                if (!container) return;
+                const term = (e.target.value || '').trim().toLowerCase();
+                container.querySelectorAll('.name-phone-row').forEach(function(row) {
+                    const nameInput = row.querySelector('input[name="names[]"]');
+                    const phoneInput = row.querySelector('input[name="phones[]"]');
+                    const name = (nameInput && nameInput.value) ? nameInput.value.trim().toLowerCase() : '';
+                    const phone = (phoneInput && phoneInput.value) ? phoneInput.value.trim().toLowerCase().replace(/\s+/g, '') : '';
+                    const show = !term || name.indexOf(term) !== -1 || phone.indexOf(term) !== -1;
+                    row.style.display = show ? '' : 'none';
+                });
+            }
+        });
+
         // Prevent typing non-numeric characters and limit to 11 digits when Pakistan (+92) is selected
         // Allow numbers and letter O
         document.addEventListener('keypress', function(e) {
@@ -2985,7 +3049,20 @@
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         initializeCountryCodeSelect2();
-        
+
+        // Open edit modal when URL has ?edit=id (e.g. from purchase page Edit vendor button)
+        var params = new URLSearchParams(window.location.search);
+        var editId = params.get('edit');
+        if (editId) {
+            var modalEl = document.getElementById('editSupplierModal' + editId);
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                setTimeout(function() {
+                    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modal.show();
+                }, 300);
+            }
+        }
+
         // Date Filter Functionality
         const startDateFilter = document.getElementById('startDateFilter');
         const endDateFilter = document.getElementById('endDateFilter');
@@ -3193,19 +3270,194 @@
         addSupplierModal.addEventListener('shown.bs.modal', function() {
             setTimeout(function() {
                 initializeCountryCodeSelect2();
-            }, 100);
+                initSupplierGroupSelect2(this);
+            }.bind(addSupplierModal), 100);
         });
     }
 
+    // Group select: open on click, search always visible (Add & Edit Supplier modals)
+    function initSupplierGroupSelect2(modalEl) {
+        const container = modalEl && modalEl.querySelector ? modalEl : document;
+        const sel = (container.querySelector || document.querySelector).call(container, 'select.supplier-group-select');
+        if (!sel || !window.$ || !$.fn.select2) return;
+        const $sel = $(sel);
+        const $modal = $sel.closest('.modal');
+        if ($sel.hasClass('select2-hidden-accessible')) {
+            try { $sel.select2('destroy'); } catch (err) {}
+        }
+        $sel.select2({
+            placeholder: 'Select Group',
+            allowClear: true,
+            width: '100%',
+            minimumResultsForSearch: 0,
+            dropdownParent: $modal.length ? $modal : $('body'),
+            escapeMarkup: function(m) { return m; },
+            language: {
+                search: function() { return 'Search…'; },
+                noResults: function() {
+                    const term = ($('.select2-container--open .select2-search__field').val() || '').trim();
+                    const display = term ? ' &quot;' + term.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') + '&quot;' : '';
+                    return '<div class="p-2 text-center"><button type="button" class="btn btn-primary btn-sm select2-add-group-btn" data-term="' + (term.replace(/"/g, '&quot;')) + '"><i class="ti ti-plus me-1"></i>Add' + display + '</button></div>';
+                }
+            }
+        });
+        $sel.on('select2:open', function() {
+            setTimeout(function() {
+                var $search = $('.select2-dropdown .select2-search__field');
+                if (!$search.length) $search = $('.select2-container--open .select2-search__field');
+                if ($search.length) $search[0].focus();
+            }, 100);
+        });
+        // Delegate from modal so click/mousedown on container or selection always opens dropdown
+        var openGroupDropdown = function(e) {
+            var $groupSel = $modal.find('select.supplier-group-select');
+            if (!$groupSel.length || !$groupSel.data('select2')) return;
+            if (!$groupSel.data('select2').isOpen()) {
+                e.preventDefault();
+                e.stopPropagation();
+                $groupSel.select2('open');
+            }
+        };
+        $modal.off('click.groupopen mousedown.groupopen').on('click.groupopen', '.select2-container', openGroupDropdown).on('mousedown.groupopen', '.select2-container', openGroupDropdown);
+    }
+    document.addEventListener('shown.bs.modal', function(e) {
+        if (e.target.id && e.target.id.indexOf('editSupplierModal') === 0) {
+            setTimeout(function() { initSupplierGroupSelect2(e.target); }, 100);
+        }
+    });
+
+    $(document).on('click', '.select2-add-group-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const term = ($(this).data('term') || '').trim();
+        const name = term || window.prompt('Enter group name:') || '';
+        if (!name) return;
+        const $anyGroupSelect = $('select.supplier-group-select').first();
+        if ($anyGroupSelect.length) $anyGroupSelect.select2('close');
+        $.ajax({
+            url: '{{ route("post.groups") }}',
+            method: 'POST',
+            data: { _token: '{{ csrf_token() }}', name: name },
+            success: function(res) {
+                if (res.id && res.name) {
+                    $('select.supplier-group-select').each(function() {
+                        if ($(this).find('option[value="' + res.id + '"]').length === 0) {
+                            $(this).append($('<option></option>').val(res.id).text(res.name));
+                        }
+                        $(this).val(res.id).trigger('change');
+                    });
+                }
+            }
+        });
+    });
+
+    // Edit Group button (open-universal-modal): open modal, fetch selected group, update/delete
+    $(document).on('click', '.open-universal-modal', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var btn = $(this);
+        var fetchRoute = (btn.data('fetch-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
+        var updateRoute = (btn.data('update-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
+        var deleteRoute = (btn.data('delete-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
+        var targetSelect = btn.data('target-select') || '.supplier-group-select';
+        var $select = btn.closest('.modal').length ? btn.closest('.modal').find(targetSelect) : $(targetSelect).first();
+        if (!$select.length) $select = $(targetSelect).first();
+        var groupId = $select.length ? ($select.val() || '').trim() : '';
+        var $uModal = $('#universalEditGroupModal');
+        var $hint = $('#universalEditGroupHint');
+        var $form = $('#universalEditGroupForm');
+        var $idInput = $('#universalEditGroupId');
+        var $nameInput = $('#universalEditGroupName');
+        var $saveBtn = $('#universalEditGroupSaveBtn');
+        var $deleteBtn = $('#universalEditGroupDeleteBtn');
+        if (!groupId) {
+            $hint.show().text('Select a group from the dropdown first, then click the edit button.');
+            $form.hide();
+            $saveBtn.hide();
+            $deleteBtn.hide();
+            $uModal.modal('show');
+            return;
+        }
+        $hint.hide();
+        $form.show();
+        $idInput.val(groupId);
+        $nameInput.val('');
+        $saveBtn.show();
+        $deleteBtn.show();
+        var url = fetchRoute.replace(':id', groupId);
+        $.ajax({
+            url: url,
+            method: 'GET',
+            success: function(data) {
+                $nameInput.val(data.name || '');
+                $uModal.modal('show');
+            },
+            error: function() {
+                if (typeof toastr !== 'undefined') toastr.error('Could not load group.');
+                else alert('Could not load group.');
+            }
+        });
+    });
+    $('#universalEditGroupSaveBtn').on('click', function() {
+        var id = $('#universalEditGroupId').val();
+        var name = ($('#universalEditGroupName').val() || '').trim();
+        if (!name) {
+            if (typeof toastr !== 'undefined') toastr.warning('Enter a group name.');
+            else alert('Enter a group name.');
+            return;
+        }
+        var updateRoute = ($('.open-universal-modal').data('update-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
+        var url = updateRoute.replace(':id', id);
+        var $select = $('select.supplier-group-select');
+        $.ajax({
+            url: url,
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+            data: { _token: '{{ csrf_token() }}', name: name },
+            success: function(res) {
+                $select.find('option[value="' + id + '"]').text(name);
+                $('#universalEditGroupModal').modal('hide');
+                if (typeof toastr !== 'undefined') toastr.success(res.message || 'Group updated.');
+            },
+            error: function(xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Update failed.';
+                if (typeof toastr !== 'undefined') toastr.error(msg);
+                else alert(msg);
+            }
+        });
+    });
+    $('#universalEditGroupDeleteBtn').on('click', function() {
+        if (!confirm('Delete this group? This may affect suppliers using it.')) return;
+        var id = $('#universalEditGroupId').val();
+        var deleteRoute = ($('.open-universal-modal').data('delete-route') || '').toString().replace(/^https?:\/\/[^/]+/, '');
+        var url = deleteRoute.replace(':id', id);
+        var $select = $('select.supplier-group-select');
+        $.ajax({
+            url: url,
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+            success: function() {
+                $select.find('option[value="' + id + '"]').remove();
+                $select.val('').trigger('change');
+                $('#universalEditGroupModal').modal('hide');
+                if (typeof toastr !== 'undefined') toastr.success('Group deleted.');
+            },
+            error: function(xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Delete failed.';
+                if (typeof toastr !== 'undefined') toastr.error(msg);
+                else alert(msg);
+            }
+        });
+    });
+
     // Auto-focus for all select elements when clicked/opened
     document.addEventListener('click', function(e) {
-        // Handle select element click - auto focus (prevent default to avoid unwanted actions)
+        // Do not run when interacting with Select2 (container, dropdown, or search)
+        if (e.target.closest('.select2-container, .select2-dropdown, .select2-search__field')) return;
         if (e.target.tagName === 'SELECT' || e.target.closest('select')) {
             const select = e.target.tagName === 'SELECT' ? e.target : e.target.closest('select');
             if (select && !select.classList.contains('phone-country-code')) {
-                // Stop propagation to prevent triggering other events
                 e.stopPropagation();
-                // For regular select elements, focus them
                 setTimeout(function() {
                     select.focus();
                 }, 50);
@@ -4183,9 +4435,8 @@
         
         function displaySuggestions(suggestions, suggestionsEl, query) {
             if (suggestions.length === 0) {
-                // Show "No suggestions found" message
-                suggestionsEl.innerHTML = '<div class="business-detail-suggestion-loading">No suggestions found</div>';
-                suggestionsEl.classList.add('show');
+                suggestionsEl.innerHTML = '';
+                suggestionsEl.classList.remove('show');
                 return;
             }
             
@@ -4711,6 +4962,33 @@
             }
         }
     }
+    
+    // Global image error handler: prevent console errors for broken images
+    document.addEventListener('error', function(e) {
+        if (e.target.tagName === 'IMG' && e.target.src) {
+            // If image fails to load and doesn't have onerror handler, set a default or hide it
+            if (!e.target.hasAttribute('data-error-handled')) {
+                e.target.setAttribute('data-error-handled', '1');
+                // Try to set a default image if src doesn't already point to default
+                if (e.target.src.indexOf('avator1.jpg') === -1 && e.target.src.indexOf('default') === -1) {
+                    e.target.onerror = function() {
+                        this.onerror = null;
+                        if (this.src.indexOf('profile') !== -1 || this.src.indexOf('supplier') !== -1) {
+                            this.src = '/assets/img/profiles/avator1.jpg';
+                        } else {
+                            this.style.display = 'none';
+                        }
+                    };
+                    // Retry with default or hide
+                    if (e.target.src.indexOf('profile') !== -1 || e.target.src.indexOf('supplier') !== -1) {
+                        e.target.src = '/assets/img/profiles/avator1.jpg';
+                    } else {
+                        e.target.style.display = 'none';
+                    }
+                }
+            }
+        }
+    }, true);
 </script>
 
 @endpush

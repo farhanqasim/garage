@@ -29,7 +29,9 @@ class User extends Authenticatable
         'profile_img',
         'phone',
         'role',
+        'status',
         'branch_id',
+        'last_selected_branch_id',
         'user_id_card_front',
         'user_id_card_back',
         'father_id_card_front',
@@ -41,6 +43,12 @@ class User extends Authenticatable
         'salary_per_day',
         'salary_per_month',
         'salary_percentage',
+        'commission',
+        'bank_account_id',
+        'bank_name',
+        'bank_account_title',
+        'bank_account_number',
+        'bank_iban',
         'pattern_lock',
         'fingerprint_data',
         'claim_return_enabled',
@@ -143,6 +151,22 @@ public function user_items()
         return $this->hasMany(BankTransfer::class);
     }
 
+    /**
+     * Car wash worker cash account (when user role = worker)
+     */
+    public function workerCashAccount()
+    {
+        return $this->hasOne(WorkerCashAccount::class);
+    }
+
+    /**
+     * Linked bank account (for worker commission payments)
+     */
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
 
     public static function getpermissionGroups()
     {
@@ -188,6 +212,43 @@ public function user_items()
             return false;
         }
         return false;
+    }
+
+    /**
+     * Check if user has any linked transactions (sales, purchases, payments, etc.).
+     * If true, user should be deactivated instead of deleted.
+     */
+    public function hasTransactionHistory(): bool
+    {
+        $id = $this->id;
+
+        $checks = [
+            DB::table('sales')->where('user_id', $id)->exists(),
+            DB::table('payments')->where('user_id', $id)->exists(),
+            DB::table('purchase_cart')->where('user_id', $id)->exists(),
+            DB::table('cash_transactions')->where(function ($q) use ($id) {
+                $q->where('user_id', $id)->orWhere('related_user_id', $id);
+            })->exists(),
+            DB::table('cash_transfers')->where(function ($q) use ($id) {
+                $q->where('from_user_id', $id)->orWhere('to_user_id', $id);
+            })->exists(),
+            DB::table('car_wash_jobs')->where(function ($q) use ($id) {
+                $q->where('user_id', $id)->orWhere('worker_user_id', $id);
+            })->exists(),
+            DB::table('car_wash_payments')->where(function ($q) use ($id) {
+                $q->where('created_by', $id)->orWhere('worker_user_id', $id);
+            })->exists(),
+            DB::table('worker_cash_transactions')->where('user_id', $id)->exists(),
+            DB::table('bank_transfers')->where('user_id', $id)->exists(),
+            DB::table('car_wash_attendances')->where(function ($q) use ($id) {
+                $q->where('user_id', $id)->orWhere('attended_user_id', $id);
+            })->exists(),
+            DB::table('suppliers')->where('created_by', $id)->exists(),
+            DB::table('bank_accounts')->where('user_id', $id)->exists(),
+            DB::table('car_wash_shop_expenses')->where('user_id', $id)->exists(),
+        ];
+
+        return in_array(true, $checks, true);
     }
 
 }

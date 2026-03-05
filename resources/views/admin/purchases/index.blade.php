@@ -81,7 +81,8 @@
                             <th>Supplier Name</th>
                             <th>Reference</th>
                             <th>Date</th>
-                            <th>Status</th>
+                            <th>Payment Status</th>
+                            <th>Verification</th>
                             <th>Total</th>
                             <th>Paid</th>
                             <th>Due</th>
@@ -91,15 +92,50 @@
                     </thead>
                     <tbody>
                         @forelse($purchases ?? [] as $purchase)
-                        <tr>
-                            <td>{{ $purchase->supplier->names[0] ?? 'N/A' }}</td>
-                            <td>{{ $purchase->reference ?? '-' }}</td>
+                        @php
+                            $allVerified = $purchase->items->isNotEmpty() && $purchase->items->every(fn($i) => (bool) $i->verified_by);
+                            $verifiedNames = $purchase->items->filter(fn($i) => (bool) $i->verified_by)->map(fn($i) => $i->verifiedBy ? $i->verifiedBy->name : null)->filter()->unique()->values()->all();
+                            $hasTemp = $purchase->items->contains(fn($i) => $i->item && $i->item->is_temporary);
+                        @endphp
+                        <tr class="{{ $allVerified ? 'purchase-row-verified' : '' }} {{ $hasTemp ? 'has-temporary-items' : '' }}" data-verified="{{ $allVerified ? '1' : '0' }}">
+                            <td>{{ $purchase->supplier->company ?? $purchase->supplier->names[0] ?? 'N/A' }}</td>
+                            <td>
+                                @if(!empty(trim($purchase->reference ?? '')))
+                                    {{ $purchase->reference }}
+                                @else
+                                    @if($purchase->is_purchase_order)
+                                        <span class="text-primary fw-bold">PO #{{ preg_replace('/^PO-/', '', $purchase->invoice_no) }}</span>
+                                    @else
+                                        <span class="text-primary fw-bold">Bill #{{ preg_replace('/^PUR-\d+-/', '', $purchase->invoice_no) }}</span>
+                                    @endif
+                                @endif
+                            </td>
                             <td>{{ $purchase->purchase_date->format('d M Y') }}</td>
                             <td>
                                 <span class="badges status-badge fs-10 p-1 px-2 rounded-1 
                                     {{ $purchase->status == 'received' ? 'bg-success' : ($purchase->status == 'pending' ? 'bg-warning' : 'bg-info') }}">
                                     {{ ucfirst($purchase->status) }}
                                 </span>
+                            </td>
+                            <td class="small">
+                                @if($purchase->items->isEmpty())
+                                    <span class="text-muted">—</span>
+                                @elseif($allVerified)
+                                    <span class="text-success d-block"><i class="ti ti-checks me-1"></i>Verified</span>
+                                    @if(count($verifiedNames) > 0)
+                                        <span class="text-muted" style="font-size: 0.75rem;">Verified by: {{ implode(', ', $verifiedNames) }}</span>
+                                    @endif
+                                @else
+                                    <a href="{{ route('purchases.show', $purchase->id) }}" class="text-decoration-none d-block" title="Pending verified - open to verify">
+                                        <span class="badge bg-warning bg-opacity-25 text-dark fs-10 px-2 py-1"><i class="ti ti-circle-dashed me-1"></i>Pending Verified</span>
+                                    </a>
+                                    @if(count($verifiedNames) > 0)
+                                        <span class="text-muted d-block mt-1" style="font-size: 0.7rem;">{{ $purchase->items->filter(fn($i) => $i->verified_by)->count() }}/{{ $purchase->items->count() }} verified by: {{ implode(', ', $verifiedNames) }}</span>
+                                    @endif
+                                @endif
+                                @if($hasTemp)
+                                    <span class="badge bg-warning text-dark fs-10 px-2 py-1 mt-1 d-inline-block" title="This bill has temporary items – open and convert or clear to resolve">Temporary items</span>
+                                @endif
                             </td>
                             <td>Rs {{ number_format($purchase->grand_total, 2) }}</td>
                             <td>Rs {{ number_format($purchase->grand_total, 2) }}</td>
@@ -128,7 +164,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">No purchases found</td>
+                            <td colspan="10" class="text-center text-muted py-4">No purchases found</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -137,6 +173,28 @@
         </div>
     </div>
 </div>
+
+@push('styles')
+<style>
+    /* Verified rows - green background (override Bootstrap table) */
+    #searchableTable tbody tr.purchase-row-verified,
+    #searchableTable tbody tr.purchase-row-verified td {
+        background-color: rgba(25, 135, 84, 0.15) !important;
+    }
+    #searchableTable tbody tr.purchase-row-verified:hover,
+    #searchableTable tbody tr.purchase-row-verified:hover td {
+        background-color: rgba(25, 135, 84, 0.22) !important;
+    }
+    /* Bills with temporary items - blink until resolved */
+    #searchableTable tbody tr.has-temporary-items {
+        animation: blink-border-row 1.5s ease-in-out infinite;
+    }
+    @keyframes blink-border-row {
+        0%, 100% { box-shadow: inset 0 0 0 2px rgba(255, 193, 7, 0.5); }
+        50% { box-shadow: inset 0 0 0 2px rgba(253, 126, 20, 0.6); }
+    }
+</style>
+@endpush
 
 	<!-- Add Purchase -->
 	<div class="modal fade" id="add-purchase">

@@ -119,6 +119,7 @@
         const initialCompletedJobs = @json($completedJobs);
         const branchName = @json($branchName);
         const userName = @json($userName);
+        const currentUserId = {{ isset($currentUserId) ? (int)$currentUserId : 'null' }};
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
         const API_ROUTES = {
@@ -246,6 +247,20 @@
                     .catch(err => console.error('Error loading completed jobs:', err));
             }, []);
 
+            // Load logged-in user's cash account balance so "Your cash account" shows in Cash Pay modal
+            useEffect(() => {
+                if (!API_ROUTES.payments || !API_ROUTES.payments.cashAccountBalance || !currentUserId) return;
+                const url = API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId);
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                    .then(res => res.ok ? res.json() : {})
+                    .then(data => {
+                        if (data.success && data.balance != null) {
+                            setUserCashBalance(data.balance);
+                        }
+                    })
+                    .catch(() => {});
+            }, []);
+
             // Load worker cash timeline when a worker is selected (Commission / Pay / Total balance)
             useEffect(() => {
                 if (!selectedWorker) {
@@ -361,8 +376,9 @@
                                                             }
                                                         });
                                                         
+                                                        const cashBalanceUrl = currentUserId ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.payments.cashAccountBalance;
                                                         const [balanceRes, methodRes] = await Promise.all([
-                                                            fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
+                                                            fetch(cashBalanceUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
                                                             fetch(API_ROUTES.payments.cashMethod, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } }),
                                                         ]);
                                                         const balanceData = balanceRes.ok ? await balanceRes.json() : {};
@@ -481,15 +497,18 @@
                                                             body: formData,
                                                             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                                                         });
-                                                        const data = res.ok ? await res.json() : {};
-                                                        if (data.success) {
+                                                        let data = {};
+                                                        try {
+                                                            const text = await res.text();
+                                                            if (text) data = JSON.parse(text);
+                                                        } catch (_) {}
+                                                        if (res.ok && data.success) {
                                                             setShowCashPayModal(false);
                                                             const listRes = await fetch(API_ROUTES.jobs.completed);
                                                             const listData = listRes.ok ? await listRes.json() : {};
                                                             if (listData.success && listData.jobs) setCompletedJobs(listData.jobs);
                                                             alert('Payment successful.');
                                                         } else {
-                                                            // Show detailed error message
                                                             let errorMsg = data.message || 'Payment failed.';
                                                             if (data.errors) {
                                                                 const errorDetails = Object.values(data.errors).flat().join(', ');
@@ -1019,9 +1038,10 @@
                                                                                                     }
                                                                                                 });
                                                                                                 
-                                                                                                // Reload cash balance
+                                                                                                // Reload cash balance (logged-in user)
                                                                                                 try {
-                                                                                                    const balanceRes = await fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                    const cashUrl = currentUserId ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.payments.cashAccountBalance;
+                                                                                                    const balanceRes = await fetch(cashUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
                                                                                                     const balanceData = balanceRes.ok ? await balanceRes.json() : {};
                                                                                                     setUserCashBalance(balanceData.balance != null ? balanceData.balance : null);
                                                                                                     
@@ -1519,7 +1539,8 @@
                                                                                                 
                                                                                                 // Reload cash balance
                                                                                                 try {
-                                                                                                    const balanceRes = await fetch(API_ROUTES.payments.cashAccountBalance, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+                                                                                                    const cashUrl = currentUserId ? (API_ROUTES.payments.cashAccountBalance + '?user_id=' + encodeURIComponent(currentUserId)) : API_ROUTES.payments.cashAccountBalance;
+                                                                                                    const balanceRes = await fetch(cashUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
                                                                                                     const balanceData = balanceRes.ok ? await balanceRes.json() : {};
                                                                                                     setUserCashBalance(balanceData.balance != null ? balanceData.balance : null);
                                                                                                     

@@ -466,9 +466,9 @@
 </div>
 
 <!-- Add Item Modal - ITEM DETAIL BOX -->
-<div class="modal fade" id="add-item-modal" tabindex="-1" role="dialog" aria-labelledby="addItemModalLabel" aria-modal="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content" style="border-radius: 12px;">
+<div class="modal fade" id="add-item-modal" tabindex="-1" role="dialog" aria-labelledby="addItemModalLabel" aria-modal="true" style="z-index: 9999 !important; pointer-events: auto !important;">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="pointer-events: auto !important;">
+        <div class="modal-content" style="border-radius: 12px; pointer-events: auto !important;">
             <div class="modal-header border-0 pb-2">
                 <h5 class="modal-title fw-bold" style="color: #2563eb;">
                     <i class="ti ti-shopping-cart me-2"></i>ITEM DETAILS
@@ -486,14 +486,14 @@
                     </label>
                     <div class="d-flex align-items-start gap-2">
                         <div class="position-relative flex-grow-1">
-                        <input type="text" id="item-search" class="form-control item-search-input" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off" title="Type to search or edit product name">
+                        <input type="text" id="item-search" class="form-control item-search-input text-uppercase" placeholder="e.g. 53495878 Toyota — code, space, then vehicle or keyword" autocomplete="off" title="Type to search or edit product name">
                         <i class="ti ti-search position-absolute item-search-icon" style="right: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none;"></i>
                         <!-- Search Results Dropdown -->
                         <div id="item-search-results" class="position-absolute w-100 item-search-results-box" style="top: 100%; left: 0; z-index: 1050; max-height: 320px; overflow-y: auto; display: none; margin-top: 8px;">
                             </div>
                         <!-- Selected Item Details Display (below input) -->
                         <div id="selected-item-details-display" class="mt-2 d-none" style="font-size: 0.85rem;">
-                            <div class="text-muted mb-1" id="selected-item-details-line1"></div>
+                            <div class="text-muted mb-1 text-uppercase" id="selected-item-details-line1"></div>
                             <div class="text-muted mb-1" id="selected-item-details-line2"></div>
                             <div class="text-warning fw-semibold" id="selected-item-details-line3"></div>
                         </div>
@@ -1114,6 +1114,33 @@
         display: block !important;
     }
     
+    /* Ensure add-item-modal is clickable (nothing blocking) - high z-index so it's above header/sidebar */
+    #add-item-modal.modal,
+    body.modal-open #add-item-modal.modal {
+        z-index: 9999 !important;
+    }
+    #add-item-modal .modal-dialog,
+    #add-item-modal .modal-content,
+    #add-item-modal .modal-body,
+    #add-item-modal input,
+    #add-item-modal select,
+    #add-item-modal button,
+    #add-item-modal [tabindex] {
+        pointer-events: auto !important;
+    }
+    #add-item-modal .modal-dialog {
+        position: relative;
+        z-index: 1;
+    }
+    #add-item-modal .modal-content {
+        position: relative;
+        z-index: 1;
+    }
+    /* When modal is open, ensure backdrop is below modal */
+    body.modal-open .modal-backdrop {
+        z-index: 9998 !important;
+    }
+    
     #return-entry-btn,
     #claim-entry-btn,
     #scrap-in-btn,
@@ -1531,6 +1558,18 @@
 $(document).ready(function() {
     let salesItems = [];
     let itemCounter = 0;
+    
+    /* Move add-item-modal to body so it is never behind layout (fixes no-click) */
+    function moveAddItemModalToBody() {
+        var $modal = $('#add-item-modal');
+        if ($modal.length) {
+            $modal.appendTo('body');
+            $modal.css({ 'z-index': 9999, 'pointer-events': 'auto' });
+            $modal.find('.modal-dialog, .modal-content, .modal-body').css('pointer-events', 'auto');
+        }
+    }
+    moveAddItemModalToBody();
+    window.addEventListener('load', moveAddItemModalToBody);
     
     // Store customer data for search
     const customersData = [
@@ -2755,6 +2794,30 @@ $(document).ready(function() {
         }
     });
     
+    /* Ensure modal is clickable when shown (fix overlay/stacking issues) */
+    $('#add-item-modal').on('shown.bs.modal', function() {
+        var $m = $(this);
+        $m.css({ 'pointer-events': 'auto', 'z-index': 9999 });
+        $m.find('.modal-dialog, .modal-content, .modal-body').css('pointer-events', 'auto');
+        /* Put modal after backdrop so it is on top in DOM order */
+        var $backdrop = $('.modal-backdrop').last();
+        if ($backdrop.length && $backdrop.next().get(0) !== $m.get(0)) {
+            $m.insertAfter($backdrop);
+        }
+        setTimeout(function() { $('#item-search').focus(); }, 100);
+        /* Force interactive again after a tick (in case backdrop was added after) */
+        setTimeout(function() {
+            var $b = $('.modal-backdrop').last();
+            if ($b.length) $('#add-item-modal').insertAfter($b);
+            $('#add-item-modal').css({ 'pointer-events': 'auto', 'z-index': 9999 });
+        }, 50);
+    });
+    
+    /* Move add-item-modal to body when opening so it is above everything (fixes blocked/clicks) */
+    $('#add-item-modal').on('show.bs.modal', function() {
+        $('#add-item-modal').appendTo('body');
+    });
+    
     // Handle "ADD NEW ITEM" button - set entry type to 'sale'
     $('#add-new-item-btn').on('click', function() {
         currentEntryType = 'sale';
@@ -2995,7 +3058,13 @@ $(document).ready(function() {
                         const stockColor = stockValue > 10 ? 'text-success' : (stockValue > 0 ? 'text-warning' : 'text-danger');
                         const stockText = stockValue % 1 === 0 ? Math.round(stockValue) : stockValue.toFixed(1);
                         const unit = response.unit || 'Unit';
-                        $('#item-search-stock').html(`<span class="${stockColor}">${stockText} ${unit}</span>`);
+                        const literPerCan = (response.liter_per_can != null && response.liter_per_can !== '' && !isNaN(parseFloat(response.liter_per_can))) ? parseFloat(response.liter_per_can) : null;
+                        let stockHtml = `<span class="${stockColor}">${stockText} ${unit}</span>`;
+                        if (literPerCan != null && literPerCan > 0) {
+                            const lText = Number.isInteger(literPerCan) ? literPerCan : literPerCan.toFixed(1);
+                            stockHtml += `<div class="small text-muted mt-0">${lText} L per can</div>`;
+                        }
+                        $('#item-search-stock').html(stockHtml);
                     } else {
                         $('#item-search-stock').html('');
                     }
@@ -3042,20 +3111,37 @@ $(document).ready(function() {
                             </div>
                         `;
                     } else if (stock.type === 'warehouse') {
-                        // Warehouse item - check if selected
+                        // Warehouse item - same layout as create-new/purchases: display + quantity dropdown (1-60)
                         const isSelected = $('#selected-warehouse-id').val() == stock.id;
+                        const unitLabel = (stock.unit || 'Unit').trim();
+                        const qty = parseFloat(stock.quantity) || 0;
+                        const qtyText = (Number.isInteger(qty) ? qty : qty.toFixed(2)) + ' ' + unitLabel;
+                        const mainQtyDisp = Number.isInteger(qty) ? qty : qty.toFixed(2);
+                        const whQtyBlock = '<span class="d-block fw-bold ' + (isSelected ? 'text-white' : '') + '">' + mainQtyDisp + ' ' + unitLabel + '</span>';
+                        let canOptions = '<option value="" selected>-</option>';
+                        for (let i = 1; i <= 60; i++) { canOptions += '<option value="' + i + '">' + i + '</option>'; }
                         html += `
                             <div class="p-2 mb-1 stock-warehouse-item ${isSelected ? 'bg-primary text-white' : ''}" 
                                  data-warehouse-id="${stock.id}"
-                                 data-branch-id="${stock.branch_id}"
+                                 data-branch-id="${(stock.branch_id || '')}"
+                                 data-display="${(stock.display || '').replace(/"/g, '&quot;')}"
+                                 data-quantity="${qty}"
+                                 data-unit="${(unitLabel || 'Unit').replace(/"/g, '&quot;')}"
+                                 data-qty-text="${(qtyText || '').replace(/"/g, '&quot;')}"
+                                 data-cartons="${stock.cartons || 0}"
+                                 data-loose-liters="${stock.loose || 0}"
                                  style="cursor: pointer; transition: all 0.2s; ${isSelected ? '' : 'background-color: #f0f0f0;'}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <span class="me-2">${isSelected ? '✓' : ''}</span>
-                                        <span class="${isSelected ? 'text-white' : ''}">${stock.display}</span>
+                                        <span class="${isSelected ? 'text-white' : ''}">${stock.display || ''}</span>
                                     </div>
-                                    <div class="${isSelected ? 'text-white' : 'text-muted'}">
-                                        <span class="fw-bold">${stock.cartons} C</span> | <span class="fw-bold">${stock.loose} L</span>
+                                    <div class="d-flex align-items-end gap-3 flex-wrap">
+                                        <div class="text-end stock-warehouse-qty-labels">${whQtyBlock}</div>
+                                        <div class="d-flex flex-column align-items-center">
+                                            <span class="small mb-1" style="font-size: 0.7rem; font-weight: 600; ${isSelected ? 'color: rgba(255,255,255,0.95);' : 'color: #495057;'}">${unitLabel}</span>
+                                            <select class="form-control form-control-sm stock-warehouse-qty-input" style="width: 70px; display: inline-block;" data-warehouse-id="${stock.id}" onclick="event.stopPropagation();" data-unit="${(unitLabel || 'Unit').replace(/"/g, '&quot;')}">${canOptions}</select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3077,17 +3163,36 @@ $(document).ready(function() {
     });
     
     // Select warehouse from stock status
-    $(document).on('click', '.stock-warehouse-item', function() {
+    $(document).on('click', '.stock-warehouse-item', function(e) {
+        if ($(e.target).closest('.stock-warehouse-qty-input').length) return;
         // Remove previous selection
-        $('.stock-warehouse-item').removeClass('bg-primary text-white').addClass('bg-light');
-        $('.stock-warehouse-item').find('span:first').text('');
+        $('.stock-warehouse-item').removeClass('bg-primary text-white');
+        $('.stock-warehouse-item').css('background-color', '');
+        $('.stock-warehouse-item').find('span.me-2').text('');
         
         // Select this warehouse
-        $(this).removeClass('bg-light').addClass('bg-primary text-white');
-        $(this).find('span:first').html('✓');
+        $(this).addClass('bg-primary text-white').css('background-color', '');
+        $(this).find('span.me-2').html('✓');
         
         const warehouseId = $(this).data('warehouse-id');
         $('#selected-warehouse-id').val(warehouseId);
+    });
+    
+    // When user selects quantity from warehouse row dropdown, sync to main quantity
+    $(document).on('change', '.stock-warehouse-qty-input', function() {
+        const val = $(this).val();
+        const qty = parseFloat(val) || 0;
+        if (qty >= 1) {
+            $('#sales-item-quantity').val(qty);
+            $('#sales-item-quantity-input').val(qty).hide();
+        }
+    });
+    
+    $(document).on('focus', '.stock-warehouse-qty-input', function() {
+        const $row = $(this).closest('.stock-warehouse-item');
+        if ($row.length && !$row.hasClass('bg-primary')) {
+            $row.trigger('click');
+        }
     });
     
     // Hide search results when clicking outside
@@ -3611,6 +3716,14 @@ $(document).ready(function() {
         // If custom quantity input is visible and has value, use that
         if ($('#sales-item-quantity-input').is(':visible') && $('#sales-item-quantity-input').val()) {
             quantity = parseFloat($('#sales-item-quantity-input').val()) || 0;
+        }
+        // If user selected quantity from warehouse row dropdown, use that
+        const whId = $('#selected-warehouse-id').val();
+        if (whId) {
+            const whQtyVal = $('#stock-status-list .stock-warehouse-item[data-warehouse-id="' + whId + '"] .stock-warehouse-qty-input').val();
+            if (whQtyVal && parseFloat(whQtyVal) >= 1) {
+                quantity = parseFloat(whQtyVal);
+            }
         }
         
         const unit = $('#sales-item-unit').val();
@@ -4172,8 +4285,14 @@ $(document).ready(function() {
         $('#vehicle-modal').modal('show');
     });
     
-    // Save vehicle
+    // Save vehicle (saves to database immediately with selected customer_id)
     $('#save-vehicle-btn').on('click', function() {
+        const customerId = $('#customer_id').val();
+        if (!customerId) {
+            alert('Please select a customer first before adding vehicle');
+            return;
+        }
+        
         const reg = $('#vehicle-reg').val().trim().toUpperCase();
         const make = $('#vehicle-make').val().trim();
         const model = $('#vehicle-model').val().trim();
@@ -4183,31 +4302,56 @@ $(document).ready(function() {
             alert('Please enter registration number');
             return;
         }
+        if (!make || !model || !year) {
+            alert('Please fill in make, model and year');
+            return;
+        }
         
-        // Check if vehicle with same registration already exists
+        const yearNum = parseInt(year);
+        if (isNaN(yearNum) || yearNum < 1950 || yearNum > new Date().getFullYear() + 1) {
+            alert('Please enter a valid year (1950 to ' + (new Date().getFullYear() + 1) + ')');
+            return;
+        }
+        
         const exists = selectedVehicles.some(v => v.reg === reg);
         if (exists) {
             alert('Vehicle with this registration number already added');
             return;
         }
         
-        // Add vehicle to array
-        const vehicle = {
-            id: vehicleCounter++,
-            reg: reg,
+        const payload = {
+            customer_id: customerId,
+            plate_number: reg,
             make: make,
             model: model,
-            year: year
+            year: year,
+            _token: $('meta[name="csrf-token"]').attr('content')
         };
         
-        selectedVehicles.push(vehicle);
-        
-        // Update display
-        updateVehicleDisplay();
-        
-        // Close modal and reset form
-        $('#vehicle-modal').modal('hide');
-        resetVehicleModal();
+        $.ajax({
+            url: '{{ route("customer.vehicles.store") }}',
+            type: 'POST',
+            data: payload,
+            success: function(res) {
+                if (res && res.success) {
+                    const vehicle = {
+                        id: vehicleCounter++,
+                        reg: reg,
+                        make: make,
+                        model: model,
+                        year: year
+                    };
+                    selectedVehicles.push(vehicle);
+                    updateVehicleDisplay();
+                    $('#vehicle-modal').modal('hide');
+                    resetVehicleModal();
+                }
+            },
+            error: function(xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.message) || xhr.statusText || 'Failed to save vehicle';
+                alert('Could not save vehicle: ' + msg);
+            }
+        });
     });
     
     // Remove vehicle

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title','All Employees')
+@section('title','All Users')
 @section('content')
     <div class="content">
         <div class="page-header">
@@ -7,9 +7,9 @@
                 <div class="page-title">
                     <h2 class="fw-bold mb-0 d-flex align-items-center">
                         <span class="title-icon bg-soft-primary rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px;"><i class="ti ti-users text-primary"></i></span>
-                        Employees
+                        Users
                     </h2>
-                    <p class="text-muted small mb-0 mt-1">Manage employees and add new team members</p>
+                    <p class="text-muted small mb-0 mt-1">Manage users and add new team members</p>
                 </div>
             </div>
             <ul class="table-top-head">
@@ -21,7 +21,7 @@
             <div class="page-btn">
                 @can('add_user')
                 <a href="" class="btn btn-primary d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#add-category">
-                    <i class="ti ti-user-plus me-1"></i>Add New Employee
+                    <i class="ti ti-user-plus me-1"></i>Add New User
                 </a>
                 @endcan
             </div>
@@ -36,30 +36,33 @@
                     <div class="dropdown">
                         <a href="javascript:void(0);"
                             class="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                            data-bs-toggle="dropdown">
-                            Status
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            Status: {{ $statusFilter === 'active' ? 'Active' : ($statusFilter === 'inactive' ? 'Inactive' : 'All') }}
                         </a>
-                        <ul class="dropdown-menu  dropdown-menu-end p-3">
+                        <ul class="dropdown-menu dropdown-menu-end p-3">
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1">Active</a>
+                                <a href="{{ request()->fullUrlWithQuery(['status' => 'active']) }}" class="dropdown-item rounded-1 {{ ($statusFilter ?? 'active') === 'active' ? 'active' : '' }}">Active</a>
                             </li>
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1">Inactive</a>
+                                <a href="{{ request()->fullUrlWithQuery(['status' => 'inactive']) }}" class="dropdown-item rounded-1 {{ ($statusFilter ?? '') === 'inactive' ? 'active' : '' }}">Inactive</a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a href="{{ request()->fullUrlWithQuery(['status' => 'all']) }}" class="dropdown-item rounded-1 {{ ($statusFilter ?? '') === 'all' ? 'active' : '' }}">All</a>
                             </li>
                         </ul>
                     </div>
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 600px; overflow-y: auto; width: 100%;">
+                <div class="table-responsive" style="">
                     <table id="searchableTable" class="table table-hover table-center " id="branchTable" style="min-width: 1200px;">
                         <thead class="thead-primary">
                             <tr>
                                 <th>#</th>
                                 <th>Profile Image</th>
-                                <th>Employee Name</th>
+                                <th>Employee Details</th>
                                 <th>Role</th>
-                                <th>Branch</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -76,15 +79,41 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @php
+                                        $branchesList = $user->assignedBranches->isNotEmpty()
+                                            ? $user->assignedBranches
+                                            : ($user->branch_id ? collect([\App\Models\Branch::find($user->branch_id)])->filter() : collect());
+                                        $primaryBranch = $user->branch_id ? \App\Models\Branch::find($user->branch_id) : $branchesList->first();
+                                    @endphp
+                                    @if($primaryBranch || $branchesList->isNotEmpty())
+                                        <div class="text-primary small mb-1">
+                                            @if($primaryBranch)
+                                                {{ $primaryBranch->branch_name }}
+                                                @if($branchesList->count() > 1)
+                                                    <span class="text-muted">(+{{ $branchesList->count() - 1 }} more)</span>
+                                                @endif
+                                            @else
+                                                {{ $branchesList->pluck('branch_name')->join(', ') }}
+                                            @endif
+                                        </div>
+                                    @endif
                                     <div class="fw-bold">{{ $user->name }}</div>
                                     <div class="text-muted small">{{ $user->email }}</div>
                                     <div class="text-muted small">{{ $user->phone ?? 'N/A' }}</div>
+                                    @if($user->salary_per_day || $user->salary_per_month || $user->salary_percentage || $user->commission)
+                                        <div class="text-success small mt-1">
+                                            @if($user->salary_per_day) <span title="Per day">/day: {{ number_format($user->salary_per_day, 0) }}</span> @endif
+                                            @if($user->salary_per_month) <span title="Per month">/mo: {{ number_format($user->salary_per_month, 0) }}</span> @endif
+                                            @if($user->salary_percentage) <span title="Percentage">%: {{ $user->salary_percentage }}</span> @endif
+                                            @if($user->commission) <span title="Commission">Comm: {{ $user->commission }}%</span> @endif
+                                        </div>
+                                    @endif
                                 </td>
                                 <td>
                                   @if ($user->role)
                                     @php
-                                        $mainRoleBadges = ['user' => 'bg-info', 'employee' => 'bg-secondary', 'manager' => 'bg-primary', 'salesman' => 'bg-success', 'purchaser' => 'bg-warning'];
-                                        $mainRoleLabels = ['user' => 'User', 'employee' => 'Employee', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser'];
+                                        $mainRoleBadges = ['user' => 'bg-info', 'employee' => 'bg-secondary', 'manager' => 'bg-primary', 'salesman' => 'bg-success', 'purchaser' => 'bg-warning', 'worker' => 'bg-dark'];
+                                        $mainRoleLabels = ['user' => 'User', 'employee' => 'Employee', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser', 'worker' => 'Worker'];
                                         $mainRoleClass = $mainRoleBadges[$user->role] ?? 'bg-secondary';
                                         $mainRoleLabel = $mainRoleLabels[$user->role] ?? ucfirst($user->role);
                                     @endphp
@@ -95,18 +124,6 @@
                                   @else
                                     <span class="badge bg-info">No role Have</span>
                                   @endif
-                                </td>
-                                <td>
-                                    @php
-                                        $branch = $user->branch_id ? \App\Models\Branch::find($user->branch_id) : ($user->assignedBranches->count() > 0 ? $user->assignedBranches->first() : null);
-                                    @endphp
-                                    @if($branch)
-                                        <div class="fw-bold">{{ $branch->branch_name }}</div>
-                                        <div class="text-muted small">{{ $branch->branch_code }}</div>
-                                    @else
-                                        <div class="text-muted">No Branch</div>
-                                        <div class="text-muted small">N/A</div>
-                                    @endif
                                 </td>
                                 <td>
                                     @if ($user->status === 'active')
@@ -132,30 +149,41 @@
                                         </div>
                                 </td>
                                 <td class="action-table-data">
-                                    <div class="edit-delete-action">
-                                     <a class="me-2 p-2" href="#" data-bs-toggle="modal"
-                                                data-bs-target="#edit-category{{ $user->id }}">
-                                                <i data-feather="edit" class="feather-edit"></i>
-                                            </a>
-                                            <a href="javascript:void(0)"
-                                                onclick="confirmDelete('delete-form-{{ $user->id }}')"
-                                                class="p-2 text-danger">
-                                                <i data-feather="trash-2" class="feather-trash-2"></i>
-                                            </a>
-                                            <!-- Hidden delete form -->
-                                            <form id="delete-form-{{ $user->id }}"
-                                                action="{{ route('delete.user', $user->id) }}"
-                                                method="POST"
-                                                style="display: none;">
-                                                @csrf
-                                                @method('DELETE')
-                                            </form>
-                                        </div>
+                                    <div class="dropdown">
+                                        <button class="btn btn-white btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i data-feather="more-horizontal" class="feather-more-horizontal"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('user.transactions.report', $user->id) }}">
+                                                    <i data-feather="file-text" class="feather-file-text me-2"></i>Transaction Report
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#edit-category{{ $user->id }}">
+                                                    <i data-feather="edit" class="feather-edit me-2"></i>Edit
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="javascript:void(0)" onclick="confirmDelete('delete-form-{{ $user->id }}')">
+                                                    <i data-feather="trash-2" class="feather-trash-2 me-2"></i>Delete
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <form id="delete-form-{{ $user->id }}"
+                                        action="{{ route('delete.user', $user->id) }}"
+                                        method="POST"
+                                        style="display: none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center text-muted">No employees found</td>
+                                <td colspan="6" class="text-center text-muted">No employees found</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -257,17 +285,57 @@
                                         <option value="manager" {{ $item->role == 'manager' ? 'selected' : '' }}>Manager</option>
                                         <option value="salesman" {{ $item->role == 'salesman' ? 'selected' : '' }}>Sales man</option>
                                         <option value="purchaser" {{ $item->role == 'purchaser' ? 'selected' : '' }}>Purchaser</option>
+                                        <option value="worker" {{ $item->role == 'worker' ? 'selected' : '' }}>Worker</option>
                                     </select>
                                 </div>
 
                                 <div class="col-12">
-                                    <label for="branch_id" class="form-label">Branch</label>
+                                    <label for="branch_id" class="form-label">Primary Branch</label>
                                     <select name="branch_id" class="form-select">
                                         <option value="">Select Branch</option>
                                         @foreach($branches ?? [] as $branch)
                                             <option value="{{ $branch->id }}" {{ (isset($item->branch_id) && $item->branch_id == $branch->id) ? 'selected' : '' }}>{{ $branch->branch_name }} ({{ $branch->branch_code ?? '' }})</option>
                                         @endforeach
                                     </select>
+                                    <small class="text-muted">Default branch for this user</small>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Access Branches (multiple)</label>
+                                    <p class="text-muted small mb-2">In branches ko select karein jahan ye user login/access kar sakta hai</p>
+                                    <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                                        @php
+                                            $assignedIds = $item->assignedBranches->pluck('id')->push($item->branch_id)->filter()->unique()->values()->all();
+                                        @endphp
+                                        @foreach($branches ?? [] as $branch)
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="branch_ids[]" value="{{ $branch->id }}" id="branch_cb_{{ $item->id }}_{{ $branch->id }}" {{ in_array($branch->id, $assignedIds) ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="branch_cb_{{ $item->id }}_{{ $branch->id }}">{{ $branch->branch_name }} @if($branch->branch_code)({{ $branch->branch_code }})@endif</label>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div class="col-12 border-top pt-3 mt-2">
+                                    <label class="form-label fw-bold">Salary / Compensation</label>
+                                    <p class="text-muted small mb-2">Aik ya zyada options set kar sakte hain: per day, per month, percentage, ya commission</p>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="salary_per_day_{{ $item->id }}" class="form-label">Salary (Per Day)</label>
+                                            <input type="number" step="0.01" min="0" name="salary_per_day" id="salary_per_day_{{ $item->id }}" class="form-control" value="{{ old('salary_per_day', $item->salary_per_day ?? '') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="salary_per_month_{{ $item->id }}" class="form-label">Salary (Per Month)</label>
+                                            <input type="number" step="0.01" min="0" name="salary_per_month" id="salary_per_month_{{ $item->id }}" class="form-control" value="{{ old('salary_per_month', $item->salary_per_month ?? '') }}" placeholder="0.00">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="salary_percentage_{{ $item->id }}" class="form-label">Salary (Percentage %)</label>
+                                            <input type="number" step="0.01" min="0" max="100" name="salary_percentage" id="salary_percentage_{{ $item->id }}" class="form-control" value="{{ old('salary_percentage', $item->salary_percentage ?? '') }}" placeholder="0-100">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="commission_{{ $item->id }}" class="form-label">Commission %</label>
+                                            <input type="number" min="0" max="100" name="commission" id="commission_{{ $item->id }}" class="form-control" value="{{ old('commission', $item->commission ?? '') }}" placeholder="0-100">
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div class="col-12">
@@ -442,6 +510,7 @@
                                 <option value="manager">Manager</option>
                                 <option value="salesman">Sales man</option>
                                 <option value="purchaser">Purchaser</option>
+                                <option value="worker">Worker</option>
                             </select>
                         </div>
 
@@ -456,14 +525,50 @@
                             <small class="text-muted">Assigns permissions. Create roles in Admin → Roles.</small>
                         </div>
 
-                        <div class="col-md-6">
-                            <label for="branch_id" class="form-label">Branch</label>
+                        <div class="col-12">
+                            <label for="branch_id" class="form-label">Primary Branch</label>
                             <select name="branch_id" class="form-select">
                                 <option value="">Select Branch</option>
                                 @foreach($branches ?? [] as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->branch_name }} ({{ $branch->branch_code ?? '' }})</option>
                                 @endforeach
                             </select>
+                            <small class="text-muted">Default branch for this user</small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Access Branches (multiple)</label>
+                            <p class="text-muted small mb-2">In branches ko select karein jahan ye user login/access kar sakta hai</p>
+                            <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                                @foreach($branches ?? [] as $branch)
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="branch_ids[]" value="{{ $branch->id }}" id="add_branch_cb_{{ $branch->id }}">
+                                        <label class="form-check-label" for="add_branch_cb_{{ $branch->id }}">{{ $branch->branch_name }} @if($branch->branch_code)({{ $branch->branch_code }})@endif</label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="col-12 border-top pt-3">
+                            <label class="form-label fw-bold">Salary / Compensation</label>
+                            <p class="text-muted small mb-2">Aik ya zyada options set kar sakte hain: per day, per month, percentage, ya commission</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="salary_per_day_add" class="form-label">Salary (Per Day)</label>
+                                    <input type="number" step="0.01" min="0" name="salary_per_day" id="salary_per_day_add" class="form-control" value="" placeholder="0.00">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="salary_per_month_add" class="form-label">Salary (Per Month)</label>
+                                    <input type="number" step="0.01" min="0" name="salary_per_month" id="salary_per_month_add" class="form-control" value="" placeholder="0.00">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="salary_percentage_add" class="form-label">Salary (Percentage %)</label>
+                                    <input type="number" step="0.01" min="0" max="100" name="salary_percentage" id="salary_percentage_add" class="form-control" value="" placeholder="0-100">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="commission_add" class="form-label">Commission %</label>
+                                    <input type="number" min="0" max="100" name="commission" id="commission_add" class="form-control" value="0" placeholder="0-100">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="col-md-6">
@@ -486,7 +591,7 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Table search: filter rows by Employee Name, email, phone, branch, role, status
+        // Table search: filter rows by Employee Details (name, email, phone), branch, role, status
         var searchInput = document.getElementById('tableSearch');
         var table = document.getElementById('searchableTable');
         if (searchInput && table) {
@@ -516,6 +621,7 @@
             }
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+
 
         // Edit User: Profile image – choose photo button
         document.querySelectorAll('.profile-choose-btn').forEach(function(btn) {
@@ -562,42 +668,49 @@
             });
         });
 
-        // Edit User: Current location button (Google map current location)
+        // Edit User: Current location button – browser se current location le kar address input mein set karta hai
         document.querySelectorAll('.btn-edit-location').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var inputId = this.getAttribute('data-input-id');
                 var input = document.getElementById(inputId);
                 if (!input) return;
-                this.disabled = true;
-                this.textContent = 'Getting...';
+                var self = this;
+                self.disabled = true;
+                self.textContent = 'Getting...';
                 if (!navigator.geolocation) {
                     alert('Geolocation is not supported by your browser.');
-                    this.disabled = false;
-                    this.textContent = 'Current';
+                    self.disabled = false;
+                    self.textContent = 'Current';
                     return;
+                }
+                function setDone(text) {
+                    input.value = text;
+                    self.disabled = false;
+                    self.textContent = 'Current';
                 }
                 navigator.geolocation.getCurrentPosition(
                     function(pos) {
                         var lat = pos.coords.latitude;
                         var lng = pos.coords.longitude;
-                        fetch('https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lng + '&format=json', { headers: { 'Accept': 'application/json' } })
+                        var latLngStr = lat + ', ' + lng;
+                        // Reverse geocode: Nominatim requires User-Agent
+                        fetch('https://nominatim.openstreetmap.org/reverse?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng) + '&format=json', {
+                            headers: { 'Accept': 'application/json', 'User-Agent': 'TraderApp/1.0 (User Location)' }
+                        })
                             .then(function(r) { return r.json(); })
                             .then(function(data) {
-                                input.value = data.display_name || (lat + ', ' + lng);
-                                btn.disabled = false;
-                                btn.textContent = 'Current';
+                                setDone(data && data.display_name ? data.display_name : latLngStr);
                             })
                             .catch(function() {
-                                input.value = lat + ', ' + lng;
-                                btn.disabled = false;
-                                btn.textContent = 'Current';
+                                setDone(latLngStr);
                             });
                     },
                     function(err) {
-                        alert('Could not get location: ' + (err.message || 'Permission denied or unavailable.'));
-                        btn.disabled = false;
-                        btn.textContent = 'Current';
-                    }
+                        alert('Location nahi mili: ' + (err.message || 'Permission deny ya unavailable.'));
+                        self.disabled = false;
+                        self.textContent = 'Current';
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
                 );
             });
         });

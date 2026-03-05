@@ -43,23 +43,138 @@
         color: white;
         box-shadow: 0 4px 12px #fe962e;
     }
-    /* Add Vehicle modal: keep edit button inside, medium modal */
+    /* Add Vehicle modal: modal width = input width on every screen */
+    #itemVehicleAddModalEdit .modal-dialog {
+        width: 100%;
+        max-width: 540px;
+        margin: 1rem auto;
+        box-sizing: border-box;
+    }
+    @media (max-width: 576px) {
+        #itemVehicleAddModalEdit .modal-dialog {
+            max-width: calc(100vw - 1rem);
+            margin: 0.5rem auto;
+        }
+    }
+    #itemVehicleAddModalEdit .modal-content {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: visible;
+        border-radius: 0.5rem;
+    }
+    #itemVehicleAddModalEdit .modal-header {
+        position: relative;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1rem 3rem 1rem 1rem;
+        flex-shrink: 0;
+    }
+    #itemVehicleAddModalEdit .modal-header .btn-close {
+        margin: 0;
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    /* Unit dropdown: show selected unit in uppercase (e.g. CAN - 4 LITER) */
+    #unitAndRetailSection .select2-container .select2-selection__rendered,
+    #select2-unit_parts-container {
+        text-transform: uppercase !important;
+    }
+    #itemVehicleAddModalEdit .modal-body {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 1rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: 70vh;
+    }
+    #itemVehicleAddModalEdit #itemVehicleAddFormEdit {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .modal-body .mb-3 {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
     #itemVehicleAddModalEdit .input-group,
     #itemVehicleAddModalEdit .modal-body .input-group {
         display: flex;
+        width: 100%;
         max-width: 100%;
         min-width: 0;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .input-group > .form-select,
+    #itemVehicleAddModalEdit .input-group > .form-control {
+        min-width: 0;
+        flex: 1 1 0%;
+        width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     #itemVehicleAddModalEdit .input-group .select2-container,
     #itemVehicleAddModalEdit .input-group .select2-container--default {
-        flex: 1;
+        flex: 1 1 0%;
         min-width: 0;
+        width: 100% !important;
         max-width: 100%;
+        box-sizing: border-box;
     }
+    #itemVehicleAddModalEdit .input-group .select2-container .selection,
     #itemVehicleAddModalEdit .input-group .select2-container .selection .select2-selection {
         max-width: 100%;
+        min-width: 0;
     }
     #itemVehicleAddModalEdit .input-group .btn {
+        flex-shrink: 0;
+        flex-grow: 0;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    #itemVehicleAddModalEdit #itemVehicleYearRangesContainerEdit {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .item-vehicle-year-range-row {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .item-vehicle-year-range-row .row {
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .item-vehicle-year-range-row .col-5 {
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .item-vehicle-year-range-row .col-5 .form-select {
+        width: 100%;
+        max-width: 100%;
+    }
+    #itemVehicleAddModalEdit .item-vehicle-year-range-row .col-2 {
+        min-width: 2.5rem;
+        flex: 0 0 auto;
+        box-sizing: border-box;
+    }
+    #itemVehicleAddModalEdit .item-vehicle-year-range-row .col-2 .btn {
+        width: 100%;
+        min-width: 2.25rem;
+        padding: 0.35rem 0.5rem;
+    }
+    #itemVehicleAddModalEdit .modal-footer {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1rem;
         flex-shrink: 0;
     }
     .field-group {
@@ -191,7 +306,7 @@
                 </ul>
             </div>
             @endif
-            <form method="POST" action="{{ route('item.update', $item->id) }}" enctype="multipart/form-data" id="mainItemForm">
+            <form method="POST" action="{{ route('item.update', $item->id) }}" enctype="multipart/form-data" id="mainItemForm" data-initial-level="{{ old('level', $levelIdForForm ?? $item->level ?? '') }}">
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="user_id" value="{{ auth()->user()->id }}">
@@ -276,7 +391,7 @@
                                     @endif --}}
                                 </div>
                                 <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="part_number_id">Part Number:</label>
+                                    <label for="part_number_id">Part Number: <span class="text-danger">*</span></label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control part_number-select searchable-select @error('part_number_id') is-invalid @enderror"
@@ -301,7 +416,7 @@
                                 </div>
                                 <!-- Product Name -->
                                 <div class="col-md-4" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="itemname">Product Name:</label>
+                                    <label for="itemname">Product Name: <span class="text-danger">*</span></label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control name-select searchable-select @error('p_id') is-invalid @enderror"
@@ -328,7 +443,7 @@
                                 </div>
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'services' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="category_parts">Category:</label>
+                                    <label for="category_parts">Category: <span class="text-danger">*</span></label>
                                     <div class="d-flex align-items-start gap-2">
                                         <div class="flex-grow-1">
                                             <div class="input-group inputswidth">
@@ -338,6 +453,7 @@
                                                     <option value="">Select Category</option>
                                                     @foreach ($Categories as $category)
                                                     <option value="{{ $category->id }}"
+                                                        data-scrap-measurement="{{ $category->scrap_measurement ?? 'weight' }}"
                                                         data-image="{{ $category->image ? asset($category->image) : '' }}"
                                                         {{ ($item->category_id ?? old('category_id')) == $category->id ? 'selected' : '' }}>
                                                         {{ $category->name }}
@@ -397,7 +513,7 @@
                                     @enderror
                                 </div>
                                     <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="company_parts">Company:</label>
+                                    <label for="company_parts">Company: <span class="text-danger">*</span></label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control company-select searchable-select @error('company_id') is-invalid @enderror"
@@ -423,7 +539,7 @@
                                 </div>
                                 <!-- Quality -->
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="quality_common">Quality:</label>
+                                    <label for="quality_common">Quality: <span class="text-danger">*</span></label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control quality-select searchable-select @error('quality_id') is-invalid @enderror"
@@ -447,7 +563,389 @@
                                     </div>
                                     @error('quality_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                
+                                <!-- Weight & Unit (combined): Product Name style – input-group with Edit & Clear icon buttons -->
+                                <div class="col-md-6 mt-3 weight-unit-block" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
+                                    <label for="weight" class="text-center fw-bold d-block mb-1" style="font-weight: 900 !important;">WEIGHT &amp; UNIT</label>
+                                    <div class="input-group inputswidth">
+                                        <div class="d-flex align-items-center border rounded flex-grow-1" style="min-width: 120px;">
+                                            <input type="number" step="0.01"
+                                                class="form-control border-0 @error('weight_for_delivery') is-invalid @enderror" style="max-width: 90px;"
+                                                name="weight_for_delivery" id="weight" value="{{ $item->weight_for_delivery ?? old('weight_for_delivery') }}" placeholder="Weight" />
+                                            <span class="px-2 text-muted d-none" id="weight_unit_separator"> </span>
+                                            <span id="weight_unit_display" class="d-none align-middle px-2 text-nowrap fw-medium bg-light rounded" style="min-width: 2.5rem;"></span>
+                                            <select class="form-control form-select border-0 d-none" id="weight_unit_select" style="max-width: 200px; min-width: 120px; font-weight: 600;" title="Select unit">
+                                                <option value="">— Select unit —</option>
+                                                <optgroup label="Metric">
+                                                    <option value="mg">Milligram (mg)</option>
+                                                    <option value="g">Gram (g)</option>
+                                                    <option value="kg">Kilogram (kg)</option>
+                                                    <option value="ml">MilliLiter (ml)</option>
+                                                    <option value="quintal">Quintal (100 kg)</option>
+                                                    <option value="tonne">Metric Ton / Tonne (t)</option>
+                                                </optgroup>
+                                                <optgroup label="Imperial / Other">
+                                                    <option value="oz">Ounce (oz)</option>
+                                                    <option value="lb">Pound (lb)</option>
+                                                    <option value="stone">Stone</option>
+                                                    <option value="ton_us">Ton (US)</option>
+                                                    <option value="ton_uk">Ton (UK)</option>
+                                                </optgroup>
+                                            </select>
+                                            <input type="text" class="form-control border-0 d-none" id="weight_unit_edit_input" placeholder="Or type / rename unit" style="max-width: 100px;" title="Type to rename unit" />
+                                        </div>
+                                        <button type="button" id="weight_unit_edit_btn" class="btn btn-secondary d-none" title="Edit unit"><i data-feather="edit"></i></button>
+                                        <button type="button" id="weight_unit_delete_btn" class="btn btn-outline-secondary d-none" title="Remove weight &amp; unit"><i data-feather="x"></i></button>
+                                    </div>
+                                    <input type="hidden" name="weight_unit" id="weight_unit" value="{{ old('weight_unit', $item->weight_unit ?? '') }}" />
+                                    <span id="weight_unit_actions" class="d-flex align-items-center gap-1 flex-wrap mt-1">
+                                        <button type="button" id="weight_unit_add_btn" class="btn btn-sm btn-success d-none">Add</button>
+                                        <button type="button" id="weight_unit_add_new_btn" class="btn btn-sm btn-outline-success d-none" title="Add new unit (e.g. Kilograms, Bag)"><i data-feather="plus" style="width:14px;height:14px;"></i> Add unit</button>
+                                        <button type="button" id="weight_unit_update_btn" class="btn btn-sm btn-primary d-none">Update</button>
+                                        <button type="button" id="weight_unit_cancel_btn" class="btn btn-sm btn-outline-secondary d-none">Cancel</button>
+                                    </span>
+                                    @error('weight_for_delivery') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                                <script>
+                                (function() {
+                                    var VALUE_TO_SHORT = { mg:'MG', g:'G', kg:'KG', ml:'ML', quintal:'Q', tonne:'T', oz:'OZ', lb:'LB', stone:'ST', ton_us:'T-US', ton_uk:'T-UK' };
+                                    function shortForValue(v) { return (v && VALUE_TO_SHORT[v]) ? VALUE_TO_SHORT[v] : (v || ''); }
+                                    function run() {
+                                    var weightInput = document.getElementById('weight');
+                                    var weightUnitHidden = document.getElementById('weight_unit');
+                                    var weightUnitDisplay = document.getElementById('weight_unit_display');
+                                    var weightUnitSelect = document.getElementById('weight_unit_select');
+                                    var weightUnitEditInput = document.getElementById('weight_unit_edit_input');
+                                    var separator = document.getElementById('weight_unit_separator');
+                                    var actionsWrap = document.getElementById('weight_unit_actions');
+                                    var addBtn = document.getElementById('weight_unit_add_btn');
+                                    var editBtn = document.getElementById('weight_unit_edit_btn');
+                                    var updateBtn = document.getElementById('weight_unit_update_btn');
+                                    var cancelBtn = document.getElementById('weight_unit_cancel_btn');
+                                    var deleteBtn = document.getElementById('weight_unit_delete_btn');
+                                    if (!weightInput || !weightUnitHidden) return;
+                                    var selectedUnit = (weightUnitHidden.value || '').trim();
+                                    var isEditingUnit = false;
+                                    function setStoredUnit(val) {
+                                        selectedUnit = (val || '').trim();
+                                        weightUnitHidden.value = selectedUnit;
+                                    }
+                                    var addNewUnitBtn = document.getElementById('weight_unit_add_new_btn');
+                                    function showDisplay() {
+                                        weightUnitDisplay.classList.remove('d-none');
+                                        weightUnitSelect.classList.add('d-none');
+                                        weightUnitEditInput.classList.add('d-none');
+                                        if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
+                                        if (separator) separator.classList.remove('d-none');
+                                        weightUnitDisplay.textContent = shortForValue(selectedUnit.toLowerCase()) || shortForValue(selectedUnit) || selectedUnit;
+                                    }
+                                    function showSelect() {
+                                        weightUnitDisplay.classList.add('d-none');
+                                        weightUnitSelect.classList.remove('d-none');
+                                        weightUnitEditInput.classList.remove('d-none');
+                                        if (weightUnitEditInput) {
+                                            weightUnitEditInput.placeholder = 'Or type / rename unit';
+                                            weightUnitEditInput.value = shortForValue(selectedUnit) || selectedUnit || '';
+                                        }
+                                        if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
+                                        if (separator) separator.classList.remove('d-none');
+                                    }
+                                    function hideUnitArea() {
+                                        weightUnitDisplay.classList.add('d-none');
+                                        weightUnitSelect.classList.add('d-none');
+                                        weightUnitEditInput.classList.add('d-none');
+                                        if (separator) separator.classList.add('d-none');
+                                    }
+                                    function updateButtons() {
+                                        if (isEditingUnit) {
+                                            addBtn.classList.add('d-none'); editBtn.classList.add('d-none');
+                                            if (deleteBtn) deleteBtn.classList.add('d-none');
+                                            if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
+                                            updateBtn.classList.remove('d-none'); cancelBtn.classList.remove('d-none');
+                                        } else {
+                                            updateBtn.classList.add('d-none'); cancelBtn.classList.add('d-none');
+                                            if (selectedUnit) {
+                                                addBtn.classList.add('d-none');
+                                                editBtn.classList.remove('d-none');
+                                                if (deleteBtn) deleteBtn.classList.remove('d-none');
+                                                if (addNewUnitBtn) addNewUnitBtn.classList.add('d-none');
+                                            } else {
+                                                editBtn.classList.add('d-none');
+                                                if (deleteBtn) deleteBtn.classList.add('d-none');
+                                                addBtn.classList.remove('d-none');
+                                                if (addNewUnitBtn) addNewUnitBtn.classList.remove('d-none');
+                                            }
+                                        }
+                                    }
+                                    var lookupUrl = '{{ route("items.weight.unit.lookup") }}';
+                                    var debounceTimer;
+                                    weightInput.addEventListener('input', function() {
+                                        clearTimeout(debounceTimer);
+                                        var val = (weightInput.value || '').trim();
+                                        if (val === '') {
+                                            setStoredUnit('');
+                                            hideUnitArea();
+                                            weightUnitSelect.value = '';
+                                            addBtn.classList.add('d-none');
+                                            editBtn.classList.add('d-none');
+                                            if (deleteBtn) deleteBtn.classList.add('d-none');
+                                            actionsWrap.classList.add('d-none');
+                                            return;
+                                        }
+                                        actionsWrap.classList.remove('d-none');
+                                        if (selectedUnit) { showDisplay(); updateButtons(); return; }
+                                        showSelect();
+                                        addBtn.classList.remove('d-none');
+                                        editBtn.classList.add('d-none');
+                                        debounceTimer = setTimeout(function() {
+                                            fetch(lookupUrl + '?weight=' + encodeURIComponent(val))
+                                                .then(function(r) { return r.json(); })
+                                                .then(function(data) {
+                                                    var matches = (data && data.matches) ? data.matches : [];
+                                                    if (matches.length > 0 && !selectedUnit) {
+                                                        var u = matches[0].unit;
+                                                        setStoredUnit(u);
+                                                        if (VALUE_TO_SHORT[u]) weightUnitSelect.value = u; else weightUnitSelect.value = '';
+                                                        showDisplay();
+                                                        editBtn.classList.remove('d-none');
+                                                        addBtn.classList.add('d-none');
+                                                    } else if (!selectedUnit) {
+                                                        showSelect();
+                                                        addBtn.classList.remove('d-none');
+                                                        editBtn.classList.add('d-none');
+                                                    }
+                                                })
+                                                .catch(function() {
+                                                    if (!selectedUnit) { showSelect(); addBtn.classList.remove('d-none'); editBtn.classList.add('d-none'); }
+                                                });
+                                        }, 300);
+                                    });
+                                    addBtn.addEventListener('click', function() { showSelect(); weightUnitSelect.focus(); });
+                                    function getSelectedOptionText() {
+                                        var opt = weightUnitSelect.options[weightUnitSelect.selectedIndex];
+                                        return opt ? (opt.textContent || opt.text || '').trim() : '';
+                                    }
+                                    weightUnitSelect.addEventListener('change', function() {
+                                        var v = (weightUnitSelect.value || '').trim();
+                                        if (v) {
+                                            var fullName = getSelectedOptionText();
+                                            if (weightUnitEditInput) weightUnitEditInput.value = fullName || shortForValue(v) || v;
+                                            setStoredUnit(fullName || v);
+                                            weightUnitHidden.value = fullName || v;
+                                            showDisplay();
+                                            if (isEditingUnit) { isEditingUnit = false; updateButtons(); }
+                                            editBtn.classList.remove('d-none');
+                                            addBtn.classList.add('d-none');
+                                            if (deleteBtn) deleteBtn.classList.remove('d-none');
+                                        }
+                                    });
+                                    updateBtn.addEventListener('click', function() {
+                                        var customVal = (weightUnitEditInput && weightUnitEditInput.value) ? (weightUnitEditInput.value || '').trim() : '';
+                                        var v = customVal !== '' ? customVal : getSelectedOptionText() || (weightUnitSelect.value || '').trim();
+                                        if (v) { setStoredUnit(v); weightUnitHidden.value = v; }
+                                        isEditingUnit = false;
+                                        showDisplay();
+                                        updateButtons();
+                                    });
+                                    cancelBtn.addEventListener('click', function() {
+                                        isEditingUnit = false;
+                                        showDisplay();
+                                        updateButtons();
+                                    });
+                                    if (deleteBtn) deleteBtn.addEventListener('click', function() {
+                                        setStoredUnit('');
+                                        weightUnitHidden.value = '';
+                                        weightInput.value = '';
+                                        weightUnitSelect.value = '';
+                                        hideUnitArea();
+                                        addBtn.classList.add('d-none');
+                                        editBtn.classList.add('d-none');
+                                        deleteBtn.classList.add('d-none');
+                                        updateBtn.classList.add('d-none');
+                                        cancelBtn.classList.add('d-none');
+                                        actionsWrap.classList.add('d-none');
+                                    });
+                                    var addNewModal = document.getElementById('weight-unit-add-new-modal');
+                                    var newNameInput = document.getElementById('weight_unit_new_name');
+                                    var newNameError = document.getElementById('weight_unit_new_name_error');
+                                    var addNewModalBtn = document.getElementById('weight_unit_add_new_modal_btn');
+                                    function ensureCustomOptgroup(selectEl) {
+                                        if (!selectEl) return null;
+                                        var existing = selectEl.querySelector('optgroup[label="Custom"]');
+                                        if (existing) return existing;
+                                        var og = document.createElement('optgroup');
+                                        og.label = 'Custom';
+                                        selectEl.appendChild(og);
+                                        return og;
+                                    }
+                                    function addOptionToWeightUnitSelects(name) {
+                                        var s1 = weightUnitSelect;
+                                        var s2 = document.getElementById('weight_unit_modal_unit');
+                                        [s1, s2].forEach(function(sel) {
+                                            if (!sel) return;
+                                            var opt = sel.querySelector('option[value="' + name.replace(/"/g, '&quot;') + '"]');
+                                            if (opt) return;
+                                            var og = ensureCustomOptgroup(sel);
+                                            if (!og) return;
+                                            var o = document.createElement('option');
+                                            o.value = name;
+                                            o.textContent = name;
+                                            og.appendChild(o);
+                                        });
+                                    }
+                                    if (addNewUnitBtn) addNewUnitBtn.addEventListener('click', function() {
+                                        if (newNameInput) { newNameInput.value = ''; newNameInput.classList.remove('is-invalid'); }
+                                        if (newNameError) newNameError.textContent = '';
+                                        if (addNewModal && typeof bootstrap !== 'undefined') {
+                                            var m = bootstrap.Modal.getOrCreateInstance(addNewModal);
+                                            m.show();
+                                            setTimeout(function() { if (newNameInput) newNameInput.focus(); }, 300);
+                                        }
+                                    });
+                                    if (addNewModalBtn && newNameInput) addNewModalBtn.addEventListener('click', function() {
+                                        var name = (newNameInput.value || '').trim();
+                                        if (!name) {
+                                            newNameInput.classList.add('is-invalid');
+                                            if (newNameError) newNameError.textContent = 'Please enter a unit name.';
+                                            return;
+                                        }
+                                        newNameInput.classList.remove('is-invalid');
+                                        if (newNameError) newNameError.textContent = '';
+                                        addOptionToWeightUnitSelects(name);
+                                        weightUnitSelect.value = name;
+                                        setStoredUnit(name);
+                                        weightUnitHidden.value = name;
+                                        showDisplay();
+                                        if (isEditingUnit) { isEditingUnit = false; updateButtons(); }
+                                        else { editBtn.classList.remove('d-none'); addBtn.classList.add('d-none'); if (deleteBtn) deleteBtn.classList.remove('d-none'); updateButtons(); }
+                                        if (addNewModal && typeof bootstrap !== 'undefined') { var m = bootstrap.Modal.getInstance(addNewModal); if (m) m.hide(); }
+                                        newNameInput.value = '';
+                                    });
+                                    if (weightUnitHidden.value) {
+                                        selectedUnit = (weightUnitHidden.value || '').trim();
+                                        var w = (weightInput.value || '').trim();
+                                        if (w) {
+                                            actionsWrap.classList.remove('d-none');
+                                            showDisplay();
+                                            editBtn.classList.remove('d-none');
+                                            if (deleteBtn) deleteBtn.classList.remove('d-none');
+                                        }
+                                    }
+                                    if (weightInput.value && (weightInput.value + '').trim() !== '') {
+                                        weightInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                    }
+                                    var modalUnitSelect = document.getElementById('weight_unit_modal_unit');
+                                    var weightUnitModal = document.getElementById('weight-unit-edit-modal');
+                                    var modalWeightInput = document.getElementById('weight_unit_modal_weight');
+                                    var modalUnitCustomInput = document.getElementById('weight_unit_modal_unit_custom');
+                                    var modalUpdateBtn = document.getElementById('weight_unit_modal_update');
+                                    var modalDeleteBtn = document.getElementById('weight_unit_modal_delete');
+                                    function getModalUnitValue() {
+                                        if (!modalUnitSelect) return '';
+                                        var v = (modalUnitSelect.value || '').trim();
+                                        if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
+                                        return v;
+                                    }
+                                    function getModalUnitDisplayValue() {
+                                        if (!modalUnitSelect) return '';
+                                        var v = (modalUnitSelect.value || '').trim();
+                                        if (v === '__custom__' && modalUnitCustomInput) return (modalUnitCustomInput.value || '').trim();
+                                        var opt = modalUnitSelect.options[modalUnitSelect.selectedIndex];
+                                        return opt ? (opt.textContent || opt.text || '').trim() || v : v;
+                                    }
+                                    function setModalUnitFromValue(unitStr) {
+                                        if (!modalUnitSelect) return;
+                                        var u = (unitStr || '').trim();
+                                        if (!u) {
+                                            modalUnitSelect.value = '';
+                                            if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
+                                            return;
+                                        }
+                                        var byVal = modalUnitSelect.querySelector('option[value="' + u.replace(/"/g, '&quot;') + '"]') || modalUnitSelect.querySelector('option[value="' + u.toLowerCase().replace(/"/g, '&quot;') + '"]');
+                                        if (byVal) {
+                                            modalUnitSelect.value = byVal.value;
+                                            if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
+                                            return;
+                                        }
+                                        var opts = modalUnitSelect.querySelectorAll('option[value]');
+                                        for (var i = 0; i < opts.length; i++) {
+                                            if ((opts[i].textContent || opts[i].text || '').trim() === u) {
+                                                modalUnitSelect.value = opts[i].value;
+                                                if (modalUnitCustomInput) { modalUnitCustomInput.style.display = 'none'; modalUnitCustomInput.value = ''; }
+                                                return;
+                                            }
+                                        }
+                                        modalUnitSelect.value = '__custom__';
+                                        if (modalUnitCustomInput) { modalUnitCustomInput.value = u; modalUnitCustomInput.style.display = 'block'; }
+                                    }
+                                    function openWeightUnitModal() {
+                                        if (modalWeightInput) modalWeightInput.value = (weightInput.value || '').trim();
+                                        setModalUnitFromValue(selectedUnit);
+                                        if (weightUnitModal && typeof bootstrap !== 'undefined') {
+                                            var m = bootstrap.Modal.getOrCreateInstance(weightUnitModal);
+                                            m.show();
+                                            setTimeout(function() { if (modalWeightInput) modalWeightInput.focus(); }, 300);
+                                        }
+                                    }
+                                    if (modalUnitSelect && modalUnitCustomInput) {
+                                        modalUnitSelect.addEventListener('change', function() {
+                                            modalUnitCustomInput.style.display = modalUnitSelect.value === '__custom__' ? 'block' : 'none';
+                                            if (modalUnitSelect.value !== '__custom__') modalUnitCustomInput.value = '';
+                                        });
+                                    }
+                                    function setDropdownByUnit(unitStr) {
+                                        if (!unitStr) return;
+                                        var u = (unitStr || '').trim();
+                                        var byVal = weightUnitSelect.querySelector('option[value="' + u + '"]') || weightUnitSelect.querySelector('option[value="' + u.toLowerCase() + '"]');
+                                        if (byVal) { weightUnitSelect.value = byVal.value; return; }
+                                        var opts = weightUnitSelect.querySelectorAll('option[value]');
+                                        for (var i = 0; i < opts.length; i++) {
+                                            if ((opts[i].textContent || opts[i].text || '').trim() === u) {
+                                                weightUnitSelect.value = opts[i].value;
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    editBtn.addEventListener('click', function() {
+                                        openWeightUnitModal();
+                                    });
+                                    function closeWeightUnitModal() {
+                                        if (weightUnitModal && typeof bootstrap !== 'undefined') {
+                                            var m = bootstrap.Modal.getInstance(weightUnitModal);
+                                            if (m) m.hide();
+                                        }
+                                    }
+                                    if (modalUpdateBtn) modalUpdateBtn.addEventListener('click', function() {
+                                        var w = (modalWeightInput && modalWeightInput.value !== undefined) ? (modalWeightInput.value || '').trim() : '';
+                                        var u = getModalUnitDisplayValue();
+                                        if (w !== '') weightInput.value = w;
+                                        if (u) { setStoredUnit(u); weightUnitHidden.value = u; }
+                                        showDisplay();
+                                        updateButtons();
+                                        closeWeightUnitModal();
+                                    });
+                                    if (modalDeleteBtn) modalDeleteBtn.addEventListener('click', function() {
+                                        setStoredUnit('');
+                                        weightUnitHidden.value = '';
+                                        weightInput.value = '';
+                                        weightUnitSelect.value = '';
+                                        hideUnitArea();
+                                        addBtn.classList.add('d-none');
+                                        editBtn.classList.add('d-none');
+                                        if (deleteBtn) deleteBtn.classList.add('d-none');
+                                        updateBtn.classList.add('d-none');
+                                        cancelBtn.classList.add('d-none');
+                                        actionsWrap.classList.add('d-none');
+                                        closeWeightUnitModal();
+                                    });
+                                    }
+                                    if (document.readyState === 'loading') {
+                                        document.addEventListener('DOMContentLoaded', run);
+                                    } else {
+                                        run();
+                                    }
+                                })();
+                                </script>
 
                             </div>
                         </div>
@@ -760,15 +1258,15 @@
                                     </div>
                                     @error('mileage') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-                                <div class="col-md-4 mt-3 ">
-                                    <label for="Level_select">Level:</label>
+                                <div class="col-md-4 mt-3">
+                                    <label for="Level_select" class="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0 text-center fw-bold" style="font-weight: 900 !important;">CLASS:</label>
                                     <div class="input-group inputswidth">
                                         <select
                                             class="form-control level-select searchable-select @error('level') is-invalid @enderror"
                                             name="level" id="Level_select">
                                             <option value="">Select Level</option>
                                             @foreach ($levels as $level)
-                                            <option value="{{ $level->id }}" {{ old('level', $item->level) == $level->id ? 'selected' : '' }}>
+                                            <option value="{{ $level->id }}" {{ (string)old('level', $levelIdForForm ?? $item->level ?? '') === (string)$level->id ? 'selected' : '' }}>
                                                 {{ $level->name }}
                                             </option>
                                             @endforeach
@@ -817,6 +1315,63 @@
                         <!-- SCRAP FIELDS -->
                         <div class="field-group scrap-fields" :class="{ 'active': selectedType === 'scrap' }">
                             <div class="row p-3 mt-4">
+                                {{-- Weight-based scrap --}}
+                                <div class="col-12 mb-3" x-show="scrapMeasurement === 'weight'" x-transition>
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light py-2">
+                                            <h6 class="mb-0 fw-bold"><i class="ti ti-scale me-1"></i> Scrap by Weight</h6>
+                                            <small class="text-muted">Weight in KG, rate per KG. Total updates automatically.</small>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label for="scrap_weight_kg_edit" class="form-label fw-bold">Weight (KG) <span class="text-danger">*</span></label>
+                                                    <input type="number" step="0.01" min="0" class="form-control scrap-weight-input-edit"
+                                                        name="scrap_weight_kg" id="scrap_weight_kg_edit" value="{{ old('scrap_weight_kg', $item->weight_for_delivery) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="scrap_rate_per_kg_edit" class="form-label fw-bold">Rate per KG</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control scrap-rate-input-edit"
+                                                        name="scrap_rate_per_kg" id="scrap_rate_per_kg_edit" value="{{ old('scrap_rate_per_kg', $item->price_per_unit) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="scrap_total_price_edit" class="form-label fw-bold">Total Price</label>
+                                                    <input type="text" class="form-control bg-light" id="scrap_total_price_edit" readonly placeholder="Auto (Weight × Rate)">
+                                                    <input type="hidden" name="scrap_total_price" id="scrap_total_price_hidden_edit" value="{{ old('scrap_total_price', $item->total_price) }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {{-- Count-based scrap --}}
+                                <div class="col-12 mb-3" x-show="scrapMeasurement === 'count'" x-transition style="display: none;">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light py-2">
+                                            <h6 class="mb-0 fw-bold"><i class="ti ti-number me-1"></i> Scrap by Quantity</h6>
+                                            <small class="text-muted">تعداد، ریٹ، کل قیمت — Quantity, rate per unit. Total updates automatically.</small>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label for="scrap_quantity_edit" class="form-label fw-bold">Quantity (تعداد) <span class="text-danger">*</span></label>
+                                                    <input type="number" step="1" min="0" class="form-control scrap-quantity-input-edit"
+                                                        name="scrap_quantity" id="scrap_quantity_edit" value="{{ old('scrap_quantity', $item->on_hand) }}" placeholder="0">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="scrap_rate_count_edit" class="form-label fw-bold">Rate per Unit</label>
+                                                    <input type="number" step="0.01" min="0" class="form-control scrap-rate-count-input-edit"
+                                                        name="scrap_rate_count" id="scrap_rate_count_edit" value="{{ old('scrap_rate_count', $item->price_per_unit) }}" placeholder="0.00">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="scrap_total_count_edit" class="form-label fw-bold">Total Price</label>
+                                                    <input type="text" class="form-control bg-light" id="scrap_total_count_edit" readonly placeholder="Auto (Quantity × Rate)">
+                                                    <input type="hidden" name="scrap_total_count_hidden" id="scrap_total_count_hidden_edit" value="{{ old('scrap_total_count_hidden', $item->total_price) }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="scrap_measurement" id="scrap_measurement_input_edit" value="{{ old('scrap_measurement', $item->category && $item->category->scrap_measurement ? $item->category->scrap_measurement : 'weight') }}">
                            <div class="col-md-4">
                             <label for="battery_size">Battery Size:</label>
                             <input type="text" class="form-control @error('battery_size') is-invalid @enderror"
@@ -889,10 +1444,10 @@
                                             <h5 class="mb-0 fw-bold">Unit Management & Price Calculation</h5>
                                         </div>
                                         <div class="card-body">
-                                            <!-- Unit Selection -->
-                                            <div class="mb-4">
-                                                <label class="form-label fw-bold mb-2">Select Unit & Conversion:</label>
-                                                <div class="input-group">
+                                            <!-- Unit Selection & Retail Price (merged) -->
+                                            <div id="unitAndRetailSection" class="mb-4">
+                                                <label class="form-label fw-bold mb-2">Select Unit & Conversion: <span class="text-danger">*</span></label>
+                                                <div class="input-group mb-3">
                                                     <select class="form-control form-control-lg searchable-select @error('unit') is-invalid @enderror"
                                                         name="unit" id="unit_parts" 
                                                         data-saved-unit-id="{{ $itemUnitIdForSelect ?? $item->unit ?? ($item->unit_item->id ?? '') }}"
@@ -905,6 +1460,32 @@
                                                     </button>
                                                 </div>
                                                 @error('unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                                <div class="d-flex align-items-center gap-2 mb-3">
+                                                    <div class="form-check form-switch mb-0">
+                                                        <input class="form-check-input" type="checkbox" id="retailPriceSwitch" name="use_retail_price" value="1" {{ old('retail_price', $item->retail_price ?? '') ? 'checked' : '' }} autocomplete="off">
+                                                        <label class="form-check-label fw-bold text-info" for="retailPriceSwitch">Use Retail Price (MRP) for % purchase/sale</label>
+                                                    </div>
+                                                </div>
+                                                <div id="retailPriceManagement" class="row g-3" style="display: {{ old('retail_price', $item->retail_price ?? '') ? 'flex' : 'none' }};">
+                                                    <div class="col-md-6">
+                                                        <div class="card border-info bg-light">
+                                                            <div class="card-body">
+                                                                <label class="form-label small fw-bold text-info text-uppercase mb-1">Retail Price (Rs.):</label>
+                                                                <div class="input-group input-group-lg" style="display: flex; align-items: stretch;">
+                                                                    <span class="input-group-text bg-info text-white fw-bold" style="display: flex; align-items: center; justify-content: center; height: auto; min-height: 100%; padding: 0.5rem 0.75rem;">Rs.</span>
+                                                                    <input type="number" step="0.01" id="retailPrice" name="retail_price"
+                                                                        class="form-control form-control-lg fw-bold" placeholder="0"
+                                                                        value="{{ old('retail_price', $item->retail_price ?? '') }}" min="0" style="flex: 1; height: 100%;">
+                                                                </div>
+                                                                <small class="text-muted">Use for percentage-wise purchase/sale (e.g. battery).</small>
+                                                                <div id="retailPricePerBaseRow" class="mt-3 pt-3 border-top border-info" style="display: none;">
+                                                                    <label class="form-label small fw-bold text-info text-uppercase mb-1" id="retailPricePerBaseLabel">Retail price per liter:</label>
+                                                                    <p class="mb-0 fw-bold h6" id="retailPricePerBaseValue">Rs. 0.00</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <!-- Warning Message -->
@@ -978,9 +1559,9 @@
                                                                         oninput="calculateFromBase('sale')" style="flex: 1; height: 100%;">
                                                                 </div>
                                                             </div>
-                                                        </div>
                                                     </div>
                                                 </div>
+                                            </div>
                                             </div>
 
                                             <!-- Price Analysis -->
@@ -993,8 +1574,8 @@
 
                                 <!-- Single Product Image (Thumbnail) -->
                                 <div class="col-md-6 mt-3">
-                                    <label for="imageInput" class="form-label fw-bold">Product Image (Thumbnail)</label>
-
+                                    <label for="imageInput" class="form-label fw-bold">Product Image (Thumbnail): <span class="text-danger">*</span></label>
+                                    <input type="hidden" id="itemHasImage" value="{{ $item->image ? '1' : '0' }}">
                                     <div class="d-flex gap-2">
                                         <!-- Hidden file input -->
                                         <input type="file" id="imageInput" name="image" accept="image/*"
@@ -1010,10 +1591,11 @@
                                     <div id="previewContainer" class="text-center mt-3" style="display: {{ $item->image ? 'block' : 'none' }};">
                                         <div class="position-relative d-inline-block">
                                             <img id="imagePreview"
-                                                src="{{ $item->image ? asset($item->image) : 'https://pdis.co.kr/img/image.jpg' }}"
+                                                src="{{ $item->image ? asset($item->image) : asset('assets/img/icons/image.svg') }}"
                                                 alt="Preview"
                                                 class="img-fluid rounded border shadow-sm"
-                                                style="max-height: 220px; object-fit: cover;">
+                                                style="max-height: 220px; object-fit: cover;"
+                                                onerror="this.onerror=null; this.src='{{ asset('assets/img/icons/image.svg') }}';">
                                             <button type="button" id="removeBtn" class="btn btn-danger btn-sm position-absolute"
                                                     style="top: 8px; right: 8px;" data-id="{{ $item->id }}">
                                                 <i data-feather="x"></i>
@@ -1074,9 +1656,9 @@
                                 </div>
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="low_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">LOW STOCK:</label>
+                                    <label for="low_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">LOW STOCK: <span class="text-danger">*</span></label>
                                     <select class="form-control searchable-select @error('l_stock') is-invalid @enderror"
-                                        name="l_stock" id="low_stock_parts">
+                                        name="l_stock" id="low_stock_parts" required>
                                         <option value="">Select Low Stock</option>
                                         @for($i = 1; $i <= 1000; $i++)
                                             <option value="{{ $i }}" {{ old('l_stock', $item->l_stock ?? '') == $i ? 'selected' : '' }}>{{ $i }}</option>
@@ -1086,9 +1668,9 @@
                                 </div>
 
                                 <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                    <label for="maintain_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">MAINTAIN STOCK:</label>
+                                    <label for="maintain_stock_parts" class="text-center fw-bold d-block" style="font-weight: 900 !important;">MAINTAIN STOCK: <span class="text-danger">*</span></label>
                                     <select class="form-control searchable-select @error('m_stock') is-invalid @enderror"
-                                        name="m_stock" id="maintain_stock_parts">
+                                        name="m_stock" id="maintain_stock_parts" required>
                                         <option value="">Select Maintain Stock</option>
                                         @for($i = 1; $i <= 1000; $i++)
                                             <option value="{{ $i }}" {{ old('m_stock', $item->m_stock ?? '') == $i ? 'selected' : '' }}>{{ $i }}</option>
@@ -1109,40 +1691,6 @@
                                     </select>
                                     @error('on_hand') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                 </div>
-
-                                <!-- Weight -->
-                                    <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                        <label for="weight" class="text-center fw-bold d-block" style="font-weight: 900 !important;">WEIGHT:</label>
-                                        <input type="number" step="0.01"
-                                            class="form-control @error('weight_for_delivery') is-invalid @enderror" name="weight_for_delivery"
-                                            id="weight" value="{{ $item->weight_for_delivery ?? old('weight_for_delivery') }}" placeholder="Enter weight" />
-                                        @error('weight_for_delivery') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
-                                    
-                                    <!-- Weight Unit -->
-                                    <div class="col-md-4 mt-3" x-show="selectedType === 'parts' || selectedType === 'battery' || selectedType === 'oil' || selectedType === 'scrap' || selectedType === 'filters' || selectedType === 'breakpad'">
-                                        <label for="weight_unit" class="text-center fw-bold d-block" style="font-weight: 900 !important;">WEIGHT UNIT:</label>
-                                        <select class="form-control searchable-select @error('weight_unit') is-invalid @enderror"
-                                            name="weight_unit" id="weight_unit">
-                                            <option value="">Select Weight Unit</option>
-                                            <optgroup label="Metric System (most used worldwide)">
-                                                <option value="ml" {{ old('weight_unit', $item->weight_unit ?? '') == 'ml' ? 'selected' : '' }}>MilliLiter (Ml)</option>
-                                                <option value="mg" {{ old('weight_unit', $item->weight_unit ?? '') == 'mg' ? 'selected' : '' }}>Milligram (mg)</option>
-                                                <option value="g" {{ old('weight_unit', $item->weight_unit ?? '') == 'g' ? 'selected' : '' }}>Gram (g)</option>
-                                                <option value="kg" {{ old('weight_unit', $item->weight_unit ?? '') == 'kg' ? 'selected' : '' }}>Kilogram (kg)</option>
-                                                <option value="quintal" {{ old('weight_unit', $item->weight_unit ?? '') == 'quintal' ? 'selected' : '' }}>Quintal (100 kg)</option>
-                                                <option value="tonne" {{ old('weight_unit', $item->weight_unit ?? '') == 'tonne' ? 'selected' : '' }}>Metric Ton / Tonne (t) = 1000 kg</option>
-                                            </optgroup>
-                                            <optgroup label="Imperial / Other Systems">
-                                                <option value="oz" {{ old('weight_unit', $item->weight_unit ?? '') == 'oz' ? 'selected' : '' }}>Ounce (oz)</option>
-                                                <option value="lb" {{ old('weight_unit', $item->weight_unit ?? '') == 'lb' ? 'selected' : '' }}>Pound (lb)</option>
-                                                <option value="stone" {{ old('weight_unit', $item->weight_unit ?? '') == 'stone' ? 'selected' : '' }}>Stone (UK-specific)</option>
-                                                <option value="ton_us" {{ old('weight_unit', $item->weight_unit ?? '') == 'ton_us' ? 'selected' : '' }}>Ton (US)</option>
-                                                <option value="ton_uk" {{ old('weight_unit', $item->weight_unit ?? '') == 'ton_uk' ? 'selected' : '' }}>Ton (UK)</option>
-                                            </optgroup>
-                                        </select>
-                                        @error('weight_unit') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    </div>
 
                                 <div class="col-md-4 mt-3 d-none">
                                     <label for="vehical_id">Vehicle Type:</label>
@@ -1447,25 +1995,52 @@
                     <tr>
 
                         <td>
-                            <img src="{{ asset($item->image ?? 'assets/img/media/default.png') }}" width="70"
-                                height="70" class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
-                                data-bs-target="#imageModal"
-                                data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
+                            @php
+                                $rawImage = $item->image ?? 'assets/img/media/default.png';
+                                $imgUrl = (str_starts_with($rawImage, 'http://') || str_starts_with($rawImage, 'https://')) ? $rawImage : asset($rawImage);
+                                $fallbackUrl = asset('assets/img/media/default.png');
+                            @endphp
+                            <img src="{{ $imgUrl }}" width="70" height="70"
+                                class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
+                                data-bs-target="#imageModal" data-src="{{ $imgUrl }}"
+                                onerror="this.onerror=null;this.src='{{ $fallbackUrl }}';" data-fallback="{{ $fallbackUrl }}">
                         </td>
                         <td>  
                             <div class="small">
-                                <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
-                                @if($item->product_item)
-                                <div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>
+                                @if(($item->type ?? '') === 'battery')
+                                    @php
+                                        $v = $item->volt_item ? trim((string)($item->volt_item->name ?? '')) : '';
+                                        $voltDisplay = $v !== '' ? (preg_match('/\d*\s*V$/i', $v) ? $v : $v . 'V') : '-';
+                                        $p = $item->plate_item ? trim((string)($item->plate_item->name ?? '')) : '';
+                                        $plateDisplay = $p !== '' ? (preg_match('/\d*\s*PL$/i', $p) ? $p : $p . 'PL') : '-';
+                                        $a = $item->amphors_item ? trim((string)($item->amphors_item->name ?? '')) : '';
+                                        $ampDisplay = $a !== '' ? (preg_match('/\d*\s*AH$/i', $a) ? $a : $a . 'AH') : '-';
+                                        $c = $item->cca_item ? trim((string)($item->cca_item->name ?? '')) : '';
+                                        $ccaDisplay = $c !== '' ? (preg_match('/\d*\s*CCA$/i', $c) ? $c : $c . 'CCA') : '-';
+                                    @endphp
+                                    <div>{{ $item->company_item->name ?? '-' }}</div>
+                                    <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                    <div>{{ $voltDisplay }}</div>
+                                    <div>{{ $plateDisplay }}</div>
+                                    <div>{{ $ampDisplay }}</div>
+                                    <div>{{ $ccaDisplay }}</div>
+                                @else
+                                    <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                    @if($item->product_item)
+                                    <div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>
+                                    @endif
+                                    <div> {{ $item->category->name ?? '-' }}</div>
+                                    <div> {{ $item->company_item->name ?? '-' }}</div>
+                                    <div> {{ $item->quality_item->name ?? '-' }}</div>
                                 @endif
-                                <div> {{ $item->category->name ?? '-' }}</div>
-                                <div> {{ $item->company_item->name ?? '-' }}</div>
-                                <div> {{ $item->quality_item->name ?? '-' }}</div>
                             </div>
                         </td>
                         <td>
+                            @php
+                                $branchName = $item->item_user ? ($item->item_user->branch?->branch_name ?? $item->item_user->assignedBranches->first()?->branch_name ?? '-') : '-';
+                            @endphp
+                            <div class="small text-muted">{{ $branchName }}</div>
                             <div>{{ $item->item_user->name ?? '-' }}</div>
-                            <div class="small text-muted">{{ $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '-' }}</div>
                         </td>
                         <td>
                             <a class="btn btn-sm btn-outline-primary" href="{{ route('item.show',$item->id) }}">
@@ -1557,7 +2132,7 @@
                                         <div class="row g-2">
                                             <div class="col-5">
                                                 <label class="small">Multiplier</label>
-                                                <input type="number" step="0.0001" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                                                <input type="number" step="any" name="base_units[0][multiplier]" class="form-control form-control-sm" placeholder="e.g. 1, 2.5, 3.7">
                                             </div>
                                             <div class="col-6">
                                                 <label class="small">Base Unit</label>
@@ -1847,7 +2422,7 @@
 
 {{-- Add Vehicle Modal for Edit - Same as create/new (AJAX save, no redirect/refresh) --}}
 <div class="modal fade" id="itemVehicleAddModalEdit" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-md">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="ti ti-car me-2"></i>Add Vehicle</h5>
@@ -1881,24 +2456,49 @@
                             <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Model" data-fetch-route="{{ route('show.car.model', ':id') }}" data-update-route="{{ route('update.car.model', ':id') }}" data-delete-route="{{ route('destory.car.model', ':id') }}" data-target-select=".item-vehicle-model-edit" title="Edit Model"><i data-feather="edit" class="feather-16"></i></button>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-6 mb-3">
-                            <label class="form-label">Year From <span class="text-danger">*</span></label>
-                            <select id="itemVehicleYearFromEdit" class="form-control form-select item-vehicle-year-from-edit searchable-select" name="year_from[]" required>
-                                <option value="">From</option>
-                                @for($y = 1900; $y <= 2100; $y++)
-                                <option value="{{ $y }}">{{ $y }}</option>
-                                @endfor
-                            </select>
+                    <div class="mb-3">
+                        <label class="form-label">Year range(s) <span class="text-danger">*</span></label>
+                        <div id="itemVehicleYearRangesContainerEdit">
+                            <div class="item-vehicle-year-range-row mb-2">
+                                <div id="itemVehicleExistingRangesHintEdit" class="small text-info mb-2" style="display:none;"></div>
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-5">
+                                        <label class="form-label small mb-0">From</label>
+                                        <select id="itemVehicleYearFromEdit" class="form-control form-select item-vehicle-year-from-edit" name="year_from[]" required>
+                                            <option value="">From</option>
+                                            @for($y = date('Y'); $y >= 1970; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                    <div class="col-5">
+                                        <label class="form-label small mb-0">To</label>
+                                        <select id="itemVehicleYearToEdit" class="form-control form-select item-vehicle-year-to-edit" name="year_to[]" required>
+                                            <option value="">To</option>
+                                            @for($y = date('Y'); $y >= 1970; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                            @endfor
+                                        </select>
+                                    </div>
+                                    <div class="col-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-vehicle-year-range-edit" title="Remove"><i class="ti ti-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-6 mb-3">
-                            <label class="form-label">Year To <span class="text-danger">*</span></label>
-                            <select id="itemVehicleYearToEdit" class="form-control form-select item-vehicle-year-to-edit searchable-select" name="year_to[]" required>
-                                <option value="">To</option>
-                                @for($y = 1900; $y <= 2100; $y++)
-                                <option value="{{ $y }}">{{ $y }}</option>
-                                @endfor
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-1" id="itemVehicleAddYearRangeEdit"><i class="ti ti-plus me-1"></i>Add more year range</button>
+                        <div id="itemVehicleYearRangeWarningEdit" class="small text-danger mt-1" style="display:none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Country <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <select id="itemVehicleCountryEdit" class="form-control form-select item-vehicle-country-edit searchable-select" name="car_manufactured_country" required>
+                                <option value="">— Select —</option>
+                                @foreach ($carCountries as $c)
+                                <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                @endforeach
                             </select>
+                            <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Country" data-fetch-route="{{ route('show.car.country', ':id') }}" data-update-route="{{ route('update.car.country', ':id') }}" data-delete-route="{{ route('destory.car.country', ':id') }}" data-target-select=".item-vehicle-country-edit" title="Edit Country"><i data-feather="edit" class="feather-16"></i></button>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -1911,18 +2511,6 @@
                                 @endforeach
                             </select>
                             <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Engine CC" data-fetch-route="{{ route('show.engine_cc', ':id') }}" data-update-route="{{ route('update.engine_cc', ':id') }}" data-delete-route="{{ route('destory.engine_cc', ':id') }}" data-target-select=".item-vehicle-engine-edit" title="Edit Engine CC"><i data-feather="edit" class="feather-16"></i></button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Country</label>
-                        <div class="input-group">
-                            <select id="itemVehicleCountryEdit" class="form-control form-select item-vehicle-country-edit searchable-select" name="car_manufactured_country">
-                                <option value="">— Select —</option>
-                                @foreach ($carCountries as $c)
-                                <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                @endforeach
-                            </select>
-                            <button type="button" class="btn btn-outline-secondary open-universal-modal text-white" data-mode="edit" data-title="Edit Country" data-fetch-route="{{ route('show.car.country', ':id') }}" data-update-route="{{ route('update.car.country', ':id') }}" data-delete-route="{{ route('destory.car.country', ':id') }}" data-target-select=".item-vehicle-country-edit" title="Edit Country"><i data-feather="edit" class="feather-16"></i></button>
                         </div>
                     </div>
                 </form>
@@ -2031,6 +2619,86 @@
             </div>
         </div>
     </div>
+    <!-- Add new weight unit modal -->
+    <div class="modal fade" id="weight-unit-add-new-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title">Add new unit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-2">Add a unit that is not in the list (e.g. Kilograms, Bag, Crate).</p>
+                    <label class="form-label">Unit name</label>
+                    <input type="text" class="form-control" id="weight_unit_new_name" placeholder="e.g. Kilograms, Bag" maxlength="100">
+                    <div class="invalid-feedback" id="weight_unit_new_name_error"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-sm" id="weight_unit_add_new_modal_btn">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Weight & Unit Edit Modal (Edit Product style) -->
+    <div class="modal fade" id="weight-unit-edit-modal" tabindex="-1" aria-labelledby="weight-unit-modal-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 20px 25px; border-bottom: none;">
+                    <div class="d-flex align-items-center w-100">
+                        <div class="me-3" style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="ti ti-edit" style="font-size: 20px;"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h4 class="mb-0 fw-bold" id="weight-unit-modal-title" style="color: white; font-size: 20px;">Edit Weight &amp; Unit</h4>
+                            <small class="text-white-50" style="font-size: 12px;">Update the details below</small>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8;"></button>
+                    </div>
+                </div>
+                <div class="modal-body" style="padding: 30px;">
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">Weight <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" class="form-control form-control-lg" id="weight_unit_modal_weight" placeholder="0.00"
+                            style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px;"
+                            onfocus="this.style.borderColor='#ff6b35'; this.style.boxShadow='0 0 0 0.2rem rgba(255, 107, 53, 0.25)'"
+                            onblur="this.style.borderColor='#e9ecef'; this.style.boxShadow='none'">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">Unit <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-lg" id="weight_unit_modal_unit" style="border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px;">
+                            <option value="">— Select unit —</option>
+                            <optgroup label="Metric">
+                                <option value="mg">Milligram (mg)</option>
+                                <option value="g">Gram (g)</option>
+                                <option value="kg">Kilogram (kg)</option>
+                                <option value="ml">MilliLiter (ml)</option>
+                                <option value="quintal">Quintal (100 kg)</option>
+                                <option value="tonne">Metric Ton / Tonne (t)</option>
+                            </optgroup>
+                            <optgroup label="Imperial / Other">
+                                <option value="oz">Ounce (oz)</option>
+                                <option value="lb">Pound (lb)</option>
+                                <option value="stone">Stone</option>
+                                <option value="ton_us">Ton (US)</option>
+                                <option value="ton_uk">Ton (UK)</option>
+                                <option value="__custom__">Other (type below)</option>
+                            </optgroup>
+                        </select>
+                        <input type="text" class="form-control form-control-lg mt-2" id="weight_unit_modal_unit_custom" placeholder="Enter unit (e.g. L, box, pcs)" style="display: none; border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px;">
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px 30px; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef; background: #f8f9fa;">
+                    <button type="button" class="btn btn-danger btn-lg" id="weight_unit_modal_delete" style="border-radius: 8px; padding: 10px 20px; font-weight: 500;">
+                        <i class="ti ti-trash me-2"></i>Delete
+                    </button>
+                    <button type="button" class="btn btn-primary btn-lg" id="weight_unit_modal_update" style="border-radius: 8px; padding: 12px 30px; font-weight: 600; background: #ff6b35; border: none; box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4); color: white;">
+                        <i class="ti ti-check me-2"></i>Update
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Universal Modal -->
     <div class="modal fade" id="universal-add-modal" tabindex="-1" aria-labelledby="universal-modal-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -2092,6 +2760,16 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="form-group mt-4" id="scrap-measurement-field" style="display: none;">
+                            <label class="form-label fw-semibold mb-2" style="color: #495057; font-size: 14px;">
+                                <i class="ti ti-scale me-2 text-primary"></i>Scrap measurement
+                            </label>
+                            <select class="form-select form-select-lg" name="scrap_measurement" id="universal-scrap-measurement" style="border-radius: 8px; border: 2px solid #e9ecef;">
+                                <option value="weight">By weight (KG)</option>
+                                <option value="count">By quantity (count)</option>
+                            </select>
+                            <small class="text-muted d-block mt-2">Items in this category will use weight (KG) or quantity when added as scrap.</small>
                         </div>
                     </div>
                     <div class="modal-footer" style="padding: 20px 30px; background: #f8f9fa; border-radius: 0 0 12px 12px; border-top: 1px solid #e9ecef;">
@@ -2793,7 +3471,7 @@ function md5(string) {
             <div class="row g-2">
                 <div class="col-5">
                     <label class="small">Multiplier</label>
-                    <input type="number" step="0.0001" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3">
+                    <input type="number" step="any" name="base_units[${baseUnitIndex}][multiplier]" class="form-control form-control-sm" placeholder="e.g. 1, 2.5, 3.7">
                 </div>
                 <div class="col-6">
                     <label class="small">Base Unit</label>
@@ -2908,9 +3586,28 @@ function md5(string) {
 
     // Initialize unit dropdown
     $(document).ready(function() {
-        // Hide price management sections initially
+        // Hide price management sections initially; retail only if switch off
         $('#costPriceManagement').hide();
         $('#salePriceManagement').hide();
+        if (!$('#retailPriceSwitch').is(':checked')) {
+            $('#retailPriceManagement').hide();
+        }
+        
+        // Retail price switch: when ON, show retail and HIDE only cost section (sale stays visible)
+        $('#retailPriceSwitch').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#retailPriceManagement').show().css('display', 'flex');
+                $('#costPriceManagement').hide();
+                if ($('#unit_parts').val()) $('#salePriceManagement').show();
+            } else {
+                $('#retailPriceManagement').hide();
+                if ($('#unit_parts').val()) {
+                    $('#costPriceManagement').show();
+                    $('#salePriceManagement').show();
+                }
+            }
+        });
+        $('#retailPrice').on('input change', updateRetailPricePerBase);
         
         // Load units from API
         loadUnitsForDropdown();
@@ -3052,15 +3749,31 @@ function md5(string) {
         });
     });
 
+    function formatMultiplierForDisplay(val) {
+        if (val === '' || val == null || val === undefined) return '';
+        var s = String(val).trim();
+        if (s.endsWith('.')) return s;
+        var n = parseFloat(val);
+        if (isNaN(n)) return s;
+        if (n % 1 === 0) return String(Math.round(n));
+        return String(Number(n));
+    }
     function addBaseUnitRowForEdit(baseUnitId, multiplier) {
         var container = $('#baseUnitsContainer');
-        var html = '<div class="base-unit-item mb-3 p-3 border rounded"><div class="row g-2"><div class="col-5"><label class="small">Multiplier</label><input type="number" step="0.0001" name="base_units[' + baseUnitIndex + '][multiplier]" class="form-control form-control-sm" placeholder="e.g., 1, 2, 3" value="' + (multiplier || '') + '"></div><div class="col-6"><label class="small">Base Unit</label><select name="base_units[' + baseUnitIndex + '][base_unit_id]" class="form-control form-control-sm"><option value="">Select Base Unit</option>@foreach($units as $u)<option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>@endforeach</select></div><div class="col-1 d-flex align-items-end"><button type="button" class="btn btn-danger btn-sm removeBaseUnit"><i class="ti ti-x"></i></button></div></div></div>';
+        var disp = formatMultiplierForDisplay(multiplier) || '';
+        var html = '<div class="base-unit-item mb-3 p-3 border rounded"><div class="row g-2"><div class="col-5"><label class="small">Multiplier</label><input type="number" step="any" name="base_units[' + baseUnitIndex + '][multiplier]" class="form-control form-control-sm" placeholder="e.g. 1, 2.5, 3.7" value="' + disp + '"></div><div class="col-6"><label class="small">Base Unit</label><select name="base_units[' + baseUnitIndex + '][base_unit_id]" class="form-control form-control-sm"><option value="">Select Base Unit</option>@foreach($units as $u)<option value="{{ $u->id }}">{{ $u->name }} ({{ $u->short_name }})</option>@endforeach</select></div><div class="col-1 d-flex align-items-end"><button type="button" class="btn btn-danger btn-sm removeBaseUnit"><i class="ti ti-x"></i></button></div></div></div>';
         container.append(html);
         if (baseUnitId) {
             container.find('.base-unit-item:last select').val(baseUnitId);
         }
         baseUnitIndex++;
     }
+    
+    $(document).on('blur', '#baseUnitsContainer input[name*="[multiplier]"]', function() {
+        var input = this;
+        var formatted = formatMultiplierForDisplay(input.value);
+        if (formatted !== input.value) input.value = formatted;
+    });
     
     // Load units with conversions from API
     function loadUnitsForDropdown() {
@@ -3294,7 +4007,27 @@ function md5(string) {
                 // Call the function after a delay to ensure options are loaded and Select2 is ready
                 setTimeout(function() {
                     setSelectedUnit();
+                    if (typeof updateEditButtonColors === 'function') {
+                        updateEditButtonColors();
+                    }
                 }, 500);
+                // Unit value can be set in nested timeouts inside setSelectedUnit; update Edit button again so it turns blue
+                setTimeout(function() {
+                    if (typeof updateEditButtonColors === 'function') updateEditButtonColors();
+                    else {
+                        var v = $('#unit_parts').val();
+                        var $ub = $('#editUnitBtn');
+                        if ($ub.length && v && v !== '') $ub.removeClass('btn-secondary').addClass('btn-primary');
+                    }
+                }, 1200);
+                setTimeout(function() {
+                    if (typeof updateEditButtonColors === 'function') updateEditButtonColors();
+                    else {
+                        var v = $('#unit_parts').val();
+                        var $ub = $('#editUnitBtn');
+                        if ($ub.length && v && v !== '') $ub.removeClass('btn-secondary').addClass('btn-primary');
+                    }
+                }, 2200);
                 
                 // Trigger Select2 update to refresh the dropdown
                 if ($.fn.select2 && $('#unit_parts').hasClass('select2-hidden-accessible')) {
@@ -3336,12 +4069,27 @@ function md5(string) {
         if (!selectedOption.val() || selectedOption.val() === '') {
             $('#costPriceManagement').hide();
             $('#salePriceManagement').hide();
+            $('#retailPriceManagement').hide();
             resetPriceFields();
+            var $unitBtn = $('#editUnitBtn');
+            if ($unitBtn.length) $unitBtn.removeClass('btn-primary').addClass('btn-secondary');
             return;
         }
         
-        $('#costPriceManagement').show();
-        $('#salePriceManagement').show();
+        // Update Unit Edit button color when unit has value (dark blue)
+        var $unitBtn = $('#editUnitBtn');
+        if ($unitBtn.length) {
+            $unitBtn.removeClass('btn-secondary').addClass('btn-primary');
+        }
+        
+        if ($('#retailPriceSwitch').is(':checked')) {
+            $('#retailPriceManagement').show();
+            $('#costPriceManagement').hide();
+            $('#salePriceManagement').show();
+        } else {
+            $('#costPriceManagement').show();
+            $('#salePriceManagement').show();
+        }
         
         const unitName = selectedOption.attr('data-unit-name');
         const baseUnitName = selectedOption.attr('data-base-unit-name');
@@ -3358,6 +4106,9 @@ function md5(string) {
             $('#saleBaseLabel').text(`PER ${baseUnitName} SALE:`);
             $('#baseCostPriceContainer').show();
             $('#baseSalePriceContainer').show();
+            $('#retailPricePerBaseRow').show();
+            $('#retailPricePerBaseLabel').text('Retail price per ' + baseUnitName.toLowerCase() + ':');
+            updateRetailPricePerBase();
             $('#costUnitContainer').removeClass('col-12').addClass('col-md-6');
             $('#saleUnitContainer').removeClass('col-12').addClass('col-md-6');
             var baseCost = parseFloat($('#baseCostPrice').val()) || 0;
@@ -3371,11 +4122,27 @@ function md5(string) {
             $('#saleBaseLabel').text(`PER ${unitName} SALE:`);
             $('#baseCostPriceContainer').hide();
             $('#baseSalePriceContainer').hide();
+            $('#retailPricePerBaseRow').hide();
             $('#costUnitContainer').removeClass('col-md-6').addClass('col-12');
             $('#saleUnitContainer').removeClass('col-md-6').addClass('col-12');
         }
         
         syncPrices();
+    }
+    
+    function updateRetailPricePerBase() {
+        const selectedOption = $('#unit_parts option:selected');
+        if (!selectedOption.val()) return;
+        const multiplier = parseFloat(selectedOption.attr('data-multiplier')) || 1;
+        const baseUnitName = selectedOption.attr('data-base-unit-name');
+        const decimalPlaces = parseInt(selectedOption.attr('data-decimal-places')) || 2;
+        if (!baseUnitName || multiplier <= 0) {
+            $('#retailPricePerBaseRow').hide();
+            return;
+        }
+        const retail = parseFloat($('#retailPrice').val()) || 0;
+        const perBase = (retail / multiplier).toFixed(decimalPlaces);
+        $('#retailPricePerBaseValue').text('Rs. ' + perBase);
     }
     
     // Calculate from unit price
@@ -3529,18 +4296,33 @@ function md5(string) {
     document.addEventListener('alpine:init', () => {
         Alpine.data('productForm', (initialType) => ({
             selectedType: initialType || '',
+            scrapMeasurement: 'weight',
             init() {
-                // Clear localStorage on edit form to use actual item type
-                if (initialType) {
-                    localStorage.removeItem('selectedType');
-                }
-                // Keep hidden type input in sync so form always has correct type on submit
+                // Edit form: sirf is item ka type use karo, Create form ki setting (itemCreateSelectedType) mat chhedo
                 var typeInput = document.querySelector('input[name="type"]');
                 if (typeInput) typeInput.value = this.selectedType || '';
+                if (this.selectedType === 'scrap') {
+                    var catSelect = document.getElementById('category_parts');
+                    if (catSelect && catSelect.value) {
+                        var opt = catSelect.options[catSelect.selectedIndex];
+                        if (opt) this.scrapMeasurement = (opt.getAttribute('data-scrap-measurement') || 'weight').toLowerCase();
+                    }
+                }
                 this.$watch('selectedType', (value) => {
                     if (typeInput) typeInput.value = value || '';
+                    if (value === 'scrap') {
+                        var catSelect = document.getElementById('category_parts');
+                        if (catSelect && catSelect.value) {
+                            var opt = catSelect.options[catSelect.selectedIndex];
+                            if (opt) this.scrapMeasurement = (opt.getAttribute('data-scrap-measurement') || 'weight').toLowerCase();
+                        } else this.scrapMeasurement = 'weight';
+                    }
                     this.updateFieldsVisibility(value);
                     this.filterProductNameDropdown(value);
+                });
+                this.$watch('scrapMeasurement', (m) => {
+                    var inp = document.getElementById('scrap_measurement_input_edit');
+                    if (inp) inp.value = m || 'weight';
                 });
                 // Trigger initial update
                 this.updateFieldsVisibility(this.selectedType);
@@ -3673,6 +4455,35 @@ function md5(string) {
     });
     $(document).ready(function() {
         feather.replace();
+        // Ensure Level (CLASS) select shows the saved value when editing (e.g. "G")
+        // Set initial value on load and when oil-fields become visible; do NOT overwrite after user has selected something
+        var initialLevel = $('#mainItemForm').data('initial-level');
+        if ($('#Level_select').length) {
+            function syncLevelSelectIfEmpty() {
+                var $sel = $('#Level_select');
+                var currentVal = $sel.val();
+                // Only set if we have initialLevel and select is empty (so we don't overwrite user's choice)
+                if (initialLevel !== undefined && initialLevel !== '' && initialLevel != null && (!currentVal || currentVal === '')) {
+                    $sel.val(initialLevel).trigger('change');
+                }
+            }
+            setTimeout(syncLevelSelectIfEmpty, 200);
+            setTimeout(syncLevelSelectIfEmpty, 500);
+            // When oil field group becomes visible, set value if still empty (Select2 may init after section is visible)
+            var observer = new MutationObserver(function(mutations) {
+                for (var i = 0; i < mutations.length; i++) {
+                    var el = mutations[i].target;
+                    if (el.classList && el.classList.contains('oil-fields') && el.classList.contains('active')) {
+                        syncLevelSelectIfEmpty();
+                        break;
+                    }
+                }
+            });
+            var container = document.getElementById('itemFormsContainer');
+            if (container) {
+                observer.observe(container, { attributes: true, attributeFilter: ['class'], subtree: true });
+            }
+        }
         // Generate random barcode only if empty
         if (!$('#itemBarCode').val().trim()) {
             generateRandomItemCode();
@@ -3701,6 +4512,7 @@ function md5(string) {
             imageInput.onchange = function() {
                 const file = this.files[0];
                 if (file) {
+                    $('#itemHasImage').val('1');
                     const reader = new FileReader();
                     reader.onload = e => {
                         preview.src = e.target.result;
@@ -3712,6 +4524,7 @@ function md5(string) {
             removeBtn.onclick = () => {
                 preview.src = defaultImg;
                 imageInput.value = '';
+                $('#itemHasImage').val('0');
                 let removeInput = $('#mainItemForm input[name="remove_image"]');
                 if (removeInput.length === 0) {
                     $('<input>').attr({ type: 'hidden', name: 'remove_image', value: '1' }).appendTo('#mainItemForm');
@@ -3725,6 +4538,7 @@ function md5(string) {
                 const originalRemove = removeBtn.onclick;
                 removeBtn.onclick = () => {
                     preview.src = defaultImg;
+                    $('#itemHasImage').val('0');
                     let removeInput = $('#mainItemForm input[name="remove_image"]');
                     if (removeInput.length === 0) {
                         $('<input>').attr({ type: 'hidden', name: 'remove_image', value: '1' }).appendTo('#mainItemForm');
@@ -3789,6 +4603,7 @@ function md5(string) {
         initializeImagesHandler();
         // Universal Modal - Complete implementation matching create.blade.php
         let currentTargetSelect = null;
+        let currentTargetSelectElement = null; // specific select when multiple match (e.g. .quality-select)
         let currentEditId = null;
         let deleteRoute = null;
         let lastSearchTerm = {};
@@ -3801,6 +4616,8 @@ function md5(string) {
             const hasImage = $(this).data('has-image') === 1;
 
             currentTargetSelect = $(this).data('target-select');
+            const $specificSelect = $(this).closest('.input-group').find('select').first();
+            currentTargetSelectElement = ($specificSelect.length) ? $specificSelect : null;
             
             // =========================
             // CAPTURE SELECTED TYPE FROM ALPINE.JS
@@ -3907,7 +4724,9 @@ function md5(string) {
             // EDIT MODE
             // =========================
             if (mode === 'edit') {
-                const $select = $(currentTargetSelect);
+                const $select = (currentTargetSelectElement && currentTargetSelectElement.length)
+                    ? currentTargetSelectElement
+                    : $(currentTargetSelect).first();
                 const selectedId = $select.val();
                 
                 if (!selectedId) {
@@ -3939,6 +4758,11 @@ function md5(string) {
                 $.get(fetchRoute, function(res) {
                     $('#universal-name').val(res.name).removeClass('is-invalid');
                     $('#universal-name-error').text('');
+                    
+                    // Scrap measurement for category edit
+                    if (fetchRoute.indexOf('category') !== -1 && res.scrap_measurement != null) {
+                        $('#universal-scrap-measurement').val(res.scrap_measurement || 'weight');
+                    }
                     
                     // Image preview (edit mode)
                     if (hasImage && res.image) {
@@ -4027,7 +4851,10 @@ function md5(string) {
                     
                     // Check if this is for plates-select, amperes-select, or warranty-select and format accordingly
                     let displayName = res.name;
-                    const $select = $(currentTargetSelect);
+                    const $select = (currentTargetSelectElement && currentTargetSelectElement.length)
+                        ? currentTargetSelectElement
+                        : $(currentTargetSelect);
+                    currentTargetSelectElement = null;
                     if ($select.hasClass('plates-select') || $select.attr('id') === 'plates_scrap') {
                         // Append "PL" to the name for plates (no space)
                         displayName = res.name + 'PL';
@@ -4044,6 +4871,9 @@ function md5(string) {
                     const option = new Option(displayName, res.id, true, true);
                     $select.find(`option[value="${res.id}"]`).remove();
                     $select.append(option).val(res.id).trigger('change');
+                    if (res.scrap_measurement != null) {
+                        $select.find(`option[value="${res.id}"]`).attr('data-scrap-measurement', res.scrap_measurement || 'weight');
+                    }
                     $('#universal-add-modal').modal('hide');
                     $('#universal-form')[0].reset();
                     $('#universal-image-preview').hide();
@@ -4117,10 +4947,11 @@ function md5(string) {
                             }
                             
                             // Remove option from select
-                            $(currentTargetSelect)
-                                .find(`option[value="${currentEditId}"]`)
-                                .remove()
-                                .trigger('change');
+                            const $selectToUpdate = (currentTargetSelectElement && currentTargetSelectElement.length)
+                                ? currentTargetSelectElement
+                                : $(currentTargetSelect);
+                            $selectToUpdate.find(`option[value="${currentEditId}"]`).remove().trigger('change');
+                            currentTargetSelectElement = null;
                             
                             // Close modal
                             $('#universal-add-modal').modal('hide');
@@ -4143,6 +4974,19 @@ function md5(string) {
                     });
                 }
             });
+        });
+        
+        // Show/hide Scrap measurement when modal is shown (category add/edit)
+        $('#universal-add-modal').on('shown.bs.modal', function() {
+            var action = ($('#universal-form').attr('action') || '').toLowerCase();
+            if (action.indexOf('category') !== -1) {
+                $('#scrap-measurement-field').show();
+                if (!currentEditId) {
+                    $('#universal-scrap-measurement').val('weight');
+                }
+            } else {
+                $('#scrap-measurement-field').hide();
+            }
         });
         
         // Reset modal on close
@@ -4325,6 +5169,16 @@ function md5(string) {
                     $btn.removeClass('btn-secondary').addClass('btn-primary');
                 }
             });
+            // Unit Edit button: same behavior as other edit buttons
+            var $unitBtn = $('#editUnitBtn');
+            if ($unitBtn.length) {
+                var unitVal = $('#unit_parts').val();
+                if (unitVal === '' || unitVal == null) {
+                    $unitBtn.removeClass('btn-primary').addClass('btn-secondary');
+                } else {
+                    $unitBtn.removeClass('btn-secondary').addClass('btn-primary');
+                }
+            }
         }
         $(document).on('change', '#mainItemForm select', function() {
             var $sel = $(this);
@@ -4342,7 +5196,31 @@ function md5(string) {
                 $btn.removeClass('btn-secondary').addClass('btn-primary');
             }
         });
+        $(document).on('change', '#unit_parts', function() {
+            var $unitBtn = $('#editUnitBtn');
+            if (!$unitBtn.length) return;
+            var val = $(this).val();
+            if (val === '' || val == null) {
+                $unitBtn.removeClass('btn-primary').addClass('btn-secondary');
+            } else {
+                $unitBtn.removeClass('btn-secondary').addClass('btn-primary');
+            }
+        });
+        // Select2: update Edit button when unit is selected/cleared (unit_parts uses Select2)
+        $(document).on('select2:select select2:clear select2:unselect', '#unit_parts', function() {
+            var $unitBtn = $('#editUnitBtn');
+            if (!$unitBtn.length) return;
+            var val = $('#unit_parts').val();
+            if (val === '' || val == null) {
+                $unitBtn.removeClass('btn-primary').addClass('btn-secondary');
+            } else {
+                $unitBtn.removeClass('btn-secondary').addClass('btn-primary');
+            }
+        });
         setTimeout(updateEditButtonColors, 100);
+        setTimeout(updateEditButtonColors, 600);
+        setTimeout(updateEditButtonColors, 1200);
+        setTimeout(updateEditButtonColors, 2500);
         $(document).ready(updateEditButtonColors);
 
         // Dynamic Subcategory Load (if applicable)
@@ -4834,13 +5712,33 @@ function md5(string) {
             return;
         }
 
+        const baseUrl = window.location.origin;
+        const defaultImageUrl = baseUrl + '/assets/img/media/default.png';
+
         items.forEach(function(item) {
             const csrfToken = $('input[name="_token"]').val();
-            
-            // Build item details HTML - Product Name first, then Part Number
-            const productName = item.product_name && item.product_name !== '-' ? item.product_name : (item.part_number || '-');
-            const partNumberLine = (item.product_name && item.product_name !== '-') ? `<div class="text-muted">${item.part_number || '-'}</div>` : '';
-            const itemDetails = `
+            const rawImg = (item.image && String(item.image).trim()) ? item.image : '';
+            const imageSrc = rawImg
+                ? (rawImg.startsWith('http://') || rawImg.startsWith('https://') ? rawImg : baseUrl + (rawImg.startsWith('/') ? rawImg : '/' + rawImg))
+                : defaultImageUrl;
+
+            // Build item details - for battery: Company, Product, Volt, Plate, Ampere, CCA line wise
+            let itemDetails;
+            if ((item.type || '') === 'battery') {
+                itemDetails = `
+                <div class="small">
+                    <div>${item.company_name || '-'}</div>
+                    <div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>
+                    <div>${item.volt_name || '-'}</div>
+                    <div>${item.plate_name || '-'}</div>
+                    <div>${item.amphors_name || '-'}</div>
+                    <div>${item.cca_name || '-'}</div>
+                </div>
+            `;
+            } else {
+                const productName = item.product_name && item.product_name !== '-' ? item.product_name : (item.part_number || '-');
+                const partNumberLine = (item.product_name && item.product_name !== '-') ? `<div class="text-muted">${item.part_number || '-'}</div>` : '';
+                itemDetails = `
                 <div class="small">
                     <div class="fw-semibold">${productName}</div>
                     ${partNumberLine}
@@ -4849,21 +5747,23 @@ function md5(string) {
                     <div>${item.quality_name || '-'}</div>
                 </div>
             `;
+            }
 
             const row = `
                 <tr>
                     <td>
-                        <img src="${item.image}" width="70" height="70"
+                        <img src="${imageSrc}" width="70" height="70"
                             class="rounded item-image" style="cursor:pointer;" data-bs-toggle="modal"
-                            data-bs-target="#imageModal"
-                            data-src="${item.image}">
+                            data-bs-target="#imageModal" data-src="${imageSrc}"
+                            onerror="this.onerror=null;this.src=this.getAttribute('data-fallback')||'${defaultImageUrl.replace(/'/g, "\\'")}';"
+                            data-fallback="${defaultImageUrl}">
                     </td>
                     <td>
                         ${itemDetails}
                     </td>
                     <td>
-                        <div>${item.user_name}</div>
                         <div class="small text-muted">${item.branch_name || '-'}</div>
+                        <div>${item.user_name}</div>
                     </td>
                     <td>
                         <a class="btn btn-sm btn-outline-primary" href="${item.show_url}">
@@ -4907,6 +5807,64 @@ function md5(string) {
         }
     }
 
+    // Scrap edit: auto-calculate Total Price (Weight × Rate) and Quantity × Rate
+    $(document).ready(function() {
+        function updateScrapTotalEdit() {
+            var w = ($('#scrap_weight_kg_edit').val() || '').toString().trim();
+            var r = ($('#scrap_rate_per_kg_edit').val() || '').toString().trim();
+            if (w === '' || r === '') {
+                $('#scrap_total_price_edit').val('');
+                $('#scrap_total_price_hidden_edit').val('');
+                return;
+            }
+            var weight = parseFloat(w);
+            var rate = parseFloat(r);
+            if (isNaN(weight) || isNaN(rate)) {
+                $('#scrap_total_price_edit').val('');
+                $('#scrap_total_price_hidden_edit').val('');
+                return;
+            }
+            var total = weight * rate;
+            $('#scrap_total_price_edit').val(total.toFixed(2));
+            $('#scrap_total_price_hidden_edit').val(total.toFixed(2));
+        }
+        function updateScrapCountTotalEdit() {
+            var q = ($('#scrap_quantity_edit').val() || '').toString().trim();
+            var r = ($('#scrap_rate_count_edit').val() || '').toString().trim();
+            if (q === '' || r === '') {
+                $('#scrap_total_count_edit').val('');
+                $('#scrap_total_count_hidden_edit').val('');
+                return;
+            }
+            var qty = parseFloat(q);
+            var rate = parseFloat(r);
+            if (isNaN(qty) || isNaN(rate)) {
+                $('#scrap_total_count_edit').val('');
+                $('#scrap_total_count_hidden_edit').val('');
+                return;
+            }
+            var total = qty * rate;
+            $('#scrap_total_count_edit').val(total.toFixed(2));
+            $('#scrap_total_count_hidden_edit').val(total.toFixed(2));
+        }
+        $(document).on('input change', '#scrap_weight_kg_edit, #scrap_rate_per_kg_edit', updateScrapTotalEdit);
+        $(document).on('input change', '#scrap_quantity_edit, #scrap_rate_count_edit', updateScrapCountTotalEdit);
+        updateScrapTotalEdit();
+        updateScrapCountTotalEdit();
+
+        $(document).on('change', '#category_parts', function() {
+            var typeInput = $('input[name="type"]').val() || '';
+            if ((typeInput || '').toLowerCase() !== 'scrap') return;
+            var sel = this.options[this.selectedIndex];
+            var m = (sel && sel.getAttribute('data-scrap-measurement')) ? sel.getAttribute('data-scrap-measurement').toLowerCase() : 'weight';
+            try {
+                var alpine = Alpine.$data(document.querySelector('[x-data*="productForm"]'));
+                if (alpine) { alpine.scrapMeasurement = m; }
+            } catch (e) {}
+            $('#scrap_measurement_input_edit').val(m);
+        });
+    });
+
     // Load items by type on page load if type is already selected
     $(document).ready(function() {
         const savedType = localStorage.getItem('selectedType') || '{{ $item->type ?? old("type") ?? "" }}';
@@ -4938,6 +5896,79 @@ function md5(string) {
     $('#mainItemForm').off('submit').on('submit', function(e) {
         e.preventDefault();
         var $form = $(this);
+
+        // ========== Compulsory: Low Stock & Maintain Stock when type is parts/battery/oil/scrap/filters/breakpad ==========
+        var itemType = ($form.find('input[name="type"]').val() || '').toLowerCase();
+        var stockTypes = ['parts', 'battery', 'oil', 'scrap', 'filters', 'breakpad'];
+        var needsStock = stockTypes.indexOf(itemType) !== -1;
+        $('#low_stock_parts, #maintain_stock_parts').prop('required', needsStock);
+        if (needsStock) {
+            var lowStock = ($('#low_stock_parts').val() || '').trim();
+            var maintainStock = ($('#maintain_stock_parts').val() || '').trim();
+            if (!lowStock || !maintainStock) {
+                if (typeof toastr !== 'undefined') toastr.error('Please select Low Stock and Maintain Stock.');
+                $('#low_stock_parts').addClass('is-invalid');
+                $('#maintain_stock_parts').addClass('is-invalid');
+                $('#low_stock_parts, #maintain_stock_parts').one('change', function() { $(this).removeClass('is-invalid'); });
+                return;
+            }
+        }
+        $('#low_stock_parts, #maintain_stock_parts').removeClass('is-invalid');
+
+        // ========== Compulsory: at least one of Part Number OR Product Name when type is parts/filters/breakpad/battery ==========
+        var partProductTypes = ['parts', 'filters', 'breakpad', 'battery'];
+        if (partProductTypes.indexOf(itemType) !== -1) {
+            var partNum = ($('#part_number_id').val() || '').trim();
+            var productName = ($('#name').val() || '').trim();
+            var hasPartOrProduct = !!(partNum || productName);
+            if (!hasPartOrProduct) {
+                if (typeof toastr !== 'undefined') toastr.error('Please select at least one: Part Number or Product Name.');
+                $('#part_number_id').addClass('is-invalid');
+                $('#name').addClass('is-invalid');
+                $('#part_number_id, #name').one('change', function() {
+                    var p = ($('#part_number_id').val() || '').trim();
+                    var n = ($('#name').val() || '').trim();
+                    if (p || n) { $('#part_number_id, #name').removeClass('is-invalid'); }
+                });
+                return;
+            }
+        }
+        $('#part_number_id, #name').removeClass('is-invalid');
+
+        // ========== Compulsory: Category, Company, Quality, Unit (when visible for current type) ==========
+        var categoryTypes = ['parts', 'oil', 'scrap', 'services', 'filters', 'breakpad'];
+        var companyTypes = ['parts', 'battery', 'oil', 'filters', 'breakpad'];
+        var qualityTypes = ['parts', 'filters', 'breakpad'];
+        var errMsgEdit = [];
+        if (categoryTypes.indexOf(itemType) !== -1) {
+            if (!($('#category_parts').val() || '').trim()) { errMsgEdit.push('Category'); $('#category_parts').addClass('is-invalid'); } else { $('#category_parts').removeClass('is-invalid'); }
+        }
+        if (companyTypes.indexOf(itemType) !== -1) {
+            if (!($('#company_parts').val() || '').trim()) { errMsgEdit.push('Company'); $('#company_parts').addClass('is-invalid'); } else { $('#company_parts').removeClass('is-invalid'); }
+        }
+        if (qualityTypes.indexOf(itemType) !== -1) {
+            if (!($('#quality_common').val() || '').trim()) { errMsgEdit.push('Quality'); $('#quality_common').addClass('is-invalid'); } else { $('#quality_common').removeClass('is-invalid'); }
+        }
+        if (itemType && itemType !== '') {
+            if (!($('#unit_parts').val() || '').trim()) { errMsgEdit.push('Unit'); $('#unit_parts').addClass('is-invalid'); } else { $('#unit_parts').removeClass('is-invalid'); }
+        }
+        if (errMsgEdit.length > 0) {
+            if (typeof toastr !== 'undefined') toastr.error('Please select: ' + errMsgEdit.join(', ') + '.');
+            $('#category_parts, #company_parts, #quality_common, #unit_parts').one('change', function() { $(this).removeClass('is-invalid'); });
+            return;
+        }
+
+        // ========== Compulsory: Product Image (Thumbnail) ==========
+        var imageInputElEdit = document.getElementById('imageInput');
+        var hasNewImage = imageInputElEdit && imageInputElEdit.files && imageInputElEdit.files.length > 0;
+        var hasExistingImage = ($('#itemHasImage').val() || '') === '1';
+        if (!hasNewImage && !hasExistingImage) {
+            if (typeof toastr !== 'undefined') toastr.error('Please add Product Image (Thumbnail).');
+            $('#imageInput').addClass('is-invalid');
+            $('#imageInput').one('change', function() { $(this).removeClass('is-invalid'); });
+            return;
+        }
+        $('#imageInput').removeClass('is-invalid');
 
         // ========== SYNC hidden fields (same as before) ==========
         var shortDiscVal = ($form.find('input[name="short_disc"]').val() || '').trim();
@@ -5006,6 +6037,8 @@ function md5(string) {
         formData.set('price_per_unit', pricePerUnit !== undefined && pricePerUnit !== null && pricePerUnit !== '' ? pricePerUnit : '');
         formData.set('sale_price', salePrice !== undefined && salePrice !== null && salePrice !== '' ? salePrice : '');
         formData.set('sale_price_per_base', salePricePerBase !== undefined && salePricePerBase !== null && salePricePerBase !== '' ? salePricePerBase : '');
+        var retailPrice = $form.find('input[name="retail_price"]').val();
+        formData.set('retail_price', retailPrice !== undefined && retailPrice !== null && retailPrice !== '' ? retailPrice : '');
         // Sync common Item Info and all Select2 fields into FormData so changes are saved
         var barCode = $('#itemBarCode').val();
         if (barCode !== undefined && barCode !== null) formData.set('bar_code', barCode);
@@ -5649,10 +6682,12 @@ function md5(string) {
                 $('#itemVehicleAddBtnEdit').text('Add Vehicle');
                 document.getElementById('itemVehicleAddFormEdit')?.reset();
                 $('#itemVehiclePartNumberEdit').val(outsidePart);
+                $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row').not(':first').remove();
+                $('#itemVehicleYearRangeWarningEdit').text('').hide();
             }
-            // Init Select2 search on vehicle modal dropdowns (in case they weren’t in DOM or need refresh)
+            // Init Select2 on vehicle modal dropdowns (exclude year - multiple rows) (in case they weren’t in DOM or need refresh)
             var $modal = $('#itemVehicleAddModalEdit');
-            var vehicleSelectors = '.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-year-from-edit, .item-vehicle-year-to-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit';
+            var vehicleSelectors = '.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit';
             $modal.find(vehicleSelectors).each(function() {
                 var $sel = $(this);
                 if ($.fn.select2) {
@@ -5669,18 +6704,63 @@ function md5(string) {
                 }
             });
         });
+        var itemVehicleExistingRangesParsedEdit = [];
+        function updateItemVehicleExistingRangesHintEdit() {
+            var $hint = $('#itemVehicleExistingRangesHintEdit');
+            var makeText = ($('#itemVehicleMakeEdit option:selected').text() || '').trim();
+            var modelText = ($('#itemVehicleModelEdit option:selected').text() || '').trim();
+            itemVehicleExistingRangesParsedEdit = [];
+            if (!makeText || !modelText || makeText === '— Select —' || modelText === '— Select —') {
+                $hint.hide().empty();
+                return;
+            }
+            var baseLabel = makeText + ' / ' + modelText;
+            var existingRanges = [];
+            for (var i = 0; i < itemVehicleIdsEdit.length; i++) {
+                var id = itemVehicleIdsEdit[i];
+                var label = itemVehicleDetailsEdit[id];
+                if (!label) continue;
+                var parts = label.split(' / ');
+                if (parts.length >= 3) {
+                    var base = parts.slice(0, -1).join(' / ');
+                    var yearPart = parts[parts.length - 1];
+                    if (base === baseLabel) {
+                        existingRanges.push(yearPart);
+                        var fromY = 0, toY = 0;
+                        if (yearPart.indexOf('-') !== -1) {
+                            var sp = yearPart.split('-');
+                            fromY = parseInt(sp[0], 10);
+                            toY = parseInt(sp[1], 10);
+                        } else {
+                            fromY = toY = parseInt(yearPart, 10);
+                        }
+                        if (fromY && toY) itemVehicleExistingRangesParsedEdit.push({ from: String(fromY), to: String(toY) });
+                    }
+                }
+            }
+            if (existingRanges.length > 0) {
+                var unique = existingRanges.filter(function(v, i, a) { return a.indexOf(v) === i; });
+                $hint.html('Already added: <strong>' + unique.join(', ') + '</strong>. Add more ranges below.').show();
+            } else {
+                $hint.hide().empty();
+            }
+        }
+        $('#itemVehicleAddModalEdit').on('change', '#itemVehicleMakeEdit, #itemVehicleModelEdit', function() {
+            updateItemVehicleExistingRangesHintEdit();
+        });
         $('#itemVehicleAddModalEdit').on('shown.bs.modal', function() {
             var $modal = $('#itemVehicleAddModalEdit');
             if (editingVehicleId && itemVehicleFullDetailsEdit[editingVehicleId]) {
                 var data = itemVehicleFullDetailsEdit[editingVehicleId];
                 $modal.find('#itemVehicleMakeEdit').val(data.car_manufacturer || '').trigger('change');
                 $modal.find('#itemVehicleModelEdit').val(data.car_model_name || '').trigger('change');
-                $modal.find('#itemVehicleYearFromEdit').val(data.year_from || '').trigger('change');
-                $modal.find('#itemVehicleYearToEdit').val(data.year_to || '').trigger('change');
+                $modal.find('.item-vehicle-year-from-edit').first().val(data.year_from || '').trigger('change');
+                $modal.find('.item-vehicle-year-to-edit').first().val(data.year_to || '').trigger('change');
                 $modal.find('#itemVehicleEngineEdit').val(data.engine_cc || '').trigger('change');
                 $modal.find('#itemVehicleCountryEdit').val(data.car_manufactured_country || '').trigger('change');
             }
-            $modal.find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-year-from-edit, .item-vehicle-year-to-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').off('select2:open.vehicleFocus').on('select2:open.vehicleFocus', function() {
+            setTimeout(function() { updateItemVehicleExistingRangesHintEdit(); }, 100);
+            $modal.find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').off('select2:open.vehicleFocus').on('select2:open.vehicleFocus', function() {
                 var $sel = $(this);
                 setTimeout(function() {
                     var $search = $modal.find('.select2-search__field');
@@ -5698,11 +6778,118 @@ function md5(string) {
         });
         $('#itemVehicleAddModalEdit').on('hidden.bs.modal', function() {
             editingVehicleId = null;
-            $('#itemVehicleAddModalEdit').find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-year-from-edit, .item-vehicle-year-to-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').each(function() {
+            $('#itemVehicleAddModalEdit').find('.item-vehicle-manufacturer-edit, .item-vehicle-model-edit, .item-vehicle-engine-edit, .item-vehicle-country-edit').each(function() {
                 if ($(this).hasClass('select2-hidden-accessible')) {
                     try { $(this).select2('destroy'); } catch (err) {}
                 }
             });
+        });
+
+        // Add more year range (Edit vehicle modal)
+        $('#itemVehicleAddModalEdit').on('click', '#itemVehicleAddYearRangeEdit', function() {
+            var currentYear = new Date().getFullYear();
+            var yearOpts = '<option value="">From</option>';
+            for (var y = currentYear; y >= 1970; y--) yearOpts += '<option value="' + y + '">' + y + '</option>';
+            var toOpts = '<option value="">To</option>';
+            for (var y = currentYear; y >= 1970; y--) toOpts += '<option value="' + y + '">' + y + '</option>';
+            var row = '<div class="item-vehicle-year-range-row mb-2"><div class="row g-2 align-items-end"><div class="col-5"><label class="form-label small mb-0">From</label><select class="form-control form-select item-vehicle-year-from-edit" name="year_from[]" required>' + yearOpts + '</select></div><div class="col-5"><label class="form-label small mb-0">To</label><select class="form-control form-select item-vehicle-year-to-edit" name="year_to[]" required>' + toOpts + '</select></div><div class="col-2"><button type="button" class="btn btn-outline-danger btn-sm remove-vehicle-year-range-edit" title="Remove"><i class="ti ti-trash"></i></button></div></div></div>';
+            $('#itemVehicleYearRangesContainerEdit').append(row);
+        });
+        $('#itemVehicleAddModalEdit').on('click', '.remove-vehicle-year-range-edit', function() {
+            var $rows = $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row');
+            if ($rows.length > 1) $(this).closest('.item-vehicle-year-range-row').remove();
+        });
+
+        // Check overlapping year ranges (Edit vehicle modal)
+        function vehicleYearRangesOverlapEdit(a, b) {
+            var from1 = parseInt(a.from, 10), to1 = parseInt(a.to, 10);
+            var from2 = parseInt(b.from, 10), to2 = parseInt(b.to, 10);
+            if (!from1 || !to1 || !from2 || !to2) return false;
+            if (to1 < from1) { var t = from1; from1 = to1; to1 = t; }
+            if (to2 < from2) { var t = from2; from2 = to2; to2 = t; }
+            return (from1 <= to2 && to1 >= from2);
+        }
+        function yearInRangeEdit(y, range) {
+            var yr = parseInt(y, 10);
+            var a = parseInt(range.from, 10), b = parseInt(range.to, 10);
+            if (!a || !b) return false;
+            if (a > b) { var t = a; a = b; b = t; }
+            return (yr >= a && yr <= b);
+        }
+        function validateVehicleYearRangesEdit() {
+            var completeRanges = [];
+            var allRows = [];
+            $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row').each(function(idx) {
+                var from = $(this).find('.item-vehicle-year-from-edit').val();
+                var to = $(this).find('.item-vehicle-year-to-edit').val();
+                allRows.push({ index: idx, from: from, to: to });
+                if (from && to) completeRanges.push({ from: from, to: to, index: idx });
+            });
+            for (var i = 0; i < allRows.length; i++) {
+                var r = allRows[i];
+                if (r.from && r.to) {
+                    var fromNum = parseInt(r.from, 10), toNum = parseInt(r.to, 10);
+                    if (fromNum > toNum) {
+                        return { valid: false, message: 'From year (' + r.from + ') cannot be greater than To year (' + r.to + '). Please select From ≤ To.', invalidIndices: [i] };
+                    }
+                }
+            }
+            for (var i = 0; i < completeRanges.length; i++) {
+                for (var j = i + 1; j < completeRanges.length; j++) {
+                    if (vehicleYearRangesOverlapEdit(completeRanges[i], completeRanges[j])) {
+                        var r1 = completeRanges[i].from + (completeRanges[i].from !== completeRanges[i].to ? '-' + completeRanges[i].to : '');
+                        var r2 = completeRanges[j].from + (completeRanges[j].from !== completeRanges[j].to ? '-' + completeRanges[j].to : '');
+                        var msg = 'This range (' + r2 + ') overlaps with range ' + r1 + ' already selected above. Please choose a different year range.';
+                        return { valid: false, message: msg, invalidIndices: [completeRanges[i].index, completeRanges[j].index], existingRange: r1 };
+                    }
+                }
+            }
+            for (var i = 0; i < allRows.length; i++) {
+                var row = allRows[i];
+                for (var j = 0; j < completeRanges.length; j++) {
+                    if (completeRanges[j].index === i) continue;
+                    var cr = completeRanges[j];
+                    var r1 = cr.from + (cr.from !== cr.to ? '-' + cr.to : '');
+                    if (row.from && yearInRangeEdit(row.from, cr)) {
+                        return { valid: false, message: 'Year ' + row.from + ' is already in range ' + r1 + ' above. Choose a different year.', invalidIndices: [i, cr.index], existingRange: r1 };
+                    }
+                    if (row.to && yearInRangeEdit(row.to, cr)) {
+                        return { valid: false, message: 'Year ' + row.to + ' is already in range ' + r1 + ' above. Choose a different year.', invalidIndices: [i, cr.index], existingRange: r1 };
+                    }
+                }
+            }
+            for (var i = 0; i < completeRanges.length; i++) {
+                var r = completeRanges[i];
+                for (var k = 0; k < itemVehicleExistingRangesParsedEdit.length; k++) {
+                    var existing = itemVehicleExistingRangesParsedEdit[k];
+                    if (vehicleYearRangesOverlapEdit(r, existing)) {
+                        var rStr = r.from + (r.from !== r.to ? '-' + r.to : '');
+                        var existingStr = existing.from + (existing.from !== existing.to ? '-' + existing.to : '');
+                        return { valid: false, message: 'This range (' + rStr + ') is already added for this vehicle (Already added: ' + existingStr + '). Choose a different year range.', invalidIndices: [r.index], existingRange: existingStr };
+                    }
+                }
+            }
+            return { valid: true };
+        }
+        function updateYearRangeWarningEdit(show, text) {
+            var $w = $('#itemVehicleYearRangeWarningEdit');
+            if (show && text) { $w.text(text).show(); } else { $w.text('').hide(); }
+        }
+        $('#itemVehicleAddModalEdit').on('change', '#itemVehicleYearRangesContainerEdit .item-vehicle-year-from-edit, #itemVehicleYearRangesContainerEdit .item-vehicle-year-to-edit', function() {
+            var r = validateVehicleYearRangesEdit();
+            $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row').removeClass('border border-danger').find('.item-vehicle-year-from-edit, .item-vehicle-year-to-edit').removeClass('is-invalid');
+            updateYearRangeWarningEdit(false);
+            if (!r.valid) {
+                var inlineText = (r.existingRange ? 'Range ' + r.existingRange + ' is already selected above. Do not select the same years in another row.' : r.message);
+                updateYearRangeWarningEdit(true, inlineText);
+                if (typeof toastr !== 'undefined') toastr.warning(r.message);
+                if (r.invalidIndices && r.invalidIndices.length) {
+                    var $rows = $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row');
+                    r.invalidIndices.forEach(function(idx) {
+                        $rows.eq(idx).addClass('border border-danger').find('.item-vehicle-year-from-edit, .item-vehicle-year-to-edit').addClass('is-invalid');
+                    });
+                }
+            }
         });
 
         $('#itemVehicleAddFormEdit').off('submit').on('submit', function(e) {
@@ -5715,6 +6902,27 @@ function md5(string) {
                 $('#part_number_id').addClass('is-invalid').focus();
                 return false;
             }
+            var yearCheckEdit = validateVehicleYearRangesEdit();
+            if (!yearCheckEdit.valid) {
+                if (typeof toastr !== 'undefined') toastr.error(yearCheckEdit.message);
+                if (yearCheckEdit.invalidIndices && yearCheckEdit.invalidIndices.length) {
+                    $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row').removeClass('border border-danger').find('.item-vehicle-year-from-edit, .item-vehicle-year-to-edit').removeClass('is-invalid');
+                    var $rowsEdit = $('#itemVehicleYearRangesContainerEdit .item-vehicle-year-range-row');
+                    yearCheckEdit.invalidIndices.forEach(function(idx) {
+                        $rowsEdit.eq(idx).addClass('border border-danger').find('.item-vehicle-year-from-edit, .item-vehicle-year-to-edit').addClass('is-invalid');
+                    });
+                }
+                return false;
+            }
+            // Sort year range rows by "from" year (ascending) so save order is e.g. 2012-2015, 2021-2026
+            var $containerEdit = $('#itemVehicleYearRangesContainerEdit');
+            var $rowsEditSort = $containerEdit.find('.item-vehicle-year-range-row').get();
+            $rowsEditSort.sort(function(a, b) {
+                var fromA = parseInt($(a).find('.item-vehicle-year-from-edit').val() || 0, 10);
+                var fromB = parseInt($(b).find('.item-vehicle-year-from-edit').val() || 0, 10);
+                return fromA - fromB;
+            });
+            $rowsEditSort.forEach(function(row) { $containerEdit.append(row); });
             $('#part_number_id').removeClass('is-invalid');
             let form = this;
             let $btn = $('#itemVehicleAddBtnEdit');
@@ -5853,11 +7061,27 @@ function md5(string) {
                 $list.html('<p class="text-muted small mb-0">No vehicles added yet.</p>');
                 return;
             }
+            var groups = {};
+            itemVehicleIdsEdit.forEach(function(id) {
+                var label = itemVehicleDetailsEdit[id] || ('Vehicle #' + id);
+                var parts = label.split(' / ');
+                var yearPart = parts.length > 1 ? parts.pop() : '';
+                var baseLabel = parts.join(' / ') || label;
+                if (!groups[baseLabel]) groups[baseLabel] = { ids: [], years: [] };
+                groups[baseLabel].ids.push(id);
+                if (yearPart) groups[baseLabel].years.push(yearPart);
+            });
             var html = '<div class="list-group list-group-flush">';
-            itemVehicleIdsEdit.forEach(function(id, idx) {
-                $hidden.append('<input type="hidden" name="vehical_id[]" value="' + id + '">');
-                var label = itemVehicleDetailsEdit[id] || 'Vehicle #' + (idx + 1);
-                html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="' + id + '"><span class="small">' + label + '</span><div class="btn-group btn-group-sm"><button type="button" class="btn btn-sm btn-outline-primary edit-item-vehicle-edit" data-id="' + id + '" title="Edit vehicle"><i class="ti ti-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle-edit" data-id="' + id + '"><i class="ti ti-trash"></i></button></div></div>';
+            Object.keys(groups).forEach(function(baseLabel) {
+                var g = groups[baseLabel];
+                g.ids.forEach(function(id) { $hidden.append('<input type="hidden" name="vehical_id[]" value="' + id + '">'); });
+                var rangeText = g.years.length ? (' — ' + g.years.join(', ')) : '';
+                var displayLabel = baseLabel + rangeText;
+                var groupIds = g.ids.join(',');
+                html += '<div class="list-group-item d-flex justify-content-between align-items-center py-2" data-vehicle-id="' + g.ids[0] + '" data-group-ids="' + groupIds + '">';
+                html += '<span class="small">' + displayLabel + '</span>';
+                html += '<div class="btn-group btn-group-sm"><button type="button" class="btn btn-sm btn-outline-primary edit-item-vehicle-edit" data-id="' + g.ids[0] + '" data-group-ids="' + groupIds + '" title="Edit vehicle"><i class="ti ti-pencil"></i></button>';
+                html += '<button type="button" class="btn btn-sm btn-outline-danger remove-item-vehicle-edit" data-group-ids="' + groupIds + '" title="Remove"><i class="ti ti-trash"></i></button></div></div>';
             });
             html += '</div>';
             $list.html(html);
@@ -5873,10 +7097,13 @@ function md5(string) {
                 $('#itemVehicleAddModalEdit').modal('show');
             });
             $('.remove-item-vehicle-edit').off('click').on('click', function() {
-                var id = parseInt($(this).data('id'));
-                itemVehicleIdsEdit = itemVehicleIdsEdit.filter(function(x) { return x !== id; });
-                delete itemVehicleDetailsEdit[id];
-                if (itemVehicleFullDetailsEdit[id]) delete itemVehicleFullDetailsEdit[id];
+                var groupIds = $(this).data('group-ids');
+                var ids = groupIds ? String(groupIds).split(',').map(function(x) { return parseInt(x, 10); }) : [parseInt($(this).closest('[data-vehicle-id]').data('vehicle-id'), 10)];
+                ids.forEach(function(id) {
+                    itemVehicleIdsEdit = itemVehicleIdsEdit.filter(function(x) { return x !== id; });
+                    delete itemVehicleDetailsEdit[id];
+                    if (itemVehicleFullDetailsEdit[id]) delete itemVehicleFullDetailsEdit[id];
+                });
                 updateItemVehiclesDisplayEdit();
             });
         }

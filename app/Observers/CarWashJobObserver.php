@@ -3,7 +3,6 @@
 namespace App\Observers;
 
 use App\Models\CarWashJob;
-use App\Models\BankTransaction;
 use App\Models\BankAccount;
 use App\Services\CashAccountService;
 use Illuminate\Support\Facades\Log;
@@ -76,19 +75,19 @@ class CarWashJobObserver
             $paymentMethod = $job->payment_method ?? 'cash';
             
             if ($paymentMethod === 'bank') {
-                // Bank payment: Credit to the bank account selected in the job
-                // Use the bank_account_id from the job if available, otherwise fallback to user's primary account
+                // Bank payment: Credit to the bank account selected when completing the job
+                // So job payment adds to that account's balance (opening_balance + credits - debits)
                 $bankAccount = null;
-                
-                // First, try to use the bank account selected when completing the job
+
+                // Use the bank account selected at job completion (no user_id restriction so selected account gets credit)
                 if ($job->bank_account_id) {
                     $bankAccount = BankAccount::where('id', $job->bank_account_id)
                         ->where('account_type', 'bank')
-                        ->where('user_id', $userId)
+                        ->where('status', true)
                         ->first();
                 }
-                
-                // If no account from job, try to find primary bank account
+
+                // If job has no bank_account_id, fallback to job creator's primary bank account
                 if (!$bankAccount) {
                     $bankAccount = BankAccount::where('user_id', $userId)
                         ->where('account_type', 'bank')
@@ -103,22 +102,11 @@ class CarWashJobObserver
                 }
                 
                 if ($bankAccount) {
-                    $description = "Job payment for job #{$job->id} - {$job->service_name}";
-                    if ($expenseAmount > 0) {
-                        $description .= " (including expenses: Rs. " . number_format($expenseAmount, 2) . ")";
-                    }
-                    
-                    BankTransaction::create([
-                        'bank_account_id' => $bankAccount->id,
-                        'transaction_date' => now(),
-                        'description' => $description,
-                        'amount' => $totalServiceCharges,
-                        'type' => 'credit',
-                        'statement_reference' => 'JOB-' . $job->id,
-                        'reconciled' => true, // Auto-reconcile job payments as they are immediate
-                    ]);
-                    
-                    Log::info('Job payment (with expenses) credited to user bank account', [
+                    // Add job payment to bank account's opening_balance (as requested: payment goes to opening balance)
+                    $bankAccount->opening_balance = (float) ($bankAccount->opening_balance ?? 0) + $totalServiceCharges;
+                    $bankAccount->save();
+
+                    Log::info('Job payment (with expenses) added to bank account opening_balance', [
                         'job_id' => $job->id,
                         'user_id' => $userId,
                         'bank_account_id' => $bankAccount->id,

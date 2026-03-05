@@ -47,7 +47,7 @@
     <div class="card">
         <div class="card-header">
             <!-- Type Filter Dropdown -->
-            <div class="row mb-4 g-3">
+            <div class="row mb-4 g-3 align-items-end">
                 <div class="col-md-3">
                     <label for="typeFilterDropdown" class="form-label fw-bold mb-2">Filter by Type:</label>
                     <select id="typeFilterDropdown" class="form-control form-select">
@@ -60,6 +60,11 @@
                         @canany(['view_items', 'view_scrap'])<option value="scrap">Scrap</option>@endcanany
                         @canany(['view_items', 'view_services'])<option value="services">Services</option>@endcanany
                     </select>
+                </div>
+                <div class="col-md-3 col-auto">
+                    <a href="{{ route('items.price.list') }}" id="priceListBtn" class="btn btn-primary" target="_blank" rel="noopener">
+                        <i class="ti ti-list me-1"></i>Price List
+                    </a>
                 </div>
             </div>
             <div class="d-flex align-items-center justify-content-end flex-wrap row-gap-3">
@@ -82,6 +87,7 @@
                                     @endcanany
                                 </th>
                                 <th>Product Image</th>
+                                <th>Item Details</th>
                                 <th>View</th>
                                 <th>Actions</th>
                                 <th>Serial Number</th>
@@ -115,12 +121,68 @@
                                     @endcan
                                 </td>
                                 <td>
-                                    <img src="{{ asset($item->image ?? 'assets/img/media/default.png') }}"
+                                    @php
+                                        $rawImg = $item->image ?? 'assets/img/media/default.png';
+                                        $imgUrl = (str_starts_with($rawImg, 'http://') || str_starts_with($rawImg, 'https://')) ? $rawImg : asset($rawImg);
+                                        $imgFallback = asset('assets/img/media/default.png');
+                                    @endphp
+                                    <img src="{{ $imgUrl }}"
                                         width="70" height="70" class="rounded item-image"
                                         style="cursor:pointer;"
                                         data-bs-toggle="modal"
                                         data-bs-target="#imageModal"
-                                        data-src="{{ asset($item->image ?? 'assets/img/media/default.png') }}">
+                                        data-src="{{ $imgUrl }}"
+                                        onerror="this.onerror=null;this.src='{{ $imgFallback }}';"
+                                        data-fallback="{{ $imgFallback }}">
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        @if(($item->type ?? '') === 'battery')
+                                            @php
+                                                $v = $item->volt_item ? trim((string)($item->volt_item->name ?? '')) : '';
+                                                $voltDisplay = $v !== '' ? (preg_match('/\d*\s*V$/i', $v) ? $v : $v . 'V') : '-';
+                                                $p = $item->plate_item ? trim((string)($item->plate_item->name ?? '')) : '';
+                                                $plateDisplay = $p !== '' ? (preg_match('/\d*\s*PL$/i', $p) ? $p : $p . 'PL') : '-';
+                                                $a = $item->amphors_item ? trim((string)($item->amphors_item->name ?? '')) : '';
+                                                $ampDisplay = $a !== '' ? (preg_match('/\d*\s*AH$/i', $a) ? $a : $a . 'AH') : '-';
+                                                $c = $item->cca_item ? trim((string)($item->cca_item->name ?? '')) : '';
+                                                $ccaDisplay = $c !== '' ? (preg_match('/\d*\s*CCA$/i', $c) ? $c : $c . 'CCA') : '-';
+                                            @endphp
+                                            <div>{{ $item->company_item->name ?? '-' }}</div>
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            <div>{{ $voltDisplay }} {{ $plateDisplay }} {{ $ampDisplay }} {{ $ccaDisplay }}</div>
+                                        @elseif(($item->type ?? '') === 'parts')
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            @if($item->partnumber_item)<div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>@endif
+                                            <div>{{ $item->category->name ?? '-' }}</div>
+                                            <div>{{ $item->company_item->name ?? '-' }}</div>
+                                            <div>{{ $item->quality_item->name ?? '-' }}</div>
+                                        @elseif(in_array($item->type ?? '', ['filters', 'breakpad']))
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            @if($item->partnumber_item)<div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>@endif
+                                            <div>{{ $item->category->name ?? '-' }}</div>
+                                            <div>{{ $item->company_item->name ?? '-' }}</div>
+                                            <div>{{ $item->quality_item->name ?? '-' }}</div>
+                                        @elseif(($item->type ?? '') === 'oil')
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? '-' }}</div>
+                                            <div>{{ $item->category->name ?? '-' }}</div>
+                                            <div>{{ $item->company_item->name ?? '-' }}</div>
+                                            <div>{{ $item->quality_item->name ?? '-' }}</div>
+                                        @elseif(($item->type ?? '') === 'scrap')
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? '-' }}</div>
+                                            <div>{{ $item->category->name ?? '-' }}</div>
+                                            <div>{{ $item->company_item->name ?? '-' }}</div>
+                                            <div>{{ $item->level_item->name ?? '-' }}</div>
+                                        @elseif(($item->type ?? '') === 'services')
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? '-' }}</div>
+                                            <div>{{ $item->services_item->name ?? '-' }}</div>
+                                        @else
+                                            <div class="fw-semibold">{{ $item->product_item->name ?? $item->partnumber_item->name ?? '-' }}</div>
+                                            @if($item->partnumber_item)<div class="text-muted">{{ $item->partnumber_item->name ?? '-' }}</div>@endif
+                                            <div>{{ $item->category->name ?? '-' }}</div>
+                                            <div>{{ $item->company_item->name ?? '-' }}</div>
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>
                                     @can($viewPerm)
@@ -151,14 +213,6 @@
                                                 </a>
                                             </li>
                                             @endcan
-                                            <hr>
-                                    @can($addPerm)
-                                    <li>
-                                        <a class="dropdown-item text-primary" href="{{ route('item.duplicate', $item->id) }}">
-                                            <i data-feather="copy" class="me-1"></i> Duplicate
-                                        </a>
-                                    </li>
-                                    @endcan
                                     @if($item->vehical_item)
                                     <hr>
                                     <li>
@@ -213,7 +267,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="13" class="text-center">No items found.</td>
+                                <td colspan="14" class="text-center">No items found.</td>
                             </tr>
                             @endforelse
                         </tbody>
@@ -233,6 +287,11 @@
             </div>
         </div>
         <div class="card-footer">
+            @canany(['update_items', 'update_parts', 'update_filters', 'update_break_pad', 'update_oil', 'update_battery', 'update_scrap', 'update_services'])
+            <button type="button" id="bulkEditBtn" class="btn btn-outline-primary me-2" style="display: none;">
+                <i class="ti ti-edit me-1"></i> Bulk Edit
+            </button>
+            @endcanany
             @can('delete_items')
             <button type="button" id="bulkDeleteBtn" class="btn btn-danger" style="display: none;">
                 <i class="ti ti-trash me-1"></i> Delete Selected
@@ -282,6 +341,63 @@
                     <i class="ti ti-brand-whatsapp me-1"></i> Generate PDF & Share
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Edit Modal -->
+<div class="modal fade" id="bulkEditModal" tabindex="-1" aria-labelledby="bulkEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkEditModalLabel">
+                    <i class="ti ti-edit me-2"></i>Bulk Edit Items
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="bulkEditForm">
+                @csrf
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Only filled fields will be applied to <strong><span id="bulkEditSelectedCount">0</span></strong> selected item(s). Leave blank to keep current value.</p>
+                    <div class="mb-3">
+                        <label for="bulk_retail_price" class="form-label">Retail Price (Rs.)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="bulk_retail_price" name="retail_price" placeholder="Leave blank to keep">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulk_total_price" class="form-label">Cost / Total Price (Rs.)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="bulk_total_price" name="total_price" placeholder="Leave blank to keep">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulk_sale_price" class="form-label">Sale Price (Rs.)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="bulk_sale_price" name="sale_price" placeholder="Leave blank to keep">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulk_category_id" class="form-label">Category</label>
+                        <select class="form-select" id="bulk_category_id" name="category_id">
+                            <option value="">— No change —</option>
+                            @isset($categories)
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name ?? 'Category' }}</option>
+                                @endforeach
+                            @endisset
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulk_is_active" class="form-label">Status</label>
+                        <select class="form-select" id="bulk_is_active" name="is_active">
+                            <option value="">— No change —</option>
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="bulkEditSubmitBtn">
+                        <i class="ti ti-check me-1"></i> Apply to Selected
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -367,12 +483,20 @@
         
         // Type Dropdown Change Handler
         const typeFilterDropdown = document.getElementById('typeFilterDropdown');
+        const priceListBtn = document.getElementById('priceListBtn');
+        function updatePriceListHref() {
+            if (priceListBtn) {
+                const type = typeFilterDropdown ? typeFilterDropdown.value : 'all';
+                const base = '{{ route("items.price.list") }}';
+                priceListBtn.href = type && type !== 'all' ? (base + '?type=' + encodeURIComponent(type)) : base;
+            }
+        }
         if (typeFilterDropdown) {
+            updatePriceListHref();
             typeFilterDropdown.addEventListener('change', function() {
                 const type = this.value;
                 currentType = type;
-                
-                // Load items for selected type
+                updatePriceListHref();
                 loadItemsByType(type);
             });
         }
@@ -383,7 +507,7 @@
             const deleteFormsContainer = document.getElementById('deleteFormsContainer');
             
             // Show loading
-            tbody.innerHTML = '<tr><td colspan="13" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
             
             // Build URL
             let url = type === 'all' 
@@ -429,12 +553,12 @@
                     if (data.success && data.items) {
                         renderItems(data.items);
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="13" class="text-center">No items found for this type.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="14" class="text-center">No items found for this type.</td></tr>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading items:', error);
-                    tbody.innerHTML = '<tr><td colspan="13" class="text-center text-danger">Error loading items. Please try again.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="14" class="text-center text-danger">Error loading items. Please try again.</td></tr>';
                 });
             }
         }
@@ -445,7 +569,7 @@
             const deleteFormsContainer = document.getElementById('deleteFormsContainer');
             
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="text-center">No items found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="14" class="text-center">No items found.</td></tr>';
                 deleteFormsContainer.innerHTML = '';
                 updateCheckboxes();
                 return;
@@ -454,13 +578,33 @@
             let tbodyHtml = '';
             let deleteFormsHtml = '';
             
+            const baseUrl = window.location.origin;
+            const defaultImgUrl = baseUrl + '/assets/img/media/default.png';
             items.forEach(item => {
-                // Fix image path
-                let imgSrc = item.image || '/assets/img/media/default.png';
-                if (!imgSrc.startsWith('http') && !imgSrc.startsWith('/')) {
-                    imgSrc = '/' + imgSrc;
+                // Fix image path: use full URL, avoid double prefix
+                let imgSrc = (item.image && String(item.image).trim()) ? item.image : '';
+                if (!imgSrc) {
+                    imgSrc = defaultImgUrl;
+                } else if (!imgSrc.startsWith('http://') && !imgSrc.startsWith('https://')) {
+                    imgSrc = baseUrl + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
                 }
-                
+                // Item details by type
+                let itemDetailsHtml = '';
+                if ((item.type || '') === 'battery') {
+                    itemDetailsHtml = `<div class="small"><div>${item.company_name || '-'}</div><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div><div>${item.volt_name || '-'} ${item.plate_name || '-'} ${item.amphors_name || '-'} ${item.cca_name || '-'}</div></div>`;
+                } else if ((item.type || '') === 'parts') {
+                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>${item.part_number ? `<div class="text-muted">${item.part_number}</div>` : ''}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
+                } else if ((item.type || '') === 'filters' || (item.type || '') === 'breakpad') {
+                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>${item.part_number ? `<div class="text-muted">${item.part_number}</div>` : ''}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
+                } else if ((item.type || '') === 'oil') {
+                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || '-'}</div><div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.quality_name || '-'}</div></div>`;
+                } else if ((item.type || '') === 'scrap') {
+                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || '-'}</div><div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div><div>${item.level_name || '-'}</div></div>`;
+                } else if ((item.type || '') === 'services') {
+                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || '-'}</div><div>${item.services_name || '-'}</div></div>`;
+                } else {
+                    itemDetailsHtml = `<div class="small"><div class="fw-semibold">${item.product_name || item.part_number || '-'}</div>${item.part_number ? `<div class="text-muted">${item.part_number}</div>` : ''}<div>${item.category_name || '-'}</div><div>${item.company_name || '-'}</div></div>`;
+                }
                 tbodyHtml += `
                     <tr data-type="${item.type}">
                         <td>
@@ -473,8 +617,10 @@
                                 data-bs-toggle="modal"
                                 data-bs-target="#imageModal"
                                 data-src="${imgSrc}"
-                                onerror="this.onerror=null; this.src='/assets/img/media/default.png';">
+                                data-fallback="${defaultImgUrl}"
+                                onerror="this.onerror=null;this.src=this.getAttribute('data-fallback')||'${defaultImgUrl.replace(/'/g, "\\'")}';">
                         </td>
+                        <td>${itemDetailsHtml}</td>
                         <td>
                             <a class="btn btn-sm btn-outline-primary" href="${item.show_url || '#'}">
                                 <i data-feather="eye" class="me-1"></i> View
@@ -496,12 +642,6 @@
                                             onclick="confirmDelete('delete-form-${item.id}')"
                                             class="dropdown-item mt-2">
                                             <i data-feather="trash-2" class="feather-trash-2"></i> Delete
-                                        </a>
-                                    </li>
-                                    <hr>
-                                    <li>
-                                        <a class="dropdown-item text-primary" href="${item.duplicate_url || '#'}">
-                                            <i data-feather="copy" class="me-1"></i> Duplicate
                                         </a>
                                     </li>
                                     ${item.has_vehicle ? `
@@ -597,12 +737,15 @@
             const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
             const shareWhatsAppBtn = document.getElementById('shareWhatsAppBtn');
             
+            const bulkEditBtn = document.getElementById('bulkEditBtn');
             if (selected.length > 0) {
                 if (bulkDeleteBtn) bulkDeleteBtn.style.display = 'inline-block';
                 if (shareWhatsAppBtn) shareWhatsAppBtn.style.display = 'inline-block';
+                if (bulkEditBtn) bulkEditBtn.style.display = 'inline-block';
             } else {
                 if (bulkDeleteBtn) bulkDeleteBtn.style.display = 'none';
                 if (shareWhatsAppBtn) shareWhatsAppBtn.style.display = 'none';
+                if (bulkEditBtn) bulkEditBtn.style.display = 'none';
             }
         }
         
@@ -659,6 +802,75 @@
             // Show modal
             const modal = new bootstrap.Modal(document.getElementById('whatsappShareModal'));
             modal.show();
+        });
+
+        // Bulk Edit: show modal with selected count
+        $(document).on('click', '#bulkEditBtn', function() {
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selected = Array.from(checkboxes).filter(chk => chk.checked);
+            if (selected.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'No Selection', text: 'Please select at least one item to edit.' });
+                return;
+            }
+            document.getElementById('bulkEditSelectedCount').textContent = selected.length;
+            document.getElementById('bulkEditForm').reset();
+            document.getElementById('bulk_category_id').value = '';
+            document.getElementById('bulk_is_active').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('bulkEditModal'));
+            modal.show();
+        });
+
+        // Bulk Edit form submit
+        $('#bulkEditForm').on('submit', function(e) {
+            e.preventDefault();
+            const checkboxes = document.querySelectorAll('.item-checkbox');
+            const selectedIds = Array.from(checkboxes).filter(chk => chk.checked).map(chk => chk.value);
+            if (selectedIds.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'No Selection', text: 'Please select at least one item.' });
+                return;
+            }
+            const formData = new FormData();
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+            selectedIds.forEach(function(id) { formData.append('ids[]', id); });
+            const retail = $('#bulk_retail_price').val();
+            const total = $('#bulk_total_price').val();
+            const sale = $('#bulk_sale_price').val();
+            const cat = $('#bulk_category_id').val();
+            const active = $('#bulk_is_active').val();
+            if (retail !== '') formData.append('retail_price', retail);
+            if (total !== '') formData.append('total_price', total);
+            if (sale !== '') formData.append('sale_price', sale);
+            if (cat !== '') formData.append('category_id', cat);
+            if (active !== '') formData.append('is_active', active);
+            const allEmpty = !retail && !total && !sale && !cat && active === '';
+            if (allEmpty) {
+                Swal.fire({ icon: 'info', title: 'No Changes', text: 'Please fill at least one field to update.' });
+                return;
+            }
+            $('#bulkEditSubmitBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Applying...');
+            $.ajax({
+                url: '{{ route("all.items.bulkUpdate") }}',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    bootstrap.Modal.getInstance(document.getElementById('bulkEditModal')).hide();
+                    Swal.fire({ icon: 'success', title: 'Done', text: res.message || res.updated + ' item(s) updated.' });
+                    document.querySelectorAll('.item-checkbox').forEach(function(chk) { chk.checked = false; });
+                    if (document.getElementById('selectAll')) document.getElementById('selectAll').checked = false;
+                    updateActionButtons();
+                    updateSelectAllState();
+                    location.reload();
+                },
+                error: function(xhr) {
+                    const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : (xhr.responseJSON && xhr.responseJSON.errors ? Object.values(xhr.responseJSON.errors).flat().join(' ') : 'Update failed.');
+                    Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                },
+                complete: function() {
+                    $('#bulkEditSubmitBtn').prop('disabled', false).html('<i class="ti ti-check me-1"></i> Apply to Selected');
+                }
+            });
         });
         
         // Generate PDF and Share on WhatsApp - Use event delegation

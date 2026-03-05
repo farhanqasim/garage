@@ -503,137 +503,116 @@
             });
         }
 
-        // Fingerprint Setup
-        const fingerprintSetupBtn = document.getElementById('fingerprintSetupBtn');
-        const fingerprintSetupProgress = document.getElementById('fingerprintSetupProgress');
-        const fingerprintSetupStatus = document.getElementById('fingerprintSetupStatus');
-        const fingerprintSetupSuccess = document.getElementById('fingerprintSetupSuccess');
-        const clearFingerprintBtn = document.getElementById('clearFingerprintBtn');
-        let scanIntervalSetup = null;
-        let scanProgressSetup = 0;
-
-        if (fingerprintSetupBtn) {
-            fingerprintSetupBtn.addEventListener('mousedown', startFingerprintSetupScan);
-            fingerprintSetupBtn.addEventListener('mouseup', stopFingerprintSetupScan);
-            fingerprintSetupBtn.addEventListener('mouseleave', stopFingerprintSetupScan);
-            
-            fingerprintSetupBtn.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                startFingerprintSetupScan();
-            });
-            
-            fingerprintSetupBtn.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                stopFingerprintSetupScan();
-            });
+        // WebAuthn: real fingerprint / Windows Hello registration from profile
+        function base64urlToBuffer(base64url) {
+            const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = base64.length % 4;
+            const padded = pad ? base64 + '='.repeat(4 - pad) : base64;
+            const binary = atob(padded);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
         }
-
-        function startFingerprintSetupScan() {
-            scanProgressSetup = 0;
-            fingerprintSetupProgress.style.display = 'block';
-            fingerprintSetupStatus.textContent = 'Scanning...';
-            fingerprintSetupBtn.querySelector('.fingerprint-icon-setup').style.background = '#3b82f6';
-            fingerprintSetupBtn.querySelector('.fingerprint-icon-setup i').style.color = '#fff';
-            
-            scanIntervalSetup = setInterval(function() {
-                scanProgressSetup += 5;
-                fingerprintSetupProgress.querySelector('.progress-bar').style.width = scanProgressSetup + '%';
-                
-                if (scanProgressSetup >= 100) {
-                    stopFingerprintSetupScan();
-                    saveFingerprint();
-                }
-            }, 50);
+        function bufferToBase64url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
+        function doWebAuthnRegister() {
+            const statusEl = document.getElementById('webauthnRegisterStatus');
+            const successEl = document.getElementById('webauthnRegisterSuccess');
+            const errorEl = document.getElementById('webauthnRegisterError');
+            if (statusEl) statusEl.textContent = 'لوڈ ہو رہا ہے...';
+            if (successEl) { successEl.style.display = 'none'; successEl.textContent = ''; }
+            if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
 
-        function stopFingerprintSetupScan() {
-            if (scanIntervalSetup) {
-                clearInterval(scanIntervalSetup);
-                scanIntervalSetup = null;
-            }
-            
-            if (scanProgressSetup < 100) {
-                fingerprintSetupProgress.style.display = 'none';
-                fingerprintSetupStatus.textContent = 'Hold to Scan Finger';
-                fingerprintSetupBtn.querySelector('.fingerprint-icon-setup').style.background = '#f8f9fa';
-                fingerprintSetupBtn.querySelector('.fingerprint-icon-setup i').style.color = '#3b82f6';
-                fingerprintSetupProgress.querySelector('.progress-bar').style.width = '0%';
-                scanProgressSetup = 0;
-            }
-        }
-
-        function saveFingerprint() {
-            const fingerprintData = 'fingerprint_' + '{{ auth()->user()->email }}' + '_' + Date.now();
-            const form = document.getElementById('saveFingerprintForm');
-            const input = document.getElementById('fingerprintDataInput');
-            if (form && input) {
-                input.value = fingerprintData;
-                fingerprintSetupStatus.textContent = 'Saving...';
-                form.submit();
-                return;
-            }
-            fetch('{{ route("save.fingerprint") }}', {
+            fetch('{{ route("webauthn.register.options") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
-                body: JSON.stringify({ fingerprint_data: fingerprintData })
+                body: JSON.stringify({})
             })
-            .then(response => {
-                // Check if response is OK
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        // Try to parse as JSON first
-                        try {
-                            const jsonData = JSON.parse(text);
-                            throw new Error(jsonData.message || 'Server returned error: ' + response.status);
-                        } catch (e) {
-                            // If not JSON, it's probably an HTML error page
-                            throw new Error('Server error (Status: ' + response.status + '). Please try again.');
-                        }
-                    });
-                }
-                
-                // Check content type
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    return response.json();
-                } else {
-                    // If not JSON, get text and try to parse
-                    return response.text().then(text => {
-                        // Check if it's HTML (error page)
-                        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                            throw new Error('Server returned HTML error page. Please try again.');
-                        }
-                        
-                        try {
-                            return JSON.parse(text);
-                        } catch (e) {
-                            throw new Error('Invalid JSON response from server.');
-                        }
-                    });
-                }
-            })
+            .then(r => r.json())
             .then(data => {
+                if (!data.success || !data.options) {
+                    throw new Error(data.message || 'Options نہیں ملے');
+                }
+                const opt = data.options;
+                if (statusEl) statusEl.textContent = 'فنگر پرنٹ / Windows Hello کے لیے تصدیق کریں...';
+                const publicKey = {
+                    challenge: base64urlToBuffer(opt.challenge),
+                    rp: opt.rp,
+                    user: {
+                        id: base64urlToBuffer(opt.user.id),
+                        name: opt.user.name,
+                        displayName: opt.user.displayName || opt.user.name
+                    },
+                    pubKeyCredParams: opt.pubKeyCredParams || [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+                    timeout: opt.timeout || 60000,
+                    attestation: opt.attestation || 'none',
+                    authenticatorSelection: opt.authenticatorSelection || { userVerification: 'required' }
+                };
+                return navigator.credentials.create({ publicKey });
+            })
+            .then(credential => {
+                if (!credential) throw new Error('تصدیق منسوخ یا ناکام');
+                const id = credential.id;
+                const attestationObject = bufferToBase64url(credential.response.attestationObject);
+                const clientDataJSON = bufferToBase64url(credential.response.clientDataJSON);
+                if (statusEl) statusEl.textContent = 'محفوظ ہو رہا ہے...';
+                return fetch('{{ route("webauthn.register.verify") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        credential: {
+                            id: id,
+                            response: {
+                                attestationObject: attestationObject,
+                                clientDataJSON: clientDataJSON
+                            }
+                        },
+                        device_name: navigator.userAgent.indexOf('Windows') !== -1 ? 'Windows Hello' : (navigator.userAgent.indexOf('Mac') !== -1 ? 'Touch ID' : 'Device')
+                    })
+                });
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (statusEl) statusEl.textContent = '';
                 if (data.success) {
-                    fingerprintSetupSuccess.textContent = 'Fingerprint saved successfully! You can now use it to login.';
-                    fingerprintSetupSuccess.style.display = 'block';
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1500);
+                    if (successEl) {
+                        successEl.textContent = 'فنگر پرنٹ رجسٹر ہو گیا۔ اب لاگ ان صفحہ پر Bio ٹیب سے لاگ ان کر سکتے ہیں۔';
+                        successEl.style.display = 'block';
+                    }
+                    setTimeout(function() { location.reload(); }, 2000);
                 } else {
-                    fingerprintSetupStatus.textContent = data.message || 'Failed to save fingerprint';
-                    fingerprintSetupStatus.style.color = '#dc3545';
+                    if (errorEl) {
+                        errorEl.textContent = data.message || 'رجسٹریشن ناکام';
+                        errorEl.style.display = 'block';
+                    }
                 }
             })
-            .catch(error => {
-                console.error('Fingerprint save error:', error);
-                fingerprintSetupStatus.textContent = error.message || 'An error occurred while saving fingerprint';
-                fingerprintSetupStatus.style.color = '#dc3545';
+            .catch(err => {
+                if (statusEl) statusEl.textContent = '';
+                if (errorEl) {
+                    errorEl.textContent = err.message || 'غلطی ہوئی۔ براؤزر فنگر پرنٹ سپورٹ کرتا ہو اور HTTPS یا localhost پر چل رہا ہو۔';
+                    errorEl.style.display = 'block';
+                }
             });
         }
+        const webauthnRegisterBtn = document.getElementById('webauthnRegisterBtn');
+        const addAnotherPasskeyBtn = document.getElementById('addAnotherPasskeyBtn');
+        if (webauthnRegisterBtn) webauthnRegisterBtn.addEventListener('click', doWebAuthnRegister);
+        if (addAnotherPasskeyBtn) addAnotherPasskeyBtn.addEventListener('click', doWebAuthnRegister);
         }
     </script>
 @endsection

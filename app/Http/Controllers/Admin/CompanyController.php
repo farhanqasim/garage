@@ -16,7 +16,21 @@ class CompanyController extends Controller
 
     public function post_companies(Request $request)
     {
-        $data = ['name' => $request->name];
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Company name is required.'], 422);
+        }
+        $existing = Company::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This company already exists. It has been selected for you.'
+            ]);
+        }
+        $data = ['name' => $name];
         if ($request->has('type') && $request->type) {
             $data['type'] = $request->type;
         }

@@ -38,7 +38,7 @@ class SalesController extends Controller
     }
     
     public function create_sale_new(){
-        $customers = Customer::with('customerCars')->orderBy('created_at', 'desc')->get();
+        $customers = Customer::with('customerCars', 'branch')->orderBy('created_at', 'desc')->get();
         $branches = \App\Models\Branch::where('status', 'active')->get();
         $units = \App\Models\Unit::all();
         $suppliers = \App\Models\Supplier::orderBy('created_at', 'desc')->get();
@@ -243,6 +243,7 @@ class SalesController extends Controller
             'category',
             'subcategory',
             'unit_item', // Load unit relationship to get unit name
+            'unit_item.baseUnits',
             'product_item', // Product name
             'company_item', // Company
             'quality_item', // Quality
@@ -522,6 +523,9 @@ class SalesController extends Controller
             $totalPrice = floatval($item->total_price ?? 0);
             $pricePerUnit = floatval($item->price_per_unit ?? 0);
             
+            // Unit display and liter-per-can for oil/can (same as purchase search)
+            $unitInfo = $this->getItemUnitDisplayForSearch($item);
+            
             // Calculate price per unit if total price is given
             if ($totalPrice > 0 && $onHand > 0) {
                 $calculatedPricePerUnit = $totalPrice / $onHand;
@@ -540,6 +544,8 @@ class SalesController extends Controller
                 'type' => 'item',
                 'id' => $item->id,
                 'item' => $item,
+                'unit_display' => $unitInfo['unit_display'],
+                'liter_per_can' => $unitInfo['liter_per_can'],
                 // Stock and Quantity Information (from items table)
                 'warehouse_quantity' => $onHand,
                 'available_quantity' => $onHand,
@@ -565,13 +571,64 @@ class SalesController extends Controller
 
         return response()->json($results);
     }
+
+    /**
+     * For sale search: get unit display string and liter-per-can for item (oil/can display in first line).
+     * Same logic as PurchaseController::getItemUnitDisplayForSearch.
+     */
+    private function getItemUnitDisplayForSearch(Item $item): array
+    {
+        $unitName = $item->unit_item ? trim($item->unit_item->name ?? $item->unit_item->short_name ?? '') : '';
+        $literPerCan = null;
+        // 0) From item's unit_option (selected conversion e.g. "12_8_4" => 4 Liter)
+        $unitOption = $item->unit_option ? trim((string) $item->unit_option) : '';
+        if ($unitOption !== '' && strpos($unitOption, '_') !== false) {
+            $parts = explode('_', $unitOption);
+            $lastPart = end($parts);
+            if (is_numeric($lastPart) && (float) $lastPart > 0) {
+                $literPerCan = (float) $lastPart;
+            }
+        }
+        // 1) From unit name e.g. "Can - 4 Liter" or "Can 4L"
+        if ($literPerCan === null && preg_match('/(\d+(?:\.\d+)?)\s*(?:liter|ltr|L)\b/i', $unitName, $m)) {
+            $literPerCan = (float) $m[1];
+        } elseif ($literPerCan === null && preg_match('/\b(?:liter|ltr|L)\s*(\d+(?:\.\d+)?)/i', $unitName, $m)) {
+            $literPerCan = (float) $m[1];
+        }
+        // 2) From item filling (per-can liters)
+        if ($literPerCan === null && $item->filling !== null && $item->filling !== '' && !is_nan((float) $item->filling)) {
+            $literPerCan = (float) $item->filling;
+        }
+        // 3) From unit's base unit (e.g. Can has base unit Liter with multiplier 4)
+        if ($literPerCan === null && $item->unit_item && $item->unit_item->relationLoaded('baseUnits')) {
+            foreach ($item->unit_item->baseUnits as $base) {
+                $baseName = trim($base->name ?? $base->short_name ?? '');
+                if (stripos($baseName, 'liter') !== false || stripos($baseName, 'ltr') !== false || $baseName === 'L') {
+                    $mult = $base->pivot->multiplier ?? $base->pivot->getAttribute('multiplier') ?? null;
+                    if ($mult !== null && $mult !== '' && (float) $mult > 0) {
+                        $literPerCan = (float) $mult;
+                        break;
+                    }
+                }
+            }
+        }
+        $unitDisplay = $unitName;
+        if ($literPerCan > 0) {
+            $literal = (floor($literPerCan) == $literPerCan) ? (int) $literPerCan : number_format($literPerCan, 1, '.', '');
+            $canLiteral = 'Can - ' . $literal . ' Liter';
+            if ($unitDisplay === '' || $unitDisplay === 'Unit' || stripos($unitDisplay, 'liter') === false) {
+                $unitDisplay = $canLiteral;
+            }
+        }
+        return ['unit_display' => $unitDisplay ?: '', 'liter_per_can' => $literPerCan];
+    }
     
     /**
      * Get item details for sales
      */
     public function getItemDetails($id)
     {
-        $item = Item::with(['partnumber_item', 'category', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical'])->findOrFail($id);
+        $item = Item::with(['partnumber_item', 'category', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical', 'unit_item', 'unit_item.baseUnits'])->findOrFail($id);
         
         // Build item name from available data
         $itemName = $item->short_disc ?? $item->pro_dis ?? '';
@@ -609,6 +666,8 @@ class SalesController extends Controller
             $rate = $packingPurchaseRate > 0 ? $packingPurchaseRate : 0;
         }
         
+        $unitInfo = $this->getItemUnitDisplayForSearch($item);
+        
         return response()->json([
             'id' => $item->id,
             'name' => $itemName,
@@ -616,7 +675,8 @@ class SalesController extends Controller
             'sale_price' => $salePrice,
             'packing_purchase_rate' => $packingPurchaseRate,
             'total_price' => $totalPrice,
-            'unit' => $item->unit ?? 'Unit',
+            'unit' => ($item->unit_item && ($item->unit_item->name ?? $item->unit_item->short_name)) ? ($item->unit_item->name ?? $item->unit_item->short_name) : ($item->unit ?? 'Unit'),
+            'liter_per_can' => $unitInfo['liter_per_can'] > 0 ? $unitInfo['liter_per_can'] : null,
             'stock' => $onHand,
             'bar_code' => $item->bar_code,
             'serial_number' => $item->serial_number,
@@ -775,9 +835,12 @@ class SalesController extends Controller
             foreach ($request->items as $itemData) {
                 $item = Item::findOrFail($itemData['item_id']);
                 $saleQuantity = floatval($itemData['quantity']);
+                $itemWarehouseId = !empty($itemData['warehouse_id']) ? (int) $itemData['warehouse_id'] : null;
+                $checkWarehouse = $itemWarehouseId ? Warehouse::where('id', $itemWarehouseId)->where('branch_id', $request->branch_id)->first() : null;
+                $wh = ($checkWarehouse ?: $warehouse);
 
                 $warehouseItem = WarehouseItem::lockForUpdate()
-                    ->where('warehouse_id', $warehouse->id)
+                    ->where('warehouse_id', $wh->id)
                     ->where('item_id', $itemData['item_id'])
                     ->first();
 
@@ -861,9 +924,13 @@ class SalesController extends Controller
                 if ($supplierId && $isZeroStock) {
                     continue; // Don't update stock for this item
                 }
+
+                $itemWarehouseId = !empty($itemData['warehouse_id']) ? (int) $itemData['warehouse_id'] : null;
+                $itemWarehouse = $itemWarehouseId ? Warehouse::where('id', $itemWarehouseId)->where('branch_id', $request->branch_id)->first() : null;
+                $wh = ($itemWarehouse ?: $warehouse);
                 
                 $warehouseItem = WarehouseItem::lockForUpdate()
-                    ->where('warehouse_id', $warehouse->id)
+                    ->where('warehouse_id', $wh->id)
                     ->where('item_id', $itemData['item_id'])
                     ->firstOrFail();
 
@@ -1284,6 +1351,7 @@ class SalesController extends Controller
             }
             $saleDate = $sale && $sale->sale_date ? $sale->sale_date : $line->created_at;
             $dt = $saleDate ? \Carbon\Carbon::parse($saleDate) : \Carbon\Carbon::parse($line->created_at);
+            $dtTime = $sale && $sale->created_at ? \Carbon\Carbon::parse($sale->created_at) : $dt;
             $daysAgo = $dt->diffInDays(now());
 
             $history[] = [
@@ -1292,7 +1360,7 @@ class SalesController extends Controller
                 'unit' => $line->unit ?? 'Unit',
                 'rate' => (float) $line->rate,
                 'sale_date' => $dt->format('d/m/Y'),
-                'sale_date_time' => $dt->format('d/m/Y h:i A'),
+                'sale_date_time' => $dtTime->format('d/m/Y h:i A'),
                 'days_ago' => $daysAgo,
             ];
         }

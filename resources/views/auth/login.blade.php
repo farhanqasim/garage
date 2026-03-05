@@ -62,6 +62,11 @@
                                             <small class="text-muted" id="branchAutoDetectMsg" style="display: none;">
                                                 <i class="ti ti-loader spinner-border spinner-border-sm"></i> Detecting your branch...
                                             </small>
+                                            <div id="selectedUserBranchDisplay" class="mt-2 py-2 px-3 rounded small d-flex align-items-center" style="display: none; background: #e8f4fd; border: 1px solid #0d6efd;">
+                                                <i class="ti ti-building me-2 text-primary"></i>
+                                                <span class="text-muted me-1">Branch:</span>
+                                                <strong id="selectedUserBranchName" class="text-primary"></strong>
+                                            </div>
                                             @error('email')
                                                 <span class="text-danger small">{{ $message }}</span>
                                             @enderror
@@ -142,9 +147,9 @@
                                             <!-- Fingerprint Tab -->
                                             <div class="tab-pane fade" id="fingerprint-pane" role="tabpanel" aria-labelledby="fingerprint-tab">
                                                 <div class="text-center mb-4">
-                                                    <div class="fingerprint-container mb-3">
+                                                    <div class="fingerprint-container mb-3" id="fingerprintContainer" role="button" tabindex="0" style="cursor: pointer;" title="فنگر پرنٹ اسکین کریں">
                                                         <button type="button" id="fingerprintBtn" class="btn btn-link p-0" style="border: none; background: none;">
-                                                            <div class="fingerprint-icon" style="width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; background: #f8f9fa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s;">
+                                                            <div class="fingerprint-icon" style="width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; background: #f8f9fa; display: flex; align-items: center; justify-content: center; transition: all 0.3s;">
                                                                 <i class="ti ti-fingerprint" style="font-size: 64px; color: #3b82f6;"></i>
                                                             </div>
                                                         </button>
@@ -339,116 +344,142 @@
                                     form.submit();
                                 }
                                 
-                                // Fingerprint Logic
+                                // Fingerprint / WebAuthn: real biometric login (conditional UI)
                                 const fingerprintBtn = document.getElementById('fingerprintBtn');
-                                const fingerprintProgress = document.getElementById('fingerprintProgress');
                                 const fingerprintStatus = document.getElementById('fingerprintStatus');
-                                let scanInterval = null;
-                                let scanProgress = 0;
-                                
-                                if (fingerprintBtn) {
-                                    fingerprintBtn.addEventListener('mousedown', startFingerprintScan);
-                                    fingerprintBtn.addEventListener('mouseup', stopFingerprintScan);
-                                    fingerprintBtn.addEventListener('mouseleave', stopFingerprintScan);
-                                    
-                                    // Touch events
-                                    fingerprintBtn.addEventListener('touchstart', function(e) {
-                                        e.preventDefault();
-                                        startFingerprintScan();
-                                    });
-                                    
-                                    fingerprintBtn.addEventListener('touchend', function(e) {
-                                        e.preventDefault();
-                                        stopFingerprintScan();
-                                    });
-                                }
-                                
+                                const fingerprintError = document.getElementById('fingerprintError');
                                 let userHasFingerprint = false;
 
-                                function startFingerprintScan() {
-                                    if (!userHasFingerprint) {
-                                        fingerprintStatus.textContent = 'Fingerprint not set. Please set your fingerprint first.';
-                                        fingerprintStatus.style.color = '#dc3545';
-                                        setTimeout(function() {
-                                            fingerprintStatus.textContent = 'Hold to Scan Finger';
-                                            fingerprintStatus.style.color = '';
-                                        }, 2000);
+                                function bufferToBase64url(buffer) {
+                                    const bytes = new Uint8Array(buffer);
+                                    let binary = '';
+                                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                                    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                                }
+                                function base64urlToBuffer(str) {
+                                    var s = str.replace(/-/g,'+').replace(/_/g,'/');
+                                    var pad = s.length % 4;
+                                    if (pad) s += '='.repeat(4 - pad);
+                                    var binary = atob(s);
+                                    var bytes = new Uint8Array(binary.length);
+                                    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                                    return bytes.buffer;
+                                }
+
+                                function setFingerprintUI(state) {
+                                    var icon = document.querySelector('.fingerprint-icon');
+                                    var iconI = document.querySelector('.fingerprint-icon i');
+                                    if (icon) icon.style.background = (state === 'loading' || state === 'active') ? '#3b82f6' : '#f8f9fa';
+                                    if (iconI) iconI.style.color = (state === 'loading' || state === 'active') ? '#fff' : '#3b82f6';
+                                    if (fingerprintStatus) fingerprintStatus.textContent = state === 'loading' ? 'لوڈ ہو رہا ہے...' : (state === 'active' ? 'فنگر پرنٹ اسکین کریں...' : 'Bio ٹیب پر آتے ہی یا نیچے آئیکن پر کلک کر کے فنگر پرنٹ اسکین کریں');
+                                }
+                                function loginWithFingerprint() {
+                                    if (!window.PublicKeyCredential || !navigator.credentials || !navigator.credentials.get) {
+                                        if (fingerprintError) {
+                                            fingerprintError.textContent = 'اس براؤزر میں فنگر پرنٹ لاگ ان سپورٹ نہیں۔ Chrome یا Edge (HTTPS یا localhost) استعمال کریں۔';
+                                            fingerprintError.style.display = 'block';
+                                        }
                                         return;
                                     }
+                                    if (fingerprintError) { fingerprintError.style.display = 'none'; fingerprintError.textContent = ''; }
+                                    setFingerprintUI('loading');
 
-                                    scanProgress = 0;
-                                    fingerprintProgress.style.display = 'block';
-                                    fingerprintStatus.textContent = 'Scanning...';
-                                    fingerprintBtn.querySelector('.fingerprint-icon').style.background = '#3b82f6';
-                                    fingerprintBtn.querySelector('.fingerprint-icon i').style.color = '#fff';
-                                    
-                                    scanInterval = setInterval(function() {
-                                        scanProgress += 5;
-                                        fingerprintProgress.querySelector('.progress-bar').style.width = scanProgress + '%';
-                                        
-                                        if (scanProgress >= 100) {
-                                            stopFingerprintScan();
-                                            // Submit fingerprint login form
-                                            submitFingerprintLogin();
+                                    fetch('{{ route("webauthn.login.conditional.options") }}', {
+                                        method: 'POST',
+                                        credentials: 'same-origin',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Accept': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        },
+                                        body: JSON.stringify({})
+                                    })
+                                    .then(function(r) {
+                                        if (!r.ok) return r.text().then(function(t) { throw new Error(t || 'سرور نے غلطی واپس کی'); });
+                                        return r.json();
+                                    })
+                                    .then(function(data) {
+                                        if (!data.success || !data.options) throw new Error(data.message || 'Options نہیں ملے');
+                                        setFingerprintUI('active');
+                                        const opt = data.options;
+                                        const publicKey = {
+                                            challenge: base64urlToBuffer(opt.challenge),
+                                            timeout: opt.timeout || 60000,
+                                            rpId: opt.rpId || window.location.hostname.replace(/:\d+$/, ''),
+                                            allowCredentials: (opt.allowCredentials || []).map(function(c) {
+                                                return { id: base64urlToBuffer(c.id), type: c.type || 'public-key' };
+                                            }),
+                                            userVerification: opt.userVerification || 'preferred'
+                                        };
+                                        return navigator.credentials.get({ publicKey: publicKey, mediation: 'optional' });
+                                    })
+                                    .then(credential => {
+                                        if (!credential) throw new Error('تصدیق منسوخ');
+                                        const id = credential.id;
+                                        const authenticatorData = bufferToBase64url(credential.response.authenticatorData);
+                                        const clientDataJSON = bufferToBase64url(credential.response.clientDataJSON);
+                                        const signature = bufferToBase64url(credential.response.signature);
+                                        const userHandle = credential.response.userHandle ? bufferToBase64url(credential.response.userHandle) : null;
+                                        return fetch('{{ route("webauthn.login.verify") }}', {
+                                            method: 'POST',
+                                            credentials: 'same-origin',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Accept': 'application/json',
+                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            },
+                                            body: JSON.stringify({
+                                                credential: {
+                                                    id: id,
+                                                    response: {
+                                                        authenticatorData: authenticatorData,
+                                                        clientDataJSON: clientDataJSON,
+                                                        signature: signature,
+                                                        userHandle: userHandle
+                                                    }
+                                                }
+                                            })
+                                        });
+                                    })
+                                    .then(function(r) {
+                                        if (!r.ok) return r.json().then(function(d) { return { success: false, message: d.message || 'لاگ ان ناکام' }; }).catch(function() { return { success: false, message: 'سرور غلطی' }; });
+                                        return r.json();
+                                    })
+                                    .then(function(data) {
+                                        setFingerprintUI('idle');
+                                        if (data.success && data.redirect) {
+                                            window.location.href = data.redirect;
+                                        } else {
+                                            if (fingerprintError) {
+                                                fingerprintError.textContent = data.message || 'لاگ ان ناکام';
+                                                fingerprintError.style.display = 'block';
+                                            }
                                         }
-                                    }, 50);
+                                    })
+                                    .catch(function(err) {
+                                        setFingerprintUI('idle');
+                                        if (fingerprintError) {
+                                            fingerprintError.textContent = err.message || 'پہلے پروفائل میں فنگر پرنٹ رجسٹر کریں یا تصدیق دوبارہ کریں۔';
+                                            fingerprintError.style.display = 'block';
+                                        }
+                                    });
                                 }
 
-                                function submitFingerprintLogin() {
-                                    const email = document.getElementById('emailInput').value;
-                                    const fingerprintData = 'fingerprint_' + email + '_' + Date.now(); // Simulated fingerprint data
-                                    const branchId = document.getElementById('branchSelect') ? document.getElementById('branchSelect').value : '';
-                                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-
-                                    // Create form and submit
-                                    const form = document.createElement('form');
-                                    form.method = 'POST';
-                                    form.action = '{{ route("login.fingerprint") }}';
-                                    
-                                    const csrfInput = document.createElement('input');
-                                    csrfInput.type = 'hidden';
-                                    csrfInput.name = '_token';
-                                    csrfInput.value = csrfToken;
-                                    form.appendChild(csrfInput);
-
-                                    const emailInput = document.createElement('input');
-                                    emailInput.type = 'hidden';
-                                    emailInput.name = 'email';
-                                    emailInput.value = email;
-                                    form.appendChild(emailInput);
-
-                                    const fingerprintInput = document.createElement('input');
-                                    fingerprintInput.type = 'hidden';
-                                    fingerprintInput.name = 'fingerprint_data';
-                                    fingerprintInput.value = fingerprintData;
-                                    form.appendChild(fingerprintInput);
-
-                                    if (branchId) {
-                                        const branchInput = document.createElement('input');
-                                        branchInput.type = 'hidden';
-                                        branchInput.name = 'branch_id';
-                                        branchInput.value = branchId;
-                                        form.appendChild(branchInput);
-                                    }
-
-                                    document.body.appendChild(form);
-                                    form.submit();
+                                var fingerprintContainer = document.getElementById('fingerprintContainer');
+                                if (fingerprintContainer) {
+                                    fingerprintContainer.addEventListener('click', function(e) { e.preventDefault(); loginWithFingerprint(); });
+                                    fingerprintContainer.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loginWithFingerprint(); } });
                                 }
-                                
-                                function stopFingerprintScan() {
-                                    if (scanInterval) {
-                                        clearInterval(scanInterval);
-                                        scanInterval = null;
-                                    }
-                                    
-                                    if (scanProgress < 100) {
-                                        fingerprintProgress.style.display = 'none';
-                                        fingerprintStatus.textContent = 'Hold to Scan Finger';
-                                        fingerprintBtn.querySelector('.fingerprint-icon').style.background = '#f8f9fa';
-                                        fingerprintBtn.querySelector('.fingerprint-icon i').style.color = '#3b82f6';
-                                        fingerprintProgress.querySelector('.progress-bar').style.width = '0%';
-                                        scanProgress = 0;
-                                    }
+                                if (fingerprintBtn) {
+                                    fingerprintBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); loginWithFingerprint(); });
+                                }
+                                var fingerprintTab = document.getElementById('fingerprint-tab');
+                                if (fingerprintTab) {
+                                    fingerprintTab.addEventListener('shown.bs.tab', function() {
+                                        loginWithFingerprint();
+                                    });
                                 }
                                 
                                 // Auto Branch Detection
@@ -540,8 +571,26 @@
                                     });
                                 }
 
-                                if (emailInput && branchSelect && branchSelectionDiv) {
+                                function updateBranchDisplay(data) {
+                                    var branchDisplay = document.getElementById('selectedUserBranchDisplay');
+                                    var branchNameEl = document.getElementById('selectedUserBranchName');
+                                    if (!branchDisplay || !branchNameEl) return;
+                                    if (data.success && data.branch_name) {
+                                        branchNameEl.textContent = data.branch_name + (data.branch_code ? ' (' + data.branch_code + ')' : '');
+                                        branchDisplay.style.display = 'block';
+                                    } else if (data.success && data.is_admin) {
+                                        branchNameEl.textContent = 'Select branch below';
+                                        branchDisplay.style.display = 'block';
+                                    } else if (data.success && data.branch_required && !data.branch_id) {
+                                        branchNameEl.textContent = '—';
+                                        branchDisplay.style.display = 'block';
+                                    } else if (!data.success || !data.branch_name) {
+                                        branchDisplay.style.display = 'none';
+                                    }
+                                }
+                                if (emailInput) {
                                     function focusAndOpenBranchDropdown() {
+                                        if (!branchSelect || !branchSelectionDiv) return;
                                         setTimeout(function() {
                                             if (branchSelect && !branchSelect.disabled && !branchSelect.hasAttribute('readonly')) {
                                                 branchSelect.focus();
@@ -556,136 +605,119 @@
                                     function handleEmailOrUserChange() {
                                         const email = (emailInput.tagName === 'SELECT' ? emailInput.value : emailInput.value.trim());
                                         
-                                        // Check pattern and fingerprint status
                                         checkPatternFingerprintStatus(email);
                                         
+                                        var branchDisplay = document.getElementById('selectedUserBranchDisplay');
                                         if (!email || !email.includes('@')) {
-                                            branchSelectionDiv.style.display = 'none';
-                                            branchSelect.disabled = false;
-                                            branchSelect.value = '';
+                                            if (branchDisplay) branchDisplay.style.display = 'none';
+                                            if (branchSelectionDiv) branchSelectionDiv.style.display = 'none';
+                                            if (branchSelect) { branchSelect.disabled = false; branchSelect.value = ''; }
                                             return;
                                         }
                                         
-                                        // Show branch section immediately below username
-                                        branchAutoDetectMsg.style.display = 'block';
-                                        branchInfoMsg.style.display = 'none';
-                                        branchSelectionDiv.style.display = 'block';
-                                        branchSelect.disabled = true; // Disable while loading
+                                        if (branchAutoDetectMsg) branchAutoDetectMsg.style.display = 'block';
+                                        if (branchInfoMsg) branchInfoMsg.style.display = 'none';
+                                        if (branchSelectionDiv) branchSelectionDiv.style.display = 'block';
+                                        if (branchSelect) branchSelect.disabled = true;
                                         
                                         function doBranchFetch() {
-                                            // Make AJAX request to get user's branch
                                             fetch('{{ route("get.user.branch") }}', {
                                                 method: 'POST',
                                                 headers: {
                                                     'Content-Type': 'application/json',
                                                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                                                 },
-                                                body: JSON.stringify({
-                                                    email: email
-                                                })
+                                                body: JSON.stringify({ email: email })
                                             })
                                             .then(response => response.json())
                                             .then(data => {
-                                                branchAutoDetectMsg.style.display = 'none';
-                                                branchSelectionDiv.style.display = 'block';
+                                                if (branchAutoDetectMsg) branchAutoDetectMsg.style.display = 'none';
+                                                updateBranchDisplay(data);
+                                                if (branchSelectionDiv) branchSelectionDiv.style.display = 'block';
+                                                
+                                                if (!branchSelect || !branchSelectionDiv) return;
                                                 
                                                 if (data.success) {
                                                     if (data.is_admin) {
-                                                        // Admin user - branch is OPTIONAL and ENABLED
                                                         isUserRole = false;
-                                                        branchRequiredStar.style.display = 'none';
-                                                        branchSelect.removeAttribute('required');
-                                                        branchSelect.disabled = false; // Enable for admin
-                                                        branchOptionalText.textContent = '(Optional for Admin)';
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - Branch selection is optional';
-                                                        branchInfoMsg.style.display = 'block';
-                                                        branchInfoMsg.classList.remove('text-danger', 'text-success');
-                                                        branchInfoMsg.classList.add('text-info');
-                                                        
-                                                        // Auto-select if branch_id provided; open dropdown only if user ne abhi select nahi kiya
-                                                        if (data.branch_id) {
-                                                            branchSelect.value = data.branch_id;
-                                                        } else if (!branchSelect.value) {
-                                                            focusAndOpenBranchDropdown();
+                                                        if (branchRequiredStar) branchRequiredStar.style.display = 'none';
+                                                        if (branchSelect) { branchSelect.removeAttribute('required'); branchSelect.disabled = false; }
+                                                        if (branchOptionalText) branchOptionalText.textContent = '(Optional for Admin)';
+                                                        if (branchInfoMsg) {
+                                                            branchInfoMsg.innerHTML = '<i class="ti ti-info-circle text-info"></i> Admin user - Branch selection is optional';
+                                                            branchInfoMsg.style.display = 'block';
+                                                            branchInfoMsg.classList.remove('text-danger', 'text-success');
+                                                            branchInfoMsg.classList.add('text-info');
                                                         }
+                                                        if (data.branch_id && branchSelect) branchSelect.value = data.branch_id;
+                                                        else if (branchSelect && !branchSelect.value) focusAndOpenBranchDropdown();
                                                     } else if (data.branch_id && data.branch_required) {
-                                                        // Normal user - branch is REQUIRED and AUTO-SELECTED
                                                         isUserRole = true;
-                                                        branchRequiredStar.style.display = 'inline';
-                                                        branchSelect.value = data.branch_id;
-                                                        
-                                                        // Keep select enabled but prevent changes (so value submits)
-                                                        branchSelect.disabled = false; // Keep enabled so value submits
-                                                        branchSelect.style.backgroundColor = '#e9ecef';
-                                                        branchSelect.style.cursor = 'not-allowed';
-                                                        branchSelect.setAttribute('readonly', 'readonly'); // Visual indicator
-                                                        
-                                                        // Prevent user from changing the value
-                                                        branchSelect.addEventListener('mousedown', function(e) {
-                                                            e.preventDefault();
-                                                            return false;
-                                                        });
-                                                        branchSelect.addEventListener('keydown', function(e) {
-                                                            if (e.key !== 'Tab' && e.key !== 'Enter') {
-                                                                e.preventDefault();
-                                                                return false;
-                                                            }
-                                                        });
-                                                        
-                                                        // Set hidden input value as backup
-                                                        const branchIdHidden = document.getElementById('branchIdHidden');
-                                                        if (branchIdHidden) {
-                                                            branchIdHidden.value = data.branch_id;
+                                                        if (branchRequiredStar) branchRequiredStar.style.display = 'inline';
+                                                        if (branchSelect) {
+                                                            branchSelect.value = data.branch_id;
+                                                            branchSelect.disabled = false;
+                                                            branchSelect.style.backgroundColor = '#e9ecef';
+                                                            branchSelect.style.cursor = 'not-allowed';
+                                                            branchSelect.setAttribute('readonly', 'readonly');
+                                                            branchSelect.addEventListener('mousedown', function(e) { e.preventDefault(); return false; });
+                                                            branchSelect.addEventListener('keydown', function(e) {
+                                                                if (e.key !== 'Tab' && e.key !== 'Enter') { e.preventDefault(); return false; }
+                                                            });
+                                                            branchSelect.classList.remove('is-invalid');
                                                         }
-                                                        
-                                                        branchOptionalText.textContent = '(Auto-selected - Required)';
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Ready to login';
-                                                        branchInfoMsg.style.display = 'block';
-                                                        branchInfoMsg.classList.remove('text-danger', 'text-info');
-                                                        branchInfoMsg.classList.add('text-success');
-                                                        
-                                                        // Remove any error messages
-                                                        branchSelect.classList.remove('is-invalid');
-                                                        
-                                                        // Focus on password field
+                                                        var branchIdHidden = document.getElementById('branchIdHidden');
+                                                        if (branchIdHidden) branchIdHidden.value = data.branch_id;
+                                                        if (branchOptionalText) branchOptionalText.textContent = '(Auto-selected - Required)';
+                                                        if (branchInfoMsg) {
+                                                            branchInfoMsg.innerHTML = '<i class="ti ti-check text-success"></i> Branch auto-selected: <strong>' + data.branch_name + '</strong> - Ready to login';
+                                                            branchInfoMsg.style.display = 'block';
+                                                            branchInfoMsg.classList.remove('text-danger', 'text-info');
+                                                            branchInfoMsg.classList.add('text-success');
+                                                        }
                                                         setTimeout(function() {
-                                                            const passwordInput = document.querySelector('input[name="password"]');
-                                                            if (passwordInput) {
-                                                                passwordInput.focus();
-                                                            }
+                                                            var passwordInput = document.querySelector('input[name="password"]');
+                                                            if (passwordInput) passwordInput.focus();
                                                         }, 100);
                                                     } else {
-                                                        // User has no branch
                                                         isUserRole = true;
-                                                        branchRequiredStar.style.display = 'inline';
-                                                        branchSelect.setAttribute('required', 'required');
-                                                        branchSelect.disabled = false; // Enable to allow manual selection if needed
-                                                        branchSelect.style.backgroundColor = '';
-                                                        branchSelect.style.cursor = '';
-                                                        branchSelect.value = '';
-                                                        branchOptionalText.textContent = '(Required)';
-                                                        branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> ' + (data.message || 'No active branch found. Please contact administrator.');
-                                                        branchInfoMsg.style.display = 'block';
-                                                        branchInfoMsg.classList.remove('text-success', 'text-info');
-                                                        branchInfoMsg.classList.add('text-danger');
+                                                        if (branchRequiredStar) branchRequiredStar.style.display = 'inline';
+                                                        if (branchSelect) {
+                                                            branchSelect.setAttribute('required', 'required');
+                                                            branchSelect.disabled = false;
+                                                            branchSelect.style.backgroundColor = '';
+                                                            branchSelect.style.cursor = '';
+                                                            branchSelect.value = '';
+                                                        }
+                                                        if (branchOptionalText) branchOptionalText.textContent = '(Required)';
+                                                        if (branchInfoMsg) {
+                                                            branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> ' + (data.message || 'No active branch found. Please contact administrator.');
+                                                            branchInfoMsg.style.display = 'block';
+                                                            branchInfoMsg.classList.remove('text-success', 'text-info');
+                                                            branchInfoMsg.classList.add('text-danger');
+                                                        }
                                                         focusAndOpenBranchDropdown();
                                                     }
                                                 } else {
-                                                    // Error or user not found
-                                                    branchSelectionDiv.style.display = 'none';
-                                                    branchSelect.disabled = false;
-                                                    branchSelect.value = '';
-                                                    branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> ' + (data.message || 'Could not detect branch');
-                                                    branchInfoMsg.style.display = 'block';
+                                                    if (branchSelectionDiv) branchSelectionDiv.style.display = 'none';
+                                                    if (branchSelect) { branchSelect.disabled = false; branchSelect.value = ''; }
+                                                    if (branchInfoMsg) {
+                                                        branchInfoMsg.innerHTML = '<i class="ti ti-info-circle"></i> ' + (data.message || 'Could not detect branch');
+                                                        branchInfoMsg.style.display = 'block';
+                                                    }
+                                                    updateBranchDisplay(data);
                                                 }
                                             })
                                             .catch(error => {
                                                 console.error('Error:', error);
-                                                branchAutoDetectMsg.style.display = 'none';
-                                                branchSelect.disabled = false;
-                                                branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Error detecting branch';
-                                                branchInfoMsg.style.display = 'block';
-                                                branchInfoMsg.classList.add('text-danger');
+                                                if (branchAutoDetectMsg) branchAutoDetectMsg.style.display = 'none';
+                                                if (branchSelect) branchSelect.disabled = false;
+                                                if (branchInfoMsg) {
+                                                    branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Error detecting branch';
+                                                    branchInfoMsg.style.display = 'block';
+                                                    branchInfoMsg.classList.add('text-danger');
+                                                }
+                                                updateBranchDisplay({ success: false });
                                             });
                                         }
                                         
@@ -696,7 +728,6 @@
                                             debounceTimer = setTimeout(doBranchFetch, 800);
                                         }
                                     }
-                                    // Auto-detect branch when email/user is selected (on change for select, input for text)
                                     if (emailInput.tagName === 'SELECT') {
                                         emailInput.addEventListener('change', handleEmailOrUserChange);
                                     } else {
@@ -705,7 +736,6 @@
                                             debounceTimer = setTimeout(handleEmailOrUserChange, 800);
                                         });
                                     }
-                                    // Also trigger on blur (when user leaves email field) - for text input only
                                     if (emailInput.tagName !== 'SELECT') {
                                         emailInput.addEventListener('blur', function() {
                                             if (this.value.trim() && this.value.includes('@')) {
@@ -713,49 +743,37 @@
                                             }
                                         });
                                     }
-                                    
-                                    // When branch is selected, auto-focus password field
-                                    branchSelect.addEventListener('change', function() {
-                                        if (branchSelect.value) {
-                                            setTimeout(function() {
-                                                const passwordInput = document.querySelector('input[name="password"]');
-                                                if (passwordInput) {
-                                                    passwordInput.focus();
-                                                }
-                                            }, 100);
-                                        }
-                                    });
-
-                                    // Form validation - prevent login if user role and no branch selected
-                                    if (loginForm) {
+                                    if (branchSelect) {
+                                        branchSelect.addEventListener('change', function() {
+                                            if (branchSelect.value) {
+                                                setTimeout(function() {
+                                                    var passwordInput = document.querySelector('input[name="password"]');
+                                                    if (passwordInput) passwordInput.focus();
+                                                }, 100);
+                                            }
+                                        });
+                                    }
+                                    if (loginForm && branchSelect) {
                                         loginForm.addEventListener('submit', function(e) {
-                                            // Get branch value from select (it's enabled so value will be there)
-                                            const branchValue = branchSelect.value;
-                                            
+                                            var branchValue = branchSelect.value;
                                             if (isUserRole && !branchValue) {
                                                 e.preventDefault();
                                                 branchSelect.classList.add('is-invalid');
-                                                branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Branch selection is required for user login!';
-                                                branchInfoMsg.style.display = 'block';
-                                                branchInfoMsg.classList.remove('text-success', 'text-info');
-                                                branchInfoMsg.classList.add('text-danger');
+                                                if (branchInfoMsg) {
+                                                    branchInfoMsg.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Branch selection is required for user login!';
+                                                    branchInfoMsg.style.display = 'block';
+                                                    branchInfoMsg.classList.remove('text-success', 'text-info');
+                                                    branchInfoMsg.classList.add('text-danger');
+                                                }
                                                 branchSelect.style.backgroundColor = '';
                                                 branchSelect.style.cursor = '';
                                                 branchSelect.removeAttribute('readonly');
                                                 branchSelect.focus();
                                                 return false;
                                             }
-                                            
-                                            // Ensure branch value is set (should already be set)
-                                            if (isUserRole && branchValue) {
-                                                // Value is already in select field, it will submit automatically
-                                                // Remove readonly attribute if present (doesn't affect submission)
-                                                branchSelect.removeAttribute('readonly');
-                                            }
+                                            if (isUserRole && branchValue) branchSelect.removeAttribute('readonly');
                                         });
                                     }
-                                    
-                                    // If email is pre-filled (from old() helper), auto-detect on page load
                                     @if(old('email'))
                                         setTimeout(function() {
                                             emailInput.dispatchEvent(new Event(emailInput.tagName === 'SELECT' ? 'change' : 'input'));

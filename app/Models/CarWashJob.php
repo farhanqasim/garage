@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Customer;
+use App\Models\CustomerCar;
+use App\Models\User;
 
 class CarWashJob extends Model
 {
@@ -14,6 +17,9 @@ class CarWashJob extends Model
         'branch_id',
         'service_id',
         'worker_id',
+        'worker_user_id',
+        'customer_id',
+        'customer_car_id',
         'customer_name',
         'vehicle_no',
         'mobile',
@@ -26,6 +32,7 @@ class CarWashJob extends Model
         'end_time',
         'duration_seconds',
         'notes',
+        'voice_note',
         'payment_method',
         'bank_id',
         'bank_account_id',
@@ -48,6 +55,61 @@ class CarWashJob extends Model
     }
 
     /**
+     * Get the customer (from customers table – linked by vehicle/customer_cars).
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Get the customer's vehicle (customer_cars) for this job.
+     */
+    public function customerCar()
+    {
+        return $this->belongsTo(CustomerCar::class, 'customer_car_id');
+    }
+
+    /**
+     * Resolve customer name for display (from customer relation or stored value).
+     */
+    public function getCustomerNameAttribute(): ?string
+    {
+        if ($this->relationLoaded('customer') && $this->customer) {
+            $names = $this->customer->names ?? [];
+            if (is_array($names) && count($names) > 0) {
+                return $names[0] ?? null;
+            }
+        }
+        return $this->attributes['customer_name'] ?? null;
+    }
+
+    /**
+     * Resolve vehicle number for display (from customer_car relation or stored value).
+     */
+    public function getVehicleNoAttribute(): ?string
+    {
+        if ($this->relationLoaded('customerCar') && $this->customerCar) {
+            return $this->customerCar->plate_number;
+        }
+        return $this->attributes['vehicle_no'] ?? null;
+    }
+
+    /**
+     * Resolve mobile for display (from customer relation or stored value).
+     */
+    public function getMobileAttribute(): ?string
+    {
+        if ($this->relationLoaded('customer') && $this->customer) {
+            $phones = $this->customer->phones ?? [];
+            if (is_array($phones) && count($phones) > 0) {
+                return $phones[0] ?? null;
+            }
+        }
+        return $this->attributes['mobile'] ?? null;
+    }
+
+    /**
      * Get the service for this job
      */
     public function service()
@@ -56,11 +118,19 @@ class CarWashJob extends Model
     }
 
     /**
-     * Get the worker assigned to this job
+     * Get the worker assigned to this job (legacy: car_wash_workers table)
      */
     public function worker()
     {
         return $this->belongsTo(CarWashWorker::class, 'worker_id');
+    }
+
+    /**
+     * Get the worker user assigned to this job (users table role=worker)
+     */
+    public function workerUser()
+    {
+        return $this->belongsTo(User::class, 'worker_user_id');
     }
 
     /**

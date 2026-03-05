@@ -27,23 +27,45 @@ class CategoryController extends Controller
     }
 
     public function post_category_item(Request $request){
-       $imagepath = null;
-       if($request->hasFile('image')){
-        $imagePath = saveSingleFile($request->file('image'), 'category');
-       }
-           // Create category
-            $category = Category::create([
-                'name' => $request->name,
-                'image' => $imagePath,
-                'type' => $request->type ?? null, // Save the type field
+        $name = trim((string) ($request->name ?? ''));
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Category name is required.'], 422);
+        }
+        // Check by name only (case-insensitive) so we always catch duplicates regardless of type
+        $existing = Category::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'image' => $existing->image,
+                'type' => $existing->type,
+                'scrap_measurement' => $existing->scrap_measurement,
+                'already_exists' => true,
+                'message' => 'This category already exists. It has been selected for you.'
             ]);
+        }
+        $imagepath = null;
+        if ($request->hasFile('image')) {
+            $imagepath = saveSingleFile($request->file('image'), 'category');
+        }
+        $scrapMeasurement = $request->filled('scrap_measurement') && in_array($request->scrap_measurement, ['weight', 'count'])
+            ? $request->scrap_measurement
+            : null;
+        $category = Category::create([
+            'name' => $name,
+            'image' => $imagepath,
+            'type' => $request->type ?? null,
+            'scrap_measurement' => $scrapMeasurement,
+        ]);
 
         return response()->json([
         'success' => true,
         'id' => $category->id,
         'name' => $category->name,
         'image' => $category->image,
-        'type' => $category->type, // Include type in response
+        'type' => $category->type,
+        'scrap_measurement' => $category->scrap_measurement,
     ]);
     }
 
@@ -67,6 +89,7 @@ class CategoryController extends Controller
             'name'  => $request->name,
             'image' => $imagePath,
             'type'  => $request->type ?? $category->type, // Update type if provided
+            'scrap_measurement' => $request->has('scrap_measurement') && in_array($request->scrap_measurement, ['weight', 'count']) ? $request->scrap_measurement : $category->scrap_measurement,
         ]);
 
         return response()->json([
@@ -75,6 +98,7 @@ class CategoryController extends Controller
             'name'    => $category->name,
             'image'   => $category->image,
             'type'    => $category->type, // Include type in response
+            'scrap_measurement' => $category->scrap_measurement,
             'message' => 'Category updated successfully'
         ]);
     }

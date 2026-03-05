@@ -275,7 +275,7 @@ class UnitController extends Controller
                         'id' => $unit->id,
                         'name' => $unit->name,
                         'short_name' => $unit->short_name,
-                        'display_text' => $unit->name . ' (' . $unit->short_name . ') - ' . $displayMultiplier . ' ' . $baseUnit->name,
+                        'display_text' => $unit->name . ' - ' . $displayMultiplier . ' ' . $baseUnit->name,
                         'base_unit_id' => $baseUnit->id,
                         'base_unit_name' => $baseUnit->name,
                         'base_unit_short_name' => $baseUnit->short_name,
@@ -285,12 +285,12 @@ class UnitController extends Controller
                     ];
                 }
             } else {
-                // Unit without base units
+                // Unit without base units — show short form (e.g. Killo Gram (KG))
                 $formattedUnits[] = [
                     'id' => $unit->id,
                     'name' => $unit->name,
                     'short_name' => $unit->short_name,
-                    'display_text' => $unit->name . ' (' . $unit->short_name . ')',
+                    'display_text' => $unit->short_name ? $unit->name . ' (' . $unit->short_name . ')' : $unit->name,
                     'base_unit_id' => null,
                     'base_unit_name' => null,
                     'base_unit_short_name' => null,

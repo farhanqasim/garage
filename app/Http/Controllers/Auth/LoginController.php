@@ -264,6 +264,7 @@ class LoginController extends Controller
                         'selected_branch_name' => $branch->branch_name,
                         'selected_branch_code' => $branch->branch_code
                     ]);
+                    $user->update(['last_selected_branch_id' => $branch->id]);
                 }
             } else {
                 // Admin can login without branch - clear session
@@ -375,6 +376,7 @@ class LoginController extends Controller
             // If branch_id is null or empty, clear branch selection
             if (empty($branchId) || $branchId === 'null' || $branchId === null) {
                 session()->forget(['selected_branch_id', 'selected_branch_name', 'selected_branch_code']);
+                $user->update(['last_selected_branch_id' => null]);
 
                 if ($isAjax) {
                     return response()->json([
@@ -431,6 +433,7 @@ class LoginController extends Controller
                 'selected_branch_name' => $branch->branch_name,
                 'selected_branch_code' => $branch->branch_code,
             ]);
+            $user->update(['last_selected_branch_id' => $branch->id]);
 
             if ($isAjax) {
                 return response()->json([

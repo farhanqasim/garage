@@ -1,5 +1,22 @@
 @extends('layouts.app')
 @section('title','All Customers')
+@push('styles')
+<style>
+    /* Add Vehicle modal (from Add Customer): show above Add Customer modal */
+    #add-vehicle-row-modal.modal { z-index: 1065; }
+    #add-vehicle-row-modal.modal .modal-backdrop { z-index: 1060; }
+    #add-vehicle-row-modal .modal-dialog { max-width: 360px; }
+
+    /* Edit Customer modal: fit in viewport, card form, simple & compact */
+    [id^="editCustomerModal"] .modal-dialog { max-width: 720px; }
+    [id^="editCustomerModal"] .modal-content { max-height: 90vh; display: flex; flex-direction: column; }
+    [id^="editCustomerModal"] .modal-body { overflow-y: auto; max-height: calc(90vh - 120px); padding: 0.75rem 1rem; }
+    [id^="editCustomerModal"] .modal-body .card { margin-bottom: 0.75rem; }
+    [id^="editCustomerModal"] .modal-body .card:last-child { margin-bottom: 0; }
+    [id^="editCustomerModal"] .modal-body .card-body { padding: 0.75rem 1rem; }
+    [id^="editCustomerModal"] .modal-footer { flex-shrink: 0; padding: 0.5rem 1rem; }
+</style>
+@endpush
 @section('content')
 <div class="content">
     <div class="page-header">
@@ -47,6 +64,7 @@
                             <th>Profile Image</th>
                             <th>Email</th>
                             <th>Phone</th>
+                            <th>Branch</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -65,7 +83,8 @@
                                 @endif
                             </td>
                             <td>{{ $item->email }}</td>
-                            <td>{{ $item->phones[0] ?? 'N/A' }}</td>
+                            <td>{{ (is_array($item->phones ?? null) && count($item->phones) > 0) ? $item->phones[0] : 'N/A' }}</td>
+                            <td>{{ $item->branch ? $item->branch->branch_name . ($item->branch->branch_code ? ' (' . $item->branch->branch_code . ')' : '') : '—' }}</td>
                             <td>
                                 <div class="edit-delete-action">
                                     @can('update_customer')
@@ -100,7 +119,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted">No customers found</td>
+                            <td colspan="7" class="text-center text-muted">No customers found</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -128,13 +147,46 @@
 </div>
 @endcan
 
+{{-- Modal: Add vehicle (for Add Customer form – opens when "Add another vehicle" is clicked) --}}
+<div class="modal fade" id="add-vehicle-row-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">Add Vehicle</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <div class="mb-2">
+                    <label class="form-label small mb-0">Plate # <span class="text-danger">*</span></label>
+                    <input type="text" id="av-modal-plate" class="form-control form-control-sm" placeholder="e.g. ABC-123" maxlength="50">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small mb-0">Make <span class="text-danger">*</span></label>
+                    <input type="text" id="av-modal-make" class="form-control form-control-sm" placeholder="Make">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small mb-0">Model <span class="text-danger">*</span></label>
+                    <input type="text" id="av-modal-model" class="form-control form-control-sm" placeholder="Model">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small mb-0">Year <span class="text-danger">*</span></label>
+                    <input type="text" id="av-modal-year" class="form-control form-control-sm" placeholder="Year" maxlength="4">
+                </div>
+                <button type="button" id="add-vehicle-row-modal-submit" class="btn btn-primary btn-sm w-100">
+                    <i class="ti ti-plus me-1"></i>Add vehicle
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @forelse ($customers as $item)
 @can('update_customer')
 <div class="modal fade" id="editCustomerModal{{ $item->id }}">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Edit Customer</h4>
+            <div class="modal-header py-2">
+                <h5 class="modal-title">Edit Customer</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             @include('admin.customers.modals.edit-customer-form', ['customer' => $item])
@@ -145,6 +197,82 @@
 @empty
 @endforelse
 
+{{-- Add Vehicle for Customer (when editing a customer) --}}
+<div class="modal fade" id="addVehicleForCustomerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">Add Vehicle for this Customer</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addVehicleForCustomerForm">
+                @csrf
+                <input type="hidden" name="customer_id" id="addVehicleCustomerId" value="">
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Plate Number <span class="text-danger">*</span></label>
+                        <input type="text" name="plate_number" id="addVehiclePlate" class="form-control form-control-sm" placeholder="e.g. ABC-1234" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Make <span class="text-danger">*</span></label>
+                        <input type="text" name="make" id="addVehicleMake" class="form-control form-control-sm" placeholder="e.g. Toyota" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Model <span class="text-danger">*</span></label>
+                        <input type="text" name="model" id="addVehicleModel" class="form-control form-control-sm" placeholder="e.g. Corolla" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Year <span class="text-danger">*</span></label>
+                        <input type="text" name="year" id="addVehicleYear" class="form-control form-control-sm" placeholder="e.g. 2023" required maxlength="4">
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Save Vehicle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Edit Vehicle for Customer (when editing a customer) --}}
+<div class="modal fade" id="editVehicleForCustomerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">Edit Vehicle</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editVehicleForCustomerForm">
+                @csrf
+                <input type="hidden" id="editVehicleId" value="">
+                <input type="hidden" id="editVehicleCustomerId" value="">
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Plate Number <span class="text-danger">*</span></label>
+                        <input type="text" name="plate_number" id="editVehiclePlate" class="form-control form-control-sm" placeholder="e.g. ABC-1234" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Make <span class="text-danger">*</span></label>
+                        <input type="text" name="make" id="editVehicleMake" class="form-control form-control-sm" placeholder="e.g. Toyota" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Model <span class="text-danger">*</span></label>
+                        <input type="text" name="model" id="editVehicleModel" class="form-control form-control-sm" placeholder="e.g. Corolla" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-0">Year <span class="text-danger">*</span></label>
+                        <input type="text" name="year" id="editVehicleYear" class="form-control form-control-sm" placeholder="e.g. 2023" required maxlength="4">
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Update Vehicle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @endsection
 @push('scripts')
@@ -225,6 +353,85 @@
                 e.target.closest('.name-phone-row').remove();
                 const container = e.target.closest('.col-12').querySelector('#namePhoneContainer');
                 if (container) updateRemoveButtons(container.id);
+            }
+
+            // Add another vehicle: open modal so user can add vehicle details there
+            if (e.target.closest('#add-another-vehicle-btn')) {
+                e.preventDefault();
+                const plateEl = document.getElementById('av-modal-plate');
+                const makeEl = document.getElementById('av-modal-make');
+                const modelEl = document.getElementById('av-modal-model');
+                const yearEl = document.getElementById('av-modal-year');
+                if (plateEl) plateEl.value = '';
+                if (makeEl) makeEl.value = '';
+                if (modelEl) modelEl.value = '';
+                if (yearEl) yearEl.value = '';
+                const modalEl = document.getElementById('add-vehicle-row-modal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+                setTimeout(function() { if (plateEl) plateEl.focus(); }, 300);
+            }
+
+            // Modal "Add vehicle" submit: append card (display only + hidden inputs) to Add Customer form and close modal
+            if (e.target.closest('#add-vehicle-row-modal-submit')) {
+                e.preventDefault();
+                const plate = (document.getElementById('av-modal-plate') && document.getElementById('av-modal-plate').value || '').trim();
+                const make = (document.getElementById('av-modal-make') && document.getElementById('av-modal-make').value || '').trim();
+                const model = (document.getElementById('av-modal-model') && document.getElementById('av-modal-model').value || '').trim();
+                const year = (document.getElementById('av-modal-year') && document.getElementById('av-modal-year').value || '').trim();
+                if (!plate || !make || !model || !year) {
+                    alert('Please fill Plate #, Make, Model and Year.');
+                    return;
+                }
+                const container = document.getElementById('add-customer-vehicles-container');
+                if (!container) return;
+                const emptyEl = document.getElementById('add-customer-vehicles-empty');
+                const rows = container.querySelectorAll('.add-customer-vehicle-row');
+                const index = rows.length;
+                const esc = function(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+                const card = document.createElement('div');
+                card.className = 'add-customer-vehicle-row card border shadow-none mb-0';
+                card.style.cssText = 'border-radius: 12px; background: #f8f9fa;';
+                card.innerHTML = `
+                    <div class="card-body p-2 position-relative">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-add-customer-vehicle position-absolute top-0 end-0" style="padding: 2px 6px; font-size: 0.75rem;"><i class="ti ti-x"></i></button>
+                        <p class="mb-0 fw-bold text-uppercase" style="color: #4a90e2; font-size: 10px; letter-spacing: 0.5px;">Active Vehicle</p>
+                        <h6 class="mb-0 fw-bold mt-1" style="color: #1e3a8a; font-size: 14px;">${esc(plate)}</h6>
+                        <p class="mb-0 fw-semibold small" style="color: #1e3a8a;">${esc(make)} ${esc(model)}</p>
+                        <p class="mb-0 small text-muted">Year: ${esc(year)}</p>
+                        <input type="hidden" name="vehicles[${index}][plate_number]" value="${esc(plate)}">
+                        <input type="hidden" name="vehicles[${index}][make]" value="${esc(make)}">
+                        <input type="hidden" name="vehicles[${index}][model]" value="${esc(model)}">
+                        <input type="hidden" name="vehicles[${index}][year]" value="${esc(year)}">
+                    </div>
+                `;
+                container.appendChild(card);
+                if (emptyEl) emptyEl.style.display = 'none';
+                bootstrap.Modal.getInstance(document.getElementById('add-vehicle-row-modal')).hide();
+                document.getElementById('av-modal-plate').value = '';
+                document.getElementById('av-modal-make').value = '';
+                document.getElementById('av-modal-model').value = '';
+                document.getElementById('av-modal-year').value = '';
+            }
+
+            // Remove vehicle card (Add Customer modal)
+            if (e.target.closest('.remove-add-customer-vehicle')) {
+                const row = e.target.closest('.add-customer-vehicle-row');
+                const container = document.getElementById('add-customer-vehicles-container');
+                const emptyEl = document.getElementById('add-customer-vehicles-empty');
+                if (!row || !container) return;
+                row.remove();
+                container.querySelectorAll('.add-customer-vehicle-row').forEach(function(r, i) {
+                    r.querySelectorAll('input').forEach(function(inp) {
+                        const name = inp.getAttribute('name');
+                        if (name && name.startsWith('vehicles[')) {
+                            inp.setAttribute('name', name.replace(/vehicles\[\d+\]/, 'vehicles[' + i + ']'));
+                        }
+                    });
+                });
+                if (container.querySelectorAll('.add-customer-vehicle-row').length === 0 && emptyEl) {
+                    emptyEl.style.display = 'block';
+                }
             }
 
             // Cancel Audio
@@ -825,6 +1032,168 @@
                 if (modalBody) modalBody.innerHTML = '<div class="alert alert-danger text-center">Error loading ledger data. Please try again.</div>';
             });
         }
+    </script>
+
+    {{-- Add Vehicle for Customer (from Edit Customer modal) --}}
+    <script>
+        $(document).on('click', '.btn-add-customer-vehicle', function() {
+            var customerId = $(this).data('customer-id');
+            if (!customerId) return;
+            $('#addVehicleCustomerId').val(customerId);
+            $('#addVehiclePlate').val('');
+            $('#addVehicleMake').val('');
+            $('#addVehicleModel').val('');
+            $('#addVehicleYear').val('');
+            $('#addVehicleForCustomerModal').modal('show');
+        });
+
+        $('#addVehicleForCustomerForm').on('submit', function(e) {
+            e.preventDefault();
+            var $form = $(this);
+            var customerId = $('#addVehicleCustomerId').val();
+            if (!customerId) {
+                alert('Customer not set');
+                return;
+            }
+            var payload = {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                customer_id: customerId,
+                plate_number: ($('#addVehiclePlate').val() || '').trim().toUpperCase(),
+                make: ($('#addVehicleMake').val() || '').trim(),
+                model: ($('#addVehicleModel').val() || '').trim(),
+                year: ($('#addVehicleYear').val() || '').trim()
+            };
+            if (!payload.plate_number || !payload.make || !payload.model || !payload.year) {
+                alert('Please fill all fields');
+                return;
+            }
+            var $submitBtn = $form.find('button[type="submit"]');
+            $submitBtn.prop('disabled', true).text('Saving...');
+            $.ajax({
+                url: '{{ route("customer.vehicles.store") }}',
+                type: 'POST',
+                data: payload,
+                success: function(res) {
+                    $submitBtn.prop('disabled', false).text('Save Vehicle');
+                    $('#addVehicleForCustomerModal').modal('hide');
+                    if (res && res.success) {
+                        var vehiclesUrl = '{{ url("/customers") }}/' + customerId + '/vehicles';
+                        $.get(vehiclesUrl).done(function(data) {
+                            if (!data.success || !data.vehicles) return;
+                            var $editModal = $('#editCustomerModal' + customerId);
+                            if (!$editModal.length) return;
+                            var $grid = $editModal.find('[id^="edit-customer-vehicles-grid-"]');
+                            var $select = $editModal.find('select#carnumber');
+                            if ($grid.length) {
+                                var html = '';
+                                if (data.vehicles.length > 0) {
+                                    data.vehicles.forEach(function(v) {
+                                        var plate = (v.plateNumber || '—').toString();
+                                        var make = (v.make || '').toString();
+                                        var model = (v.model || '').toString();
+                                        var year = (v.year || '—').toString();
+                                        html += '<div class="card border shadow-none mb-0 vehicle-tile position-relative" style="border-radius: 10px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-color: #e2e8f0 !important;" data-car-id="' + (v.id || '') + '" data-customer-id="' + customerId + '" data-plate="' + plate + '" data-make="' + make + '" data-model="' + model + '" data-year="' + year + '"><div class="card-body p-2">';
+                                        html += '<button type="button" class="btn btn-outline-primary btn-sm btn-edit-customer-vehicle position-absolute top-0 end-0" style="padding: 2px 6px; font-size: 0.7rem;" title="Edit vehicle"><i data-feather="edit-2" style="width: 12px; height: 12px;"></i></button>';
+                                        html += '<p class="mb-0 fw-bold text-uppercase" style="color: #4a90e2; font-size: 10px; letter-spacing: 0.5px;">Active Vehicle</p>';
+                                        html += '<h6 class="mb-0 fw-bold mt-1 vehicle-tile-plate" style="color: #1e3a8a; font-size: 14px;">' + plate + '</h6>';
+                                        html += '<p class="mb-0 fw-semibold small vehicle-tile-make-model" style="color: #1e3a8a;">' + (make && model ? make.toUpperCase() + ' ' + model.toUpperCase() : make || model || '—') + '</p>';
+                                        html += '<p class="mb-0 small text-muted vehicle-tile-year">Year: ' + year + '</p></div></div>';
+                                    });
+                                    if (typeof feather !== 'undefined') feather.replace();
+                                } else {
+                                    html = '<div class="vehicles-empty-state rounded-2 border bg-light d-flex align-items-center justify-content-center text-center py-3 px-3" style="grid-column: 1 / -1; min-height: 72px; border-style: dashed; border-color: #dee2e6;"><div><i class="fas fa-car-side text-muted mb-1" style="font-size: 1.25rem; opacity: 0.6;"></i><p class="text-muted mb-0 small">No vehicles yet. Add one below.</p></div></div>';
+                                }
+                                $grid.html(html);
+                            }
+                            if ($select.length) {
+                                var opts = '<option value="">Select vehicle</option>';
+                                data.vehicles.forEach(function(v) {
+                                    var label = (v.plateNumber || '—') + ' - ' + (v.make || '').toUpperCase() + ' ' + (v.model || '').toUpperCase();
+                                    if (v.year) label += ' (' + v.year + ')';
+                                    opts += '<option value="' + (v.id || '') + '">' + label + '</option>';
+                                });
+                                $select.html(opts);
+                            }
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    $submitBtn.prop('disabled', false).text('Save Vehicle');
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) || (xhr.responseJSON && xhr.responseJSON.errors) ? JSON.stringify(xhr.responseJSON.errors) : (xhr.statusText || 'Failed to save');
+                    alert('Could not save vehicle: ' + msg);
+                }
+            });
+        });
+
+        // Edit vehicle: open modal with vehicle data
+        $(document).on('click', '.btn-edit-customer-vehicle', function() {
+            var $tile = $(this).closest('.vehicle-tile');
+            if (!$tile.length) return;
+            var carId = $tile.data('car-id');
+            var customerId = $tile.data('customer-id');
+            $('#editVehicleId').val(carId);
+            $('#editVehicleCustomerId').val(customerId);
+            $('#editVehiclePlate').val($tile.data('plate') || '');
+            $('#editVehicleMake').val($tile.data('make') || '');
+            $('#editVehicleModel').val($tile.data('model') || '');
+            $('#editVehicleYear').val($tile.data('year') || '');
+            $('#editVehicleForCustomerModal').modal('show');
+        });
+
+        $('#editVehicleForCustomerForm').on('submit', function(e) {
+            e.preventDefault();
+            var vehicleId = $('#editVehicleId').val();
+            var customerId = $('#editVehicleCustomerId').val();
+            if (!vehicleId) {
+                alert('Vehicle not set');
+                return;
+            }
+            var payload = {
+                _token: $('meta[name="csrf-token"]').attr('content'),
+                plate_number: ($('#editVehiclePlate').val() || '').trim().toUpperCase(),
+                make: ($('#editVehicleMake').val() || '').trim(),
+                model: ($('#editVehicleModel').val() || '').trim(),
+                year: ($('#editVehicleYear').val() || '').trim()
+            };
+            if (!payload.plate_number || !payload.make || !payload.model || !payload.year) {
+                alert('Please fill all fields');
+                return;
+            }
+            var $form = $(this);
+            var $submitBtn = $form.find('button[type="submit"]');
+            $submitBtn.prop('disabled', true).text('Updating...');
+            var updateUrl = '{{ url("/customer-vehicles") }}/' + vehicleId;
+            $.ajax({
+                url: updateUrl,
+                type: 'PUT',
+                data: payload,
+                success: function(res) {
+                    $submitBtn.prop('disabled', false).text('Update Vehicle');
+                    $('#editVehicleForCustomerModal').modal('hide');
+                    if (res && res.success && customerId) {
+                        var $editModal = $('#editCustomerModal' + customerId);
+                        var $tile = $editModal.find('.vehicle-tile[data-car-id="' + vehicleId + '"]');
+                        if ($tile.length) {
+                            $tile.data('plate', payload.plate_number).data('make', payload.make).data('model', payload.model).data('year', payload.year);
+                            $tile.find('.vehicle-tile-plate').text(payload.plate_number);
+                            $tile.find('.vehicle-tile-make-model').text((payload.make + ' ' + payload.model).toUpperCase().trim() || '—');
+                            $tile.find('.vehicle-tile-year').text('Year: ' + (payload.year || '—'));
+                        }
+                        var $select = $editModal.find('select#carnumber');
+                        if ($select.length) {
+                            var label = payload.plate_number + ' - ' + (payload.make + ' ' + payload.model).toUpperCase().trim();
+                            if (payload.year) label += ' (' + payload.year + ')';
+                            $select.find('option[value="' + vehicleId + '"]').text(label);
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    $submitBtn.prop('disabled', false).text('Update Vehicle');
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) || (xhr.responseJSON && xhr.responseJSON.errors) ? JSON.stringify(xhr.responseJSON.errors) : (xhr.statusText || 'Failed to update');
+                    alert('Could not update vehicle: ' + msg);
+                }
+            });
+        });
     </script>
 
 @endpush

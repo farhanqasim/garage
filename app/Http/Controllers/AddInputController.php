@@ -30,9 +30,21 @@ class AddInputController extends Controller
 
     public function post_volts(Request $request)
     {
-        $volts = Volt::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Volt name is required.'], 422);
+        }
+        $existing = Volt::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This volt already exists. It has been selected for you.'
+            ]);
+        }
+        $volts = Volt::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $volts->id,
@@ -75,10 +87,21 @@ class AddInputController extends Controller
 
     public function post_cca(Request $request)
     {
-
-        $cca = Cca::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'CCA name is required.'], 422);
+        }
+        $existing = Cca::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This CCA already exists. It has been selected for you.'
+            ]);
+        }
+        $cca = Cca::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $cca->id,
@@ -112,10 +135,21 @@ class AddInputController extends Controller
     // Mins Pool
     public function post_minuspool(Request $request)
     {
-
-        $minuspool = Minuspool::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Minus pole direction name is required.'], 422);
+        }
+        $existing = Minuspool::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This already exists. It has been selected for you.'
+            ]);
+        }
+        $minuspool = Minuspool::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $minuspool->id,
@@ -154,7 +188,21 @@ class AddInputController extends Controller
     // Pole Thickness
     public function post_polethickness(Request $request)
     {
-        $poleThickness = PoleThickness::create(['name' => $request->name]);
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Pole thickness name is required.'], 422);
+        }
+        $existing = PoleThickness::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This already exists. It has been selected for you.'
+            ]);
+        }
+        $poleThickness = PoleThickness::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $poleThickness->id,
@@ -191,7 +239,21 @@ class AddInputController extends Controller
     // Pool Direction
     public function post_pooldirection(Request $request)
     {
-        $poolDirection = PoolDirection::create(['name' => $request->name]);
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Pool direction name is required.'], 422);
+        }
+        $existing = PoolDirection::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This already exists. It has been selected for you.'
+            ]);
+        }
+        $poolDirection = PoolDirection::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $poolDirection->id,
@@ -227,7 +289,21 @@ class AddInputController extends Controller
 
     public function post_technology(Request $request)
     {
-        $data = ['name' => $request->name];
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Technology name is required.'], 422);
+        }
+        $existing = Technology::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This technology already exists. It has been selected for you.'
+            ]);
+        }
+        $data = ['name' => $name];
         if ($request->has('type') && $request->type) {
             $data['type'] = $request->type;
         }
@@ -269,7 +345,24 @@ class AddInputController extends Controller
 
     public function post_battery_size(Request $request)
     {
-        $data = ['name' => $request->name];
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Battery size name is required.'], 422);
+        }
+        $existing = BatterySize::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'height' => $existing->height,
+                'width' => $existing->width,
+                'length' => $existing->length,
+                'already_exists' => true,
+                'message' => 'This battery size already exists. It has been selected for you.'
+            ]);
+        }
+        $data = ['name' => $name];
         if ($request->filled('height')) {
             $data['height'] = $request->height;
         }
@@ -326,10 +419,21 @@ class AddInputController extends Controller
 
     public function post_grade(Request $request)
     {
-
-        $grade = Grade::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Grade name is required.'], 422);
+        }
+        $existing = Grade::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This grade already exists. It has been selected for you.'
+            ]);
+        }
+        $grade = Grade::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $grade->id,
@@ -372,15 +476,30 @@ class AddInputController extends Controller
 
     public function post_brand_item(Request $request)
     {
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Brand name is required.'], 422);
+        }
+        $existing = Brand::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'image' => $existing->image ?? null,
+                'already_exists' => true,
+                'message' => 'This brand already exists. It has been selected for you.'
+            ]);
+        }
         $imagepath = null;
         if ($request->hasFile('image')) {
-            $imagePath = saveSingleFile($request->file('image'), 'brands');
+            $imagepath = saveSingleFile($request->file('image'), 'brands');
         }
         if ($imagepath) {
             $brand = Brand::create(
                 [
-                    'name' => $request->name,
-                    'image' => $imagePath,
+                    'name' => $name,
+                    'image' => $imagepath,
                 ]
             );
             return response()->json([
@@ -392,19 +511,31 @@ class AddInputController extends Controller
         } else {
             $brand = Brand::create(
                 [
-                    'name' => $request->name,
+                    'name' => $name,
                 ]
             );
-            return response()->json(['success' => true, 'name' => $brand->name]);
+            return response()->json(['success' => true, 'id' => $brand->id, 'name' => $brand->name]);
         }
     }
 
 
     public function post_formulas(Request $request)
     {
-        $formula = Formula::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Formula name is required.'], 422);
+        }
+        $existing = Formula::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This formula already exists. It has been selected for you.'
+            ]);
+        }
+        $formula = Formula::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $formula->id,
@@ -416,23 +547,25 @@ class AddInputController extends Controller
 
     public function post_product(Request $request)
     {
-        // Check if product already exists
-        $exist = Product::where('name', $request->name)->first();
-
-        if ($exist) {
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Product name is required.'], 422);
+        }
+        $existing = Product::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
             return response()->json([
-                'success' => false,
-                'message' => 'Product is already found, please choose a different name'
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This product already exists. It has been selected for you.'
             ]);
         }
-
-        // Create new product
-        $data = ['name' => $request->name];
+        $data = ['name' => $name];
         if ($request->has('type') && $request->type) {
             $data['type'] = $request->type;
         }
         $product = Product::create($data);
-
         return response()->json([
             'success' => true,
             'id' => $product->id,
@@ -474,9 +607,29 @@ class AddInputController extends Controller
 
     public function post_qualities(Request $request)
     {
-        $data = ['name' => $request->name];
-        if ($request->has('type') && $request->type) {
-            $data['type'] = $request->type;
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Quality name is required.'], 422);
+        }
+
+        $type = $request->has('type') && $request->type ? $request->type : null;
+
+        // If a quality with this name already exists (case-insensitive), return it so UI can select instead of duplicate error
+        $existing = Quality::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This quality already exists. It has been selected for you.'
+            ]);
+        }
+
+        $data = ['name' => $name];
+        if ($type) {
+            $data['type'] = $type;
         }
         $quality = Quality::create($data);
         return response()->json([
@@ -549,9 +702,21 @@ class AddInputController extends Controller
 
     public function post_engine_cc(Request $request)
     {
-        $enginecc = EngineCc::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Engine CC name is required.'], 422);
+        }
+        $existing = EngineCc::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This already exists. It has been selected for you.'
+            ]);
+        }
+        $enginecc = EngineCc::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $enginecc->id,
@@ -622,8 +787,58 @@ class AddInputController extends Controller
 
         public function post_product_vehical(Request $request)
         {
+            // For battery type: allow either v_part_number_id OR product_id (product name). If product_id given, resolve to part number.
+            $hasPartNumber = $request->filled('v_part_number_id');
+            $hasProductId = $request->filled('product_id');
+            if (!$hasPartNumber && !$hasProductId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select Part Number or Product Name first.',
+                ], 422);
+            }
+            if ($hasPartNumber) {
+                $request->validate([
+                    'v_part_number_id' => 'required|exists:part_numbers,id',
+                ], [
+                    'v_part_number_id.exists' => 'The selected part number is invalid.',
+                ]);
+            } else {
+                $request->validate([
+                    'product_id' => 'required|exists:products,id',
+                ], [
+                    'product_id.required' => 'Please select Product Name first.',
+                    'product_id.exists' => 'The selected product is invalid.',
+                ]);
+            }
+
+            $vPartNumberId = $request->v_part_number_id;
+            if (!$vPartNumberId && $hasProductId) {
+                // Resolve product name to a part number: find or create PartNumber with same name as Product
+                $product = Product::findOrFail($request->product_id);
+                $name = trim((string) $product->name);
+                if ($name === '') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Product has no name; cannot link vehicles.',
+                    ], 422);
+                }
+                $type = $request->get('type', 'battery');
+                $partNumber = PartNumber::whereRaw('LOWER(name) = ?', [strtolower($name)])
+                    ->when($type, fn ($q) => $q->where('type', $type))
+                    ->first();
+                if (!$partNumber) {
+                    $partNumber = PartNumber::create([
+                        'name' => $name,
+                        'type' => $type,
+                        'status' => 'active',
+                    ]);
+                }
+                $vPartNumberId = $partNumber->id;
+            }
+
+            $request->merge(['v_part_number_id' => $vPartNumberId]);
+
             $request->validate([
-                'v_part_number_id' => 'required|exists:part_numbers,id',
                 'car_manufacturer' => 'nullable|exists:car_manufacturers,id',
                 'car_model_name' => 'nullable|exists:car_models,id',
                 'engine_cc' => 'nullable|exists:engine_ccs,id',
@@ -632,9 +847,6 @@ class AddInputController extends Controller
                 'year_from.*' => 'nullable|string',
                 'year_to' => 'nullable|array',
                 'year_to.*' => 'nullable|string',
-            ], [
-                'v_part_number_id.required' => 'Please select part number first.',
-                'v_part_number_id.exists' => 'The selected part number is invalid.',
             ]);
 
             $yearFroms = $request->get('year_from', []);
@@ -1093,9 +1305,21 @@ class AddInputController extends Controller
 
     public function post_services(Request $request)
     {
-        $enginecc = Services::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Service name is required.'], 422);
+        }
+        $existing = Services::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This service already exists. It has been selected for you.'
+            ]);
+        }
+        $enginecc = Services::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $enginecc->id,
@@ -1152,9 +1376,21 @@ class AddInputController extends Controller
 
     public function post_warrenty(Request $request)
     {
-        $warrenty = Warrenty::create(
-            ['name' => $request->name]
-        );
+        $name = trim((string) $request->name);
+        if ($name === '') {
+            return response()->json(['success' => false, 'message' => 'Warranty name is required.'], 422);
+        }
+        $existing = Warrenty::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This warranty already exists. It has been selected for you.'
+            ]);
+        }
+        $warrenty = Warrenty::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $warrenty->id,
@@ -1203,22 +1439,24 @@ class AddInputController extends Controller
         $request->validate([
             'name' => 'required|string|max:255'
         ]);
-        $existingGroup = Group::where('name', $request->name)->first();
+        $name = trim((string) $request->name);
+        $existingGroup = Group::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
         if ($existingGroup) {
             return response()->json([
-                'success' => false,
-                'message' => 'Group already exists'
-            ], 409);
+                'success' => true,
+                'id' => $existingGroup->id,
+                'name' => $existingGroup->name,
+                'already_exists' => true,
+                'message' => 'This group already exists. It has been selected for you.'
+            ]);
         }
-        $group = Group::create([
-            'name' => $request->name
-        ]);
+        $group = Group::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $group->id,
             'name' => $group->name,
             'message' => 'Group created successfully'
-        ], 201);
+        ]);
     }
 
     public function post_update(Request $request, $id)
@@ -1249,24 +1487,24 @@ class AddInputController extends Controller
         $request->validate([
             'name' => 'required|string|max:255'
         ]);
-
-        $existingGroup = MadeIn::where('name', $request->name)->first();
-        if ($existingGroup) {
+        $name = trim((string) $request->name);
+        $existing = MadeIn::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
             return response()->json([
-                'success' => false,
-                'message' => 'Made In already exists'
-            ], 409);
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This Made In already exists. It has been selected for you.'
+            ]);
         }
-        $group = MadeIn::create([
-            'name' => $request->name
-        ]);
-
+        $group = MadeIn::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $group->id,
             'name' => $group->name,
             'message' => 'Made In created successfully'
-        ], 201);
+        ]);
     }
 
 
@@ -1303,24 +1541,24 @@ class AddInputController extends Controller
         $request->validate([
             'name' => 'required|string|max:255'
         ]);
-
-        $existingGroup = Level::where('name', $request->name)->first();
-        if ($existingGroup) {
+        $name = trim((string) $request->name);
+        $existing = Level::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+        if ($existing) {
             return response()->json([
-                'success' => false,
-                'message' => 'Level already exists'
-            ], 409);
+                'success' => true,
+                'id' => $existing->id,
+                'name' => $existing->name,
+                'already_exists' => true,
+                'message' => 'This level already exists. It has been selected for you.'
+            ]);
         }
-        $group = Level::create([
-            'name' => $request->name
-        ]);
-
+        $group = Level::create(['name' => $name]);
         return response()->json([
             'success' => true,
             'id' => $group->id,
             'name' => $group->name,
             'message' => 'Level created successfully'
-        ], 201);
+        ]);
     }
 
     public function show_level($id)

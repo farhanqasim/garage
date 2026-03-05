@@ -22,6 +22,7 @@ class Supplier extends Model
         'email',
         'address',
         'area',
+        'business_detail',
         'carnumber',
         'group_id',
         'password',
@@ -32,12 +33,14 @@ class Supplier extends Model
         'credit_limit',
         'created_by',
         'branch_id',
+        'is_temporary',
     ];
 
     protected $casts = [
         'names'           => 'array',
         'phones'          => 'array',
         'emails'          => 'array',
+        'business_detail' => 'array',
         'multiple_images' => 'array',
         'opening_balance' => 'decimal:2',
         'credit_limit'    => 'decimal:2',
@@ -51,6 +54,14 @@ class Supplier extends Model
     public function getNamesAttribute($value)
     {
         if (is_null($value)) {
+            return [];
+        }
+        return is_array($value) ? $value : (json_decode($value, true) ?? []);
+    }
+
+    public function getBusinessDetailAttribute($value)
+    {
+        if (is_null($value) || $value === '') {
             return [];
         }
         return is_array($value) ? $value : (json_decode($value, true) ?? []);

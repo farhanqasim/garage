@@ -344,7 +344,7 @@
                                                         </div>
                                                         <div id="previewContainer" class="text-center mt-2" style="display:none;">
                                                             <div class="d-flex">
-                                                                <img id="imagePreview" src="https://pdis.co.kr/img/image.jpg"
+                                                                <img id="imagePreview" src="{{ asset('assets/img/icons/image.svg') }}"
                                                                      alt="Preview" class="img-fluid rounded border"
                                                                      style="max-height:150px; object-fit:cover;">
                                                                 <div>

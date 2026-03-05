@@ -21,14 +21,18 @@ class Item extends Model
         'bussiness_location', 'quality_id', 'part_number_id', 'l_stock',
         'm_stock', 'unit', 'unit_option', 'packing', 'scale', 'filling',
         'weight_for_delivery', 'weight_unit', 'packing_purchase_rate',
-        'total_sale_price','sale_price_per_base','services','warrenty','gorup','made_in','level',
+        'total_sale_price','sale_price_per_base','retail_price','tax_percentage','price_updated_branch_id','services','warrenty','gorup','made_in','level',
         'update_date', 'rack', 'supplier', 'pro_dis','short_disc',
-        'updated_by', 'last_updated_at'
+        'updated_by', 'last_updated_at',
+        'is_temporary', 'notes',
+        'name',
+        'voice_path', 'voice_transcript', 'notes_voice_path',
     ];
         protected $dates = ['deleted_at'];
 
     protected $casts = [
-        'images'                => 'array',
+        'is_temporary' => 'boolean',
+        'images' => 'array',
         'is_active'             => 'boolean',
         'auto_deactive'         => 'boolean',
         'is_dead'               => 'boolean',
@@ -39,6 +43,8 @@ class Item extends Model
         'filling'               => 'decimal:2',
         'weight_for_delivery'   => 'decimal:2',
         'packing_purchase_rate' => 'decimal:2',
+        'retail_price' => 'decimal:2',
+        'tax_percentage'        => 'decimal:2',
         'min_qty'               => 'integer',
         'max_qty'               => 'integer',
     ];
@@ -263,6 +269,11 @@ class Item extends Model
                     {
                      return $this->belongsTo(User::class,'updated_by');
                     }
+
+    public function priceUpdatedBranch()
+    {
+        return $this->belongsTo(Branch::class, 'price_updated_branch_id');
+    }
 
     /**
      * Get item name - use short_disc, pro_dis, or partnumber name

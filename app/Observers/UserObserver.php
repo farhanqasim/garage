@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\User;
 use App\Models\CashAccount;
+use App\Models\WorkerCashAccount;
 use Illuminate\Support\Facades\Log;
 
 class UserObserver
@@ -15,14 +16,23 @@ class UserObserver
     {
         try {
             // Automatically create a cash account for the new user
-            // Check if account already exists to prevent duplicates
             if (!CashAccount::where('user_id', $user->id)->exists()) {
                 CashAccount::create([
                     'user_id' => $user->id,
                     'balance' => 0,
                 ]);
-                
                 Log::info('Cash account created automatically for new user', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                ]);
+            }
+            // For role=worker: create WorkerCashAccount so commission can be credited and paid
+            if ($user->role === 'worker') {
+                WorkerCashAccount::firstOrCreate(
+                    ['user_id' => $user->id],
+                    ['worker_id' => null, 'balance' => 0, 'total_earned' => 0, 'total_paid' => 0]
+                );
+                Log::info('Worker cash account created automatically for worker user', [
                     'user_id' => $user->id,
                     'email' => $user->email,
                 ]);
@@ -33,7 +43,6 @@ class UserObserver
                 'error' => $e->getMessage(),
             ]);
             // Don't throw exception to prevent user creation from failing
-            // Cash account can be created manually if needed
         }
     }
 
@@ -42,7 +51,20 @@ class UserObserver
      */
     public function updated(User $user): void
     {
-        //
+        try {
+            // When role is changed to worker, ensure WorkerCashAccount exists
+            if ($user->role === 'worker') {
+                WorkerCashAccount::firstOrCreate(
+                    ['user_id' => $user->id],
+                    ['worker_id' => null, 'balance' => 0, 'total_earned' => 0, 'total_paid' => 0]
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to ensure worker cash account on user update', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

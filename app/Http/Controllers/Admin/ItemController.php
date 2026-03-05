@@ -88,13 +88,19 @@ class ItemController extends Controller
         }
         $items = Item::with([
             'item_user', 
+            'item_user.branch',
             'product_item', 
             'partnumber_item', 
             'updated_by_user', 
             'category',
             'company_item',
+            'quality_item',
             'unit_item',
-            'vehical_item'
+            'vehical_item',
+            'volt_item',
+            'plate_item',
+            'amphors_item',
+            'cca_item'
         ])->latest()->get();
         
         // If AJAX request, return JSON
@@ -125,7 +131,7 @@ class ItemController extends Controller
                     return [
                         'id' => $item->id,
                         'name' => $itemName,
-                        'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                        'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/' . ltrim($item->image, '/')) : '/assets/img/media/default.png',
                         'bar_code' => $item->bar_code ?? '',
                         'barcode_image' => $item->barcode_image,
                         'type' => $item->type ?? '',
@@ -135,6 +141,12 @@ class ItemController extends Controller
                         'part_number' => $item->partnumber_item->name ?? '',
                         'category_name' => $item->category ? $item->category->name : 'N/A',
                         'company_name' => $item->company_item->name ?? '',
+                        'quality_name' => $item->quality_item->name ?? null,
+                        'volt_name' => $item->volt_item ? (str_ends_with((string)$item->volt_item->name, 'V') ? $item->volt_item->name : $item->volt_item->name . 'V') : null,
+                        'plate_name' => $item->plate_item ? (str_ends_with((string)$item->plate_item->name, 'PL') ? $item->plate_item->name : $item->plate_item->name . 'PL') : null,
+                        'amphors_name' => $item->amphors_item ? (str_ends_with((string)$item->amphors_item->name, 'AH') ? $item->amphors_item->name : $item->amphors_item->name . 'AH') : null,
+                        'cca_name' => $item->cca_item ? (str_contains((string)$item->cca_item->name, 'CCA') ? $item->cca_item->name : $item->cca_item->name . 'CCA') : null,
+                        'branch_name' => $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '',
                         'sale_price' => floatval($item->sale_price ?? 0),
                         'on_hand' => floatval($item->on_hand ?? 0),
                         'stock' => floatval($item->on_hand ?? 0),
@@ -155,10 +167,585 @@ class ItemController extends Controller
             ]);
         }
         
-        // Regular page load
-        return view('admin.item.index', compact('items'));
+        // Regular page load - categories for bulk edit modal
+        $categories = Category::where('status', 'active')->orderBy('name')->get();
+        return view('admin.item.index', compact('items', 'categories'));
     }
 
+    /**
+     * Item Price List - all items with category-wise filter.
+     */
+    public function priceList(Request $request)
+    {
+        $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
+        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to view items.');
+        }
+
+        $categories = Category::whereNull('parent_id')
+            ->orderBy('name')
+            ->get();
+
+        $query = Item::with(['category', 'unit_item', 'plate_item', 'amphors_item', 'volt_item', 'cca_item', 'company_item', 'product_item', 'partnumber_item', 'updated_by_user.branch', 'priceUpdatedBranch'])
+            ->orderBy('category_id')
+            ->orderBy('short_disc');
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->filled('type') && $request->type !== 'all') {
+            $query->where('type', $request->type);
+        }
+
+        $items = $query->get();
+
+        $currentBranchName = session('selected_branch_name');
+        if (!$currentBranchName && auth()->user() && auth()->user()->branch_id) {
+            $currentBranchName = \App\Models\Branch::where('id', auth()->user()->branch_id)->value('branch_name');
+        }
+
+        return view('admin.item.price-list', compact('items', 'categories', 'currentBranchName'));
+    }
+
+    /**
+     * Item Stock Report - detailed stock in/out with filters.
+     */
+    public function stockReport(Request $request)
+    {
+        $viewPerms = ['view_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'];
+        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to view items.');
+        }
+
+        $branches = \App\Models\Branch::orderBy('branch_name')->get();
+        $users = \App\Models\User::orderBy('name')->get();
+        $categories = Category::whereNull('parent_id')->orderBy('name')->get();
+
+        $from = $request->filled('from')
+            ? \Carbon\Carbon::createFromFormat('Y-m-d', $request->from)->startOfDay()
+            : now()->subDays(30)->startOfDay();
+        $to = $request->filled('to')
+            ? \Carbon\Carbon::createFromFormat('Y-m-d', $request->to)->endOfDay()
+            : now()->endOfDay();
+
+        $branchId = $request->branch_id ?: null;
+        $userId = $request->user_id ?: null;
+        $typeFilter = $request->type;
+        $categoryId = $request->category_id;
+
+        // Aggregate stock-in from purchases
+        $purchaseAgg = \App\Models\PurchaseItem::query()
+            ->selectRaw('purchase_items.item_id, purchases.branch_id, SUM(purchase_items.quantity) as stock_in')
+            ->join('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+            ->whereBetween('purchases.purchase_date', [$from->toDateString(), $to->toDateString()])
+            ->when($branchId, fn ($q) => $q->where('purchases.branch_id', $branchId))
+            ->groupBy('purchase_items.item_id', 'purchases.branch_id')
+            ->get();
+
+        // Aggregate stock-out from sales
+        $saleAgg = \App\Models\SaleItem::query()
+            ->selectRaw('sale_items.item_id, sales.branch_id, SUM(sale_items.quantity) as stock_out')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->whereBetween('sales.sale_date', [$from->toDateString(), $to->toDateString()])
+            ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+            ->when($userId, fn ($q) => $q->where('sales.user_id', $userId))
+            ->groupBy('sale_items.item_id', 'sales.branch_id')
+            ->get();
+
+        // Merge aggregates keyed by item + branch
+        $rows = [];
+        foreach ($purchaseAgg as $row) {
+            $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+            $rows[$key] = [
+                'item_id' => $row->item_id,
+                'branch_id' => $row->branch_id,
+                'stock_in' => (float) $row->stock_in,
+                'stock_out' => 0.0,
+            ];
+        }
+        foreach ($saleAgg as $row) {
+            $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+            if (!isset($rows[$key])) {
+                $rows[$key] = [
+                    'item_id' => $row->item_id,
+                    'branch_id' => $row->branch_id,
+                    'stock_in' => 0.0,
+                    'stock_out' => 0.0,
+                ];
+            }
+            $rows[$key]['stock_out'] += (float) $row->stock_out;
+        }
+
+        $itemIds = collect($rows)->pluck('item_id')->unique()->values();
+        $itemsQuery = Item::with(['category', 'company_item', 'partnumber_item'])
+            ->whereIn('id', $itemIds);
+
+        if ($typeFilter && $typeFilter !== 'all') {
+            $itemsQuery->where('type', $typeFilter);
+        }
+        if ($categoryId) {
+            $itemsQuery->where('category_id', $categoryId);
+        }
+
+        $items = $itemsQuery->get()->keyBy('id');
+        $branchNames = $branches->keyBy('id')->map->branch_name;
+
+        // Pre-compute oil configuration (liter-per-can) for items
+        $oilConfigByItemId = [];
+        foreach ($items as $it) {
+            if (($it->type ?? null) !== 'oil') {
+                continue;
+            }
+            $literPerCan = null;
+            $unitName = $it->unit_item ? trim($it->unit_item->name ?? $it->unit_item->short_name ?? '') : '';
+            $unitOption = $it->unit_option ? trim((string) $it->unit_option) : '';
+
+            // 0) From unit_option (e.g. "12_8_4" => 4 Liter)
+            if ($unitOption !== '' && strpos($unitOption, '_') !== false) {
+                $parts = explode('_', $unitOption);
+                $lastPart = end($parts);
+                if (is_numeric($lastPart) && (float) $lastPart > 0) {
+                    $literPerCan = (float) $lastPart;
+                }
+            }
+
+            // 1) From unit name, like "Can - 4 Liter" or "Can 4L"
+            if ($literPerCan === null && preg_match('/(\d+(?:\.\d+)?)\s*(?:liter|ltr|L)\b/i', $unitName, $m)) {
+                $literPerCan = (float) $m[1];
+            } elseif ($literPerCan === null && preg_match('/\b(?:liter|ltr|L)\s*(\d+(?:\.\d+)?)/i', $unitName, $m)) {
+                $literPerCan = (float) $m[1];
+            }
+
+            // 2) Fallback to filling (per-can liters)
+            if ($literPerCan === null && $it->filling !== null && $it->filling !== '' && !is_nan((float) $it->filling)) {
+                $literPerCan = (float) $it->filling;
+            }
+
+            $oilConfigByItemId[$it->id] = [
+                'liter_per_can' => $literPerCan && $literPerCan > 0 ? $literPerCan : null,
+            ];
+        }
+
+        // Latest purchase (supplier & datetime) per item+branch within filters
+        $purchaseDetailsByKey = collect();
+        $supplierNamesById = collect();
+        $purchaseDetailsRaw = collect();
+        if ($itemIds->isNotEmpty()) {
+            $purchaseDetailsRaw = \App\Models\PurchaseItem::query()
+                ->selectRaw('purchase_items.item_id, purchase_items.quantity as qty, purchases.branch_id, purchases.supplier_id, purchases.purchase_date, purchases.created_at')
+                ->join('purchases', 'purchase_items.purchase_id', '=', 'purchases.id')
+                ->whereBetween('purchases.purchase_date', [$from->toDateString(), $to->toDateString()])
+                ->when($branchId, fn ($q) => $q->where('purchases.branch_id', $branchId))
+                ->whereIn('purchase_items.item_id', $itemIds)
+                ->orderBy('purchases.purchase_date', 'desc')
+                ->orderBy('purchases.created_at', 'desc')
+                ->get();
+
+            $purchaseDetailsByKey = $purchaseDetailsRaw
+                ->groupBy(function ($row) {
+                    return $row->item_id . ':' . ($row->branch_id ?? 0);
+                })
+                ->map(function ($group) {
+                    return $group->first();
+                });
+
+            $supplierIds = $purchaseDetailsRaw->pluck('supplier_id')->filter()->unique();
+            if ($supplierIds->isNotEmpty()) {
+                $suppliers = \App\Models\Supplier::whereIn('id', $supplierIds)->get()->keyBy('id');
+                $supplierNamesById = $suppliers->map(function ($supplier) {
+                    $primaryName = $supplier->names[0] ?? null;
+                    if ($supplier->company) {
+                        return $primaryName
+                            ? $primaryName . ' (' . $supplier->company . ')'
+                            : $supplier->company;
+                    }
+                    return $primaryName ?: 'Supplier #' . $supplier->id;
+                });
+            }
+        }
+
+        // Latest sale (customer & datetime) per item+branch within filters
+        $saleDetailsByKey = collect();
+        $customerNamesById = collect();
+        $saleDetailsRaw = collect();
+        if ($itemIds->isNotEmpty()) {
+            $saleDetailsRaw = \App\Models\SaleItem::query()
+                ->selectRaw('sale_items.item_id, sale_items.quantity as qty, sales.branch_id, sales.customer_id, sales.sale_date, sales.created_at')
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->whereBetween('sales.sale_date', [$from->toDateString(), $to->toDateString()])
+                ->when($branchId, fn ($q) => $q->where('sales.branch_id', $branchId))
+                ->when($userId, fn ($q) => $q->where('sales.user_id', $userId))
+                ->whereIn('sale_items.item_id', $itemIds)
+                ->orderBy('sales.sale_date', 'desc')
+                ->orderBy('sales.created_at', 'desc')
+                ->get();
+
+            $saleDetailsByKey = $saleDetailsRaw
+                ->groupBy(function ($row) {
+                    return $row->item_id . ':' . ($row->branch_id ?? 0);
+                })
+                ->map(function ($group) {
+                    return $group->first();
+                });
+
+            $customerIds = $saleDetailsRaw->pluck('customer_id')->filter()->unique();
+            if ($customerIds->isNotEmpty()) {
+                $customers = \App\Models\Customer::whereIn('id', $customerIds)->get()->keyBy('id');
+                $customerNamesById = $customers->map(function ($customer) {
+                    $primaryName = $customer->names[0] ?? null;
+                    if ($customer->company) {
+                        return $primaryName
+                            ? $primaryName . ' (' . $customer->company . ')'
+                            : $customer->company;
+                    }
+                    return $primaryName ?: 'Customer #' . $customer->id;
+                });
+            }
+        }
+
+        $reportRows = collect($rows)->map(function ($row) use ($items, $branchNames, $purchaseDetailsByKey, $supplierNamesById, $saleDetailsByKey, $customerNamesById) {
+            $item = $items->get($row['item_id']);
+            if (!$item) {
+                return null;
+            }
+
+            $key = $row['item_id'] . ':' . ($row['branch_id'] ?? 0);
+
+            $rawName = $item->short_disc ?? $item->pro_dis ?? '';
+            $productName = trim(strip_tags((string) $rawName));
+            if ($productName === '' && $item->partnumber_item) {
+                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id;
+            }
+
+            $purchaseMeta = $purchaseDetailsByKey->get($key);
+            $purchaseFrom = $purchaseMeta && $purchaseMeta->supplier_id
+                ? ($supplierNamesById[$purchaseMeta->supplier_id] ?? null)
+                : null;
+            $purchaseAt = $purchaseMeta && $purchaseMeta->created_at
+                ? \Carbon\Carbon::parse($purchaseMeta->created_at)
+                : null;
+
+            $saleMeta = $saleDetailsByKey->get($key);
+            $saleTo = $saleMeta && $saleMeta->customer_id
+                ? ($customerNamesById[$saleMeta->customer_id] ?? null)
+                : null;
+            $saleAt = $saleMeta && $saleMeta->created_at
+                ? \Carbon\Carbon::parse($saleMeta->created_at)
+                : null;
+
+            return [
+                'item' => $item,
+                'item_type' => $item->type ?: 'Item',
+                'product_name' => $productName,
+                'part_number' => optional($item->partnumber_item)->name ?: $item->bar_code,
+                'category' => optional($item->category)->name,
+                'company' => optional($item->company_item)->name,
+                'branch' => $row['branch_id'] ? ($branchNames[$row['branch_id']] ?? 'Unknown') : 'All',
+                'stock_in' => $row['stock_in'],
+                'stock_out' => $row['stock_out'],
+                'net_movement' => $row['stock_in'] - $row['stock_out'],
+                'last_purchase_from' => $purchaseFrom,
+                'last_purchase_at' => $purchaseAt,
+                'last_sale_to' => $saleTo,
+                'last_sale_at' => $saleAt,
+            ];
+        })->filter()->values();
+
+        // Transaction-wise movements with running balance (within selected period)
+        $transactions = collect();
+        if ($itemIds->isNotEmpty()) {
+            $transactionsByKey = [];
+
+            foreach ($purchaseDetailsRaw as $row) {
+                $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+                $occurredAt = $row->created_at ?: $row->purchase_date;
+                $transactionsByKey[$key][] = [
+                    'item_id' => $row->item_id,
+                    'branch_id' => $row->branch_id,
+                    'direction' => 'in',
+                    'qty' => (float) $row->qty,
+                    'party_type' => 'supplier',
+                    'party_id' => $row->supplier_id,
+                    'occurred_at' => \Carbon\Carbon::parse($occurredAt),
+                ];
+            }
+
+            foreach ($saleDetailsRaw as $row) {
+                $key = $row->item_id . ':' . ($row->branch_id ?? 0);
+                $occurredAt = $row->created_at ?: $row->sale_date;
+                $transactionsByKey[$key][] = [
+                    'item_id' => $row->item_id,
+                    'branch_id' => $row->branch_id,
+                    'direction' => 'out',
+                    'qty' => (float) $row->qty,
+                    'party_type' => 'customer',
+                    'party_id' => $row->customer_id,
+                    'occurred_at' => \Carbon\Carbon::parse($occurredAt),
+                ];
+            }
+
+            $txRows = [];
+            foreach ($transactionsByKey as $key => $list) {
+                usort($list, function ($a, $b) {
+                    return $a['occurred_at']->timestamp <=> $b['occurred_at']->timestamp;
+                });
+
+                $parts = explode(':', $key);
+                $itemId = (int) $parts[0];
+                $branchIdForKey = (int) ($parts[1] ?? 0);
+                $item = $items->get($itemId);
+                if (!$item) {
+                    continue;
+                }
+
+                $rawName = $item->short_disc ?? $item->pro_dis ?? '';
+                $productName = trim(strip_tags((string) $rawName));
+                if ($productName === '' && $item->partnumber_item) {
+                    $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id;
+                }
+
+                $branchName = $branchIdForKey ? ($branchNames[$branchIdForKey] ?? 'Unknown') : 'All';
+
+                $isOil = ($item->type ?? null) === 'oil';
+                $literPerCanForItem = $oilConfigByItemId[$item->id]['liter_per_can'] ?? null;
+
+                $balance = 0.0;
+                foreach ($list as $entry) {
+                    if ($entry['direction'] === 'in') {
+                        $balance += $entry['qty'];
+                    } else {
+                        $balance -= $entry['qty'];
+                    }
+
+                    $partyName = null;
+                    if ($entry['party_type'] === 'supplier' && $entry['party_id']) {
+                        $partyName = $supplierNamesById[$entry['party_id']] ?? ('Supplier #' . $entry['party_id']);
+                    } elseif ($entry['party_type'] === 'customer' && $entry['party_id']) {
+                        $partyName = $customerNamesById[$entry['party_id']] ?? ('Customer #' . $entry['party_id']);
+                    }
+
+                    // Oil running balance breakdown (can / liter / ml)
+                    $balCan = null;
+                    $balLiter = null;
+                    $balMl = null;
+                    if ($isOil && $literPerCanForItem && $literPerCanForItem > 0) {
+                        $totalLiters = $balance;
+                        $fullCans = (int) floor($totalLiters / $literPerCanForItem);
+                        $remainder = $totalLiters - ($fullCans * $literPerCanForItem);
+                        $wholeLiters = (int) floor($remainder);
+                        $ml = (int) round(($remainder - $wholeLiters) * 1000);
+
+                        $balCan = $fullCans;
+                        $balLiter = $wholeLiters;
+                        $balMl = $ml;
+                    }
+
+                    $txRows[] = [
+                        'item' => $item,
+                        'item_type' => $item->type ?: 'Item',
+                        'product_name' => $productName,
+                        'part_number' => optional($item->partnumber_item)->name ?: $item->bar_code,
+                        'category' => optional($item->category)->name,
+                        'company' => optional($item->company_item)->name,
+                        'branch' => $branchName,
+                        'type' => $entry['direction'] === 'in' ? 'Purchase' : 'Sale',
+                        'party' => $partyName,
+                        'occurred_at' => $entry['occurred_at'],
+                        'qty_in' => $entry['direction'] === 'in' ? $entry['qty'] : 0.0,
+                        'qty_out' => $entry['direction'] === 'out' ? $entry['qty'] : 0.0,
+                        'balance_after' => $balance,
+                        'balance_can' => $balCan,
+                        'balance_liter' => $balLiter,
+                        'balance_ml' => $balMl,
+                    ];
+                }
+            }
+
+            $transactions = collect($txRows)->sortBy('occurred_at')->values();
+        }
+
+        // Warehouse-wise current stock (from warehouse_items)
+        $warehouses = \App\Models\Warehouse::with('branch')->orderBy('warehouse_name')->get();
+        $warehouseIdFilter = $request->warehouse_id ?: null;
+
+        $wiQuery = \App\Models\WarehouseItem::query()
+            ->select('warehouse_items.*')
+            ->join('warehouses', 'warehouse_items.warehouse_id', '=', 'warehouses.id')
+            ->join('items', 'warehouse_items.item_id', '=', 'items.id')
+            ->where('warehouse_items.quantity', '>', 0)
+            ->when($branchId, fn ($q) => $q->where('warehouses.branch_id', $branchId))
+            ->when($warehouseIdFilter, fn ($q) => $q->where('warehouse_items.warehouse_id', $warehouseIdFilter))
+            ->when($typeFilter && $typeFilter !== 'all', fn ($q) => $q->where('items.type', $typeFilter))
+            ->when($categoryId, fn ($q) => $q->where('items.category_id', $categoryId));
+
+        $maxWarehouseItems = (int) (config('app.max_warehouse_items_report', 10000) ?: 10000);
+        $warehouseItems = $wiQuery->with(['item.category', 'item.company_item', 'item.partnumber_item'])->limit($maxWarehouseItems)->get();
+
+        $warehouseRows = [];
+        foreach ($warehouseItems as $wi) {
+            $item = $wi->item;
+            if (!$item) {
+                continue;
+            }
+            $rawName = $item->short_disc ?? $item->pro_dis ?? '';
+            $productName = trim(strip_tags((string) $rawName));
+            if ($productName === '' && $item->partnumber_item) {
+                $productName = $item->partnumber_item->name ?? $item->bar_code ?? 'Item #' . $item->id;
+            }
+            $warehouse = $warehouses->firstWhere('id', $wi->warehouse_id);
+
+            $isOil = ($item->type ?? null) === 'oil';
+            $literPerCanForItem = $oilConfigByItemId[$item->id]['liter_per_can'] ?? null;
+            $qtyCan = null;
+            $qtyLiter = null;
+            $qtyMl = null;
+            if ($isOil && $literPerCanForItem && $literPerCanForItem > 0) {
+                $totalLiters = (float) $wi->quantity;
+                $fullCans = (int) floor($totalLiters / $literPerCanForItem);
+                $remainder = $totalLiters - ($fullCans * $literPerCanForItem);
+                $wholeLiters = (int) floor($remainder);
+                $ml = (int) round(($remainder - $wholeLiters) * 1000);
+
+                $qtyCan = $fullCans;
+                $qtyLiter = $wholeLiters;
+                $qtyMl = $ml;
+            }
+
+            $warehouseRows[] = [
+                'item_type' => $item->type ?: 'Item',
+                'product_name' => $productName,
+                'part_number' => optional($item->partnumber_item)->name ?: $item->bar_code,
+                'category' => optional($item->category)->name,
+                'company' => optional($item->company_item)->name,
+                'branch' => $warehouse && $warehouse->branch ? $warehouse->branch->branch_name : '—',
+                'warehouse' => $warehouse ? $warehouse->warehouse_name : 'Warehouse #' . $wi->warehouse_id,
+                'warehouse_code' => $warehouse ? ($warehouse->warehouse_code ?? '') : '',
+                'quantity' => (float) $wi->quantity,
+                'qty_can' => $qtyCan,
+                'qty_liter' => $qtyLiter,
+                'qty_ml' => $qtyMl,
+            ];
+        }
+
+        return view('admin.item.stock-report', [
+            'rows' => $reportRows,
+            'transactions' => $transactions,
+            'warehouseRows' => $warehouseRows,
+            'branches' => $branches,
+            'warehouses' => $warehouses,
+            'users' => $users,
+            'categories' => $categories,
+            'filters' => [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'branch_id' => $branchId,
+                'warehouse_id' => $warehouseIdFilter,
+                'user_id' => $userId,
+                'type' => $typeFilter ?: 'all',
+                'category_id' => $categoryId,
+            ],
+        ]);
+    }
+
+    /**
+     * Scrap Report: list scrap items with Total Weight and Total Scrap Value.
+     */
+    public function scrapReport(Request $request)
+    {
+        $viewPerms = ['view_items', 'view_scrap'];
+        if (!collect($viewPerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to view scrap report.');
+        }
+
+        $query = Item::with(['product_item', 'category'])
+            ->where('type', 'scrap');
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $items = $query->orderBy('created_at', 'desc')->get();
+
+        $totalWeight = $items->sum(fn ($item) => (float) ($item->weight_for_delivery ?? 0));
+        $totalScrapValue = $items->sum(fn ($item) => (float) ($item->total_price ?? 0));
+
+        $categories = \App\Models\Category::whereNull('parent_id')->orderBy('name')->get();
+
+        return view('admin.item.scrap-report', [
+            'items' => $items,
+            'totalWeight' => $totalWeight,
+            'totalScrapValue' => $totalScrapValue,
+            'categories' => $categories,
+            'filters' => [
+                'category_id' => $request->category_id,
+            ],
+        ]);
+    }
+
+    /**
+     * Bulk update item prices (Cost, Sale Price, Retail) from Price List page.
+     */
+    public function bulkPriceUpdate(Request $request)
+    {
+        $updatePerms = ['update_items', 'update_parts', 'update_filters', 'update_break_pad', 'update_oil', 'update_battery', 'update_scrap', 'update_services'];
+        if (!collect($updatePerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            abort(403, 'You do not have permission to update item prices.');
+        }
+
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|exists:items,id',
+            'items.*.total_price' => 'nullable|numeric|min:0',
+            'items.*.sale_price' => 'nullable|numeric|min:0',
+            'items.*.retail_price' => 'nullable|numeric|min:0',
+            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        $updated = 0;
+        $changed = false;
+        foreach ($request->items as $row) {
+            $item = Item::find($row['id']);
+            if (!$item) continue;
+            $changed = false;
+            if (isset($row['total_price']) && $row['total_price'] !== '') { $item->total_price = $row['total_price']; $changed = true; }
+            if (isset($row['sale_price']) && $row['sale_price'] !== '') { $item->sale_price = $row['sale_price']; $changed = true; }
+            if (array_key_exists('retail_price', $row)) {
+                $item->retail_price = $row['retail_price'] !== '' && $row['retail_price'] !== null ? $row['retail_price'] : null;
+                $changed = true;
+            }
+            if (array_key_exists('tax_percentage', $row)) {
+                $item->tax_percentage = $row['tax_percentage'] !== '' && $row['tax_percentage'] !== null ? $row['tax_percentage'] : 0;
+                $changed = true;
+            }
+            if ($changed) {
+                $item->updated_by = auth()->id();
+                $item->last_updated_at = now();
+                $item->price_updated_branch_id = session('selected_branch_id') ?: (auth()->user()->branch_id ?? null);
+                $updated++;
+            }
+            $item->save();
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $updatedItems = [];
+            $responseBranchFallback = session('selected_branch_name') ?: (auth()->user() && auth()->user()->branch_id ? \App\Models\Branch::where('id', auth()->user()->branch_id)->value('branch_name') : null);
+            foreach ($request->items as $row) {
+                $item = Item::with(['updated_by_user.branch', 'priceUpdatedBranch'])->find($row['id']);
+                if ($item) {
+                    $branchName = $item->priceUpdatedBranch ? $item->priceUpdatedBranch->branch_name : ($item->updated_by_user && $item->updated_by_user->branch ? $item->updated_by_user->branch->branch_name : $responseBranchFallback);
+                    $updatedItems[] = [
+                        'id' => $item->id,
+                        'last_updated_at' => $item->last_updated_at ? $item->last_updated_at->format('d/m/Y H:i') : '-',
+                        'branch_name' => $branchName ?: '-',
+                        'user_name' => $item->updated_by_user ? $item->updated_by_user->name : '-',
+                    ];
+                }
+            }
+            return response()->json(['success' => true, 'message' => "{$updated} item(s) updated.", 'updated' => $updated, 'updated_items' => $updatedItems]);
+        }
+        return redirect()->route('items.price.list', $request->only(['type', 'category_id']))->with('success', "{$updated} item(s) updated.");
+    }
 
     public function items_create($hideVehicleTable = false)
     {
@@ -223,13 +810,18 @@ class ItemController extends Controller
         // Optimize: Limit to prevent timeout - load only 5 latest items with relationships
         // Don't use select() to avoid column name issues - just limit the query
         $latestItems = Item::with([
-            'item_user:id,name,branch_id',
-            'item_user.branch:id,branch_name',
+            'item_user',
+            'item_user.branch',
+            'item_user.assignedBranches',
             'product_item:id,name',
             'category:id,name',
             'partnumber_item:id,name',
             'company_item:id,name',
-            'quality_item:id,name'
+            'quality_item:id,name',
+            'volt_item:id,name',
+            'plate_item:id,name',
+            'amphors_item:id,name',
+            'cca_item:id,name'
         ])
             ->latest()
             ->take(5)
@@ -381,6 +973,7 @@ class ItemController extends Controller
             'sale_price' => 'nullable',
             'total_sale_price' => 'nullable',
             'sale_price_per_base' => 'nullable',
+            'retail_price' => 'nullable|numeric|min:0',
             'mileage' => 'nullable|numeric|min:0',
             'type' => 'nullable|string',
             'plat_id' => 'nullable|string',
@@ -417,6 +1010,13 @@ class ItemController extends Controller
             'filling' => 'nullable|numeric|min:0',
             'weight_for_delivery' => 'nullable|numeric|min:0',
             'weight_unit' => 'nullable|string|max:20',
+            'scrap_weight_kg' => 'nullable|numeric|min:0',
+            'scrap_rate_per_kg' => 'nullable|numeric|min:0',
+            'scrap_total_price' => 'nullable|numeric|min:0',
+            'scrap_quantity' => 'nullable|numeric|min:0',
+            'scrap_rate_count' => 'nullable|numeric|min:0',
+            'scrap_total_count_hidden' => 'nullable|numeric|min:0',
+            'scrap_measurement' => 'nullable|string|in:weight,count',
             'packing_purchase_rate' => 'nullable|numeric|min:0',
             'update_date' => 'nullable|date',
             'rack' => 'nullable|string',
@@ -431,10 +1031,26 @@ class ItemController extends Controller
             'is_active' => 'sometimes|boolean',
             'auto_deactive' => 'sometimes|boolean',
             'is_dead' => 'sometimes|boolean',
+            'level' => 'nullable',
         ]);
 
-        // Duplicate combination check - Only for parts, filters, and breakpad types
+        // Require at least one of Part Number or Product Name when type is parts, filters, breakpad, or battery
         $type = $request->input('type');
+        if (in_array($type, ['parts', 'filters', 'breakpad', 'battery'])) {
+            $partNumberId = $request->input('part_number_id');
+            $pId = $request->input('p_id');
+            $hasPart = !empty($partNumberId) && trim((string) $partNumberId) !== '';
+            $hasProduct = !empty($pId) && trim((string) $pId) !== '';
+            if (!$hasPart && !$hasProduct) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'part_number_id' => 'Please select at least one: Part Number or Product Name.',
+                        'p_id' => 'Please select at least one: Part Number or Product Name.',
+                    ]);
+            }
+        }
+
         if (in_array($type, ['parts', 'filters', 'breakpad'])) {
             // Only check if required fields are present
             if ($request->has('category_id') && $request->has('quality_id') && 
@@ -456,6 +1072,28 @@ class ItemController extends Controller
                 }
             }
         }
+
+        // Scrap: require Weight (KG) or Quantity depending on scrap_measurement
+        $type = $request->input('type');
+        if ($type === 'scrap') {
+            $scrapMeas = strtolower((string) ($request->input('scrap_measurement') ?? 'weight'));
+            if ($scrapMeas === 'count') {
+                $qty = $request->input('scrap_quantity');
+                if ($qty === null || $qty === '' || (is_numeric($qty) && (float) $qty < 0)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['scrap_quantity' => 'Quantity is required for count-based scrap items.']);
+                }
+            } else {
+                $scrapWeight = $request->input('scrap_weight_kg');
+                if (empty($scrapWeight) || (is_numeric($scrapWeight) && (float) $scrapWeight <= 0)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['scrap_weight_kg' => 'Weight (KG) is required for weight-based scrap items.']);
+                }
+            }
+        }
+
         try {
             DB::beginTransaction();
 
@@ -472,6 +1110,27 @@ class ItemController extends Controller
             // Ensure short_disc and pro_dis (descriptions) are always passed from request
             $data['short_disc'] = $request->input('short_disc', $data['short_disc'] ?? null);
             $data['pro_dis'] = $request->input('pro_dis', $data['pro_dis'] ?? null);
+
+            /* ============================
+            ✅ Unit / unit_option (e.g. Can - 1 Liter vs Can - 4 Liter)
+            ============================ */
+            if ($request->filled('unit')) {
+                $rawUnit = is_array($request->input('unit')) ? (string) ($request->input('unit')[0] ?? '') : (string) $request->input('unit');
+                $rawUnit = trim($rawUnit);
+                if ($rawUnit !== '') {
+                    if (strpos($rawUnit, '_') !== false) {
+                        $parts = explode('_', $rawUnit, 2);
+                        $data['unit'] = $parts[0];
+                        $data['unit_option'] = $rawUnit;
+                    } else {
+                        $data['unit'] = $rawUnit;
+                        $data['unit_option'] = null;
+                    }
+                    if (isset($data['unit']) && $data['unit'] !== '' && !is_numeric($data['unit'])) {
+                        $data['unit_option'] = null;
+                    }
+                }
+            }
 
             /* ============================
             ✅ Barcode Generation
@@ -539,7 +1198,37 @@ class ItemController extends Controller
                 $data['battery_size'] = BatterySize::find($data['battery_size_id'])->name;
                 unset($data['battery_size_id']);
             }
-            
+
+            // Scrap items: map scrap fields to weight_for_delivery, price_per_unit, total_price (or on_hand for count-based)
+            if (($request->input('type') ?? '') === 'scrap') {
+                $scrapMeas = strtolower((string) ($request->input('scrap_measurement') ?? 'weight'));
+                if ($scrapMeas === 'count') {
+                    if ($request->filled('scrap_quantity')) {
+                        $data['on_hand'] = $request->input('scrap_quantity');
+                    }
+                    if ($request->filled('scrap_rate_count')) {
+                        $data['price_per_unit'] = $request->input('scrap_rate_count');
+                    }
+                    if ($request->filled('scrap_total_count_hidden')) {
+                        $data['total_price'] = $request->input('scrap_total_count_hidden');
+                    } elseif ($request->filled('scrap_quantity') && $request->filled('scrap_rate_count')) {
+                        $data['total_price'] = (float) $request->input('scrap_quantity') * (float) $request->input('scrap_rate_count');
+                    }
+                } else {
+                    if ($request->filled('scrap_weight_kg')) {
+                        $data['weight_for_delivery'] = $request->input('scrap_weight_kg');
+                    }
+                    if ($request->filled('scrap_rate_per_kg')) {
+                        $data['price_per_unit'] = $request->input('scrap_rate_per_kg');
+                    }
+                    if ($request->filled('scrap_total_price')) {
+                        $data['total_price'] = $request->input('scrap_total_price');
+                    } elseif ($request->filled('scrap_weight_kg') && $request->filled('scrap_rate_per_kg')) {
+                        $data['total_price'] = (float) $request->input('scrap_weight_kg') * (float) $request->input('scrap_rate_per_kg');
+                    }
+                }
+            }
+
             /* ============================
             ✅ Handle Vehicle IDs Array - One Item, Multiple Vehicles (in items.vehical_ids)
             ============================ */
@@ -702,11 +1391,16 @@ class ItemController extends Controller
         $latestItems = Item::with([
             'item_user',
             'item_user.branch',
+            'item_user.assignedBranches',
             'product_item',
             'category',
             'partnumber_item',
             'company_item',
-            'quality_item'
+            'quality_item',
+            'volt_item',
+            'plate_item',
+            'amphors_item',
+            'cca_item'
         ])->latest()->take(5)->get();
         $services      = Services::where('status', 'active')->get();
         $groups      = Group::where('status', 'active')->get();
@@ -775,10 +1469,26 @@ class ItemController extends Controller
             $itemUnitIdForSelect = (int) $item->unit_item->id;
         }
 
+        // Resolve level (CLASS) for edit form: support both level id and level name (e.g. "G")
+        $levelIdForForm = null;
+        if (isset($item->level) && $item->level !== '' && $item->level !== null) {
+            if (is_numeric($item->level)) {
+                $levelIdForForm = (string) $item->level;
+            } elseif ($item->relationLoaded('level_item') && $item->level_item && isset($item->level_item->id)) {
+                $levelIdForForm = (string) $item->level_item->id;
+            } else {
+                $levelByName = Level::where('name', trim((string) $item->level))->first();
+                if ($levelByName) {
+                    $levelIdForForm = (string) $levelByName->id;
+                }
+            }
+        }
+
         return view('admin.item.edit', compact(
             'item',
             'itemUnitIdForSelect',
             'itemUnitOptionForSelect',
+            'levelIdForForm',
             'platos',
             'amphors',
             'batterySizes',
@@ -837,6 +1547,7 @@ class ItemController extends Controller
             'sale_price' => 'nullable',
             'total_sale_price' => 'nullable',
             'sale_price_per_base' => 'nullable',
+            'retail_price' => 'nullable|numeric|min:0',
             'mileage' => 'nullable|numeric|min:0',
             'type' => 'nullable|string',
             'plat_id' => 'nullable|string',
@@ -868,6 +1579,13 @@ class ItemController extends Controller
             'filling' => 'nullable|numeric|min:0',
             'weight_for_delivery' => 'nullable|numeric|min:0',
             'weight_unit' => 'nullable|string|max:20',
+            'scrap_weight_kg' => 'nullable|numeric|min:0',
+            'scrap_rate_per_kg' => 'nullable|numeric|min:0',
+            'scrap_total_price' => 'nullable|numeric|min:0',
+            'scrap_quantity' => 'nullable|numeric|min:0',
+            'scrap_rate_count' => 'nullable|numeric|min:0',
+            'scrap_total_count_hidden' => 'nullable|numeric|min:0',
+            'scrap_measurement' => 'nullable|string|in:weight,count',
             'packing_purchase_rate' => 'nullable|numeric|min:0',
             'update_date' => 'nullable|date',
             'rack' => 'nullable|string',
@@ -884,6 +1602,7 @@ class ItemController extends Controller
             'made_in' => 'nullable|string',
             'is_dead' => 'sometimes|boolean',
             'unit_option' => 'nullable|string|max:64',
+            'level' => 'nullable',
         ]);
 
         // Duplicate combination check - Only for parts, filters, and breakpad types
@@ -924,6 +1643,10 @@ class ItemController extends Controller
             // Ensure short_disc and pro_dis are always passed from request
             $data['short_disc'] = $request->input('short_disc');
             $data['pro_dis'] = $request->input('pro_dis');
+            // Ensure level (CLASS) is saved when present
+            if ($request->has('level')) {
+                $data['level'] = $request->input('level') ?: null;
+            }
             
             // Save unit: full option value (e.g. "12_8" for CAN 2 Liter) in unit_option; numeric id in unit for relation
             if ($request->filled('unit') || $request->filled('unit_option')) {
@@ -1001,6 +1724,36 @@ class ItemController extends Controller
             if (!empty($data['battery_size_id'])) {
                 $data['battery_size'] = BatterySize::find($data['battery_size_id'])->name;
                 unset($data['battery_size_id']);
+            }
+
+            // Scrap items: map scrap fields to weight_for_delivery, price_per_unit, total_price (or on_hand for count-based)
+            if (($request->input('type') ?? '') === 'scrap') {
+                $scrapMeas = strtolower((string) ($request->input('scrap_measurement') ?? 'weight'));
+                if ($scrapMeas === 'count') {
+                    if ($request->filled('scrap_quantity')) {
+                        $data['on_hand'] = $request->input('scrap_quantity');
+                    }
+                    if ($request->filled('scrap_rate_count')) {
+                        $data['price_per_unit'] = $request->input('scrap_rate_count');
+                    }
+                    if ($request->filled('scrap_total_count_hidden')) {
+                        $data['total_price'] = $request->input('scrap_total_count_hidden');
+                    } elseif ($request->filled('scrap_quantity') && $request->filled('scrap_rate_count')) {
+                        $data['total_price'] = (float) $request->input('scrap_quantity') * (float) $request->input('scrap_rate_count');
+                    }
+                } else {
+                    if ($request->filled('scrap_weight_kg')) {
+                        $data['weight_for_delivery'] = $request->input('scrap_weight_kg');
+                    }
+                    if ($request->filled('scrap_rate_per_kg')) {
+                        $data['price_per_unit'] = $request->input('scrap_rate_per_kg');
+                    }
+                    if ($request->filled('scrap_total_price')) {
+                        $data['total_price'] = $request->input('scrap_total_price');
+                    } elseif ($request->filled('scrap_weight_kg') && $request->filled('scrap_rate_per_kg')) {
+                        $data['total_price'] = (float) $request->input('scrap_weight_kg') * (float) $request->input('scrap_rate_per_kg');
+                    }
+                }
             }
 
             /* ============================
@@ -1330,19 +2083,25 @@ class ItemController extends Controller
         $query = Item::with([
             'item_user',
             'item_user.branch',
+            'item_user.assignedBranches',
             'product_item', 
             'category',
             'partnumber_item',
             'company_item',
             'quality_item',
-            'updated_by_user'
+            'updated_by_user',
+            'volt_item',
+            'plate_item',
+            'amphors_item',
+            'cca_item'
         ])
             ->where('type', $type)
             ->latest();
         
-        // Check if 'all' parameter is passed to get all items
+        // Check if 'all' parameter is passed to get all items (capped to avoid OOM)
+        $maxItems = (int) (config('app.max_items_per_request', 1000) ?: 1000);
         if ($request->has('all') && $request->get('all') == 'true') {
-            $items = $query->get();
+            $items = $query->limit($maxItems)->get();
         } else {
             $items = $query->take(5)->get();
         }
@@ -1354,11 +2113,11 @@ class ItemController extends Controller
             'items' => $items->map(function($item) {
                 return [
                     'id' => $item->id,
-                    'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/' . ltrim($item->image, '/')) : '/assets/img/media/default.png',
                     'bar_code' => $item->bar_code,
                     'barcode_image' => $item->barcode_image,
                     'user_name' => $item->item_user->name ?? '-',
-                    'branch_name' => $item->item_user && $item->item_user->branch ? $item->item_user->branch->branch_name : '-',
+                    'branch_name' => $item->item_user ? ($item->item_user->branch?->branch_name ?? $item->item_user->assignedBranches->first()?->branch_name ?? '-') : '-',
                     'product_name' => $item->product_item->name ?? '-',
                     'type' => $item->type,
                     'is_active' => $item->is_active,
@@ -1366,6 +2125,10 @@ class ItemController extends Controller
                     'part_number' => $item->partnumber_item ? $item->partnumber_item->name : '-',
                     'company_name' => $item->company_item ? $item->company_item->name : '-',
                     'quality_name' => $item->quality_item ? $item->quality_item->name : '-',
+                    'volt_name' => $item->volt_item ? (str_ends_with((string)$item->volt_item->name, 'V') ? $item->volt_item->name : $item->volt_item->name . 'V') : null,
+                    'plate_name' => $item->plate_item ? (str_ends_with((string)$item->plate_item->name, 'PL') ? $item->plate_item->name : $item->plate_item->name . 'PL') : null,
+                    'amphors_name' => $item->amphors_item ? (str_ends_with((string)$item->amphors_item->name, 'AH') ? $item->amphors_item->name : $item->amphors_item->name . 'AH') : null,
+                    'cca_name' => $item->cca_item ? (str_contains((string)$item->cca_item->name, 'CCA') ? $item->cca_item->name : $item->cca_item->name . 'CCA') : null,
                     'updated_by_user' => $item->updated_by_user ? [
                         'name' => $item->updated_by_user->name,
                     ] : null,
@@ -1455,7 +2218,73 @@ class ItemController extends Controller
         return back()->with('success', $deleted > 0 ? "{$deleted} item(s) deleted successfully." : 'No items could be deleted (permission denied).');
     }
 
+    /**
+     * Bulk update selected items (retail price, cost, sale price, category, is_active).
+     * Only fields sent in request are updated.
+     */
+    public function bulkUpdate(Request $request)
+    {
+        $updatePerms = ['update_items', 'update_parts', 'update_filters', 'update_break_pad', 'update_oil', 'update_battery', 'update_scrap', 'update_services'];
+        if (!collect($updatePerms)->contains(fn ($p) => auth()->user()->can($p))) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'You do not have permission to update items.'], 403);
+            }
+            abort(403, 'You do not have permission to update items.');
+        }
 
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|exists:items,id',
+            'retail_price' => 'nullable|numeric|min:0',
+            'total_price' => 'nullable|numeric|min:0',
+            'sale_price' => 'nullable|numeric|min:0',
+            'category_id' => 'nullable|exists:categories,id',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $ids = $request->ids;
+        $updated = 0;
+        foreach ($ids as $id) {
+            $item = Item::find($id);
+            if (!$item || !auth()->user()->can($this->getUpdatePermissionForType($item->type))) {
+                continue;
+            }
+            $changed = false;
+            if ($request->has('retail_price')) {
+                $item->retail_price = $request->retail_price !== '' && $request->retail_price !== null ? $request->retail_price : null;
+                $changed = true;
+            }
+            if ($request->has('total_price')) {
+                $item->total_price = $request->total_price !== '' && $request->total_price !== null ? $request->total_price : null;
+                $changed = true;
+            }
+            if ($request->has('sale_price')) {
+                $item->sale_price = $request->sale_price !== '' && $request->sale_price !== null ? $request->sale_price : null;
+                $changed = true;
+            }
+            if ($request->has('category_id')) {
+                $item->category_id = $request->category_id ?: null;
+                $changed = true;
+            }
+            if ($request->has('is_active') && $request->is_active !== '') {
+                $item->is_active = (bool) $request->is_active;
+                $changed = true;
+            }
+            if ($changed) {
+                $item->save();
+                $updated++;
+            }
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $updated > 0 ? "{$updated} item(s) updated successfully." : 'No changes applied.',
+                'updated' => $updated,
+            ]);
+        }
+        return redirect()->route('all.items')->with('success', $updated > 0 ? "{$updated} item(s) updated successfully." : 'No changes applied.');
+    }
 
     public function item_delete($id)
     {
@@ -1467,7 +2296,8 @@ class ItemController extends Controller
 
     public function recycleBin()
     {
-        $items = Item::onlyTrashed()->get();
+        $maxItems = (int) (config('app.max_items_per_request', 1000) ?: 1000);
+        $items = Item::onlyTrashed()->limit($maxItems)->orderByDesc('deleted_at')->get();
 
         return view('admin.item.recycle-bin', compact('items'));
     }
@@ -1691,31 +2521,102 @@ class ItemController extends Controller
 
     public function getItemsCountByPartNumber($partNumberId)
     {
+        $partNumber = PartNumber::find($partNumberId);
+        if (!$partNumber) {
+            return response()->json([
+                'success' => true,
+                'exists' => false,
+                'message' => 'Part number database میں موجود نہیں ہے۔',
+                'count' => 0,
+                'total' => 0,
+                'details' => [],
+                'qualities' => [],
+                'part_number_name' => null,
+            ]);
+        }
+
         $items = Item::with('quality_item')
             ->where('part_number_id', $partNumberId)
             ->get();
         $count = $items->count();
-        
-        // Group by quality/grade (React-style stats)
+
+        // Group by quality: name => count
         $grouped = [];
-        $items->each(function($item) use (&$grouped) {
-            $quality = $item->quality_item->name ?? ($item->grade ?? 'Standard');
-            if (!isset($grouped[$quality])) {
-                $grouped[$quality] = 0;
+        $items->each(function ($item) use (&$grouped) {
+            $qualityName = $item->quality_item->name ?? ($item->grade ?? 'Standard');
+            if (!isset($grouped[$qualityName])) {
+                $grouped[$qualityName] = 0;
             }
-            $grouped[$quality]++;
+            $grouped[$qualityName]++;
         });
-        
+
         $details = [];
-        foreach ($grouped as $quality => $qualityCount) {
-            $details[] = $qualityCount . ' ' . $quality;
+        $qualities = [];
+        foreach ($grouped as $qualityName => $qualityCount) {
+            $details[] = $qualityCount . ' ' . $qualityName;
+            $qualities[] = ['name' => $qualityName, 'count' => $qualityCount];
         }
-        
+
         return response()->json([
             'success' => true,
+            'exists' => true,
+            'part_number_name' => $partNumber->name,
             'count' => $count,
             'total' => $count,
-            'details' => $details
+            'details' => $details,
+            'qualities' => $qualities,
+        ]);
+    }
+
+    /**
+     * Check if product exists and return quality counts for items with this product (p_id).
+     * Same structure as getItemsCountByPartNumber for Product Name dropdown.
+     */
+    public function getItemsCountByProduct($productId)
+    {
+        $product = Product::find($productId);
+        if (!$product) {
+            return response()->json([
+                'success' => true,
+                'exists' => false,
+                'message' => 'Product is not found in the database.',
+                'count' => 0,
+                'total' => 0,
+                'details' => [],
+                'qualities' => [],
+                'product_name' => null,
+            ]);
+        }
+
+        $items = Item::with('quality_item')
+            ->where('p_id', $productId)
+            ->get();
+        $count = $items->count();
+
+        $grouped = [];
+        $items->each(function ($item) use (&$grouped) {
+            $qualityName = $item->quality_item->name ?? ($item->grade ?? 'Standard');
+            if (!isset($grouped[$qualityName])) {
+                $grouped[$qualityName] = 0;
+            }
+            $grouped[$qualityName]++;
+        });
+
+        $details = [];
+        $qualities = [];
+        foreach ($grouped as $qualityName => $qualityCount) {
+            $details[] = $qualityCount . ' ' . $qualityName;
+            $qualities[] = ['name' => $qualityName, 'count' => $qualityCount];
+        }
+
+        return response()->json([
+            'success' => true,
+            'exists' => true,
+            'product_name' => $product->name,
+            'count' => $count,
+            'total' => $count,
+            'details' => $details,
+            'qualities' => $qualities,
         ]);
     }
 
@@ -1738,7 +2639,7 @@ class ItemController extends Controller
             'items' => $items->map(function($item) {
                 return [
                     'id' => $item->id,
-                    'image' => asset($item->image ?? 'assets/img/media/default.png'),
+                    'image' => $item->image ? ((str_starts_with($item->image, 'http://') || str_starts_with($item->image, 'https://')) ? $item->image : '/' . ltrim($item->image, '/')) : '/assets/img/media/default.png',
                     'user_name' => $item->item_user->name ?? '-',
                     'product_name' => $item->product_item->name ?? '-',
                     'type' => $item->type,
@@ -1756,6 +2657,31 @@ class ItemController extends Controller
             }),
             'total' => $items->count()
         ]);
+    }
+
+    /**
+     * Lookup existing weight+unit combinations for a given weight value (from items table).
+     * Used by combined weight/unit input: if matches exist show Edit, else show Add with unit dropdown.
+     */
+    public function weightUnitLookup(Request $request)
+    {
+        $weight = $request->query('weight');
+        if ($weight === null || $weight === '') {
+            return response()->json(['success' => true, 'matches' => []]);
+        }
+        $weightVal = is_numeric($weight) ? (float) $weight : null;
+        if ($weightVal === null) {
+            return response()->json(['success' => true, 'matches' => []]);
+        }
+        $rows = Item::whereNotNull('weight_for_delivery')
+            ->whereNotNull('weight_unit')
+            ->where('weight_for_delivery', $weightVal)
+            ->selectRaw('DISTINCT weight_for_delivery as weight, weight_unit as unit')
+            ->get();
+        $matches = $rows->map(function ($r) {
+            return ['weight' => (float) $r->weight, 'unit' => $r->unit];
+        })->values()->toArray();
+        return response()->json(['success' => true, 'matches' => $matches]);
     }
 
     public function generateWhatsAppPdf(Request $request)

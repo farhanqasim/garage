@@ -18,12 +18,12 @@
     <!-- /Product List -->
     <div class="card">
         <div class="card-body p-0">
-            <div class="table-responsive" style="max-height: 600px; overflow-y: auto; width: 100%;">
+            <div class="table-responsive" style="">
                 <table id="searchableTable" class="table table-hover table-center" style="min-width: 1200px;">
                     <thead class="thead-primary">
                         <tr>
                             <th>#</th>
-                            <th>Employee Name</th>
+                            <th>Employee Details</th>
                             <th>Profile Image</th>
                             <th>Role</th>
                             <th>Email</th>
@@ -47,7 +47,7 @@
                               @if ($user->role)
                                 @php
                                     $mainRoleBadges = ['user' => 'bg-info', 'manager' => 'bg-primary', 'salesman' => 'bg-success', 'purchaser' => 'bg-warning'];
-                                    $mainRoleLabels = ['user' => 'User', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser'];
+                                    $mainRoleLabels = ['user' => 'User', 'manager' => 'Manager', 'salesman' => 'Sales man', 'purchaser' => 'Purchaser', 'worker' => 'Worker'];
                                     $mainRoleClass = $mainRoleBadges[$user->role] ?? 'bg-secondary';
                                     $mainRoleLabel = $mainRoleLabels[$user->role] ?? ucfirst($user->role);
                                 @endphp

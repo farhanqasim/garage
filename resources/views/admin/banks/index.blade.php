@@ -170,6 +170,7 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Account</th>
+                                    <th>Opening Balance</th>
                                     <th>Current Balance</th>
                                     <th>Status</th>
                                     <th>Action</th>
@@ -197,6 +198,9 @@
                                                     <div class="text-muted small">{{ $account->account_number }}</div>
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td>
+                                            <strong>{{ number_format($account->opening_balance ?? 0, 0) }}</strong>
                                         </td>
                                         <td>
                                             <strong class="text-{{ $account->current_balance >= 0 ? 'success' : 'danger' }}">
@@ -245,7 +249,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="empty-state">
+                                        <td colspan="6" class="empty-state">
                                             <p class="mb-1">No bank accounts found.</p>
                                             <a href="{{ route('admin.bank-accounts.create') }}">Add your first bank account</a>
                                         </td>

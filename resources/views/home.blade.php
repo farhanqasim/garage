@@ -41,6 +41,9 @@
                     <p class="text-white mb-1">Purchase</p>
                     <div class="d-inline-flex align-items-center flex-wrap gap-2">
                       <span class="text-white fw-semibold">New Purchase</span>
+                      @if(($unverifiedPurchasesCount ?? 0) > 0)
+                        <span class="badge bg-warning text-dark rounded-pill">{{ $unverifiedPurchasesCount }} Unverified</span>
+                      @endif
                       <i class="ti ti-arrow-right fs-18 opacity-90"></i>
                     </div>
                   </div>
@@ -109,6 +112,46 @@
               </div>
             </a>
           </div>
+
+          <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <a href="{{ route('items.stock.report') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+              <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                  <span class="sale-icon bg-white rounded-2 d-flex align-items-center justify-content-center" style="color: #16a34a;">
+                    <i class="ti ti-report-analytics fs-24"></i>
+                  </span>
+                  <div class="ms-2">
+                    <p class="text-white mb-1">Stock Report</p>
+                    <div class="d-inline-flex align-items-center flex-wrap gap-2">
+                      <span class="text-white fw-semibold">View Detailed Report</span>
+                      <i class="ti ti-arrow-right fs-18 opacity-90"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          @canany(['view_items', 'add_items'])
+          <div class="col-xl-3 col-sm-6 col-12 d-flex">
+            <a href="{{ route('items.price.list') }}" class="d-flex flex-fill text-decoration-none sales-banner-btn">
+              <div class="sales-banner-inner card flex-fill border-0 overflow-hidden sale-widget" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">
+                <div class="card-body d-flex align-items-center text-white">
+                  <span class="sale-icon bg-white rounded-2 d-flex align-items-center justify-content-center" style="color: #0284c7;">
+                    <i class="ti ti-report-analytics fs-24"></i>
+                  </span>
+                  <div class="ms-2">
+                    <p class="text-white mb-1">Item Price List</p>
+                    <div class="d-inline-flex align-items-center flex-wrap gap-2">
+                      <span class="text-white fw-semibold">View Report</span>
+                      <i class="ti ti-arrow-right fs-18 opacity-90"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          </div>
+          @endcanany
          
         </div>
         @canany(['view_items', 'add_items', 'view_parts', 'view_filters', 'view_break_pad', 'view_oil', 'view_battery', 'view_scrap', 'view_services'])

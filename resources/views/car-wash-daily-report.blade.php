@@ -38,6 +38,7 @@
                             <span class="text-[10px] font-bold text-slate-600 whitespace-nowrap">To</span>
                             <input type="date" id="reportDateTo" value="{{ $selectedDate ?? now()->format('Y-m-d') }}"
                                 class="flex-1 px-2.5 py-2 border-2 border-slate-300 rounded-lg text-slate-900 font-bold focus:border-indigo-500 focus:outline-none text-xs" />
+                            <button type="button" id="btnLoadReport" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold uppercase whitespace-nowrap">Load Report</button>
                         </div>
                     </div>
                     <div class="flex items-end gap-4 flex-1">
@@ -45,18 +46,27 @@
                             <label class="block text-sm font-bold text-slate-700 uppercase mb-2" style="font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';">Customer (Vehicle)</label>
                             <select id="filterCustomer" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
                                 <option value="">All</option>
+                                @foreach($customers ?? [] as $c)
+                                <option value="{{ $c['value'] ?? '' }}">{{ $c['label'] ?? $c['value'] }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="flex-1">
                             <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center" style="font-family: 'Segoe UI Emoji';">Worker</label>
                             <select id="filterWorker" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
                                 <option value="">All</option>
+                                @foreach($workers ?? [] as $w)
+                                <option value="{{ $w['value'] ?? '' }}">{{ $w['label'] ?? $w['value'] }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="flex-1">
                             <label class="block text-sm font-black text-slate-700 uppercase mb-2 text-center">User</label>
                             <select id="filterUser" class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl text-slate-900 font-bold focus:border-indigo-500 focus:outline-none">
                                 <option value="">All</option>
+                                @foreach($reportUsers ?? [] as $u)
+                                <option value="{{ $u['value'] ?? '' }}">{{ $u['label'] ?? $u['value'] }}</option>
+                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -93,32 +103,33 @@
             <div id="totalsSection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
                 <div class="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
                     <p class="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Vehicles</p>
-                    <p id="totVehicles" class="text-base sm:text-lg font-black text-slate-900">0</p>
+                    <p id="totVehicles" class="text-base sm:text-lg font-black text-slate-900">{{ $totalDistinctVehiclesServiced ?? 0 }}</p>
                 </div>
                 <div class="bg-gradient-to-br from-white to-slate-50 rounded-lg border border-slate-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
                     <p class="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase mb-1">Total Workers</p>
-                    <p id="totWorkers" class="text-base sm:text-lg font-black text-slate-900">0</p>
+                    <p id="totWorkers" class="text-base sm:text-lg font-black text-slate-900">{{ $totalDistinctWorkersServiced ?? 0 }}</p>
                 </div>
                 <div id="cashOnHandCard" class="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg border-2 border-indigo-400 p-2.5 sm:p-3 shadow-sm cursor-pointer hover:bg-indigo-200 hover:border-indigo-500 hover:shadow transition-all" title="Click for breakdown: kahan say kitna aya">
                     <p class="text-[9px] sm:text-[10px] font-bold text-indigo-900 uppercase mb-1">Cash on Hand</p>
-                    <p id="totCashOnHand" class="text-base sm:text-lg font-black text-indigo-900">Rs.0</p>
+                    <p id="totCashOnHand" class="text-base sm:text-lg font-black text-indigo-900">Rs.{{ number_format($initialCashOnHand ?? 0, 0) }}</p>
                 </div>
                 <div id="bankBalanceCard" class="bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg border-2 border-purple-400 p-2.5 sm:p-3 shadow-sm cursor-pointer hover:bg-purple-200 hover:border-purple-500 hover:shadow transition-all" title="Bank Account Balance">
                     <p class="text-[9px] sm:text-[10px] font-bold text-purple-900 uppercase mb-1">Bank Balance</p>
-                    <p id="totBankBalance" class="text-base sm:text-lg font-black text-purple-900">-</p>
+                    <p id="totBankBalance" class="text-base sm:text-lg font-black text-purple-900">Rs.{{ number_format($initialBankBalance ?? 0, 0) }}</p>
                 </div>
                 <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
                     <p class="text-[9px] sm:text-[10px] font-bold text-amber-800 uppercase mb-1">Job Expense</p>
-                    <p id="totDebit" class="text-base sm:text-lg font-black text-amber-800">Rs.0</p>
+                    <p id="totDebit" class="text-base sm:text-lg font-black text-amber-800">Rs.{{ number_format($initialJobExpense ?? 0, 0) }}</p>
                 </div>
-                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-300 p-2.5 sm:p-3 shadow-sm hover:shadow transition-shadow">
+                <a href="{{ route('car.wash.completed-jobs') }}" class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-300 p-2.5 sm:p-3 shadow-sm hover:shadow hover:border-emerald-400 transition-all block" title="Pay commission from Completed Jobs">
                     <p class="text-[9px] sm:text-[10px] font-bold text-emerald-800 uppercase mb-1">Commission</p>
-                    <p id="totCommission" class="text-base sm:text-lg font-black text-emerald-800">Rs.0</p>
-                </div>
+                    <p id="totCommission" class="text-base sm:text-lg font-black text-emerald-800">Rs.{{ number_format($initialCommission ?? 0, 0) }}</p>
+                    <p class="text-[8px] sm:text-[9px] text-emerald-600 mt-0.5">Pay → Completed Jobs</p>
+                </a>
             </div>
 
             <!-- Ledger Table: Date & Time | Vehicle | Debit | Credit | Total | Worker | Commission -->
-            <div id="tableSection" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 overflow-hidden hidden min-h-[120px]" style="min-height: 120px;">
+            <div id="tableSection" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 overflow-hidden {{ !empty($initialReportRows) ? '' : 'hidden' }} min-h-[120px]" style="min-height: 120px;">
                 <div class="overflow-x-auto min-h-[100px]">
                     <table class="w-full min-w-[1200px] sm:min-w-[1400px]">
                         <thead class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white">
@@ -129,12 +140,27 @@
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">CASH TRANSFER</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">SHOP EXPENSE</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap">JOB EXPENSE</th>
+                                <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-emerald-500/50">Commission</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-indigo-500/50">Cash Total</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-purple-500/50">Bank Credit</th>
                                 <th class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-xs font-black uppercase whitespace-nowrap bg-purple-500/50">Bank Total</th>
                             </tr>
                         </thead>
                         <tbody id="reportTableBody" class="divide-y divide-slate-200">
+                            @foreach($initialReportRows ?? [] as $r)
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-slate-900 whitespace-nowrap">{{ $r['dateTime'] ?? '-' }}</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-slate-900 whitespace-nowrap">{{ $r['vehicle'] ?? '-' }}</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">{{ ($r['paymentMethod'] ?? 'cash') === 'cash' && ($r['credit'] ?? 0) > 0 ? '+Rs.'.number_format($r['credit']) : '-' }}</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">-</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">-</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm text-amber-700 whitespace-nowrap">{{ ($r['debit'] ?? 0) > 0 ? '-Rs.'.number_format($r['debit']) : '-' }}</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm text-emerald-700 whitespace-nowrap">{{ ($r['commission'] ?? 0) > 0 ? 'Rs.'.number_format($r['commission']) : '-' }}</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm text-indigo-700 whitespace-nowrap">-</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">{{ ($r['paymentMethod'] ?? '') === 'bank' && ($r['credit'] ?? 0) > 0 ? '+Rs.'.number_format($r['credit']) : '-' }}</td>
+                                <td class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">-</td>
+                            </tr>
+                            @endforeach
                         </tbody>
                         <tfoot>
                             <tr class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-black">
@@ -144,6 +170,7 @@
                                 <td id="ftCashTransfer" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
                                 <td id="ftShopExpense" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
                                 <td id="ftExpenses" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap">Rs.0.00</td>
+                                <td id="ftCommission" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-emerald-500/30">Rs.0</td>
                                 <td id="ftCashTotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-indigo-500/30">Rs.0.00</td>
                                 <td id="ftBankCredit" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-purple-500/30">Rs.0.00</td>
                                 <td id="ftBankTotal" class="px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 md:py-3 text-right text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap bg-purple-500/30">Rs.0.00</td>
@@ -153,15 +180,22 @@
                 </div>
             </div>
 
-            <!-- Empty state (no jobs, only opening) -->
-            <div id="emptyState" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-16 text-center hidden">
-                <p class="text-xl font-black text-slate-600">No completed jobs for this date.</p>
-                <p class="text-slate-500 mt-2">Select another date or apply different filters.</p>
+            <!-- API error message (shown when report load fails) -->
+            <div id="reportLoadError" class="hidden bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4 text-red-800">
+                <p class="font-bold">Report load failed.</p>
+                <p id="reportLoadErrorText" class="text-sm mt-1"></p>
+                <p class="text-xs mt-2 text-red-600">Check browser console (F12) for details.</p>
             </div>
 
-            <!-- Loading -->
-            <div id="loadingState" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-16 text-center">
-                <p class="text-slate-500">Select a date and click <strong>Load Report</strong>.</p>
+            <!-- Empty state (no jobs) - show when no server-rendered rows -->
+            <div id="emptyState" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-16 text-center {{ !empty($initialReportRows) ? 'hidden' : '' }}">
+                <p class="text-xl font-black text-slate-600">No completed jobs for this date.</p>
+                <p class="text-slate-500 mt-2">Report is for the selected date range — select the date when you completed the jobs (e.g. today), then click Load Report.</p>
+            </div>
+
+            <!-- Loading (hidden on load; server already sent table or empty state) -->
+            <div id="loadingState" class="bg-white rounded-2xl shadow-xl border-2 border-slate-200 p-16 text-center hidden">
+                <p class="text-slate-500">Loading report…</p>
             </div>
         </main>
 
@@ -356,17 +390,12 @@
     </div>
 
     <script>
+        window.__initialCashPayload = @json($initialCashPayload ?? null);
+        window.__initialBankPayload = @json($initialBankPayload ?? null);
         (function() {
             const reportDateFrom = document.getElementById('reportDateFrom');
             const reportDateTo = document.getElementById('reportDateTo');
-            function getTodayLocal() {
-                const d = new Date();
-                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            }
-            if (reportDateFrom && reportDateTo) {
-                reportDateFrom.value = getTodayLocal();
-                reportDateTo.value = getTodayLocal();
-            }
+            // Default date comes from server (Asia/Karachi) so report shows "today" correctly
             const filterCustomer = document.getElementById('filterCustomer');
             const filterWorker = document.getElementById('filterWorker');
             const filterUser = document.getElementById('filterUser');
@@ -416,9 +445,9 @@
 
             let lastReportRows = [];
             let lastReportTotals = {};
-            let lastReportCashOnHand = 0;
-            let lastReportBankBalance = 0;
-            let bankBalance = 0;
+            let lastReportCashOnHand = typeof initialCashOnHandFromServer !== 'undefined' ? initialCashOnHandFromServer : 0;
+            let lastReportBankBalance = typeof initialBankBalanceFromServer !== 'undefined' ? initialBankBalanceFromServer : 0;
+            let bankBalance = typeof initialBankBalanceFromServer !== 'undefined' ? initialBankBalanceFromServer : 0;
 
             const routes = {
                 data: '{{ route("car-wash.jobs.daily-report-data") }}',
@@ -431,61 +460,76 @@
                 deleteCashTransfer: '{{ route("car-wash.payments.delete-cash-transfer", ["id" => ":id"]) }}',
                 cashTransfers: '{{ route("car-wash.cash-transfers.store") }}'
             };
+            var initialCashOnHandFromServer = {{ json_encode(round($initialCashOnHand ?? 0, 0)) }};
+            var initialBankBalanceFromServer = {{ json_encode(round($initialBankBalance ?? 0, 0)) }};
+            var currentUserId = {{ isset($currentUserId) ? (int)$currentUserId : 'null' }};
 
-            // Load bank account balance (already filtered by branch in API)
+            // Load bank balance: single user selected = that user's bank balance; All = sum of all branch users
             let loggedInUserBankAccounts = [];
             function loadBankBalance() {
-                fetch(routes.bankAccounts)
-                    .then(function(r) { return r.json(); })
+                var userId = (filterUser && filterUser.value) ? filterUser.value : '';
+                var url = routes.bankAccounts + (userId ? '?user_id=' + encodeURIComponent(userId) : '');
+                fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) {
+                        if (!r.ok) {
+                            console.error('Bank accounts API error', r.status, r.statusText);
+                            return { success: false, bankAccounts: [] };
+                        }
+                        return r.json();
+                    })
                     .then(function(data) {
                         if (data.success && data.bankAccounts) {
-                            // Store logged-in user's branch bank accounts
                             loggedInUserBankAccounts = data.bankAccounts;
                             bankBalance = data.bankAccounts.reduce(function(sum, acc) {
                                 return sum + (parseFloat(acc.balance) || 0);
                             }, 0);
-                            // Don't update totBankBalance (user requirement - show only in footer)
-                            // Card will show '-' and footer will show final running total from table
+                            var totBankEl = document.getElementById('totBankBalance');
+                            if (totBankEl) totBankEl.textContent = 'Rs.' + Math.round(bankBalance);
                         } else {
                             bankBalance = 0;
                             loggedInUserBankAccounts = [];
-                            // Don't update card
+                            var totBankEl = document.getElementById('totBankBalance');
+                            if (totBankEl) totBankEl.textContent = '-';
                         }
                     })
                     .catch(function() {
                         bankBalance = 0;
                         loggedInUserBankAccounts = [];
-                        // Don't update card
+                        var totBankEl = document.getElementById('totBankBalance');
+                        if (totBankEl) totBankEl.textContent = '-';
                     });
             }
 
-            // Cash on Hand card shows logged-in user's cash account balance
-            // Also update footer Cash Total with actual cash account balance
+            // Cash on Hand: filter selected = that user's balance; no filter = logged-in user's balance
             function loadCashAccountBalance() {
-                if (!routes.cashAccountBalance) {
-                    console.warn('Cash account balance route not available');
-                    return;
-                }
-                fetch(routes.cashAccountBalance)
+                if (!routes.cashAccountBalance) return;
+                var userId = (filterUser && filterUser.value) ? filterUser.value : (currentUserId ? String(currentUserId) : '');
+                var url = routes.cashAccountBalance + (userId ? '?user_id=' + encodeURIComponent(userId) : '');
+                fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(function(res) {
+                        if (!res.ok) {
+                            console.error('Cash account balance API error', res.status, res.statusText);
+                            return { success: false, balance: 0 };
+                        }
                         return res.json();
                     })
                     .then(function(data) {
                         if (data.success && data.balance != null) {
-                            const userBalance = parseFloat(data.balance) || 0;
-                            const roundedBalance = Math.round(userBalance);
-                            // Don't update Cash on Hand card (user requirement - show only in footer)
-                            // Card will show '-' and footer will show final running total from table
+                            var roundedBalance = Math.round(parseFloat(data.balance) || 0);
                             lastReportCashOnHand = roundedBalance;
+                            var totCashEl = document.getElementById('totCashOnHand');
+                            if (totCashEl) totCashEl.textContent = 'Rs.' + roundedBalance;
                         } else {
-                            // Don't update card, just set lastReportCashOnHand for modal
                             lastReportCashOnHand = 0;
+                            var totCashEl = document.getElementById('totCashOnHand');
+                            if (totCashEl) totCashEl.textContent = 'Rs.0';
                         }
                     })
                     .catch(function(err) {
                         console.error('Error loading cash account balance:', err);
-                        // Don't update card, just set lastReportCashOnHand for modal
                         lastReportCashOnHand = 0;
+                        var totCashEl = document.getElementById('totCashOnHand');
+                        if (totCashEl) totCashEl.textContent = 'Rs.0';
                     });
             }
 
@@ -545,12 +589,14 @@
                     lastReportTotals = {};
                     emptyState.classList.remove('hidden');
                     tableSection.classList.add('hidden');
-                    document.getElementById('totCashOnHand').textContent = 'Rs.0';
-                    document.getElementById('totBankBalance').textContent = '-';
+                    document.getElementById('totVehicles').textContent = {{ $totalDistinctVehiclesServiced ?? 0 }};
+                    document.getElementById('totWorkers').textContent = {{ $totalDistinctWorkersServiced ?? 0 }};
                     document.getElementById('totCommission').textContent = 'Rs.0';
                     btnPng.disabled = true;
                     btnPdf.disabled = true;
                     btnSendWhatsApp.disabled = true;
+                    loadCashAccountBalance();
+                    loadBankBalance();
                     return;
                 }
 
@@ -564,16 +610,18 @@
                 const cashT = data.cashTotals || {};
                 const bankT = data.bankTotals || {};
                 
-                document.getElementById('totVehicles').textContent = t.totalVehicles || 0;
-                document.getElementById('totDebit').textContent = 'Rs.' + Math.round(t.totalDebit || 0);
+                document.getElementById('totVehicles').textContent = t.totalDistinctVehiclesServiced != null ? t.totalDistinctVehiclesServiced : (t.totalVehicles || 0);
+                // JOB EXPENSE: derive from displayed rows so card/footer always match the table (avoids totalDebit vs row debits mismatch)
+                const jobExpenseFromRows = rows.filter(function(r) { return !r.isOpening; }).reduce(function(s, r) { return s + (parseFloat(r.debit) || 0); }, 0);
+                const jobExpenseVal = Math.round(jobExpenseFromRows);
+                document.getElementById('totDebit').textContent = 'Rs.' + jobExpenseVal;
                 // Total Credit card removed - data still available in t.totalCredit if needed
                 // Cash on Hand card will show actual cash account balance (loaded separately)
-                document.getElementById('totWorkers').textContent = t.totalWorkers || 0;
-                const commissionVal = Math.round(t.totalCommission || 0);
-                document.getElementById('totCommission').textContent = 'Rs.' + commissionVal;
+                document.getElementById('totWorkers').textContent = t.totalDistinctWorkersServiced != null ? t.totalDistinctWorkersServiced : (t.totalWorkers || 0);
+                var reportCommissionVal = Math.round(t.totalCommission || 0);
+                document.getElementById('totCommission').textContent = 'Rs.' + reportCommissionVal;
                 
                 // All totals in single footer row (with + for credits, - for debits)
-                const jobExpenseVal = Math.round(t.totalDebit || 0);
                 const cashTransferVal = Math.round(t.totalCashTransfer || 0);
                 const shopExpenseVal = Math.round(t.totalShopExpense || 0);
                 const cashReceiptVal = Math.round(
@@ -583,6 +631,8 @@
                 document.getElementById('ftExpenses').textContent = jobExpenseVal > 0 ? '-Rs.' + jobExpenseVal : 'Rs.0';
                 document.getElementById('ftCashTransfer').textContent = cashTransferVal > 0 ? '-Rs.' + cashTransferVal : 'Rs.0';
                 document.getElementById('ftShopExpense').textContent = shopExpenseVal > 0 ? '-Rs.' + shopExpenseVal : 'Rs.0';
+                const ftCommissionEl = document.getElementById('ftCommission');
+                if (ftCommissionEl) ftCommissionEl.textContent = reportCommissionVal > 0 ? 'Rs.' + reportCommissionVal : 'Rs.0';
                 document.getElementById('ftCashCredit').textContent = cashReceiptVal > 0 ? '+Rs.' + cashReceiptVal : 'Rs.0';
                 // Cash Total: Will be updated by loadCashAccountBalance() to show actual cash account balance
                 // Set temporary value, will be replaced by actual balance from API
@@ -633,6 +683,7 @@
                     const shopExpenseStr = isShopExpense && (r.shopExpense || 0) > 0 ? fmtNumMinus(r.shopExpense) : '-';
                     const isCashTransfer = r.isCashTransfer === true;
                     const cashTransferStr = isCashTransfer && (r.cashTransfer || 0) > 0 ? fmtNumMinus(r.cashTransfer) : '-';
+                    const commissionStr = (r.commission != null && r.commission !== '-' && Number(r.commission) > 0) ? ('Rs.' + Math.round(Number(r.commission))) : '-';
                     const rowClass = isOpening ? 'bg-slate-100 font-semibold' : (isCashTransfer ? 'bg-blue-50 hover:bg-blue-100' : (isShopExpense ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'));
                     
                     // Cash columns with user name (+ for receipt = money in)
@@ -925,6 +976,7 @@
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isCashTransfer && (r.cashTransfer || 0) > 0 ? 'font-bold text-blue-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + cashTransferDisplayStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isShopExpense && (r.shopExpense || 0) > 0 ? 'font-bold text-red-600' : 'text-slate-500') + ' whitespace-nowrap">' + shopExpenseStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + ((r.debit || 0) > 0 ? 'font-bold text-amber-700' : 'text-slate-500') + ' whitespace-nowrap">' + expenseStr + '</td>' +
+                        '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (commissionStr !== '-' ? 'font-bold text-emerald-700' : 'text-slate-500') + ' whitespace-nowrap">' + commissionStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (cashTotalStr !== '-' ? 'font-bold text-indigo-700' : 'text-slate-500') + ' whitespace-nowrap">' + cashTotalStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (isBank && (r.credit || 0) > 0 ? 'font-bold text-purple-600' : 'text-slate-500') + ' whitespace-normal leading-tight">' + bankCreditStr + '</td>' +
                         '<td class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-[9px] sm:text-[10px] md:text-sm text-right ' + (bankTotalStr !== '-' ? 'font-bold text-purple-700' : 'text-slate-500') + ' whitespace-nowrap">' + bankTotalStr + '</td>' +
@@ -949,11 +1001,7 @@
                     ftBankTotalEl.textContent = 'Rs.' + finalBankTotal;
                 }
                 
-                // Update Bank Balance card with same balance as footer
-                const totBankBalanceEl = document.getElementById('totBankBalance');
-                if (totBankBalanceEl) {
-                    totBankBalanceEl.textContent = 'Rs.' + finalBankTotal;
-                }
+                // Bank/Cash cards are updated by loadBankBalance() and loadCashAccountBalance() from actual accounts (user filter)
                 
                 // Update header bank balance if it exists (for car-wash.blade.php header)
                 const headerBankBalance = document.querySelector('[aria-label="Bank account balance"]');
@@ -964,14 +1012,7 @@
                 // Store bank balance in localStorage for car-wash.blade.php header to use
                 localStorage.setItem('reportBankBalance', finalBankTotal.toString());
                 
-                // Update Cash on Hand card with same balance as footer
-                const totCashOnHandEl = document.getElementById('totCashOnHand');
-                if (totCashOnHandEl) {
-                    totCashOnHandEl.textContent = 'Rs.' + finalCashTotal;
-                }
-                
-                // Also update lastReportCashOnHand for modal calculations
-                lastReportCashOnHand = finalRunningCashTotal;
+                // lastReportCashOnHand updated by loadCashAccountBalance() for modal
             }
 
             function buildUrl(base, params) {
@@ -984,6 +1025,91 @@
             }
 
             var loadReportTimeout = null;
+            function applyMergedReport(cashData, bankData) {
+                if (cashData.success || bankData.success) {
+                    const cashOpening = (cashData.rows || []).find(r => r.isOpening);
+                    const bankOpening = (bankData.rows || []).find(r => r.isOpening);
+                    const openingRow = cashOpening || bankOpening;
+                    const mergedOpening = openingRow ? {
+                        ...openingRow,
+                        cashOpeningBalance: cashOpening && (cashOpening.openingBalance != null || cashOpening.openingBalance === 0) ? cashOpening.openingBalance : null,
+                        bankOpeningBalance: bankOpening && (bankOpening.openingBalance != null || bankOpening.openingBalance === 0) ? bankOpening.openingBalance : null
+                    } : null;
+                    const cashRows = (cashData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: (r.paymentMethod === 'bank' ? 'bank' : 'cash')}));
+                    const bankRows = (bankData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: (r.paymentMethod === 'bank' ? 'bank' : 'cash')}));
+                    const allRows = [...cashRows, ...bankRows];
+                    allRows.sort(function(a, b) {
+                        const parseDateTime = function(dtStr) {
+                            if (!dtStr) return null;
+                            const match = dtStr.match(/(\d{2})\/(\d{2})\/(\d{2})\s+(?:time|Time)\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+                            if (!match) return null;
+                            const [, d, m, y, hour, minute, ampm] = match;
+                            let h = parseInt(hour);
+                            if (ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
+                            if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+                            const year = 2000 + parseInt(y);
+                            return new Date(year, parseInt(m) - 1, parseInt(d), h, parseInt(minute));
+                        };
+                        const dtA = parseDateTime(a.dateTime);
+                        const dtB = parseDateTime(b.dateTime);
+                        if (!dtA && !dtB) return 0;
+                        if (!dtA) return 1;
+                        if (!dtB) return -1;
+                        return dtA - dtB;
+                    });
+                    const mergedRows = mergedOpening ? [mergedOpening, ...allRows] : allRows;
+                    const cashTotals = cashData.totals || {};
+                    const bankTotals = bankData.totals || {};
+                    // Commission from displayed rows only (so card/footer match table; avoid double-count when merging cash+bank)
+                    const commissionFromRows = mergedRows.filter(function(r) { return !r.isOpening; }).reduce(function(s, r) { return s + (parseFloat(r.commission) || 0); }, 0);
+                    const mergedTotals = {
+                        totalVehicles: Math.max(cashTotals.totalVehicles || 0, bankTotals.totalVehicles || 0),
+                        totalDistinctVehiclesServiced: cashTotals.totalDistinctVehiclesServiced ?? bankTotals.totalDistinctVehiclesServiced ?? 0,
+                        totalDebit: (cashTotals.totalDebit || 0) + (bankTotals.totalDebit || 0),
+                        totalCredit: (cashTotals.totalCredit || 0) + (bankTotals.totalCredit || 0),
+                        cashOnHand: (cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0),
+                        totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
+                        totalDistinctWorkersServiced: cashTotals.totalDistinctWorkersServiced ?? bankTotals.totalDistinctWorkersServiced ?? 0,
+                        totalCommission: commissionFromRows,
+                        pendingCommission: (cashTotals.pendingCommission || 0) + (bankTotals.pendingCommission || 0),
+                        sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - commissionFromRows,
+                        totalShopExpense: (cashTotals.totalShopExpense || 0) + (bankTotals.totalShopExpense || 0),
+                        totalCashTransfer: (cashTotals.totalCashTransfer || 0) + (bankTotals.totalCashTransfer || 0)
+                    };
+                    const allCustomers = [...(cashData.customers || []), ...(bankData.customers || [])];
+                    const uniqueCustomers = Array.from(new Map(allCustomers.map(c => [c.value, c])).values());
+                    const allWorkers = [...(cashData.workers || []), ...(bankData.workers || [])];
+                    const uniqueWorkers = Array.from(new Map(allWorkers.map(w => [w.value, w])).values());
+                    const allUsers = [...(cashData.users || []), ...(bankData.users || [])];
+                    const uniqueUsers = Array.from(new Map(allUsers.map(u => [u.value, u])).values());
+                    var errEl = document.getElementById('reportLoadError');
+                    var errText = document.getElementById('reportLoadErrorText');
+                    if (errEl && errText) { errEl.classList.add('hidden'); errText.textContent = ''; }
+                    renderReport({
+                        success: true,
+                        rows: mergedRows,
+                        totals: mergedTotals,
+                        cashTotals: cashTotals,
+                        bankTotals: bankTotals,
+                        customers: uniqueCustomers,
+                        workers: uniqueWorkers,
+                        users: uniqueUsers
+                    });
+                    loadCashAccountBalance();
+                    loadBankBalance();
+                } else {
+                    lastReportRows = [];
+                    lastReportTotals = {};
+                    var msg = (cashData.message || bankData.message || 'Unknown error') || '';
+                    if (msg) console.error('Report load failed:', msg);
+                    var errEl = document.getElementById('reportLoadError');
+                    var errText = document.getElementById('reportLoadErrorText');
+                    if (errEl && errText) { errEl.classList.remove('hidden'); errText.textContent = msg; }
+                            renderReport({ rows: [], totals: {}, customers: [], workers: [], users: [] });
+                    loadCashAccountBalance();
+                    loadBankBalance();
+                }
+            }
             function doLoadReport() {
                 const dateFrom = reportDateFrom.value;
                 const dateTo = reportDateTo.value;
@@ -999,113 +1125,41 @@
                     user: filterUser.value || ''
                 };
                 
-                Promise.all([
-                    fetch(buildUrl(routes.data, {...baseParams, payment: 'cash'})).then(r => r.json()),
-                    fetch(buildUrl(routes.data, {...baseParams, payment: 'bank'})).then(r => r.json())
-                ])
-                    .then(function([cashData, bankData]) {
-                        if (cashData.success || bankData.success) {
-                            const cashOpening = (cashData.rows || []).find(r => r.isOpening);
-                            const bankOpening = (bankData.rows || []).find(r => r.isOpening);
-                            // Single opening row with both cash and bank opening balances (pichli date ka closing)
-                            const openingRow = cashOpening || bankOpening;
-                            const mergedOpening = openingRow ? {
-                                ...openingRow,
-                                cashOpeningBalance: cashOpening && (cashOpening.openingBalance != null || cashOpening.openingBalance === 0) ? cashOpening.openingBalance : null,
-                                bankOpeningBalance: bankOpening && (bankOpening.openingBalance != null || bankOpening.openingBalance === 0) ? bankOpening.openingBalance : null
-                            } : null;
-                            
-                            // Merge all non-opening rows from both, mark payment type
-                            const cashRows = (cashData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: 'cash'}));
-                            const bankRows = (bankData.rows || []).filter(r => !r.isOpening).map(r => ({...r, paymentType: 'bank'}));
-                            
-                            // Debug: Check for bank transfers in bank rows
-                            const bankTransferRows = bankRows.filter(r => r.isBankTransfer || r.transferId || (r.vehicle && r.vehicle.toString().toLowerCase().includes('bank transfer')));
-                            if (bankTransferRows.length > 0) {
-                                console.log('✅ Found bank transfer rows:', bankTransferRows);
-                            } else {
-                                console.log('⚠️ No bank transfer rows found in bank data. Total bank rows:', bankRows.length);
+                function fetchReportData(payment) {
+                    const url = buildUrl(routes.data, {...baseParams, payment: payment});
+                    return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r) {
+                            if (!r.ok) {
+                                return r.text().then(function(t) {
+                                    console.error('Daily report API error (' + r.status + ')', payment, t ? t.substring(0, 500) : r.statusText);
+                                    return { success: false, message: r.status + ' ' + r.statusText };
+                                });
                             }
-                            
-                            // Sort all rows by date and time (opening row stays first)
-                            const allRows = [...cashRows, ...bankRows];
-                            allRows.sort(function(a, b) {
-                                // Parse dateTime string to compare
-                                const parseDateTime = function(dtStr) {
-                                    if (!dtStr) return null;
-                                    // Format: "d/m/y time h:i A" or "d/m/y Time h:i A"
-                                    const match = dtStr.match(/(\d{2})\/(\d{2})\/(\d{2})\s+(?:time|Time)\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
-                                    if (!match) return null;
-                                    const [, d, m, y, hour, minute, ampm] = match;
-                                    let h = parseInt(hour);
-                                    if (ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
-                                    if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
-                                    const year = 2000 + parseInt(y);
-                                    return new Date(year, parseInt(m) - 1, parseInt(d), h, parseInt(minute));
-                                };
-                                
-                                const dtA = parseDateTime(a.dateTime);
-                                const dtB = parseDateTime(b.dateTime);
-                                
-                                if (!dtA && !dtB) return 0;
-                                if (!dtA) return 1;
-                                if (!dtB) return -1;
-                                
-                                return dtA - dtB;
-                            });
-                            
-                            const mergedRows = mergedOpening ? [mergedOpening, ...allRows] : allRows;
-                            
-                            // Merge totals
-                            const cashTotals = cashData.totals || {};
-                            const bankTotals = bankData.totals || {};
-                            const mergedTotals = {
-                                totalVehicles: Math.max(cashTotals.totalVehicles || 0, bankTotals.totalVehicles || 0),
-                                totalDebit: (cashTotals.totalDebit || 0) + (bankTotals.totalDebit || 0),
-                                totalCredit: (cashTotals.totalCredit || 0) + (bankTotals.totalCredit || 0),
-                                cashOnHand: (cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0),
-                                totalWorkers: Math.max(cashTotals.totalWorkers || 0, bankTotals.totalWorkers || 0),
-                                totalCommission: (cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0),
-                                pendingCommission: (cashTotals.pendingCommission || 0) + (bankTotals.pendingCommission || 0),
-                                sumGtotal: ((cashTotals.cashOnHand || 0) + (bankTotals.cashOnHand || 0)) - ((cashTotals.totalCommission || 0) + (bankTotals.totalCommission || 0)),
-                                totalShopExpense: (cashTotals.totalShopExpense || 0) + (bankTotals.totalShopExpense || 0),
-                                totalCashTransfer: (cashTotals.totalCashTransfer || 0) + (bankTotals.totalCashTransfer || 0)
-                            };
-                            
-                            // Merge customers, workers and users (unique)
-                            const allCustomers = [...(cashData.customers || []), ...(bankData.customers || [])];
-                            const uniqueCustomers = Array.from(new Map(allCustomers.map(c => [c.value, c])).values());
-                            
-                            const allWorkers = [...(cashData.workers || []), ...(bankData.workers || [])];
-                            const uniqueWorkers = Array.from(new Map(allWorkers.map(w => [w.value, w])).values());
-                            
-                            const allUsers = [...(cashData.users || []), ...(bankData.users || [])];
-                            const uniqueUsers = Array.from(new Map(allUsers.map(u => [u.value, u])).values());
-                            
-                            renderReport({
-                                success: true,
-                                rows: mergedRows,
-                                totals: mergedTotals,
-                                cashTotals: cashTotals,
-                                bankTotals: bankTotals,
-                                customers: uniqueCustomers,
-                                workers: uniqueWorkers,
-                                users: uniqueUsers
-                            });
-                            // Reload cash account balance after report is rendered
-                            loadCashAccountBalance();
-                        } else {
-                            lastReportRows = [];
-                            lastReportTotals = {};
-                            renderReport({ rows: [], totals: {}, customers: [], workers: [], users: [] });
-                            loadCashAccountBalance();
-                        }
+                            return r.json();
+                        })
+                        .catch(function(err) {
+                            console.error('Daily report fetch failed', payment, err);
+                            return { success: false, message: err && err.message ? err.message : 'Network error' };
+                        });
+                }
+                var reportTimeoutMs = 20000;
+                var timeoutPromise = new Promise(function(_, reject) {
+                    setTimeout(function() { reject(new Error('Report request timed out. Try again or check the selected date.')); }, reportTimeoutMs);
+                });
+                Promise.race([ Promise.all([ fetchReportData('cash'), fetchReportData('bank') ]), timeoutPromise ])
+                    .then(function([cashData, bankData]) {
+                        applyMergedReport(cashData, bankData);
                     })
-                    .catch(function() {
+                    .catch(function(err) {
+                        console.error('Daily report load error', err);
                         lastReportRows = [];
                         lastReportTotals = {};
+                        var errEl = document.getElementById('reportLoadError');
+                        var errText = document.getElementById('reportLoadErrorText');
+                        if (errEl && errText) { errEl.classList.remove('hidden'); errText.textContent = (err && err.message) ? err.message : 'Network or script error'; }
                         renderReport({ rows: [], totals: {}, customers: [], workers: [], users: [] });
                         loadCashAccountBalance();
+                        loadBankBalance();
                     });
             }
             function loadReport() {
@@ -1115,7 +1169,11 @@
 
             filterCustomer.addEventListener('change', loadReport);
             filterWorker.addEventListener('change', loadReport);
-            filterUser.addEventListener('change', loadReport);
+            filterUser.addEventListener('change', function() {
+                loadReport();
+                loadCashAccountBalance();
+                loadBankBalance();
+            });
 
             btnPng.addEventListener('click', function() {
                 if (btnPng.disabled) return;
@@ -1348,11 +1406,14 @@
 
             reportDateFrom.addEventListener('change', loadReport);  // debounced
             reportDateTo.addEventListener('change', loadReport);    // debounced
+            var btnLoadReport = document.getElementById('btnLoadReport');
+            if (btnLoadReport) btnLoadReport.addEventListener('click', function() { doLoadReport(); });
 
-
-            // Load cash balance
+            // Load cash balance (same user as card: filter or logged-in)
             function loadCashBalance() {
-                fetch(routes.cashAccountBalance)
+                var uid = (filterUser && filterUser.value) ? filterUser.value : (currentUserId ? String(currentUserId) : '');
+                var cashUrl = routes.cashAccountBalance + (uid ? '?user_id=' + encodeURIComponent(uid) : '');
+                fetch(cashUrl)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) {
@@ -2089,9 +2150,11 @@
                     });
             }
 
-            // Load cash balance for bank transfer validation (hidden, used for max amount)
+            // Load cash balance for bank transfer validation (same user as card)
             function loadCashBalanceForBankTransfer() {
-                fetch(routes.cashAccountBalance)
+                var uid = (filterUser && filterUser.value) ? filterUser.value : (currentUserId ? String(currentUserId) : '');
+                var cashUrl = routes.cashAccountBalance + (uid ? '?user_id=' + encodeURIComponent(uid) : '');
+                fetch(cashUrl)
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data.success) {
@@ -2385,13 +2448,21 @@
                 }
             });
 
-            // Load on page load: branch users (User filter = all Barki Express users), bank balance, then report
+            // Load on page load: branch users, bank balance, then report (use server-rendered data if present, else fetch)
             loadBranchUsers();
             loadBankBalance();
-            if (reportDateFrom.value && reportDateTo.value) {
-                doLoadReport();
+            loadCashAccountBalance();
+            var cashPayload = window.__initialCashPayload;
+            var bankPayload = window.__initialBankPayload;
+            if (cashPayload && bankPayload && (cashPayload.success || bankPayload.success)) {
+                applyMergedReport(cashPayload, bankPayload);
+            } else if (reportDateFrom.value && reportDateTo.value) {
+                setTimeout(doLoadReport, 250);
             } else {
+                loadingState.classList.add('hidden');
+                emptyState.classList.remove('hidden');
                 loadCashAccountBalance();
+                loadBankBalance();
             }
         })();
     </script>

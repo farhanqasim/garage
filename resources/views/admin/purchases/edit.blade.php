@@ -32,16 +32,12 @@
                                 <div class="dropdown">
                                     <button class="btn btn-link text-primary p-0 text-decoration-none dropdown-toggle fw-bold" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 14px;">
                                         <span id="selectedBranchName">{{ $purchase->branch->branch_name ?? 'Select Branch' }}</span>
-                                        @if($purchase->branch && $purchase->branch->branch_code)
-                                            <span id="selectedBranchCode"> ({{ $purchase->branch->branch_code }})</span>
-                                        @endif
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="branchDropdown">
                                         @foreach($branches as $branch)
                                         <li>
                                             <a class="dropdown-item" href="javascript:void(0)" onclick="selectPurchaseBranch({{ $branch->id }}, '{{ $branch->branch_name }}', '{{ $branch->branch_code ?? '' }}')">
-                                                {{ $branch->branch_name }} 
-                                                @if($branch->branch_code) ({{ $branch->branch_code }}) @endif
+                                                {{ $branch->branch_name }}
                                             </a>
                                         </li>
                                         @endforeach
@@ -59,7 +55,7 @@
                                         <i class="ti ti-file-invoice fs-20"></i>
                                     </div>
                                     <div>
-                                        <h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4>
+                                        <a href="{{ route('home') }}" class="text-decoration-none text-dark d-inline-block" title="Home par jayein"><h4 class="mb-0 fw-bold">{{ setting_value('logo_text', 'MUBARAK TRADERS') }}</h4></a>
                                         <p class="mb-0 text-primary" style="font-size: 13px;">
                                             <i class="ti ti-phone me-1"></i>
                                             HELPLINE: <span id="helplineNumber">{{ setting_value('helpline', '+92-335-08-999-08') }}</span>
@@ -1037,17 +1033,8 @@ $(document).ready(function() {
 
     // Branch selection for purchase
     function selectPurchaseBranch(branchId, branchName, branchCode) {
-        // Update UI immediately
         $('#selectedBranchName').text(branchName);
-        if (branchCode) {
-            if ($('#selectedBranchCode').length) {
-                $('#selectedBranchCode').text(' (' + branchCode + ')');
-            } else {
-                $('#selectedBranchName').after('<span id="selectedBranchCode"> (' + branchCode + ')</span>');
-            }
-        } else {
-            $('#selectedBranchCode').remove();
-        }
+        $('#selectedBranchCode').remove();
         $('#purchaseBranchId').val(branchId);
         
         // Update session via AJAX
@@ -1196,12 +1183,14 @@ $(document).ready(function() {
             $.ajax({
                 url: "{{ route('purchases.items.ajax.search') }}",
                 method: 'GET',
+                dataType: 'json',
                 data: {
                     q: query,
                     branch_id: branchId,
                     limit: 10
                 },
-                success: function(results) {
+                success: function(data) {
+                    var results = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
                     if (results.length === 0) {
                         resultsDiv.html('<div class="p-3 text-muted text-center">No results found</div>');
                     } else {

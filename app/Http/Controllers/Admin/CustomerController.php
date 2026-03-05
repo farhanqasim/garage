@@ -12,6 +12,7 @@ use App\Models\CarManufacturer;
 use App\Http\Controllers\Controller;
 use App\Mail\WelcomeCustomerMail;
 use App\Models\Customer;
+use App\Models\CustomerCar;
 use App\Models\Sale;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -23,7 +24,7 @@ class CustomerController extends Controller
     public function all_customers()
     {
         $branches = Branch::all();
-        $customers = Customer::paginate(10);
+        $customers = Customer::with('customerCars', 'branch')->paginate(10);
         $carManufacturers = CarManufacturer::orderBy('name')->get();
         $carModels        = CarModel::orderBy('name')->get();
         $engineccs      = EngineCc::where('status', 'active')->get();
@@ -36,7 +37,14 @@ class CustomerController extends Controller
     {
         $plainPassword = $request->password ?? Str::random(12);
 
+        $branchId = $request->branch_id ?: session('selected_branch_id');
+        if (!$branchId && auth()->user()) {
+            $user = auth()->user();
+            $branchId = $user->branch_id ?? $user->assignedBranches()->value('branch_id');
+        }
+
         $customer = new Customer();
+        $customer->branch_id        = $branchId ? (int) $branchId : null;
         $customer->names            = $request->names ?? [];
         $customer->phones           = array_filter($request->phones ?? []);
         $customer->company          = $request->company;
@@ -69,6 +77,24 @@ class CustomerController extends Controller
 
         $customer->save();
 
+        if ($request->filled('vehicles') && is_array($request->vehicles)) {
+            foreach ($request->vehicles as $vehicleData) {
+                $plate = trim($vehicleData['plate_number'] ?? '');
+                $make  = trim($vehicleData['make'] ?? '');
+                $model = trim($vehicleData['model'] ?? '');
+                $year  = trim($vehicleData['year'] ?? '');
+                if ($plate !== '' && $make !== '' && $model !== '' && $year !== '') {
+                    CustomerCar::create([
+                        'customer_id'   => $customer->id,
+                        'plate_number'  => $plate,
+                        'make'          => $make,
+                        'model'         => $model,
+                        'year'          => $year,
+                    ]);
+                }
+            }
+        }
+
         if ($customer->email) {
             Mail::to($customer->email)->send(new WelcomeCustomerMail($customer->email, $plainPassword));
         }
@@ -77,6 +103,96 @@ class CustomerController extends Controller
             return response()->json(['success' => true, 'customer' => $customer, 'message' => 'Customer added successfully']);
         }
         return redirect()->back()->with('success', 'Customer Added Successfully');
+    }
+
+    /**
+     * Save customer vehicle to database (customer_cars table).
+     * Used when adding vehicle from sales create form - selected customer's ID is used.
+     */
+    public function storeVehicle(Request $request)
+    {
+        $request->validate([
+            'customer_id'   => 'required|exists:customers,id',
+            'plate_number'  => 'required|string|max:255',
+            'make'          => 'required|string|max:255',
+            'model'         => 'required|string|max:255',
+            'year'          => 'required|string|max:4',
+        ]);
+
+        $existing = CustomerCar::where('customer_id', $request->customer_id)
+            ->where('plate_number', $request->plate_number)
+            ->first();
+
+        if ($existing) {
+            $existing->update([
+                'make'  => $request->make,
+                'model' => $request->model,
+                'year'  => $request->year,
+            ]);
+            $vehicle = $existing;
+        } else {
+            $vehicle = CustomerCar::create([
+                'customer_id'   => $request->customer_id,
+                'plate_number'  => $request->plate_number,
+                'make'          => $request->make,
+                'model'         => $request->model,
+                'year'          => $request->year,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle saved successfully',
+            'vehicle' => $vehicle,
+        ]);
+    }
+
+    /**
+     * Update an existing customer vehicle (customer_cars).
+     */
+    public function updateVehicle(Request $request, $id)
+    {
+        $request->validate([
+            'plate_number' => 'required|string|max:255',
+            'make'          => 'required|string|max:255',
+            'model'         => 'required|string|max:255',
+            'year'          => 'required|string|max:4',
+        ]);
+
+        $car = CustomerCar::findOrFail($id);
+        $car->update([
+            'plate_number' => $request->plate_number,
+            'make'         => $request->make,
+            'model'        => $request->model,
+            'year'         => $request->year,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle updated successfully',
+            'vehicle' => $car,
+        ]);
+    }
+
+    /**
+     * Get vehicles for a customer (for sales form - show below Add Vehicle button).
+     */
+    public function getCustomerVehicles(Customer $customer)
+    {
+        $cars = $customer->customerCars()->orderBy('plate_number')->get();
+        return response()->json([
+            'success' => true,
+            'vehicles' => $cars->map(function ($car) {
+                return [
+                    'id'          => $car->id,
+                    'customerId'  => $car->customer_id,
+                    'plateNumber' => $car->plate_number,
+                    'make'        => $car->make ?? '',
+                    'model'       => $car->model ?? '',
+                    'year'        => $car->year ?? '',
+                ];
+            }),
+        ]);
     }
 
     public function getCustomerForEdit($id)
@@ -92,6 +208,9 @@ class CustomerController extends Controller
     {
         $plainPassword = $request->password ? $request->password : null;
 
+        if ($request->has('branch_id')) {
+            $customer->branch_id = $request->branch_id ? (int) $request->branch_id : null;
+        }
         $customer->names            = $request->names ?? $customer->names;
         $customer->phones           = array_filter($request->phones ?? $customer->phones);
         $customer->company          = $request->company ?? $customer->company;

@@ -127,6 +127,7 @@
                                 @canany(['view_items', 'view_parts']) <li><a href="{{ route('item-type-data.index', 'parts') }}">Parts</a></li> @endcanany
                                 @canany(['view_items', 'view_battery']) <li><a href="{{ route('item-type-data.index', 'battery') }}">Battery</a></li> @endcanany
                                 @canany(['view_items', 'view_scrap']) <li><a href="{{ route('item-type-data.index', 'scrap') }}">Scrap</a></li> @endcanany
+                                @canany(['view_items', 'view_scrap']) <li><a href="{{ route('items.scrap.report') }}">Scrap Report</a></li> @endcanany
                                 @canany(['view_items', 'view_filters']) <li><a href="{{ route('item-type-data.index', 'filters') }}">Filters</a></li> @endcanany
                                 @canany(['view_items', 'view_break_pad']) <li><a href="{{ route('item-type-data.index', 'breakpad') }}">Break Pad</a></li> @endcanany
                                 @canany(['view_items', 'view_oil']) <li><a href="{{ route('item-type-data.index', 'oil') }}">Oil</a></li> @endcanany
@@ -204,7 +205,7 @@
                         <li><a href="{{ route('all.branches') }}"><i class="ti ti-stack-3 fs-16 me-2"></i><span>Branches</span></a></li>
                         @endcan
                         @canany(['view_user', 'add_user'])
-                        <li><a href="{{ route('all.users') }}"><i class="ti ti-users fs-16 me-2"></i><span>Employees</span></a></li>
+                        <li><a href="{{ route('all.users') }}"><i class="ti ti-users fs-16 me-2"></i><span>Users</span></a></li>
                         @endcanany
                     </ul>
                 </li>
@@ -277,11 +278,25 @@
 
                 {{-- Purchases --}}
                 @canany(['view_purchases', 'add_purchases'])
+                @php
+                    $pendingTempInvoicesCount = \App\Models\Purchase::whereHas('items', function($q) {
+                        $q->whereHas('item', function($q2) {
+                            $q2->where('is_temporary', true);
+                        });
+                    })->count();
+                @endphp
                 <li class="submenu-open">
                     <h6 class="submenu-hdr">Purchases</h6>
                     <ul>
                         @can('view_purchases')
-                        <li><a href="{{ route('all_purchases') }}"><i class="ti ti-shopping-bag fs-16 me-2"></i><span>Purchases</span></a></li>
+                        <li>
+                            <a href="{{ route('all_purchases') }}" class="position-relative">
+                                <i class="ti ti-shopping-bag fs-16 me-2"></i><span>Purchases</span>
+                                @if($pendingTempInvoicesCount > 0)
+                                <span class="badge bg-warning text-dark ms-2" title="Invoices with temporary items">{{ $pendingTempInvoicesCount }}</span>
+                                @endif
+                            </a>
+                        </li>
                         @endcan
                         <li><a href=""><i class="ti ti-file-unknown fs-16 me-2"></i><span>Purchase Order</span></a></li>
                         <li><a href=""><i class="ti ti-file-upload fs-16 me-2"></i><span>Purchase Return</span></a></li>

@@ -61,6 +61,19 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        // Handle out-of-memory errors with a clear message (PHP throws \Error for memory exhaustion)
+        $msg = $exception->getMessage();
+        if (str_contains($msg, 'Allowed memory size') || str_contains($msg, 'memory') && str_contains($msg, 'exhausted')) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This request used too much memory. Try narrowing filters (e.g. date range, branch) or contact support.',
+                ], 509)->header('Retry-After', '60');
+            }
+            return response('<html><body><h1>Service Unavailable</h1><p>This request used too much memory. Try narrowing your filters (e.g. date range or branch) and try again.</p></body></html>', 509)
+                ->header('Content-Type', 'text/html');
+        }
+
         // Handle API routes that should ALWAYS return JSON for POST requests
         $apiRoutes = ['branch/switch', 'save-pattern', 'save-fingerprint'];
         $apiRouteNames = ['branch.switch', 'save.pattern', 'save.fingerprint'];
@@ -135,10 +148,12 @@ class Handler extends ExceptionHandler
         if (($isApiRoute || $isAjaxRequest) && $request->isMethod('POST')) {
             // Always return JSON for API POST requests
             if ($exception instanceof \Illuminate\Validation\ValidationException) {
+                $errors = $exception->errors();
+                $firstMessage = collect($errors)->flatten()->first();
                 return response()->json([
                     'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $exception->errors()
+                    'message' => $firstMessage ?: 'Validation failed',
+                    'errors' => $errors
                 ], 422)->header('Content-Type', 'application/json');
             }
             
@@ -186,10 +201,12 @@ class Handler extends ExceptionHandler
         // Handle WebAuthn routes - always return JSON
         if ($request->is('webauthn/*')) {
             if ($exception instanceof \Illuminate\Validation\ValidationException) {
+                $errors = $exception->errors();
+                $firstMessage = collect($errors)->flatten()->first();
                 return response()->json([
                     'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $exception->errors()
+                    'message' => $firstMessage ?: 'Validation failed',
+                    'errors' => $errors
                 ], 422);
             }
             

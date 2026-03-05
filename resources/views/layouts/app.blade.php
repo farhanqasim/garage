@@ -182,6 +182,19 @@ label{
         padding: 2px;
         border-radius: 3px;
     }
+
+    /* Battery-type sequence: same highlight everywhere (dark blue, bold, bullet • between parts) */
+    .battery-type-sequence {
+        color: #0a1628 !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.02em;
+    }
+    /* Ensure purchase/sale item name cell always shows the highlight */
+    .purchase-row-item-name.battery-type-sequence,
+    .pehla-td-item .battery-type-sequence {
+        color: #0a1628 !important;
+        font-weight: 700 !important;
+    }
     .scrollbar-w-14::-webkit-scrollbar {
         width: 8px !important;
         }
@@ -851,14 +864,21 @@ function confirmDelete(formId, customMessage = null) {
       window.location.href = '{{ url("/") }}';
     @endif
     
-    // Intercept all AJAX requests to handle authentication
+    // CSRF + auth: har jQuery AJAX me token bhejo, 401/419 handle karo
+    var csrfToken = $('meta[name="csrf-token"]').attr('content');
     $.ajaxSetup({
+      headers: csrfToken ? {
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest'
+      } : { 'X-Requested-With': 'XMLHttpRequest' },
       statusCode: {
         401: function() {
           toastr.error('Your session has expired. Please login again.');
-          setTimeout(function() {
-            window.location.href = '{{ url("/") }}';
-          }, 2000);
+          setTimeout(function() { window.location.href = '{{ url("/") }}'; }, 2000);
+        },
+        419: function() {
+          toastr.warning('Session expired. Page reload ho raha hai...');
+          setTimeout(function() { window.location.reload(); }, 1500);
         }
       }
     });
@@ -1037,6 +1057,11 @@ function confirmDelete(formId, customMessage = null) {
 
         // Show server message when available (check both message and error keys)
         var msg = response && (response.message || response.error);
+        if (!msg && xhr.status === 422 && response && response.errors) {
+            // Use first validation error when message not set
+            var firstErr = Array.isArray(response.errors) ? response.errors[0] : Object.values(response.errors).flat()[0];
+            msg = firstErr || "Validation failed. Please check your input.";
+        }
         if (msg) {
             toastr.error(msg);
         } else {
@@ -1051,7 +1076,17 @@ function confirmDelete(formId, customMessage = null) {
 
 
   <script>
+        // Escape regex special chars so search is literal (e.g. "A+" matches option "A+")
+        function select2LiteralMatcher(params, data) {
+            var term = (params.term || '').trim();
+            if (term === '') return data;
+            var escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            var regex = new RegExp(escaped, 'i');
+            if (regex.test(data.text)) return data;
+            return null;
+        }
         $('.searchable-select').select2({
+            matcher: select2LiteralMatcher,
             templateResult: function(data) {
                 // Hide disabled/filtered options in Select2 dropdown
                 if (data.element && (data.element.disabled || $(data.element).hasClass('filtered-out'))) {
@@ -1162,6 +1197,22 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- Save Sound Audio Element - Available Globally -->
 <audio id="saveSound" src="{{ asset('savesuccessfully.mp3') }}" preload="auto"></audio>
+
+{{-- Reminders badge: load count from API --}}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var badge = document.getElementById('sidebar-reminders-badge');
+  if (!badge) return;
+  fetch('{{ url("/reminders/counts") }}', { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function(d) {
+      var t = (d && typeof d.total === 'number') ? d.total : 0;
+      badge.textContent = t;
+      if (t > 0) badge.classList.remove('d-none');
+    })
+    .catch(function() {});
+});
+</script>
 
 </body>
 

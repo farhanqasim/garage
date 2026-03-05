@@ -1,19 +1,17 @@
 <div class="header">
-      <div class="main-header">
-        <!-- Logo -->
-        <div class="header-left active">
-          <a href="{{ route('home') }}" class="logo logo-normal">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/elite-car-wash-logo.png')) }}" alt="Elite Car Wash">
-            <h3>{{ setting_value('logo_text', 'Elite Car Wash') }}</h3>
-          </a>
-          <a href="{{ route('home') }}" class="logo logo-white">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/elite-car-wash-logo.png')) }}" alt="Elite Car Wash">
-            <h3>{{ setting_value('logo_text', 'Elite Car Wash') }}</h3>
-          </a>
-          <a href="{{ route('home') }}" class="logo-small">
-            <img style="width: 60px;" src="{{ setting_value('logo', asset('assets/img/elite-car-wash-logo.png')) }}" alt="Elite Car Wash">
-            <h3>{{ setting_value('logo_text', 'Elite Car Wash') }}</h3>
-          </a>
+      <div class="main-header" style="position: relative;">
+        <!-- Logo / Branch & User -->
+        <div class="header-left active" style="position: relative;">
+          <a href="{{ route('home') }}" class="header-left-home-link" style="position: absolute; inset: 0; z-index: 50; display: block;" title="Go to Home"></a>
+          @auth
+            <a href="{{ route('home') }}" class="logo logo-normal" title="Home"></a>
+            <a href="{{ route('home') }}" class="logo logo-white" title="Home"></a>
+            <a href="{{ route('home') }}" class="logo logo-small" title="Home"></a>
+          @else
+            <a href="{{ route('home') }}" class="logo logo-normal" title="Home"></a>
+            <a href="{{ route('home') }}" class="logo logo-white" title="Home"></a>
+            <a href="{{ route('home') }}" class="logo-small" title="Home"></a>
+          @endauth
         </div>
         <!-- /Logo -->
         <a id="mobile_btn" class="mobile_btn" href="#sidebar">
@@ -23,6 +21,21 @@
             <span></span>
           </span>
         </a>
+
+        <!-- Branch + User (center) -->
+        @auth
+          @php
+            $headerBranchId = session('selected_branch_id') ?? auth()->user()->branch_id;
+            $headerBranch = $headerBranchId ? \App\Models\Branch::find($headerBranchId) : (auth()->user()->assignedBranches->first() ?? null);
+          @endphp
+          <a href="{{ route('home') }}" class="header-center-branch-user text-decoration-none d-inline-block" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; color: inherit; cursor: pointer; z-index: 100;">
+            <span class="d-inline-flex flex-column lh-sm">
+              <span class="text-dark fw-bold" style="font-size: 1.25rem;">{{ $headerBranch ? $headerBranch->branch_name : 'Branch' }}</span>
+              <span class="text-primary fw-bold small">{{ auth()->user()->name ?? 'User' }}</span>
+            </span>
+          </a>
+        @endauth
+        <!-- /Branch + User -->
 
         <!-- Header Menu -->
         <ul class="nav user-menu">

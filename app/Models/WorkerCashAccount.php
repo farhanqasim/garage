@@ -11,6 +11,7 @@ class WorkerCashAccount extends Model
 
     protected $fillable = [
         'worker_id',
+        'user_id',
         'balance',
         'total_earned',
         'total_paid',
@@ -25,6 +26,11 @@ class WorkerCashAccount extends Model
     public function worker()
     {
         return $this->belongsTo(CarWashWorker::class, 'worker_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
     }
 
     public function transactions()

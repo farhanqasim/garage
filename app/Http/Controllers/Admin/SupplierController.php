@@ -14,6 +14,7 @@ use App\Mail\WelcomeCustomerMail;
 use App\Models\Supplier;
 use App\Models\SupplierEditHistory;
 use App\Models\Purchase;
+use App\Models\Group;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +31,8 @@ class SupplierController extends Controller
         $carModels        = CarModel::orderBy('name')->get();
         $engineccs      = EngineCc::where('status', 'active')->get();
         $carCountries     = CarCountry::orderBy('name')->get();
-        return view('admin.suppliers.index', compact('suppliers', 'branches', 'carManufacturers', 'carModels', 'engineccs', 'carCountries'));
+        $groups           = Group::orderBy('name')->get();
+        return view('admin.suppliers.index', compact('suppliers', 'branches', 'carManufacturers', 'carModels', 'engineccs', 'carCountries', 'groups'));
     }
 
     public function supplier_store(Request $request)
@@ -45,6 +47,7 @@ class SupplierController extends Controller
         $supplier->email            = !empty($request->emails) ? ($request->emails[0] ?? $request->email) : $request->email;
         $supplier->company          = $request->company;
         $supplier->address          = $request->address;
+        $supplier->business_detail  = $request->has('business_detail') ? (is_array($request->business_detail) ? $request->business_detail : json_decode($request->business_detail, true) ?? []) : [];
         $supplier->carnumber        = $request->carnumber;
         $supplier->group_id         = $request->group_id;
         $supplier->opening_balance  = $request->opening_balance ?? 0;

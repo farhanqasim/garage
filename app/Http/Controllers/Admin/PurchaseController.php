@@ -20,19 +20,58 @@ use App\Models\WarehouseItem;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\BankAccount;
+use App\Models\Group;
 use App\Models\PurchasePayment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\URL;
 use Carbon\Carbon;
+use App\Services\TranscribeService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PurchaseController extends Controller
 {
+    /**
+     * Build battery-type display sequence: Product • Plate • Amperes • Company (e.g. GL50 • 11PL • 38AH • AGS).
+     * Returns null if item is not battery or no parts available.
+     */
+    protected function buildBatterySequenceDisplayName(Item $item): ?string
+    {
+        $type = strtolower(trim((string) ($item->type ?? '')));
+        if ($type !== 'battery') {
+            return null;
+        }
+        $parts = [];
+        $product = $item->product_item ? trim((string) ($item->product_item->name ?? '')) : '';
+        if ($product !== '' && stripos($product, 'lorem') === false && stripos($product, 'dummy') === false) {
+            $parts[] = $product;
+        }
+        $plate = $item->plate_item ? trim((string) ($item->plate_item->name ?? '')) : '';
+        if ($plate !== '') {
+            $parts[] = str_contains(strtoupper($plate), 'PL') ? $plate : $plate . 'PL';
+        }
+        $amperes = $item->amphors_item ? trim((string) ($item->amphors_item->name ?? '')) : '';
+        if ($amperes !== '') {
+            $parts[] = str_contains(strtoupper($amperes), 'AH') ? $amperes : $amperes . 'AH';
+        }
+        $company = $item->company_item ? trim((string) ($item->company_item->name ?? '')) : '';
+        if ($company !== '' && stripos($company, 'dummy') === false) {
+            $parts[] = $company;
+        }
+        if ($parts === []) {
+            return null;
+        }
+        return implode(' • ', $parts);
+    }
+
     public function all_purchases()
     {
-        $purchases = Purchase::with(['supplier', 'items.item'])
+        $purchases = Purchase::with(['supplier', 'items.item', 'items.verifiedBy'])
             ->orderBy('created_at', 'desc')
             ->get();
         return view('admin.purchases.index', compact('purchases'));
@@ -44,7 +83,7 @@ class PurchaseController extends Controller
         $branches = \App\Models\Branch::where('status', 'active')->get();
         $units = \App\Models\Unit::where('status', 'active')->orderBy('name')->get();
 
-        // If no branch selected in session, default to user's login/assigned branch
+        // Session mein jo branch login waqt set hui (e.g. Barki) wahi yahan dikhao. Sirf jab session empty ho tab user ki branch set karo.
         if (!session('selected_branch_id')) {
             $user = auth()->user();
             $branch = null;
@@ -63,7 +102,8 @@ class PurchaseController extends Controller
             }
         }
 
-        return view('admin.purchases.create', compact('suppliers', 'branches', 'units'));
+        $groups = Group::orderBy('name')->get();
+        return view('admin.purchases.create', compact('suppliers', 'branches', 'units', 'groups'));
     }
 
     /**
@@ -108,7 +148,7 @@ class PurchaseController extends Controller
     public function getPurchaseCart(Request $request)
     {
         $userId = auth()->id();
-        $rows = PurchaseCart::with(['item', 'warehouse'])
+        $rows = PurchaseCart::with(['item.product_item', 'item.plate_item', 'item.amphors_item', 'item.company_item', 'item.partnumber_item', 'warehouse'])
             ->where('user_id', $userId)
             ->orderBy('id')
             ->get();
@@ -123,14 +163,29 @@ class PurchaseController extends Controller
             if ($row->supplier_id !== null) {
                 $supplierId = $row->supplier_id;
             }
-            // Use stored display name from when user selected item, else fallback to item fields
-            $itemName = !empty($row->item_name)
-                ? $row->item_name
-                : ($row->item ? ($row->item->short_disc ?? $row->item->pro_dis ?? $row->item->bar_code ?? 'Item #' . $row->item_id) : 'Item #' . $row->item_id);
+            // Use stored display name (strip HTML); for battery when empty use sequence (Product • Plate • Amperes • Company)
+            $storedName = $row->item_name ? trim(strip_tags($row->item_name)) : '';
+            if ($storedName !== '' && strlen($storedName) > 2 && stripos($storedName, '<') === false) {
+                $itemName = $storedName;
+            } elseif ($row->item) {
+                $batterySeq = $this->buildBatterySequenceDisplayName($row->item);
+                if ($batterySeq !== null) {
+                    $itemName = $batterySeq;
+                } else {
+                    $pn = $row->item->partnumber_item;
+                    $raw = $row->item->short_disc ?? $row->item->pro_dis ?? ($pn ? $pn->name : null);
+                    $itemName = $raw ? trim(strip_tags($raw)) : ($row->item->bar_code ?? 'Item #' . $row->item_id);
+                    if ($itemName === '') {
+                        $itemName = $row->item->bar_code ?? 'Item #' . $row->item_id;
+                    }
+                }
+            } else {
+                $itemName = 'Item #' . $row->item_id;
+            }
             $warehouseName = $row->warehouse
                 ? ($row->warehouse->warehouse_name . ($row->warehouse->warehouse_code ? ' (' . $row->warehouse->warehouse_code . ')' : ''))
                 : null;
-            $items[] = [
+            $item = [
                 'item_id' => $row->item_id,
                 'warehouse_id' => $row->warehouse_id,
                 'warehouse_name' => $warehouseName,
@@ -143,6 +198,18 @@ class PurchaseController extends Controller
                 'tax_amount' => (float) $row->tax_amount,
                 'total' => (float) $row->total,
             ];
+            if ($row->item && $row->item->image) {
+                $item['image'] = str_starts_with($row->item->image, 'http') ? $row->item->image : asset($row->item->image);
+            }
+            if (Schema::hasColumn('purchase_cart', 'entry_type')) {
+                $item['entry_type'] = $row->entry_type ?? 'purchase';
+            }
+            if (Schema::hasColumn('purchase_cart', 'retail_price')) {
+                $item['retail_price'] = $row->retail_price !== null ? (float) $row->retail_price : null;
+                $item['retail_price_base'] = $row->retail_price_base !== null ? (float) $row->retail_price_base : null;
+                $item['retail_pct'] = $row->retail_pct !== null ? (float) $row->retail_pct : null;
+            }
+            $items[] = $item;
         }
         // Use first row's branch/supplier if not set
         if ($rows->isNotEmpty()) {
@@ -177,10 +244,14 @@ class PurchaseController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit' => 'nullable|string',
             'items.*.rate' => 'required|numeric|min:0',
+            'items.*.retail_price' => 'nullable|numeric|min:0',
+            'items.*.retail_price_base' => 'nullable|numeric|min:0',
+            'items.*.retail_pct' => 'nullable|numeric',
             'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.total' => 'nullable|numeric|min:0',
+            'items.*.entry_type' => 'nullable|string|in:purchase,return,scrap,claim,claim_send,damage',
         ]);
 
         $userId = auth()->id();
@@ -190,8 +261,10 @@ class PurchaseController extends Controller
 
         PurchaseCart::where('user_id', $userId)->delete();
 
+        $hasEntryType = Schema::hasColumn('purchase_cart', 'entry_type');
+        $hasRetailFields = Schema::hasColumn('purchase_cart', 'retail_price');
         foreach ($itemsInput as $it) {
-            PurchaseCart::create([
+            $data = [
                 'user_id' => $userId,
                 'branch_id' => $branchId,
                 'supplier_id' => $supplierId,
@@ -205,7 +278,16 @@ class PurchaseController extends Controller
                 'tax_percentage' => $it['tax_percentage'] ?? 0,
                 'tax_amount' => $it['tax_amount'] ?? 0,
                 'total' => $it['total'] ?? 0,
-            ]);
+            ];
+            if ($hasEntryType) {
+                $data['entry_type'] = $it['entry_type'] ?? 'purchase';
+            }
+            if ($hasRetailFields) {
+                $data['retail_price'] = isset($it['retail_price']) && $it['retail_price'] !== '' && $it['retail_price'] !== null ? (float) $it['retail_price'] : null;
+                $data['retail_price_base'] = isset($it['retail_price_base']) && $it['retail_price_base'] !== '' && $it['retail_price_base'] !== null ? (float) $it['retail_price_base'] : null;
+                $data['retail_pct'] = isset($it['retail_pct']) && $it['retail_pct'] !== '' && $it['retail_pct'] !== null ? (float) $it['retail_pct'] : null;
+            }
+            PurchaseCart::create($data);
         }
 
         $cart = [
@@ -276,22 +358,29 @@ class PurchaseController extends Controller
                 'status' => 'required|in:received,pending,ordered',
                 'items' => 'required|array|min:1',
                 'items.*.item_id' => 'required|exists:items,id',
-                'items.*.warehouse_id' => 'required|exists:warehouses,id',
+                'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
                 'items.*.quantity' => 'required|numeric|min:0.01',
+                'items.*.purchase_order_item_id' => 'nullable|exists:purchase_items,id',
+                'items.*.entry_type' => 'nullable|string|in:purchase,return,claim,scrap,claim_send,damage',
                 'items.*.rate' => 'required|numeric|min:0',
                 'items.*.unit' => 'nullable|string',
+                'items.*.retail_price' => 'nullable|numeric|min:0',
                 'items.*.discount' => 'nullable|numeric|min:0',
                 'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+                'items.*.verified' => 'nullable|boolean',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $firstMessage = collect($errors)->flatten()->first();
+            $message = $firstMessage ?: 'Validation failed';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $e->errors()
+                    'message' => $message,
+                    'errors' => $errors
                 ], 422);
             }
-            return redirect()->back()->withInput()->withErrors($e->errors());
+            return redirect()->back()->withInput()->withErrors($errors);
         }
 
         DB::beginTransaction();
@@ -315,12 +404,14 @@ class PurchaseController extends Controller
                 $rate = floatval($item['rate']);
                 $discount = floatval($item['discount'] ?? 0);
                 $taxPercentage = floatval($item['tax_percentage'] ?? 0);
-                
+                $entryType = $item['entry_type'] ?? 'purchase';
+                $isReturn = in_array($entryType, ['return', 'scrap', 'claim_send', 'damage'], true);
+
                 $itemSubtotal = ($quantity * $rate) - $discount;
                 $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
                 $itemTotal = $itemSubtotal + $taxAmount;
-                
-                $subtotal += $itemTotal;
+
+                $subtotal += $isReturn ? -$itemTotal : $itemTotal;
             }
 
             $orderTax = floatval($request->order_tax ?? 0);
@@ -337,6 +428,7 @@ class PurchaseController extends Controller
             $purchase = Purchase::create([
                 'invoice_no' => $invoiceNo,
                 'is_purchase_order' => $isPurchaseOrder,
+                'po_status' => $isPurchaseOrder ? 'draft' : null,
                 'branch_id' => $request->branch_id,
                 'supplier_id' => $request->supplier_id,
                 'purchase_date' => $purchaseDate,
@@ -356,16 +448,27 @@ class PurchaseController extends Controller
                 $rate = floatval($item['rate']);
                 $discount = floatval($item['discount'] ?? 0);
                 $taxPercentage = floatval($item['tax_percentage'] ?? 0);
-                
+                $entryType = $item['entry_type'] ?? 'purchase';
+                $isReturn = in_array($entryType, ['return', 'scrap', 'claim_send', 'damage'], true);
+                $stockQty = $isReturn ? -$quantity : $quantity;
+
                 $itemSubtotal = ($quantity * $rate) - $discount;
                 $taxAmount = ($itemSubtotal * $taxPercentage) / 100;
                 $unitCost = $itemSubtotal / $quantity;
                 $totalCost = $itemSubtotal + $taxAmount;
 
+                $verified = !empty($item['verified']);
+                $orderedQty = $quantity;
+                $receivedQty = $isPurchaseOrder ? 0 : null;
+                $warehouseId = (int) ($item['warehouse_id'] ?? 0);
                 PurchaseItem::create([
                     'purchase_id' => $purchase->id,
+                    'purchase_order_item_id' => isset($item['purchase_order_item_id']) ? (int) $item['purchase_order_item_id'] : null,
                     'item_id' => $item['item_id'],
+                    'warehouse_id' => $warehouseId ?: null,
                     'quantity' => $quantity,
+                    'ordered_quantity' => $isPurchaseOrder ? $orderedQty : null,
+                    'received_quantity' => $receivedQty,
                     'unit' => $item['unit'] ?? null,
                     'rate' => $rate,
                     'discount' => $discount,
@@ -373,21 +476,26 @@ class PurchaseController extends Controller
                     'tax_amount' => $taxAmount,
                     'unit_cost' => $unitCost,
                     'total_cost' => $totalCost,
+                    'verified_by' => $verified ? auth()->id() : null,
+                    'verified_at' => $verified ? now() : null,
                 ]);
-
-                $warehouseId = (int) ($item['warehouse_id'] ?? 0);
                 $warehouse = $warehouseId ? Warehouse::find($warehouseId) : null;
-                if ($warehouse) {
+                // If no warehouse on item, use first warehouse of purchase branch so stock is still updated
+                if (!$warehouse && !$isPurchaseOrder && $request->branch_id) {
+                    $warehouse = Warehouse::where('branch_id', $request->branch_id)->orderBy('id')->first();
+                }
+                if (!$isPurchaseOrder && $warehouse) {
                     $warehouseItem = WarehouseItem::lockForUpdate()
                         ->where('warehouse_id', $warehouse->id)
                         ->where('item_id', $item['item_id'])
                         ->first();
 
                     if ($warehouseItem) {
-                        $warehouseItem->quantity += $quantity;
+                        $warehouseItem->quantity += $stockQty;
+                        $warehouseItem->quantity = max(0, $warehouseItem->quantity);
                         $warehouseItem->available_quantity = $warehouseItem->quantity - $warehouseItem->reserved_quantity;
                         $warehouseItem->save();
-                    } else {
+                    } elseif (!$isReturn) {
                         WarehouseItem::create([
                             'warehouse_id' => $warehouse->id,
                             'item_id' => $item['item_id'],
@@ -398,33 +506,126 @@ class PurchaseController extends Controller
                     }
                 }
 
-                $itemModel->on_hand = ($itemModel->on_hand ?? 0) + $quantity;
+                if (!$isPurchaseOrder) {
+                    $itemModel->on_hand = max(0, ($itemModel->on_hand ?? 0) + $stockQty);
+                }
+                if (isset($item['retail_price']) && $item['retail_price'] !== '' && $item['retail_price'] !== null && is_numeric($item['retail_price'])) {
+                    $itemModel->retail_price = (float) $item['retail_price'];
+                }
                 $itemModel->save();
             }
 
-            // Create payment if provided
-            if ($request->filled('payment_method_id') && $request->payment_amount > 0) {
+            // When saving a Bill (not PO), update PO line received quantities and PO status
+            if (!$isPurchaseOrder) {
+                $updatedPoIds = [];
+                foreach ($request->items as $item) {
+                    $poLineId = isset($item['purchase_order_item_id']) ? (int) $item['purchase_order_item_id'] : 0;
+                    if ($poLineId <= 0) continue;
+                    $receivedQty = floatval($item['quantity'] ?? 0);
+                    if ($receivedQty <= 0) continue;
+                    $poLine = PurchaseItem::find($poLineId);
+                    if (!$poLine || !$poLine->purchase_id) continue;
+                    $ordered = (float) ($poLine->ordered_quantity ?? $poLine->quantity ?? 0);
+                    $currentReceived = (float) ($poLine->received_quantity ?? 0);
+                    $newReceived = min($ordered, $currentReceived + $receivedQty);
+                    $poLine->received_quantity = $newReceived;
+                    $poLine->save();
+                    $updatedPoIds[$poLine->purchase_id] = true;
+                }
+                foreach (array_keys($updatedPoIds) as $poId) {
+                    $po = Purchase::find($poId);
+                    if (!$po || !$po->is_purchase_order) continue;
+                    $po->refresh();
+                    $allCompleted = true;
+                    $anyReceived = false;
+                    foreach ($po->items as $line) {
+                        $ordered = (float) ($line->ordered_quantity ?? $line->quantity ?? 0);
+                        $received = (float) ($line->received_quantity ?? 0);
+                        if ($received > 0) $anyReceived = true;
+                        if ($ordered > 0 && $received < $ordered) $allCompleted = false;
+                    }
+                    if ($allCompleted && $anyReceived) {
+                        $po->po_status = 'completed';
+                    } elseif ($anyReceived) {
+                        $po->po_status = 'partial';
+                    } else {
+                        $po->po_status = 'draft';
+                    }
+                    $po->save();
+                }
+            }
+
+            // Create payment(s): support multiple payments (cash + bank) or single payment
+            $paymentsInput = $request->input('payments', []);
+            if (is_array($paymentsInput) && count($paymentsInput) > 0) {
+                $totalPayments = 0;
+                foreach ($paymentsInput as $idx => $p) {
+                    $methodId = $p['payment_method_id'] ?? null;
+                    $amount = floatval($p['amount'] ?? 0);
+                    if (!$methodId || $amount <= 0) continue;
+                    $totalPayments += $amount;
+                    $paymentMethod = PaymentMethod::findOrFail($methodId);
+                    $bankAccountId = !empty($p['bank_account_id']) ? $p['bank_account_id'] : null;
+                    $transactionId = $p['transaction_id'] ?? null;
+                    if ($paymentMethod->requires_bank_account && !$bankAccountId) {
+                        throw new \Exception('Bank account is required for bank transfer payment.');
+                    }
+                    if ($bankAccountId) {
+                        $bankAccount = BankAccount::find($bankAccountId);
+                        if (!$bankAccount || !$bankAccount->status) {
+                            throw new \Exception('Selected bank account is not available.');
+                        }
+                    }
+                    $payment = Payment::create([
+                        'user_id' => auth()->id(),
+                        'supplier_id' => $request->supplier_id,
+                        'payment_method_id' => $methodId,
+                        'bank_account_id' => $bankAccountId,
+                        'amount' => $amount,
+                        'currency' => 'PKR',
+                        'direction' => 'out',
+                        'payment_date' => $request->payment_date ?? $purchaseDate,
+                        'transaction_id' => $transactionId,
+                        'status' => 'paid',
+                        'paid_at' => now(),
+                        'notes' => "Payment for Purchase #{$purchase->invoice_no}",
+                    ]);
+                    PurchasePayment::create([
+                        'purchase_id' => $purchase->id,
+                        'payment_id' => $payment->id,
+                        'allocated_amount' => $amount,
+                    ]);
+                    if ($bankAccountId && $paymentMethod->requires_bank_account) {
+                        \App\Models\BankTransaction::create([
+                            'bank_account_id' => $bankAccountId,
+                            'transaction_date' => $request->payment_date ?? $purchaseDate,
+                            'description' => "Purchase Payment - Invoice #{$purchase->invoice_no}",
+                            'amount' => $amount,
+                            'type' => 'debit',
+                            'statement_reference' => $transactionId ?? $purchase->invoice_no,
+                            'matched_payment_id' => $payment->id,
+                            'reconciled' => false,
+                        ]);
+                    }
+                }
+                if ($totalPayments > $grandTotal) {
+                    throw new \Exception("Total payment amount (Rs " . number_format($totalPayments, 2) . ") cannot exceed grand total (Rs " . number_format($grandTotal, 2) . ").");
+                }
+            } elseif ($request->filled('payment_method_id') && $request->payment_amount > 0) {
                 $paymentMethod = PaymentMethod::findOrFail($request->payment_method_id);
                 $paymentAmount = floatval($request->payment_amount);
-                
-                // Validate payment amount doesn't exceed grand total
                 if ($paymentAmount > $grandTotal) {
                     throw new \Exception("Payment amount (Rs " . number_format($paymentAmount, 2) . ") cannot exceed grand total (Rs " . number_format($grandTotal, 2) . ").");
                 }
-                
-                // Validate bank account if required
                 if ($paymentMethod->requires_bank_account && !$request->bank_account_id) {
                     throw new \Exception('Bank account is required for this payment method.');
                 }
-                
-                // Validate bank account exists if provided
                 if ($request->bank_account_id) {
                     $bankAccount = BankAccount::find($request->bank_account_id);
                     if (!$bankAccount || !$bankAccount->status) {
                         throw new \Exception('Selected bank account is not available.');
                     }
                 }
-                
                 $payment = Payment::create([
                     'user_id' => auth()->id(),
                     'supplier_id' => $request->supplier_id,
@@ -432,29 +633,25 @@ class PurchaseController extends Controller
                     'bank_account_id' => $request->bank_account_id ?? null,
                     'amount' => $paymentAmount,
                     'currency' => 'PKR',
-                    'direction' => 'out', // Outgoing payment for purchase
+                    'direction' => 'out',
                     'payment_date' => $request->payment_date ?? $purchaseDate,
                     'transaction_id' => $request->payment_transaction_id ?? null,
                     'status' => 'paid',
                     'paid_at' => now(),
                     'notes' => $request->payment_notes ?? "Payment for Purchase #{$purchase->invoice_no}",
                 ]);
-                
-                // Link payment to purchase
                 PurchasePayment::create([
                     'purchase_id' => $purchase->id,
                     'payment_id' => $payment->id,
                     'allocated_amount' => $paymentAmount,
                 ]);
-                
-                // Create bank transaction if bank account is used
                 if ($request->bank_account_id && $paymentMethod->requires_bank_account) {
                     \App\Models\BankTransaction::create([
                         'bank_account_id' => $request->bank_account_id,
                         'transaction_date' => $request->payment_date ?? $purchaseDate,
                         'description' => "Purchase Payment - Invoice #{$purchase->invoice_no}" . ($request->payment_notes ? " - {$request->payment_notes}" : ''),
                         'amount' => $paymentAmount,
-                        'type' => 'debit', // Debit for outgoing payment
+                        'type' => 'debit',
                         'statement_reference' => $request->payment_transaction_id ?? $purchase->invoice_no,
                         'matched_payment_id' => $payment->id,
                         'reconciled' => false,
@@ -468,12 +665,20 @@ class PurchaseController extends Controller
             PurchaseCart::where('user_id', auth()->id())->delete();
 
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
+                $payload = [
                     'success' => true,
                     'message' => 'Purchase created successfully',
                     'purchase_id' => $purchase->id,
-                    'invoice_no' => $purchase->invoice_no
-                ]);
+                    'invoice_no' => $purchase->invoice_no,
+                ];
+                if ($request->input('save_and_send_pdf') === '1' || $request->input('save_and_send_pdf') === 1) {
+                    $payload['signed_pdf_url'] = URL::temporarySignedRoute(
+                        'purchases.invoice.pdf.public',
+                        now()->addDays(2),
+                        ['id' => $purchase->id]
+                    );
+                }
+                return response()->json($payload);
             }
             
             return redirect()->route('all_purchases')->with('success', 'Purchase created successfully');
@@ -496,15 +701,54 @@ class PurchaseController extends Controller
 
     public function show($id)
     {
-        $purchase = Purchase::with(['supplier', 'branch', 'items.item.partnumber_item', 'items.item.category', 'items.item.vehical_item'])->findOrFail($id);
-        
+        $purchase = Purchase::with([
+            'supplier', 'branch',
+            'items.item.partnumber_item',
+            'items.item.product_item',
+            'items.item.category',
+            'items.item.vehical_item.manutacturer_vehical',
+            'items.item.vehical_item.model_vehical',
+            'items.item.plate_item',
+            'items.item.amphors_item',
+            'items.item.company_item',
+            'items.item.volt_item',
+            'items.verifiedBy',
+        ])->findOrFail($id);
+        $printMode = request('print') === '1';
+        $printFormat = strtolower(request('format', 'a4'));
+        if (!in_array($printFormat, ['thermal', 'a4'], true)) {
+            $printFormat = 'a4';
+        }
+        $verifiedUserNames = $purchase->items->filter(fn ($i) => $i->verified_by)->map(fn ($i) => $i->verifiedBy ? $i->verifiedBy->name : null)->filter()->unique()->values()->all();
+        $allVerified = $purchase->items->isNotEmpty() && $purchase->items->every(fn ($i) => (bool) $i->verified_by);
         $data = [
             'purchase' => $purchase,
             'companyName' => setting_value('logo_text', 'MUBARAK TRADERS'),
             'helpline' => setting_value('helpline', '+92-335-08-999-08'),
+            'print_mode' => $printMode,
+            'print_format' => $printFormat,
+            'verified_user_names' => $verifiedUserNames,
+            'all_verified' => $allVerified,
         ];
-        
         return view('admin.purchases.show', $data);
+    }
+
+    public function verifyItem(Request $request, $id)
+    {
+        $item = \App\Models\PurchaseItem::where('id', $id)->firstOrFail();
+        $purchase = $item->purchase;
+        if (!$purchase) {
+            return response()->json(['success' => false, 'message' => 'Purchase not found'], 404);
+        }
+        $verified = filter_var($request->input('verified'), FILTER_VALIDATE_BOOLEAN);
+        $item->verified_by = $verified ? auth()->id() : null;
+        $item->verified_at = $verified ? now() : null;
+        $item->save();
+        return response()->json([
+            'success' => true,
+            'verified' => $verified,
+            'verified_by_name' => $verified ? auth()->user()->name : null,
+        ]);
     }
 
     public function convertToSale($id)
@@ -591,6 +835,56 @@ class PurchaseController extends Controller
                   ]);
     
         return $pdf->download('Invoice-' . $purchase->invoice_no . '.pdf');
+    }
+
+    /**
+     * Public PDF view via signed URL (for sending link to supplier via WhatsApp).
+     * Opens in browser so supplier can view/download.
+     */
+    public function invoicePdfPublic($id)
+    {
+        $purchase = Purchase::with(['items.item', 'supplier', 'branch'])->findOrFail($id);
+        $logoUrl = setting_value('logo') ?: asset('assets/img/logo.svg');
+        $logoData = null;
+        if ($logoPath = setting_value('logo')) {
+            $fullPath = str_replace(url('/'), public_path(), $logoPath);
+            if (file_exists($fullPath)) {
+                $logoData = 'data:image/' . pathinfo($fullPath, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($fullPath));
+            }
+        }
+        $signatureData = null;
+        if ($signatureUrl = setting_value('signature')) {
+            $signaturePath = str_replace(url('/'), public_path(), $signatureUrl);
+            if (!file_exists($signaturePath)) {
+                $signaturePath = public_path(str_replace(url('/') . '/', '', $signatureUrl));
+            }
+            if (file_exists($signaturePath)) {
+                $ext = strtolower(pathinfo($signaturePath, PATHINFO_EXTENSION));
+                $mime = $ext === 'png' ? 'png' : ($ext === 'jpg' || $ext === 'jpeg' ? 'jpeg' : 'svg+xml');
+                $signatureData = 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($signaturePath));
+            }
+        }
+        $data = [
+            'purchase'     => $purchase,
+            'logoData'     => $logoData,
+            'logoUrl'      => $logoUrl,
+            'companyName'  => setting_value('logo_text', 'MUBARAK TRADERS'),
+            'helpline'     => setting_value('helpline', '+92-335-08-999-08'),
+            'address'      => setting_value('address', ''),
+            'city'         => setting_value('city', ''),
+            'state'        => setting_value('state', ''),
+            'zip'          => setting_value('zip', ''),
+            'country'      => setting_value('country', ''),
+            'signatureData'=> $signatureData,
+        ];
+        $pdf = Pdf::loadView('admin.purchases.pdf', $data)
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled'      => true,
+                'defaultFont'          => 'DejaVu Sans',
+            ]);
+        return $pdf->stream('Invoice-' . $purchase->invoice_no . '.pdf');
     }
 
     public function edit($id)
@@ -710,6 +1004,7 @@ class PurchaseController extends Controller
                 $unitCost = $itemSubtotal / $quantity;
                 $totalCost = $itemSubtotal + $taxAmount;
 
+                $verified = !empty($item['verified']);
                 PurchaseItem::create([
                     'purchase_id' => $purchase->id,
                     'item_id' => $item['item_id'],
@@ -721,6 +1016,8 @@ class PurchaseController extends Controller
                     'tax_amount' => $taxAmount,
                     'unit_cost' => $unitCost,
                     'total_cost' => $totalCost,
+                    'verified_by' => $verified ? auth()->id() : null,
+                    'verified_at' => $verified ? now() : null,
                 ]);
 
                 $warehouseItem = WarehouseItem::lockForUpdate()
@@ -819,25 +1116,37 @@ class PurchaseController extends Controller
 
     public function getItemDetails($id)
     {
-        $item = Item::with(['partnumber_item', 'category', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical', 'unit_item', 'warrenty_item'])->findOrFail($id);
-        
-        // Build item name from available data
-        $itemName = $item->short_disc ?? $item->pro_dis ?? '';
-        if (empty($itemName) && $item->partnumber_item) {
-            $itemName = $item->partnumber_item->name ?? '';
+        $item = Item::with(['partnumber_item', 'category', 'product_item', 'plate_item', 'amphors_item', 'company_item', 'vehical_item.manutacturer_vehical', 'vehical_item.model_vehical', 'unit_item', 'unit_item.baseUnits', 'warrenty_item'])->findOrFail($id);
+
+        // For battery type: use sequence (Product • Plate • Amperes • Company) as name
+        $batterySequence = $this->buildBatterySequenceDisplayName($item);
+        if ($batterySequence !== null) {
+            $itemName = $batterySequence;
+        } else {
+            // Build item name from available data (strip HTML so search/display never show raw tags like <P><BR></P>)
+            $rawName = $item->short_disc ?? $item->pro_dis ?? '';
+            if (empty(trim($rawName)) && $item->partnumber_item) {
+                $rawName = $item->partnumber_item->name ?? '';
+            }
+            if (empty(trim($rawName))) {
+                $rawName = $item->bar_code ?? '';
+            }
+            $itemName = trim(strip_tags($rawName));
+            if ($itemName === '') {
+                $itemName = $item->bar_code ?? 'Item #' . $item->id;
+            }
         }
-        if (empty($itemName)) {
-            $itemName = $item->bar_code;
+
+        // Add manufacturer and model only when we did NOT use battery sequence (battery shows only: GL50 • 11PL • 38AH • AGS)
+        if ($batterySequence === null && $item->vehical_item) {
+            if ($item->vehical_item->manutacturer_vehical) {
+                $itemName .= ' - ' . $item->vehical_item->manutacturer_vehical->name;
+            }
+            if ($item->vehical_item->model_vehical) {
+                $itemName .= ' ' . $item->vehical_item->model_vehical->name;
+            }
         }
-        
-        // Add manufacturer and model if available
-        if ($item->vehical_item && $item->vehical_item->manutacturer_vehical) {
-            $itemName .= ' - ' . $item->vehical_item->manutacturer_vehical->name;
-        }
-        if ($item->vehical_item && $item->vehical_item->model_vehical) {
-            $itemName .= ' ' . $item->vehical_item->model_vehical->name;
-        }
-        
+
         // Get unit name from relationship (unit column stores unit ID)
         $unitName = 'Unit'; // default
         if ($item->unit_item) {
@@ -886,17 +1195,24 @@ class PurchaseController extends Controller
             }
         }
         
+        $unitInfo = $this->getItemUnitDisplayForSearch($item);
         $salePrice = floatval($item->sale_price ?? 0);
+        $categoryName = $item->category ? trim($item->category->name ?? '') : '';
         return response()->json([
             'id' => $item->id,
+            'type' => $item->type ?? null,
+            'category_name' => $categoryName ?: 'Other',
+            'category_id' => $item->category_id,
             'name' => $itemName,
             'rate' => $item->packing_purchase_rate ?? 0,
             'sale_price' => $salePrice,
             'total_price' => $item->total_price ?? 0,
             'price_per_unit' => $item->price_per_unit ?? 0,
+            'retail_price' => $item->retail_price ? (float) $item->retail_price : null,
             'unit' => $unitName,
+            'liter_per_can' => $unitInfo['liter_per_can'] > 0 ? $unitInfo['liter_per_can'] : null,
             'unit_id' => $item->unit, // Also return unit ID for reference
-            'image' => $item->image, // Include item image URL
+            'image' => $item->image ? (preg_match('#^https?://#i', $item->image) ? $item->image : '/' . ltrim($item->image, '/')) : null,
             'stock' => $item->on_hand ?? 0,
             'warehouse_stock' => $item->on_hand ?? 0,
             'shop_stock' => 0,
@@ -909,6 +1225,227 @@ class PurchaseController extends Controller
             'warranty_unit' => $warrantyUnit,
         ]);
     }
+
+    /**
+     * Store a temporary product (when product not found in search). Image is required.
+     * Returns the new item so the frontend can add it to the purchase list.
+     */
+    public function storeTemporaryProduct(Request $request)
+    {
+        $request->validate([
+            'product_name' => 'nullable|string|max:255',
+            'voice_path' => 'nullable|string|max:500',
+            'voice_transcript' => 'nullable|string|max:1000',
+            'notes_voice_path' => 'nullable|string|max:500',
+            'cost_price' => 'required|numeric|min:0',
+            'quantity' => 'required|numeric|min:0.01',
+            'notes' => 'nullable|string|max:1000',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ], [
+            'image.required' => 'Image attachment is required for temporary products.',
+            'image.image' => 'The file must be an image.',
+        ]);
+
+        $defaultUnit = \App\Models\Unit::where('status', 'active')->orderBy('id')->first();
+        $unitId = $defaultUnit ? $defaultUnit->id : null;
+        $unitName = $defaultUnit ? ($defaultUnit->name ?? $defaultUnit->short_name ?? 'Unit') : 'Unit';
+
+        $name = trim((string) $request->product_name);
+        $voicePath = $request->filled('voice_path') ? trim($request->voice_path) : null;
+        $voiceTranscript = $request->filled('voice_transcript') ? trim($request->voice_transcript) : null;
+        if ($name === '' && !$voicePath) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please enter a product name or attach a voice recording.',
+            ], 422);
+        }
+        if ($name === '' && $voicePath) {
+            $name = $voiceTranscript !== null && $voiceTranscript !== '' ? $voiceTranscript : 'Temporary Product';
+        }
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            if (function_exists('saveSingleFile')) {
+                $imagePath = saveSingleFile($request->file('image'), 'items');
+            } else {
+                $file = $request->file('image');
+                $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
+                $file->move(public_path('items'), $filename);
+                $imagePath = 'items/' . $filename;
+            }
+        }
+
+        if (!$imagePath) {
+            return response()->json(['success' => false, 'message' => 'Image upload failed.'], 422);
+        }
+
+        // Unique bar_code for temporary items (required by items table)
+        $barCode = 'TMP-' . time() . '-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        while (Item::withTrashed()->where('bar_code', $barCode)->exists()) {
+            $barCode = 'TMP-' . time() . '-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        }
+
+        $data = [
+            'user_id' => auth()->id(),
+            'bar_code' => $barCode,
+            'pro_dis' => $name,
+            'short_disc' => $name,
+            'packing_purchase_rate' => (float) $request->cost_price,
+            'on_hand' => 0,
+            'is_active' => true,
+            'is_temporary' => true,
+            'notes' => $request->filled('notes') ? trim($request->notes) : null,
+            'image' => $imagePath,
+            'unit' => $unitId,
+            'type' => 'parts',
+            'voice_path' => $voicePath,
+            'voice_transcript' => $voiceTranscript,
+            'notes_voice_path' => $request->filled('notes_voice_path') ? trim($request->notes_voice_path) : null,
+        ];
+        if (Schema::hasColumn('items', 'name')) {
+            $data['name'] = $name;
+        }
+        try {
+            $item = Item::create($data);
+        } catch (\Exception $e) {
+            \Log::error('Temporary product create failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not save temporary product. ' . (config('app.debug') ? $e->getMessage() : 'Please try again.'),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Temporary product added. It has been added to your purchase list.',
+            'item' => [
+                'id' => $item->id,
+                'name' => $name,
+                'rate' => (float) $request->cost_price,
+                'unit' => $unitName,
+                'quantity' => (float) $request->quantity,
+                'image' => $item->image ? (str_starts_with($item->image, 'http') ? $item->image : asset($item->image)) : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Create a temporary supplier from the purchase create form (quick add).
+     * Returns JSON with id and display text for appending to supplier dropdown.
+     */
+    public function storeTemporarySupplier(Request $request)
+    {
+        $request->validate([
+            'company' => 'nullable|string|max:255',
+            'contact_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:50',
+        ], [
+            'company.max' => 'Company name is too long.',
+            'contact_name.max' => 'Contact name is too long.',
+            'phone.max' => 'Phone number is too long.',
+        ]);
+
+        $company = trim((string) $request->input('company', ''));
+        $contactName = trim((string) $request->input('contact_name', ''));
+        $phone = trim((string) $request->input('phone', ''));
+
+        if ($company === '' && $contactName === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please provide at least company name or contact name.',
+            ], 422);
+        }
+
+        $branchId = session('selected_branch_id');
+        $names = $contactName !== '' ? [$contactName] : [$company];
+        $phones = $phone !== '' ? [$phone] : [];
+
+        $supplier = Supplier::create([
+            'company' => $company !== '' ? $company : $contactName,
+            'names' => $names,
+            'phones' => $phones,
+            'password' => Hash::make(Str::random(16)),
+            'is_temporary' => true,
+            'created_by' => auth()->id(),
+            'branch_id' => $branchId,
+        ]);
+
+        $displayName = $supplier->company ?? '';
+        $firstName = $names[0] ?? '';
+        $firstPhone = $phones[0] ?? '';
+        $parts = array_filter([$displayName, $firstName, $firstPhone]);
+        $displayText = implode(' - ', $parts);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Temporary supplier added.',
+            'supplier' => [
+                'id' => $supplier->id,
+                'company' => $supplier->company,
+                'name' => $firstName,
+                'phone' => $firstPhone,
+                'display_text' => $displayText,
+            ],
+        ]);
+    }
+
+    /**
+     * Upload voice recording for product name (e.g. from Add Temporary Product).
+     * Stores file, runs speech-to-text, returns transcript and path for form submit.
+     */
+    public function uploadVoice(Request $request)
+    {
+        $request->validate([
+            'voice' => 'required|file|mimes:webm,ogg,wav,mp3,mpeg,mp4,m4a|max:2048',
+        ], [
+            'voice.required' => 'Please upload a voice recording.',
+            'voice.mimes' => 'Allowed formats: webm, ogg, wav, mp3.',
+            'voice.max' => 'Recording must be under 2MB.',
+        ]);
+
+        $file = $request->file('voice');
+        $dir = 'voice';
+        $filename = 'voice_' . auth()->id() . '_' . time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName() ?: 'recording.webm');
+        if (!str_contains(strtolower($filename), '.')) {
+            $filename .= '.' . $file->getClientOriginalExtension();
+        }
+        $path = $file->storeAs($dir, $filename, 'public');
+        if (!$path) {
+            return response()->json(['success' => false, 'message' => 'Failed to store recording.'], 422);
+        }
+        $fullPath = Storage::disk('public')->path($path);
+        $transcribe = app(TranscribeService::class);
+        $transcript = $transcribe->transcribe($fullPath);
+        $publicPath = 'storage/' . $path;
+
+        return response()->json([
+            'success' => true,
+            'voice_path' => $publicPath,
+            'voice_url' => asset($publicPath),
+            'transcript' => $transcript !== null && $transcript !== '' ? $transcript : '',
+        ]);
+    }
+
+    /**
+     * Delete a previously uploaded voice file (e.g. when user clicks Remove / Record Again).
+     */
+    public function deleteVoice(Request $request)
+    {
+        $path = $request->input('path');
+        if (!$path || !is_string($path)) {
+            return response()->json(['success' => false, 'message' => 'Invalid path.'], 422);
+        }
+        $path = ltrim($path, '/');
+        if (strpos($path, 'storage/') === 0) {
+            $path = substr($path, strlen('storage/'));
+        }
+        if (strpos($path, 'voice/') !== 0) {
+            return response()->json(['success' => false, 'message' => 'Invalid voice path.'], 422);
+        }
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+        return response()->json(['success' => true]);
+    }
     
     /**
      * Get stock status for an item across all branches and warehouses.
@@ -916,16 +1453,65 @@ class PurchaseController extends Controller
      */
     public function getItemStockStatus(Request $request, $id)
     {
-        $item = Item::with('unit_item')->findOrFail($id);
+        $item = Item::with(['unit_item', 'unit_item.baseUnits'])->findOrFail($id);
         $packingSize = (float) ($item->packing ?? 1);
-        $unitName = $item->unit_item ? ($item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit') : 'Unit';
+        $unitName = $item->unit_item ? trim($item->unit_item->name ?? $item->unit_item->short_name ?? 'Unit') : 'Unit';
+        $baseUnitName = null;
+        $baseUnitMultiplier = null;
+
+        // Prefer multiplier from unit_option (e.g. "12_8_4" => 1 can = 4 liter) so "3 Can" shows "12 Liter"
+        $unitOption = $item->unit_option ? trim((string) $item->unit_option) : '';
+        if ($unitOption !== '' && strpos($unitOption, '_') !== false) {
+            $parts = explode('_', $unitOption);
+            $lastPart = end($parts);
+            if (is_numeric($lastPart) && (float) $lastPart > 0) {
+                $baseUnitMultiplier = (float) $lastPart;
+                $baseUnitName = 'Liter';
+            }
+        }
+
+        // Parse "1 can = X liter" from unit name — jo item add karte waqt Unit of Measurement mein set kiya (e.g. "Can - 3 Liter")
+        $parsedMultiplierFromName = null;
+        if (preg_match('/(\d+(?:\.\d+)?)\s*[-\s]*(?:liter|ltr|L)\b/ui', $unitName, $m)) {
+            $parsedMultiplierFromName = (float) $m[1];
+        } elseif (preg_match('/\b(?:liter|ltr|L)\s*[-\s]*(\d+(?:\.\d+)?)/ui', $unitName, $m)) {
+            $parsedMultiplierFromName = (float) $m[1];
+        } elseif (preg_match('/(\d+(?:\.\d+)?)\s*L\b/ui', $unitName, $m)) {
+            $parsedMultiplierFromName = (float) $m[1];
+        }
+        if ($parsedMultiplierFromName !== null && $parsedMultiplierFromName <= 0) {
+            $parsedMultiplierFromName = null;
+        }
+
+        // Use pivot/name multiplier only when we didn't get multiplier from unit_option
+        if ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 0) {
+        if ($item->unit_item && $item->unit_item->baseUnits && $item->unit_item->baseUnits->count() > 0) {
+            $firstBase = $item->unit_item->baseUnits->first();
+            if ($baseUnitName === null) $baseUnitName = $firstBase->name ?? $firstBase->short_name ?? null;
+            if ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 0) {
+                if ($firstBase->pivot !== null) {
+                    $m = $firstBase->pivot->multiplier ?? $firstBase->pivot->getAttribute('multiplier');
+                    $baseUnitMultiplier = $m !== null && $m !== '' ? (float) $m : null;
+                }
+            }
+            // Pivot 1 ya null ho to unit name se multiplier use karo (6 can = 18 liter)
+            if ($parsedMultiplierFromName !== null && ($baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 1)) {
+                $baseUnitMultiplier = $parsedMultiplierFromName;
+            }
+        }
+        // Base relation na ho ya multiplier abhi bhi 1 ho to name se set karo
+        if (($baseUnitName === null || $baseUnitMultiplier === null || (float) $baseUnitMultiplier <= 1) && $parsedMultiplierFromName !== null) {
+            $baseUnitName = $baseUnitName ?: 'Liter';
+            $baseUnitMultiplier = $parsedMultiplierFromName;
+        }
+        }
 
         $requestedBranchId = $request->query('branch_id');
 
-        // When branch_id is provided: return all warehouses of this branch (with quantity 0 if no stock)
+        // When branch_id is provided: return all warehouses of this branch (with quantity 0 if no stock). Dedupe by id so each warehouse appears once.
         if ($requestedBranchId !== null && $requestedBranchId !== '') {
             $branch = \App\Models\Branch::find($requestedBranchId);
-            $warehouses = \App\Models\Warehouse::where('branch_id', $requestedBranchId)->orderBy('warehouse_name')->get();
+            $warehouses = \App\Models\Warehouse::where('branch_id', $requestedBranchId)->orderBy('warehouse_name')->get()->unique('id')->values();
             $quantitiesByWarehouse = \App\Models\WarehouseItem::where('item_id', $id)
                 ->whereIn('warehouse_id', $warehouses->pluck('id'))
                 ->get()
@@ -944,35 +1530,48 @@ class PurchaseController extends Controller
                 'display' => $branchName . ($branchCode ? ' (' . $branchCode . ')' : ''),
                 'cartons' => 0,
                 'loose' => 0,
+                'loose_liters' => 0,
                 'quantity' => 0,
                 'unit' => $unitName,
+                'base_unit' => $baseUnitName,
+                'base_unit_multiplier' => $baseUnitMultiplier,
             ];
 
+            $isOil = ($baseUnitName === 'Liter' && (float) $baseUnitMultiplier > 0);
             foreach ($warehouses as $warehouse) {
                 $wi = $quantitiesByWarehouse->get($warehouse->id);
                 $quantity = $wi ? floatval($wi->quantity ?? 0) : 0;
                 $totalQty += $quantity;
                 $cartons = floor($quantity / $packingSize);
                 $loose = fmod($quantity, $packingSize);
+                $looseLiters = $isOil ? (float) ($loose * ((float) $baseUnitMultiplier / $packingSize)) : 0;
 
+                $whDisplay = $warehouse->warehouse_name . (($warehouse->warehouse_code ?? '') !== '' ? ' (' . $warehouse->warehouse_code . ')' : '');
                 $stockStatus[] = [
                     'type' => 'warehouse',
                     'id' => $warehouse->id,
                     'name' => $warehouse->warehouse_name,
                     'code' => $warehouse->warehouse_code ?? '',
-                    'display' => $warehouse->warehouse_name,
+                    'display' => $whDisplay,
                     'cartons' => (int) $cartons,
                     'loose' => $loose,
+                    'loose_liters' => $looseLiters,
                     'quantity' => $quantity,
                     'branch_id' => (int) $requestedBranchId,
                     'unit' => $unitName,
+                    'base_unit' => $baseUnitName,
+                    'base_unit_multiplier' => $baseUnitMultiplier,
                 ];
             }
 
             // Update branch total
+            $totalCartons = (int) floor($totalQty / $packingSize);
+            $totalLoose = fmod($totalQty, $packingSize);
+            $totalLooseLiters = $isOil ? (float) ($totalLoose * ((float) $baseUnitMultiplier / $packingSize)) : 0;
             $stockStatus[0]['quantity'] = $totalQty;
-            $stockStatus[0]['cartons'] = (int) floor($totalQty / $packingSize);
-            $stockStatus[0]['loose'] = fmod($totalQty, $packingSize);
+            $stockStatus[0]['cartons'] = $totalCartons;
+            $stockStatus[0]['loose'] = $totalLoose;
+            $stockStatus[0]['loose_liters'] = $totalLooseLiters;
 
             return response()->json($stockStatus);
         }
@@ -984,6 +1583,7 @@ class PurchaseController extends Controller
 
         $stockStatus = [];
         $branchStocks = [];
+        $isOil = ($baseUnitName === 'Liter' && (float) $baseUnitMultiplier > 0);
         foreach ($warehouseItems as $warehouseItem) {
             $warehouse = $warehouseItem->warehouse;
             $branch = $warehouse ? $warehouse->branch : null;
@@ -993,7 +1593,8 @@ class PurchaseController extends Controller
 
             $quantity = floatval($warehouseItem->quantity ?? 0);
             $cartons = floor($quantity / $packingSize);
-            $loose = $quantity % $packingSize;
+            $loose = fmod($quantity, $packingSize);
+            $looseLiters = $isOil ? (float) ($loose * ((float) $baseUnitMultiplier / $packingSize)) : 0;
 
             if (!isset($branchStocks[$branchId])) {
                 $branchStocks[$branchId] = [
@@ -1003,23 +1604,34 @@ class PurchaseController extends Controller
                     'display' => $branchName . ($branchCode ? ' (' . $branchCode . ')' : ''),
                     'total_cartons' => 0,
                     'total_loose' => 0,
+                    'total_loose_liters' => 0,
                     'warehouses' => []
                 ];
             }
 
-            $warehouseData = [
-                'warehouse_id' => $warehouse->id,
-                'warehouse_name' => $warehouse->warehouse_name,
-                'warehouse_code' => $warehouse->warehouse_code,
-                'quantity' => $quantity,
-                'cartons' => $cartons,
-                'loose' => $loose,
-                'display' => $warehouse->warehouse_name
-            ];
-
-            $branchStocks[$branchId]['warehouses'][] = $warehouseData;
+            $whId = $warehouse->id;
+            if (isset($branchStocks[$branchId]['warehouses'][$whId])) {
+                $existing = &$branchStocks[$branchId]['warehouses'][$whId];
+                $existing['quantity'] += $quantity;
+                $existing['cartons'] = (int) floor($existing['quantity'] / $packingSize);
+                $existing['loose'] = fmod($existing['quantity'], $packingSize);
+                $existing['loose_liters'] = $isOil ? (float) ($existing['loose'] * ((float) $baseUnitMultiplier / $packingSize)) : 0;
+            } else {
+                $warehouseData = [
+                    'warehouse_id' => $whId,
+                    'warehouse_name' => $warehouse->warehouse_name,
+                    'warehouse_code' => $warehouse->warehouse_code ?? '',
+                    'quantity' => $quantity,
+                    'cartons' => (int) $cartons,
+                    'loose' => $loose,
+                    'loose_liters' => $looseLiters,
+                    'display' => $warehouse->warehouse_name
+                ];
+                $branchStocks[$branchId]['warehouses'][$whId] = $warehouseData;
+            }
             $branchStocks[$branchId]['total_cartons'] += $cartons;
             $branchStocks[$branchId]['total_loose'] += $loose;
+            $branchStocks[$branchId]['total_loose_liters'] += $looseLiters;
         }
 
         foreach ($branchStocks as $branchStock) {
@@ -1032,8 +1644,11 @@ class PurchaseController extends Controller
                 'display' => $branchStock['branch_name'],
                 'cartons' => $branchStock['total_cartons'],
                 'loose' => $branchStock['total_loose'],
+                'loose_liters' => $branchStock['total_loose_liters'],
                 'quantity' => $branchQty,
                 'unit' => $unitName,
+                'base_unit' => $baseUnitName,
+                'base_unit_multiplier' => $baseUnitMultiplier,
             ];
 
             foreach ($branchStock['warehouses'] as $warehouse) {
@@ -1045,9 +1660,12 @@ class PurchaseController extends Controller
                     'display' => $warehouse['display'],
                     'cartons' => $warehouse['cartons'],
                     'loose' => $warehouse['loose'],
+                    'loose_liters' => $warehouse['loose_liters'],
                     'quantity' => $warehouse['quantity'],
                     'branch_id' => $branchStock['branch_id'],
                     'unit' => $unitName,
+                    'base_unit' => $baseUnitName,
+                    'base_unit_multiplier' => $baseUnitMultiplier,
                 ];
             }
         }
@@ -1252,7 +1870,7 @@ class PurchaseController extends Controller
             'vehical_item.model_vehical',
             'category',
             'subcategory',
-            'unit_item', // Load unit relationship to get unit name
+            'unit_item.baseUnits', // unit name + base units (e.g. Can -> 4 Liter)
             'product_item', // Product name
             'company_item', // Company
             'quality_item', // Quality
@@ -1265,6 +1883,7 @@ class PurchaseController extends Controller
             'level_item', // Level
             'plate_item', // Plate (for battery)
             'amphors_item', // Amperes (for battery)
+            'mileage_item', // Mileage (e.g. oil)
         ])->where('is_active', 1);
 
         // Multi-term search: space-separated words = AND filter (each term must match somewhere in item)
@@ -1572,11 +2191,14 @@ class PurchaseController extends Controller
                 $stock = (float) \App\Models\WarehouseItem::where('item_id', $item->id)
                     ->whereHas('warehouse', fn($q) => $q->where('branch_id', $branchId))
                     ->sum('quantity');
+                $unitInfo = $this->getItemUnitDisplayForSearch($item);
                 $results[] = [
                     'type' => 'item',
                     'id' => $item->id,
                     'stock' => $stock,
-                    'item' => $item
+                    'item' => $item,
+                    'unit_display' => $unitInfo['unit_display'],
+                    'liter_per_can' => $unitInfo['liter_per_can'],
                 ];
             }
         } else {
@@ -1613,30 +2235,86 @@ class PurchaseController extends Controller
                 ];
                 foreach ($data['items'] as $item) {
                     $qty = (float) (\App\Models\WarehouseItem::where('item_id', $item->id)->where('warehouse_id', $warehouse->id)->value('quantity') ?? 0);
+                    $unitInfo = $this->getItemUnitDisplayForSearch($item);
                     $results[] = [
                         'type' => 'item',
                         'id' => $item->id,
                         'warehouse_id' => $warehouse->id,
                         'warehouse_name' => $warehouse->warehouse_name,
                         'stock' => $qty,
-                        'item' => $item
+                        'item' => $item,
+                        'unit_display' => $unitInfo['unit_display'],
+                        'liter_per_can' => $unitInfo['liter_per_can'],
                     ];
                 }
             }
             if (empty($warehouseItems) && !empty($items)) {
                 foreach ($items as $item) {
                     $stock = $item->on_hand ?? 0;
+                    $unitInfo = $this->getItemUnitDisplayForSearch($item);
                     $results[] = [
                         'type' => 'item',
                         'id' => $item->id,
                         'stock' => $stock,
-                        'item' => $item
+                        'item' => $item,
+                        'unit_display' => $unitInfo['unit_display'],
+                        'liter_per_can' => $unitInfo['liter_per_can'],
                     ];
                 }
             }
         }
 
         return response()->json($results);
+    }
+
+    /**
+     * For purchase search: get unit display string and liter-per-can for item (oil/can display in first line).
+     */
+    private function getItemUnitDisplayForSearch(Item $item): array
+    {
+        $unitName = $item->unit_item ? trim($item->unit_item->name ?? $item->unit_item->short_name ?? '') : '';
+        $literPerCan = null;
+        // 0) From item's unit_option (selected conversion e.g. "12_8_4" => 4 Liter) — user selected "CAN - 4 LITER"
+        $unitOption = $item->unit_option ? trim((string) $item->unit_option) : '';
+        if ($unitOption !== '' && strpos($unitOption, '_') !== false) {
+            $parts = explode('_', $unitOption);
+            $lastPart = end($parts);
+            if (is_numeric($lastPart) && (float) $lastPart > 0) {
+                $literPerCan = (float) $lastPart;
+            }
+        }
+        // 1) From unit name e.g. "Can - 4 Liter" or "Can 4L"
+        if ($literPerCan === null && preg_match('/(\d+(?:\.\d+)?)\s*(?:liter|ltr|L)\b/i', $unitName, $m)) {
+            $literPerCan = (float) $m[1];
+        } elseif ($literPerCan === null && preg_match('/\b(?:liter|ltr|L)\s*(\d+(?:\.\d+)?)/i', $unitName, $m)) {
+            $literPerCan = (float) $m[1];
+        }
+        // 2) From item filling (per-can liters)
+        if ($literPerCan === null && $item->filling !== null && $item->filling !== '' && !is_nan((float) $item->filling)) {
+            $literPerCan = (float) $item->filling;
+        }
+        // 3) From unit's base unit (e.g. Can has base unit Liter with multiplier 4) — only if no unit_option
+        if ($literPerCan === null && $item->unit_item && $item->unit_item->relationLoaded('baseUnits')) {
+            foreach ($item->unit_item->baseUnits as $base) {
+                $baseName = trim($base->name ?? $base->short_name ?? '');
+                if (stripos($baseName, 'liter') !== false || stripos($baseName, 'ltr') !== false || $baseName === 'L') {
+                    $mult = $base->pivot->multiplier ?? $base->pivot->getAttribute('multiplier') ?? null;
+                    if ($mult !== null && $mult !== '' && (float) $mult > 0) {
+                        $literPerCan = (float) $mult;
+                        break;
+                    }
+                }
+            }
+        }
+        $unitDisplay = $unitName;
+        if ($literPerCan > 0) {
+            $literal = (floor($literPerCan) == $literPerCan) ? (int) $literPerCan : number_format($literPerCan, 1, '.', '');
+            $canLiteral = 'Can - ' . $literal . ' Liter';
+            if ($unitDisplay === '' || $unitDisplay === 'Unit' || stripos($unitDisplay, 'liter') === false) {
+                $unitDisplay = $canLiteral;
+            }
+        }
+        return ['unit_display' => $unitDisplay ?: '', 'liter_per_can' => $literPerCan];
     }
 
     /**
@@ -1685,6 +2363,124 @@ class PurchaseController extends Controller
                 'balance' => 0,
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Get purchase orders for a supplier (for loading into a Purchase Bill).
+     * Returns POs that have at least one line with pending quantity > 0, or status draft.
+     */
+    public function getPurchaseOrdersBySupplier(Request $request, $supplierId)
+    {
+        $supplier = Supplier::find($supplierId);
+        if (!$supplier) {
+            return response()->json(['success' => false, 'message' => 'Supplier not found.'], 404);
+        }
+
+        $pos = Purchase::with(['items.item.product_item', 'items.item.plate_item', 'items.item.amphors_item', 'items.item.company_item', 'items.item.partnumber_item', 'items.item.category', 'items.warehouse'])
+            ->where('supplier_id', $supplierId)
+            ->where('is_purchase_order', true)
+            ->orderBy('purchase_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $list = [];
+        foreach ($pos as $po) {
+            $lines = [];
+            $hasPending = false;
+            foreach ($po->items as $line) {
+                $ordered = (float) ($line->ordered_quantity ?? $line->quantity ?? 0);
+                $received = (float) ($line->received_quantity ?? 0);
+                $pending = max(0, $ordered - $received);
+                if ($pending > 0) $hasPending = true;
+                // Use same display logic as search: battery sequence (Product • Plate • Amperes • Company) for battery items, else strip HTML
+                $itemName = 'Item #' . $line->item_id;
+                if ($line->item) {
+                    $batterySequence = $this->buildBatterySequenceDisplayName($line->item);
+                    if ($batterySequence !== null) {
+                        $itemName = $batterySequence;
+                    } else {
+                        $raw = trim(strip_tags((string) ($line->item->short_disc ?? $line->item->pro_dis ?? '')));
+                        if ($raw === '' && $line->item->partnumber_item) {
+                            $raw = trim(strip_tags((string) ($line->item->partnumber_item->name ?? '')));
+                        }
+                        if ($raw === '') {
+                            $raw = trim((string) ($line->item->bar_code ?? ''));
+                        }
+                        $itemName = $raw !== '' ? $raw : ('Item #' . $line->item_id);
+                    }
+                }
+                $wh = $line->warehouse;
+                $warehouseId = $wh ? (int) $wh->id : null;
+                $warehouseName = $wh ? trim(preg_replace('/\s*\([^)]*\)\s*$/', '', $wh->warehouse_name ?? '')) : null;
+                if ($warehouseName === '') {
+                    $warehouseName = $wh ? ($wh->warehouse_name ?? null) : null;
+                }
+                $categoryName = ($line->item && $line->item->category) ? trim($line->item->category->name ?? '') : '';
+                $lines[] = [
+                    'id' => $line->id,
+                    'item_id' => $line->item_id,
+                    'item_name' => $itemName,
+                    'category_name' => $categoryName ?: 'Other',
+                    'warehouse_id' => $warehouseId,
+                    'warehouse_name' => $warehouseName,
+                    'ordered_quantity' => $ordered,
+                    'received_quantity' => $received,
+                    'pending_quantity' => $pending,
+                    'rate' => (float) ($line->rate ?? 0),
+                    'discount' => (float) ($line->discount ?? 0),
+                    'tax_percentage' => (float) ($line->tax_percentage ?? 0),
+                    'unit' => $line->unit ?? null,
+                ];
+            }
+            // Include PO even if no pending (so user can see completed/draft and use Close)
+            $list[] = [
+                'id' => $po->id,
+                'invoice_no' => $po->invoice_no,
+                'purchase_date' => $po->purchase_date ? (\Carbon\Carbon::parse($po->purchase_date)->format('d/m/Y')) : '',
+                'po_status' => $po->po_status ?? 'draft',
+                'has_pending' => $hasPending,
+                'items' => $lines,
+            ];
+        }
+
+        // Sort: POs with pending quantity first (so "pending" list is clear), then by date
+        usort($list, function ($a, $b) {
+            if ($a['has_pending'] !== $b['has_pending']) {
+                return $a['has_pending'] ? -1 : 1;
+            }
+            $dateA = $a['purchase_date'] ?? '';
+            $dateB = $b['purchase_date'] ?? '';
+            return strcmp($dateB, $dateA);
+        });
+
+        return response()->json(['success' => true, 'purchase_orders' => $list]);
+    }
+
+    /**
+     * Close / Wind up a Purchase Order: mark as completed and set received = ordered for all lines.
+     */
+    public function closePurchaseOrder(Request $request, $id)
+    {
+        $po = Purchase::where('id', $id)->where('is_purchase_order', true)->first();
+        if (!$po) {
+            return response()->json(['success' => false, 'message' => 'Purchase Order not found.'], 404);
+        }
+
+        DB::beginTransaction();
+        try {
+            foreach ($po->items as $line) {
+                $ordered = (float) ($line->ordered_quantity ?? $line->quantity ?? 0);
+                $line->received_quantity = $ordered;
+                $line->save();
+            }
+            $po->po_status = 'completed';
+            $po->save();
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Purchase Order closed.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }

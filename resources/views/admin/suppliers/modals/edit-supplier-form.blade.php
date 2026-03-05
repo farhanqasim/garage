@@ -50,7 +50,7 @@
                 <div class="profile-upload-box text-center border rounded p-3 bg-light position-relative" style="cursor: pointer;">
                     <input type="file" name="profile_img" id="profile_img" accept="image/*" class="position-absolute top-0 start-0 w-100 h-100 opacity-0">
                     <div class="preview-container">
-                        <img id="profile_preview" src="{{ $supplier->profile_img ? asset($supplier->profile_img) : '' }}" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px; {{ $supplier->profile_img ? '' : 'display: none;' }}">
+                        <img id="profile_preview" src="{{ $supplier->profile_img ? '/' . ltrim($supplier->profile_img, '/') : '' }}" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px; {{ $supplier->profile_img ? '' : 'display: none;' }}" onerror="this.onerror=null; this.style.display='none';">
                     </div>
                     <div class="upload-placeholder {{ $supplier->profile_img ? 'd-none' : '' }}">
                         <i class="fas fa-camera fa-3x text-muted mb-2"></i>
@@ -60,7 +60,7 @@
                 </div>
                 @if($supplier->profile_img)
                     <div class="mt-2">
-                        <a href="{{ asset($supplier->profile_img) }}" target="_blank" class="btn btn-sm btn-outline-primary">View Current Image</a>
+                        <a href="{{ '/' . ltrim($supplier->profile_img, '/') }}" target="_blank" class="btn btn-sm btn-outline-primary">View Current Image</a>
                     </div>
                 @endif
             </div>
@@ -113,21 +113,28 @@
                 </button>
             </div>
 
-            <!-- Other Fields -->
-            <div class="col-md-6">
+            <!-- Company (below Name & Phone / WhatsApp section) -->
+            <div class="col-12">
                 <label for="company" class="form-label">Company</label>
                 <input type="text" name="company" value="{{ old('company', $supplier->company) }}" class="form-control">
             </div>
+
+            <!-- Other Fields -->
             <div class="col-md-6">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" name="email" value="{{ old('email', $supplier->email) }}" class="form-control">
             </div>
             <div class="col-md-6">
                 <label for="group_id" class="form-label">Group</label>
-                <select name="group_id" class="form-select">
-                    <option value="">Select Group</option>
-                    <option value="1" {{ ($supplier->group_id ?? '') == 1 ? 'selected' : '' }}>Group One</option>
-                </select>
+                <div class="input-group">
+                    <select name="group_id" class="form-select supplier-group-select" style="border-radius: 6px 0 0 6px;">
+                        <option value="">Select Group</option>
+                        @foreach($groups ?? [] as $g)
+                            <option value="{{ $g->id }}" {{ ($supplier->group_id ?? '') == $g->id ? 'selected' : '' }}>{{ $g->name }}</option>
+                        @endforeach
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary open-universal-modal" style="border-radius: 0 6px 6px 0;" title="Edit group" data-mode="edit" data-title="Edit Group" data-fetch-route="{{ route('show.groups', ':id') }}" data-update-route="{{ route('post.groups.update', ':id') }}" data-delete-route="{{ route('post.groups.destroy', ':id') }}" data-target-select=".supplier-group-select"><i class="ti ti-edit"></i></button>
+                </div>
             </div>
             <div class="col-md-6">
                 <label for="password" class="form-label">Password <small>(leave blank to keep current)</small></label>
@@ -190,7 +197,7 @@
                     <div class="preview-container d-flex flex-wrap justify-content-center gap-2 p-2" id="multiple_images_preview">
                         @forelse($supplier->multiple_images as $image)
                             <div class="position-relative">
-                                <img src="{{ asset($image) }}" alt="Existing Image" class="img-fluid rounded" style="max-height: 100px; width: auto;">
+                                <img src="{{ '/' . ltrim($image, '/') }}" alt="Existing Image" class="img-fluid rounded" style="max-height: 100px; width: auto;" onerror="this.onerror=null; this.parentElement.remove();">
                                 <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 remove-image" data-image="{{ $image }}">×</button>
                             </div>
                         @empty
